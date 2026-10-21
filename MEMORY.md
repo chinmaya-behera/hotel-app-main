@@ -64,3 +64,13 @@ The user requested publication as a public GitHub repository. Prepare the initia
 ## GitHub repository (2026-10-20)
 
 Public repository created and verified: https://github.com/chinmaya-behera/hotel-app-main (default branch `main`). Documentation publication uses the connected GitHub plugin. The local initial commit and GitHub initialization have separate histories; preserve local history and fetch the remote before future synchronization.
+
+## Interactive wireframe implementation (2026-10-21)
+
+The earlier documentation-only baseline is historical. `wireframe/` now contains Atelier Hotel, a working beige-toned React/Vinext prototype deployed privately at https://hotel-atelier-operations.gamingslayer20.chatgpt.site. It covers nine selectable staff personas, twelve rooms, operational actions, handovers, restricted incident records and role administration. See `wireframe/WIREFRAME.md` for exact functionality and limitations.
+
+The prototype uses Sites D1 storage for versioned operational records; it does not implement the proposed full PostgreSQL production schema or genuine employee account mapping. The owner-only role picker is explicitly a wireframe facility. Real PMS/POS/payment and emergency integrations are not connected, and financial actions are labeled demonstrations.
+
+Guest access has actual QR links, the click-to-login alternative, real Resend email requests, single-use password verification, expiring hashed credentials and room-session revocation. The email key is a hosted secret, with ignored local configuration for QA; never copy it into source or documentation. Resend's default sender requires the account's recipient email until a domain is verified. The user confirmed the email-password login succeeded in the local preview, and the guest services screen and a request routed to Housekeeping were observed.
+
+Verification: production build and TypeScript checks passed, as did 15 domain tests. Local UI verification covered persistent request creation, eligible dispatcher assignment, QR generation and the complete real-email guest request journey. The hosted publication succeeded; its browser gate requires the owner's ChatGPT sign-in. The live database is separate from the local test database. Original requirement documents and workflow images are preserved.
