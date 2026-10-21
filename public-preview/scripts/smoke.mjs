@@ -1,0 +1,27 @@
+import assert from 'node:assert/strict';
+const base=process.env.BASE_URL||'http://127.0.0.1:3000';
+const origin=new URL(base).origin;
+async function call(path,options={}){const r=await fetch(base+path,options);return {r,data:await r.json()};}
+const a=await call('/api/hotel?role=executive'),b=await call('/api/hotel?role=executive');
+assert.equal(a.r.status,200);assert.equal(b.r.status,200);assert.notEqual(a.data.demoId,b.data.demoId);
+const ca=a.r.headers.get('set-cookie').split(';')[0],cb=b.r.headers.get('set-cookie').split(';')[0];
+console.log('PASS: anonymous visitors receive different private sandbox sessions.');
+const again=await call('/api/hotel?role=frontdesk',{headers:{Cookie:ca}});assert.equal(again.data.demoId,a.data.demoId);
+const create={action:'createTask',role:'frontdesk',version:again.data.version,room:'101',department:'Housekeeping',title:'Public visitor isolation check',category:'Service',priority:'Normal',notes:'Synthetic smoke test.'};
+const write=await call('/api/hotel',{method:'POST',headers:{Cookie:ca,Origin:origin,'Content-Type':'application/json'},body:JSON.stringify(create)});assert.equal(write.r.status,200,write.data.error);
+const other=await call('/api/hotel?role=executive',{headers:{Cookie:cb}});assert.equal(other.data.state.tasks.some(t=>t.title===create.title),false);
+console.log('PASS: visitor mutations persist without appearing in another visitor workspace.');
+const fulfiller=await call('/api/hotel?role=fulfiller',{headers:{Cookie:ca}});assert.ok(fulfiller.data.state.tasks.every(t=>t.assignee==='Sofia Rivera'));assert.equal(fulfiller.data.state.financials.length,0);assert.equal(fulfiller.data.state.incidents.length,0);
+console.log('PASS: fulfiller scope excludes other tasks, finance and incident records.');
+const denied=await call('/api/hotel',{method:'POST',headers:{Cookie:ca,Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({action:'approve',role:'admin',id:'FIN-104',version:write.data.version})});assert.equal(denied.r.status,422);
+const noOrigin=await call('/api/hotel',{method:'POST',headers:{Cookie:ca,'Content-Type':'application/json'},body:JSON.stringify(create)});assert.equal(noOrigin.r.status,422);
+console.log('PASS: unauthorized role actions and cross-origin mutations are rejected.');
+const guest=await call('/api/guest?demo='+a.data.demoId);assert.equal(guest.data.room,null);assert.equal(guest.data.tasks.length,0);assert.equal(guest.data.messages.length,0);assert.equal(guest.data.rooms[0].email,undefined);
+const guestWrite=await call('/api/guest',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({demo:a.data.demoId,action:'request',service:'Room cleaning'})});assert.equal(guestWrite.r.status,401);
+console.log('PASS: QR workspace context does not authenticate a guest or expose private room data.');
+const before=await call('/api/hotel?role=frontdesk',{headers:{Cookie:ca}});
+const common={...create,version:before.data.version};
+const conflict=await Promise.all(['One','Two'].map(title=>call('/api/hotel',{method:'POST',headers:{Cookie:ca,Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({...common,title:'Concurrent '+title})})));
+assert.deepEqual(conflict.map(x=>x.r.status).sort(),[200,409]);
+console.log('PASS: concurrent updates cannot silently overwrite each other.');
+console.log('Public preview smoke tests passed.');
