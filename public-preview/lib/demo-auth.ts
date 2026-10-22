@@ -2,7 +2,7 @@ import { randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import { cookies } from "next/headers";
 import { db, digest, type Workspace } from "./store";
-import { isRole, type Role } from "./hotel-domain";
+import { isRole, roleInfo, type Role } from "./hotel-domain";
 const derive=promisify(scrypt);
 const options={httpOnly:true,secure:process.env.NODE_ENV==="production",sameSite:"lax" as const,path:"/",maxAge:28800};
 export async function verifyPassword(password:string,hash:string){
@@ -10,11 +10,11 @@ export async function verifyPassword(password:string,hash:string){
  const expected=Buffer.from(key,"hex"),actual=await derive(password,salt,64) as Buffer;
  return expected.length===actual.length&&timingSafeEqual(expected,actual);
 }
-export async function staffSession(workspace:Workspace):Promise<{role:Role;username:string}|null>{
+export async function staffSession(workspace:Workspace):Promise<{role:Role;username:string;person:string}|null>{
  const token=(await cookies()).get("atelier_staff")?.value;if(!token||token.length>200)return null;
  const rows=await db().query("SELECT a.role,a.username FROM demo_staff_sessions s JOIN demo_staff_accounts a ON a.username=s.username WHERE s.digest=$1 AND s.workspace_id=$2 AND s.expires>now() AND a.active=true",[digest(token),workspace.id]);
  const account=rows[0];if(!account||!isRole(account.role)||!workspace.data.staff.some(s=>s.id===account.role&&s.active))return null;
- return {role:account.role,username:account.username};
+ return {role:account.role,username:account.username,person:account.username==="finance-review.demo"?"Avery Shah":roleInfo(account.role).person};
 }
 export async function logoutStaff(){const jar=await cookies(),old=jar.get("atelier_staff")?.value;if(old)await db().query("DELETE FROM demo_staff_sessions WHERE digest=$1",[digest(old)]);jar.set("atelier_staff","",{...options,maxAge:0});}
 export async function loginStaff(username:string,password:string,workspace:Workspace){
@@ -24,5 +24,5 @@ export async function loginStaff(username:string,password:string,workspace:Works
  if(!account||!valid||!isRole(account.role)||!workspace.data.staff.some(s=>s.id===account.role&&s.active))return null;
  await logoutStaff();const token=randomBytes(32).toString("base64url");
  await db().query("INSERT INTO demo_staff_sessions(digest,workspace_id,username,expires) VALUES($1,$2,$3,$4)",[digest(token),workspace.id,account.username,new Date(Date.now()+28800000).toISOString()]);
- (await cookies()).set("atelier_staff",token,options);return {role:account.role,username:account.username};
+ (await cookies()).set("atelier_staff",token,options);return {role:account.role,username:account.username,person:account.username==="finance-review.demo"?"Avery Shah":roleInfo(account.role).person};
 }

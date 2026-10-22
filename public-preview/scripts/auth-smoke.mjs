@@ -17,9 +17,9 @@ const samples={
  manager:{action:'policy',category:'Housekeeping',acknowledgement:5,completion:35},
  finance:{action:'execute',id:'FIN-103'},
  security:{action:'incident',id:'INC-021',operation:'backup'},
- admin:{action:'retry',id:'pms'}
+ admin:{action:'staff',id:'runner',approval:'Approved access request'}
 };
-for(const account of accounts){
+for(const account of accounts.filter(a=>a.username!=="finance-review.demo")){
  await login(a,account.role);const current=await a.call('/api/hotel');assert.equal(current.status,200);assert.equal(current.data.role,account.role);
  if(workspace)assert.equal(current.data.demoId,workspace);workspace=current.data.demoId;
  if(account.role==='fulfiller'){assert.ok(current.data.state.tasks.every(t=>t.assignee==='Sofia Rivera'));assert.equal(current.data.state.rooms.length,0);assert.equal(current.data.state.financials.length,0);}

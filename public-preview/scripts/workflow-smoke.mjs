@@ -1,0 +1,56 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {randomBytes,randomUUID,createHash} from 'node:crypto';
+import {neon} from '@neondatabase/serverless';
+const base=process.env.BASE_URL||'http://127.0.0.1:3000',origin=new URL(base).origin,sql=neon(process.env.DATABASE_URL);
+const accounts=JSON.parse(await readFile(new URL('../.demo-credentials.json',import.meta.url),'utf8'));
+const jar=new Map(),guestJar=new Map();
+async function call(path,body,cookies=jar){const headers={Cookie:[...cookies].map(([k,v])=>k+'='+v).join(';')};if(body){headers.Origin=origin;headers['Content-Type']='application/json';}const r=await fetch(base+path,{method:body?'POST':'GET',headers,body:body?JSON.stringify(body):undefined});for(const c of r.headers.getSetCookie()){const [k,...v]=c.split(';')[0].split('=');cookies.set(k,v.join('='));}return {status:r.status,...await r.json()};}
+async function login(roleOrUsername){const account=accounts.find(a=>a.username===roleOrUsername)||accounts.find(a=>a.role===roleOrUsername);const result=await call('/api/demo-auth',{action:'login',username:account.username,password:account.password});assert.equal(result.status,200,result.error);return account;}
+async function state(){const s=await call('/api/hotel');assert.equal(s.status,200,s.error);return s;}
+async function act(action,data={},expected=200){const s=await state();const result=await call('/api/hotel',{action,...data,version:s.version,role:s.role});assert.equal(result.status,expected,action+': '+result.error);return result;}
+await login('frontdesk');
+let created=await act('createTask',{room:'101',title:'Client walkthrough delivery',department:'Housekeeping',priority:'High',category:'Amenities'}),task=created.state.tasks[0],workspace=created.demoId;
+await act('createTask',{room:'101',title:'Duplicate walkthrough delivery',department:'Housekeeping'});const duplicate=(await state()).state.tasks[0];
+await act('linkTask',{id:duplicate.id,target:task.id,relation:'duplicate'});
+await act('message',{room:'101',text:'Your delivery is being arranged.'});
+await act('closeCase',{id:task.id},422);
+await login('dispatcher');
+await act('assign',{id:task.id,assignee:'Sofia Rivera'});
+await act('schedule',{id:task.id,due:new Date(Date.now()+3600000).toISOString(),notes:'Guest preference'});
+await login('fulfiller');
+let own=await state();assert.ok(own.state.staff.some(s=>s.name==='Oliver Reed'));assert.ok(own.state.tasks.every(t=>t.assignee==='Sofia Rivera'));
+for(const status of ['Accepted','In progress','Blocked','In progress','On the way','Completed'])await act('transition',{id:task.id,status,notes:status==='Blocked'?'Guest requested a later visit':'Progress confirmed'});
+await act('taskNote',{id:task.id,notes:'Delivery confirmation recorded.'});
+await act('handover',{title:'Inspect client delivery',owner:'Oliver Reed',backup:'Isabella Scott',eta:new Date(Date.now()+3600000).toISOString(),next:'Inspect and inform Front Desk'});const handover=(await state()).state.handovers[0];
+await login('supervisor');await act('handover',{id:handover.id,operation:'ack'});await act('inspect',{id:task.id,status:'Open',notes:'Replace one towel'});
+await login('fulfiller');for(const status of ['Accepted','In progress','Completed'])await act('transition',{id:task.id,status});
+await login('supervisor');await act('inspect',{id:task.id,status:'Inspected',notes:'Delivery inspected'});
+await login('frontdesk');await act('closeCase',{id:task.id});assert.ok((await state()).state.tasks.find(t=>t.id===task.id).caseClosedAt);
+console.log('PASS: create → link duplicate → assign → schedule → block/resume → fulfil → handover → inspect/reopen → close case.');
+await act('financeRequest',{room:'101',amount:25,reason:'Service recovery walkthrough'});const finance=(await state()).state.financials[0];
+await login('executive');await act('approve',{id:finance.id});
+await login('finance');assert.ok((await state()).state.rooms.every(r=>!r.guest&&!r.email));await act('execute',{id:finance.id});await act('reconcile',{id:finance.id,reviewer:'Independent reviewer'},422);
+await login('finance-review.demo');await act('reconcile',{id:finance.id});assert.equal((await state()).state.financials.find(f=>f.id===finance.id).reconciler,'Avery Shah');
+await act('export');console.log('PASS: real distinct finance logins enforce approval → execution → independent reconciliation and export audit.');
+await login('admin');await act('policy',{category:'Housekeeping',acknowledgement:6,completion:45,approval:'Approved configuration change'});await act('staff',{id:'dispatcher',approval:'Approved access request'});
+const disabled=accounts.find(a=>a.role==='dispatcher');assert.equal((await call('/api/demo-auth',{action:'login',username:disabled.username,password:disabled.password})).status,401);
+await act('staff',{id:'dispatcher',approval:'Approved access request'});await act('retry',{id:'pms'},422);await act('staff',{id:'admin',approval:'Approved access request'},422);
+const audited=await state();assert.ok(audited.state.audit.some(a=>a.text.startsWith('export')));assert.equal(audited.state.connectors.find(c=>c.id==='email').state,'Configured');
+await login('manager');await act('policy',{category:'Housekeeping',acknowledgement:8,completion:50});
+await login('frontdesk');await act('createTask',{room:'101',title:'Configured target check',department:'Housekeeping'});const configured=(await state()).state.tasks[0];assert.equal(Date.parse(configured.due)-Date.parse(configured.created),45*60000);
+const email=(process.env.DEMO_EMAIL_ALLOWLIST||'').split(',')[0].trim()||'fixture@example.com';await act('registerRoom',{id:'101',guest:'Client workflow verification',email,verified:true});
+const challenge=randomUUID(),password=randomBytes(16).toString('base64url'),hash=v=>createHash('sha256').update(v).digest('hex');
+await sql.query('INSERT INTO demo_guest_codes(id,workspace_id,room,email,digest,expires,sent) VALUES($1,$2,$3,$4,$5,$6,true)',[challenge,workspace,'101',email,hash(password),new Date(Date.now()+600000).toISOString()]);
+assert.equal((await call('/api/guest',{demo:workspace,action:'verify',room:'101',challenge,password},guestJar)).status,200);
+assert.equal((await call('/api/guest',{demo:workspace,action:'verify',room:'101',challenge,password},guestJar)).status,401);
+await call('/api/guest',{demo:workspace,action:'request',service:'Security assistance',notes:'Synthetic client walkthrough'},guestJar);
+await login('security');const incident=(await state()).state.incidents.find(i=>i.title==='Guest security assistance');assert.ok(incident);
+await act('incident',{id:incident.id,operation:'backup'});await act('incident',{id:incident.id,operation:'evidence',notes:'DEMO-REFERENCE: custody recorded'});
+for(let i=0;i<3;i++)await act('incident',{id:incident.id});const portal=await call('/api/guest?demo='+workspace,undefined,guestJar);assert.ok(portal.tasks.some(t=>t.title==='Security assistance'&&t.status==='Completed'));assert.equal(portal.incidents,undefined);
+await login('frontdesk');await act('room',{id:'101',operation:'move',target:'106'});assert.equal((await call('/api/guest?demo='+workspace,undefined,guestJar)).room,null);
+await act('room',{id:'106',operation:'checkout'});assert.equal((await state()).state.rooms.find(r=>r.id==='106').status,'Cleaning');
+await act('registerRoom',{id:'102',guest:'Revoke session fixture',email,verified:true});await act('revoke',{id:'102'});
+await call('/api/demo-auth',{action:'logout'});assert.equal((await call('/api/hotel')).status,401);
+console.log('PASS: policy targets, approved access toggles, audit, one-use guest authentication, security routing/response and stay-session revocation.');
+console.log('Guest authentication used a database fixture code; this test does not send an email or claim fresh delivery verification.');
