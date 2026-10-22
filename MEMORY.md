@@ -79,3 +79,8 @@ Verification: production build and TypeScript checks passed, as did 15 domain te
 ## Public Vercel preview — 2026-10-21
 
 Deployed public-preview/ to https://atelier-hotel-preview.vercel.app (project atelier-hotel-preview, deployment dpl_FE3EkgeNcBUNm6gHnymzeWNrsMZ8). Next.js with Neon persistence and server-only Resend. Each visitor gets an isolated 12-hour sandbox; public persona switching is a demonstration, not production employee auth. Production build, type checks, 15 domain tests and live API smoke tests pass. Anonymous browser access and all nine role options verified. Gmail remains a recipient only: arbitrary-recipient sending requires a verified owned domain. CLI deployment works; automatic Git deployment awaits GitHub connection in Vercel. Original private Sites app retained.
+
+
+## Role demo login review — 2026-10-22
+
+Compared all nine profiles to PRD.md and documented implemented capabilities, remaining production requirements and client walkthroughs in public-preview/ROLE_COVERAGE.md. Added separate demo username/password accounts, scrypt password hashes and opaque, database-backed eight-hour staff sessions bound to the visitor workspace. API roles now derive from the session and spoofed role parameters are rejected. Logout revokes the session; changing accounts preserves the browser sandbox. Login credentials are generated in ignored local public-preview/CLIENT_DEMO_LOGINS.md and .demo-credentials.json, excluded from Git and deployment uploads. Original Sites app remains the earlier private prototype; these accounts apply to the Vercel preview /login.

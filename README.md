@@ -4,7 +4,9 @@ A beige-toned interactive hotel-management wireframe based on this repository's 
 
 **[Open the public Vercel preview](https://atelier-hotel-preview.vercel.app)** · [Public implementation and setup](public-preview/README.md)
 
-The public preview uses isolated visitor sandboxes, all nine staff personas, twelve rooms and password-protected guest services. Vercel hosts Next.js and Neon stores sandbox data. Real Resend delivery currently supports the configured test recipient; other recipients require a verified sender domain.
+Sign in at **[Client demo login](https://atelier-hotel-preview.vercel.app/login)** using the presenter-provided credentials. See [role coverage and walkthroughs](public-preview/ROLE_COVERAGE.md).
+
+The public preview uses isolated visitor sandboxes, all nine staff demo accounts, twelve rooms and password-protected guest services. Vercel hosts Next.js and Neon stores sandbox data. Real Resend delivery currently supports the configured test recipient; other recipients require a verified sender domain.
 
 **[Open the private live preview](https://hotel-atelier-operations.gamingslayer20.chatgpt.site)** · [Implementation and prototype boundaries](wireframe/WIREFRAME.md)
 

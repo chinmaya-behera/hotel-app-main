@@ -4,3 +4,6 @@ node_modules/
 .next/
 outputs/
 tests/
+
+.demo-credentials*
+CLIENT_DEMO_LOGINS.md

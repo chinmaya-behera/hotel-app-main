@@ -8,3 +8,6 @@ outputs/
 
 .vercel
 .env*
+
+.demo-credentials*
+CLIENT_DEMO_LOGINS.md
