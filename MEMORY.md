@@ -96,3 +96,8 @@ Provider delivery check for the activation test subsequently reported delivered.
 ## Database deployment verification — 2026-10-22
 
 Confirmed the existing Neon Marketplace database is connected to the Vercel deployment; all six demo tables and nine active role accounts are present. Created a synthetic task through the live Front Desk API, read it in a fresh API request and independently located it in Neon, confirming actual deployed persistence. Added public-preview/DATABASE.md with resource dashboard, migration instructions, JSONB schema boundaries, 12-hour visitor sandbox expiry, shared environment database and production limitations. No second database was provisioned and no existing data was migrated or removed.
+
+
+## Custom domain connection — 2026-10-22
+
+User authorized both devatelier.tech and www.devatelier.tech on Chinmaya Behera’s projects and explicitly approved get.tech-only nameservers plus copying verification and Resend records into Vercel DNS during propagation. Registrar was inspected and confirms the four get.tech nameservers saved. Claimed domain into team_Ps5zUB9zdIwSB34tYMoSFzS1, attached both hosts to prj_6VCWLWH6pQNMic6yZfi5JL5qJfFM and completed project verification for both. Vercel reports configured-correctly with no issues for www. Apex /login returns HTTP 200 over normal HTTPS and the correct login UI was observed. www /login returns HTTP 200 with valid TLS when resolving to Vercel’s current reported IP, while the local resolver still has a stale negative DNS response. Do not claim universal DNS propagation is complete. Existing get.tech DNS records and Vercel fallback retained.

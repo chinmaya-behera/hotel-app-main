@@ -2,9 +2,9 @@
 
 A beige-toned interactive hotel-management wireframe based on this repository's requirements and workflow diagrams.
 
-**[Open the public Vercel preview](https://atelier-hotel-preview.vercel.app)** · [Public implementation and setup](public-preview/README.md)
+**[Open the public hotel demo](https://devatelier.tech/login)** · [Vercel fallback](https://atelier-hotel-preview.vercel.app) · [Public implementation and setup](public-preview/README.md)
 
-Sign in at **[Client demo login](https://atelier-hotel-preview.vercel.app/login)** using the presenter-provided credentials. See [role coverage and walkthroughs](public-preview/ROLE_COVERAGE.md).
+Sign in at **[Client demo login](https://devatelier.tech/login)** using the presenter-provided credentials. See [role coverage and walkthroughs](public-preview/ROLE_COVERAGE.md).
 
 The public preview uses isolated visitor sandboxes, all nine staff demo accounts, twelve rooms and password-protected guest services. Vercel hosts Next.js and Neon stores sandbox data. Public Resend delivery uses the verified devatelier.tech domain and sends room passwords to the email registered by Front Desk.
 
