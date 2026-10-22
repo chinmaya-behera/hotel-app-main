@@ -10,9 +10,9 @@ Use Node.js 24 and run npm ci. Link the intended Vercel project and pull develop
 
 Run npm run db:migrate for a new database, then node --env-file=.env.local scripts/seed-demo-accounts.mjs to provision the nine role accounts and create an ignored local CLIENT_DEMO_LOGINS.md sheet. Existing accounts are preserved; keep the local credential file to reproduce the sheet. Run npm test, npm run typecheck, npm run build, then npm start. Run node scripts/smoke.mjs for database/API checks; set BASE_URL to test the deployed URL.
 
-## Email limits
+## Email delivery
 
-The default Resend sender is restricted to the configured account-recipient allowlist. A Gmail mailbox is a recipient, not a verifiable sender domain. To support arbitrary guest recipients, verify a domain you own in Resend and update EMAIL_FROM to that domain. Passwords expire after ten minutes, are stored as hashes, have attempt limits and cannot be reused.
+The deployed sender is Atelier Hotel <noreply@devatelier.tech>, using the verified devatelier.tech domain. Recipient addresses come from the room registration completed by Front Desk. DEMO_EMAIL_ALLOWLIST is used only if EMAIL_FROM points to the Resend default testing domain; it does not restrict this verified-domain sender. Passwords expire after ten minutes, are stored as hashes, have attempt limits and cannot be reused.
 
 ## Deployment
 

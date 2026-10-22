@@ -22,7 +22,7 @@ Accounts are shared client-demo identities, not individual employee identities u
 
 Each browser owns an isolated, synthetic hotel sandbox for up to 12 hours. Signing out and signing in as another role in that browser preserves the workflow. Different browsers have separate hotel records. Staff sessions expire after eight hours or when the sandbox expires, whichever comes first. Deactivating a demo profile takes effect on its next request in that sandbox.
 
-Guests remain separate: a room QR identifies context, then a single-use email password authenticates the registered room guest. Staff credentials never bypass that step. Default Resend sender delivery remains limited to the configured test recipient.
+Guests remain separate: a room QR identifies context, then a single-use email password authenticates the registered room guest. Staff credentials never bypass that step. Resend delivery now uses noreply@devatelier.tech and the guest email registered by Front Desk.
 
 ## Client presentation sequence
 

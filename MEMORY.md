@@ -84,3 +84,10 @@ Deployed public-preview/ to https://atelier-hotel-preview.vercel.app (project at
 ## Role demo login review — 2026-10-22
 
 Compared all nine profiles to PRD.md and documented implemented capabilities, remaining production requirements and client walkthroughs in public-preview/ROLE_COVERAGE.md. Added separate demo username/password accounts, scrypt password hashes and opaque, database-backed eight-hour staff sessions bound to the visitor workspace. API roles now derive from the session and spoofed role parameters are rejected. Logout revokes the session; changing accounts preserves the browser sandbox. Login credentials are generated in ignored local public-preview/CLIENT_DEMO_LOGINS.md and .demo-credentials.json, excluded from Git and deployment uploads. Original Sites app remains the earlier private prototype; these accounts apply to the Vercel preview /login.
+
+
+## Verified public email sender — 2026-10-22
+
+Resend confirms devatelier.tech verified with all three sending DNS records verified. Updated EMAIL_FROM for the Vercel project Production and Preview to Atelier Hotel <noreply@devatelier.tech> and redeployed successfully (dpl_5NpRrcfFF731PksGF45xvWSdwSKv). Public guest UI now describes the verified sender. Recipient is always the verified room email registered by Front Desk. Tested the deployed Front Desk registration → guest password request → real Resend send; provider accepted the email. Guest password and credential values were not logged. The old Sites deployment retains its separate earlier configuration.
+
+Provider delivery check for the activation test subsequently reported delivered.
