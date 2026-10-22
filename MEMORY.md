@@ -91,3 +91,8 @@ Compared all nine profiles to PRD.md and documented implemented capabilities, re
 Resend confirms devatelier.tech verified with all three sending DNS records verified. Updated EMAIL_FROM for the Vercel project Production and Preview to Atelier Hotel <noreply@devatelier.tech> and redeployed successfully (dpl_5NpRrcfFF731PksGF45xvWSdwSKv). Public guest UI now describes the verified sender. Recipient is always the verified room email registered by Front Desk. Tested the deployed Front Desk registration → guest password request → real Resend send; provider accepted the email. Guest password and credential values were not logged. The old Sites deployment retains its separate earlier configuration.
 
 Provider delivery check for the activation test subsequently reported delivered.
+
+
+## Database deployment verification — 2026-10-22
+
+Confirmed the existing Neon Marketplace database is connected to the Vercel deployment; all six demo tables and nine active role accounts are present. Created a synthetic task through the live Front Desk API, read it in a fresh API request and independently located it in Neon, confirming actual deployed persistence. Added public-preview/DATABASE.md with resource dashboard, migration instructions, JSONB schema boundaries, 12-hour visitor sandbox expiry, shared environment database and production limitations. No second database was provisioned and no existing data was migrated or removed.

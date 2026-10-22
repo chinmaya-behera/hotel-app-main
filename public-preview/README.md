@@ -2,6 +2,8 @@
 
 Next.js application deployed on Vercel with Neon PostgreSQL and server-side Resend email.
 
+See [deployment database configuration and persistence](DATABASE.md) for the connected resource, schema, migrations and demo retention behavior.
+
 Each visitor receives an isolated, cookie-bound sandbox lasting 12 hours. Nine separate demo accounts open role-specific workspaces. Shared demo identities are not production employee authentication. See ROLE_COVERAGE.md for the requirement review and remaining scope. Room QR links share room context, while guest services require a single-use emailed password. Financial and external service integrations remain demonstrations.
 
 ## Local setup
