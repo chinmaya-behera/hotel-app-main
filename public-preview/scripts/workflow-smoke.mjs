@@ -33,6 +33,8 @@ await login('executive');await act('approve',{id:finance.id});
 await login('finance');assert.ok((await state()).state.rooms.every(r=>!r.guest&&!r.email));await act('execute',{id:finance.id});await act('reconcile',{id:finance.id,reviewer:'Independent reviewer'},422);
 await login('finance-review.demo');await act('reconcile',{id:finance.id});assert.equal((await state()).state.financials.find(f=>f.id===finance.id).reconciler,'Avery Shah');
 await act('export');console.log('PASS: real distinct finance logins enforce approval → execution → independent reconciliation and export audit.');
+await login('manager');await act('policy',{category:'Housekeeping',acknowledgement:6,completion:45});
+await login('executive');let configView=await call('/api/features');await call('/api/features',{action:'approveChange',id:configView.data.changes[0].id,version:configView.version});
 await login('admin');await act('policy',{category:'Housekeeping',acknowledgement:6,completion:45,approval:'Approved configuration change'});await act('staff',{id:'dispatcher',approval:'Approved access request'});
 const disabled=accounts.find(a=>a.role==='dispatcher');assert.equal((await call('/api/demo-auth',{action:'login',username:disabled.username,password:disabled.password})).status,401);
 await act('staff',{id:'dispatcher',approval:'Approved access request'});await act('retry',{id:'pms'},422);await act('staff',{id:'admin',approval:'Approved access request'},422);

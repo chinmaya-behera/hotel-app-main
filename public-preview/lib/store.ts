@@ -1,8 +1,11 @@
-import { neon } from "@neondatabase/serverless";
+import { neon,neonConfig } from "@neondatabase/serverless";
 import { randomBytes,randomUUID,createHash } from "node:crypto";
 import { cookies } from "next/headers";
 import { seedState,type HotelState } from "./hotel-domain";
 export { filterState } from "./filter-state";
+
+// Bound each network request independently, including multi-statement guest flows.
+neonConfig.fetchFunction=(url:Parameters<typeof fetch>[0],options?:Parameters<typeof fetch>[1])=>fetch(url,{...options,signal:options?.signal?AbortSignal.any([options.signal,AbortSignal.timeout(20000)]):AbortSignal.timeout(20000)});
 
 export const digest=(v:string)=>createHash("sha256").update(v).digest("hex");
 export function db(){if(!process.env.DATABASE_URL)throw new Error("The preview database is not configured.");return neon(process.env.DATABASE_URL);}

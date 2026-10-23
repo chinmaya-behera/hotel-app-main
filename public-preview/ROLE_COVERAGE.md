@@ -1,38 +1,23 @@
 # Role implementation review
 
-Reviewed against the nine reusable profiles and REQ-01–12 in ../PRD.md, the workflow diagrams, and the public-preview domain rules/API/UI. All nine profiles have demonstration workspaces and separate login accounts. This does not mean every production requirement is implemented.
+Updated 2026-10-23. All nine role profiles and the separate Finance reviewer have authenticated demonstration accounts. See [FEATURE_GUIDE.md](FEATURE_GUIDE.md) for all 31 feature areas, roles, locations and exact presentation steps. Open /features from the hotel sidebar.
 
-| Profile | Implemented demo capabilities | Suggested client walkthrough | Remaining production scope |
-| --- | --- | --- | --- |
-| Executive viewer / approver | Property summaries, requests, scoped rooms, financial approval, handover and reports | Approve an adjustment, review property queues | Full delegated authority, serious-case escalation and policy/access review |
-| Front Desk coordinator | Create requests, register verified room guests, QR/password access, case linking/closure, move/checkout and revoke sessions, messages, financial requests, handover | Register room 101, create a request and send an update | Live reservations, keys and PMS operations; granular PMS entitlements |
-| Department dispatcher | Department queues, assignment, task scheduling, duplicate/subtask linking, scoped messages and handover | Assign housekeeping work to Sofia Rivera | Live staff availability and approved message templates |
-| Task fulfiller | Assigned tasks only, progress/block with reasons, append-only notes and acknowledged handover | Progress assigned housekeeping work | Approved file attachments, entry restrictions and delivery evidence |
-| Department supervisor | Scoped queues, assignments, completed-work inspection, reopen and handover | Inspect Bathroom inspection or reopen with a note | Backup coverage automation and unsafe-room controls |
-| Department manager | Department performance, assignments, handover, illustrative limited approvals and SLA proposals | Propose a policy change or approve eligible recovery | Full grant scoping, controlled approval workflows and staff coverage |
-| Financial operator | Adjustment requests, approved execution record and independent reconciliation through a separate authenticated account | Execute approved FIN-103 | Live payments/folios/receivables; Live payment provider integration; execution records demonstrate the approval process without moving money |
-| Security responder | Restricted incident queue, acknowledge/attend/resolve, backup and custody references | Advance INC-021 and request backup | Actual emergency alerts, dispatch and immutable evidence storage |
-| Platform administrator | Demo profile active flags, room QR/revocation, honest integration status, audit and policy configuration | Review audit and unavailable integration status | Real IAM provisioning, MFA, approved grant lifecycle, backups and recovery |
+| Profile | Working demonstration capabilities |
+| --- | --- |
+| Executive | Scoped summaries, delegated financial decisions, independent access/configuration approval, serious-case escalation summaries and emergency delivery outcomes |
+| Front Desk | Guest cases, linked work, resolution, approved messages, handover, verified room registration, real QR/email login, moves/revocation, sandbox reservation/check-in/key/checkout and PMS failure recovery |
+| Dispatcher | Scoped queues, eligible assignment, scheduling, duplicate/subtask linking, availability/shift/backup coverage, approved updates and durable escalation scans |
+| Fulfiller | Actual assigned-person tasks, acceptance/progress/block/resume/completion, notes, private text evidence and acknowledged case handover |
+| Supervisor | Inspection/reopen/correction, backup coverage, restricted entry, safe room-readiness release and handover |
+| Manager | Department metrics/approvals, coverage, proposed scoped access and SLA/configuration changes, escalation and permitted exports |
+| Finance | Evidence-bound USD/INR refund/folio/receivable exceptions, approved sandbox execution, uncertain-outcome verification, POS sync, duplicate prevention, scoped reports and independent authenticated reconciliation |
+| Security | Restricted incidents, immediate sandbox alerts and delivery failure recovery, response/backup, protected evidence, unsafe-room marking and verified clearance |
+| Administrator | Apply independently approved grants/configuration, revoke access, configure sandbox adapters, inspect audit, approved support diagnostics, operational recovery points and detached restore verification |
 
-## Authentication and demo boundaries
+Additional approved profiles are selected by the recipient, retain the actual person identity, and bind permission plus property/outlet/floor/shift scope together on the server. Expired/revoked additional grants return to the base role. Main has twelve rooms; Annex adds A101 Day and A201 Night fixtures. Finance execution and reconciliation use distinct identities (finance.demo and finance-review.demo). Admin status does not confer financial/PMS execution authority.
 
-The public Vercel app uses a separate username and password per profile. Password hashes are stored in Neon; opaque, hashed, HttpOnly staff sessions bind an account to its visitor workspace. APIs derive the role from that session and reject caller-supplied role changes. Logout revokes the server-side session. The generated login sheet stays outside Git and deployment uploads.
+Demo credentials remain in the ignored local CLIENT_DEMO_LOGINS.md sheet. Session tokens are hashed, HttpOnly and server-bound; role spoofing is rejected. Workspaces are synthetic, visitor-isolated and last up to twelve hours. Staff sessions last up to eight hours, or the independently approved shorter lifetime on new sign-ins.
 
-Accounts are shared client-demo identities, not individual employee identities under REQ-01. They do not implement multi-profile grants, per-property/outlet/floor/shift scope, MFA, password recovery or enterprise identity lifecycle. Before production, replace the demo login module with a maintained identity provider or authentication library and individual accounts. See [Next.js authentication guidance](https://nextjs.org/docs/app/guides/authentication).
+Real email uses the server-side verified Resend sender and the current guest email registered by Front Desk. Moves, checkout and revocation remove old room codes/sessions. QR context alone is not a guest credential.
 
-Each browser owns an isolated, synthetic hotel sandbox for up to 12 hours. Signing out and signing in as another role in that browser preserves the workflow. Different browsers have separate hotel records. Staff sessions expire after eight hours or when the sandbox expires, whichever comes first. Deactivating a demo profile takes effect on its next request in that sandbox.
-
-Guests remain separate: a room QR identifies context, then a single-use email password authenticates the registered room guest. Staff credentials never bypass that step. Resend delivery now uses noreply@devatelier.tech and the guest email registered by Front Desk.
-
-## Client presentation sequence
-
-1. Front Desk: create a housekeeping request in room 101.
-2. Sign out, then Dispatcher: assign it to Sofia Rivera.
-3. Sign out, then Fulfiller: accept, progress and complete that task.
-4. Sign out, then Supervisor: inspect it and record the outcome.
-5. Manager and Executive: show department/property summaries and approval boundaries.
-6. Finance: execute an approved adjustment; sign out and use finance-review.demo to reconcile as Avery Shah. No money moves.
-7. Security: show the restricted incident workflow and custody reference.
-8. Administrator: show audit/configuration and unconnected integration status.
-
-The original Sites URL remains the earlier owner-private prototype. Use the Vercel /login URL for these new account logins.
+External PMS/POS/payments/physical keys/emergency delivery are sandbox adapters. The labelled MFA code is an exercise, not a real second authentication factor. Private plain-text evidence is not a production scanning/object-storage system. Escalation scanning is manually driven with a persisted controlled clock, not an automatic production worker. Restore exercises use detached operational copies and cannot roll back current data, financial/evidence/audit history or guest revocations. Production identity provisioning/OIDC, real MFA, contracted providers, signed vendor callbacks, infrastructure backup/PITR, retention/performance policies and organization approval remain release gates. No production-readiness claim is made.

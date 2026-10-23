@@ -56,3 +56,10 @@ The user subsequently requested a suggested stack, implementation guide and ER d
 | D-12 | Proposed relational model | Four domain ER diagrams with explicit keys/cardinalities; see [ER_DIAGRAMS.md](ER_DIAGRAMS.md). | Review against approved workflow/permission policy before generating migrations. |
 
 No financial amounts, SLA values, retention periods, vendor contracts or rollout dates have been approved through these additions. Suggested routes and entity names are design proposals, not compatibility guarantees for an existing API.
+
+
+## Client showcase implementation — 2026-10-23
+
+The user requested every repository feature as a client demonstration with usage instructions. The existing Next/Neon/Vercel app now adds a feature workspace at /features, mapped in public-preview/FEATURE_GUIDE.md. Demo grants target individual usernames and bind role/property/outlet/floor/shift/expiry. Independent Executive approval precedes Admin application of grants and configuration. Synthetic POS receipts can produce an Executive-approved revenue snapshot. Live room-password email remains Resend-backed.
+
+PMS, POS, payments, physical keys, emergency delivery, MFA and operational restore are labelled adapter/exercise behavior. Demo amounts, expiry values, category targets and attachment limits are demonstration settings, not approved production policy. This implementation does not close the original production identity, vendor, retention, background-worker, infrastructure recovery or performance release gates. Original planning decisions are preserved above.

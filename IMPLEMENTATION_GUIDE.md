@@ -1,3 +1,5 @@
+> Current implementation (2026-10-23): the original planning baseline below is preserved as history. The deployed client demonstration now implements the workflows described in [FEATURE_GUIDE.md](public-preview/FEATURE_GUIDE.md), with explicit sandbox/provider boundaries and verification evidence. Original statements such as “not started” refer to the document creation date, not the current app.
+
 # Hotel Management App - Implementation Guide
 
 Status: Proposed build sequence; no application has been scaffolded | Updated: 2026-10-20

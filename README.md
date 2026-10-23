@@ -35,3 +35,8 @@ The role selector is an owner-only persona preview, not production employee auth
 ## Verification
 
 The wireframe passes a production build, TypeScript checks and 15 domain tests. Local browser verification covered persisted request creation, scoped dispatcher assignment, QR generation, actual Resend password delivery with user-confirmed email login, and a guest service request appearing in the staff queue. Hosted deployment succeeded; hosted browser testing requires the owner's sign-in.
+
+
+## Complete client feature guide
+
+Open [the interactive feature catalogue](https://devatelier.tech/features) after sign-in. [FEATURE_GUIDE.md](public-preview/FEATURE_GUIDE.md) maps 31 feature areas across REQ-01–12 to roles, screens and usage steps, including each sandbox integration boundary.

@@ -35,3 +35,8 @@ Production, Preview and Development currently use the same provisioned database.
 ## Verification evidence
 
 The database accepted a direct connection; all six required tables and nine active demo profiles were found. A synthetic housekeeping request created through the deployed Front Desk API was returned by a fresh request and independently found in the connected Neon database. Staff logout completed successfully. No credentials or guest passwords were logged.
+
+
+## Extended feature state (2026-10-23)
+
+The existing versioned demo_workspaces JSONB stores an optional featureLab document. It contains approved grants and per-username selection, coverage, room restrictions, escalation obligations, text evidence/digests, sandbox operations and idempotency keys, reservation and financial-exception fixtures, notification outcomes, independent configuration changes, MFA-exercise state, private operational snapshots and restore-drill results. It is excluded from ordinary hotel/guest responses. The features API returns role-scoped metadata; text downloads reauthorize the current account/scope. No new credential table or external service is provisioned. Atomic workspace version checks protect concurrent updates. Infrastructure backup/retention and production malware scanning are not supplied by this JSONB demo model.

@@ -22,3 +22,8 @@ Use the local CLIENT_DEMO_LOGINS.md credential sheet; passwords are excluded fro
 ## Production boundaries
 
 Live PMS, keys, payments, emergency dispatch, immutable file evidence, employee identity lifecycle/MFA and granular property/floor/shift grants still require production integrations. Monetary execution is a demonstration record and moves no funds. These are explicitly documented boundaries, not working vendor connections. See ROLE_COVERAGE.md and the original PRD for remaining production scope.
+
+
+## Extended feature demonstrations (2026-10-23)
+
+Open /features from the hotel sidebar for the complete 31-area catalogue and interactive workflows. Follow [FEATURE_GUIDE.md](FEATURE_GUIDE.md) for independent access/configuration approval, actual multi-profile scope selection, coverage/escalation, safety, sandbox PMS/keys, financial uncertainty, POS/messaging recovery, emergency routing, private evidence and detached recovery. Configuration changes now require a separate Executive approval before Admin applies them.

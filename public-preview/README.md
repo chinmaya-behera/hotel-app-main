@@ -19,3 +19,8 @@ The deployed sender is Atelier Hotel <noreply@devatelier.tech>, using the verifi
 ## Deployment
 
 Deploy this folder with Vercel CLI using the linked atelier-hotel-preview project. GitHub source is maintained separately; automatic Git deployment requires connecting the GitHub account in Vercel. Environment files and platform credentials must never be committed.
+
+
+## Complete feature showcase
+
+Open [/features](https://devatelier.tech/features) after sign-in. The beige feature workspace maps 31 business-feature areas to REQ-01–12, explains who uses each, and provides interactive scoped access/configuration approvals, coverage/escalation, room safety, sandbox PMS/keys, Finance uncertainty/independent review, POS revenue approval, integration recovery, private text evidence and detached restore drills. See [FEATURE_GUIDE.md](FEATURE_GUIDE.md) and [VERIFICATION.md](VERIFICATION.md). External-system effects are explicitly synthetic; real guest password email remains configured.
