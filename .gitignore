@@ -22,3 +22,5 @@ output/
 .DS_Store
 Thumbs.db
 .idea/
+
+.local-network.mjs

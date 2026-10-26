@@ -1,0 +1,344 @@
+/* Front Desk motion + gesture styles. Colours come from theme tokens, so light and dark both work. */
+
+@keyframes fd-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes fd-slide-from-right {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes fd-slide-from-left {
+  from {
+    opacity: 0;
+    transform: translateX(-28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes fd-pop {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes fd-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes fd-sheen {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(220%);
+  }
+}
+@keyframes fd-bump {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* staggered entrance for lists and grids: set style={{'--i': index}} on children */
+.fd-stagger > * {
+  animation: fd-rise 0.5s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+.fd-enter {
+  animation: fd-rise 0.5s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+.fd-swap-right {
+  animation: fd-slide-from-right 0.38s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+.fd-swap-left {
+  animation: fd-slide-from-left 0.38s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+.fd-backdrop {
+  animation: fd-fade 0.2s ease both;
+}
+.fd-dialog {
+  animation: fd-pop 0.3s cubic-bezier(0.2, 1.15, 0.4, 1) both;
+}
+.fd-bump {
+  animation: fd-bump 0.35s ease;
+}
+
+/* ---- animated tab strip ---- */
+.fd-tabs {
+  position: relative;
+  display: flex;
+  gap: 0.25rem;
+  overflow-x: auto;
+  padding: 0.3rem;
+  border-radius: 1rem;
+  border: 1px solid rgb(var(--white) / 0.1);
+  background: rgb(var(--white) / 0.04);
+  scrollbar-width: none;
+}
+.fd-tabs::-webkit-scrollbar {
+  display: none;
+}
+.fd-tab-pill {
+  position: absolute;
+  top: 0.3rem;
+  bottom: 0.3rem;
+  left: 0;
+  border-radius: 0.75rem;
+  background: linear-gradient(135deg, rgb(var(--a) / 0.26), rgb(var(--b) / 0.18));
+  border: 1px solid rgb(var(--a) / 0.5);
+  box-shadow: 0 10px 28px -14px rgb(var(--a) / 0.8);
+  transition:
+    transform 0.42s cubic-bezier(0.2, 1.1, 0.35, 1),
+    width 0.42s cubic-bezier(0.2, 1.1, 0.35, 1);
+  pointer-events: none;
+}
+.fd-tab {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.45rem;
+  white-space: nowrap;
+  padding: 0.55rem 0.9rem;
+  border-radius: 0.75rem;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgb(var(--mist-300));
+  transition: color 0.2s ease;
+}
+.fd-tab:hover {
+  color: rgb(var(--white));
+}
+.fd-tab[aria-selected='true'] {
+  color: rgb(var(--white));
+}
+.fd-tab-count {
+  min-width: 1.35rem;
+  padding: 0 0.35rem;
+  border-radius: 9999px;
+  background: rgb(var(--a) / 0.2);
+  color: rgb(var(--white));
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.fd-tab-count[data-alert='true'] {
+  background: rgb(251 191 36 / 0.28);
+}
+
+/* ---- pointer-follow spotlight ---- */
+.fd-spot {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  transition:
+    transform 0.25s ease,
+    border-color 0.25s ease;
+}
+.fd-spot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(240px circle at var(--mx, 50%) var(--my, 50%), rgb(var(--a) / 0.2), transparent 62%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+.fd-spot:hover {
+  transform: translateY(-2px);
+  border-color: rgb(var(--a) / 0.45);
+}
+.fd-spot:hover::after {
+  opacity: 1;
+}
+
+/* ---- swipe rows ---- */
+.swipe-wrap {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1rem;
+}
+.swipe-surface {
+  position: relative;
+  z-index: 1;
+  touch-action: pan-y;
+  transition: transform 0.45s cubic-bezier(0.2, 1.35, 0.4, 1);
+  will-change: transform;
+}
+.swipe-surface[data-swipeable='true'] {
+  cursor: grab;
+}
+.swipe-surface[data-dragging='true'] {
+  transition: none;
+  cursor: grabbing;
+  user-select: none;
+}
+.swipe-bg {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0 1.4rem;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  transition: filter 0.2s ease;
+}
+.swipe-bg-right {
+  justify-content: flex-start;
+  background: linear-gradient(90deg, rgb(16 185 129 / 0.45), rgb(16 185 129 / 0.1));
+  color: rgb(var(--t-emerald));
+}
+.swipe-bg-left {
+  justify-content: flex-end;
+  background: linear-gradient(270deg, rgb(245 158 11 / 0.45), rgb(245 158 11 / 0.1));
+  color: rgb(var(--t-amber));
+}
+.swipe-bg[data-armed='true'] {
+  filter: saturate(1.5) brightness(1.1);
+}
+.swipe-bg[data-armed='true'] .swipe-ico {
+  animation: fd-bump 0.35s ease;
+}
+
+/* ---- hold-to-confirm ---- */
+.hold-btn {
+  position: relative;
+  overflow: hidden;
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+}
+.hold-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: calc(var(--p, 0) * 100%);
+  background: rgb(var(--a) / 0.4);
+  transition: width 0.18s ease-out;
+}
+.hold-btn.is-holding::before {
+  transition: none;
+}
+.hold-btn.is-holding {
+  transform: scale(0.97);
+}
+
+/* ---- room tiles ---- */
+.room-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  padding: 0.7rem 0.75rem;
+  border-radius: 0.9rem;
+  border: 1px solid;
+  text-align: left;
+  transition:
+    transform 0.22s cubic-bezier(0.2, 1.2, 0.4, 1),
+    box-shadow 0.22s ease;
+}
+.room-tile:hover {
+  transform: translateY(-3px) scale(1.03);
+  box-shadow: 0 16px 30px -18px rgb(var(--a) / 0.8);
+}
+.room-tile:active {
+  transform: scale(0.97);
+}
+.room-tile[data-working='true']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(100deg, transparent 30%, rgb(var(--white) / 0.14) 50%, transparent 70%);
+  animation: fd-sheen 2.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* ---- live indicator ---- */
+.fd-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgb(var(--t-emerald));
+}
+
+:root[data-theme='light'] .fd-tabs {
+  background: rgba(255, 255, 255, 0.88);
+  border-color: rgba(234, 213, 220, 0.7);
+  box-shadow: 0 2px 8px -2px rgba(1, 31, 75, 0.05);
+}
+:root[data-theme='light'] .fd-tab[aria-selected='true'] {
+  color: #011f4b;
+  font-weight: 700;
+}
+:root[data-theme='light'] .fd-tab:hover {
+  color: #03396c;
+}
+:root[data-theme='light'] .swipe-bg-right {
+  color: #047857;
+}
+:root[data-theme='light'] .swipe-bg-left {
+  color: #92400e;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fd-stagger > *,
+  .fd-enter,
+  .fd-swap-right,
+  .fd-swap-left,
+  .fd-backdrop,
+  .fd-dialog,
+  .fd-bump,
+  .swipe-bg[data-armed='true'] .swipe-ico,
+  .room-tile[data-working='true']::after {
+    animation: none;
+  }
+  .fd-tab-pill,
+  .swipe-surface,
+  .room-tile,
+  .fd-spot {
+    transition: none;
+  }
+  .fd-spot:hover,
+  .room-tile:hover {
+    transform: none;
+  }
+}

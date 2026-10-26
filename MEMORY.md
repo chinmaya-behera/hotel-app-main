@@ -115,3 +115,12 @@ Added /features and /api/features with a 31-area catalogue and usage guide cover
 Original baseline documents carry a current-status notice and remain preserved. FEATURE_GUIDE.md explains each role/screen/action and external-provider boundaries. No live PMS/payment/lock/emergency effects, real MFA, automatic worker, production malware scanning or infrastructure recovery are claimed. Existing ignored credentials and Resend configuration are retained.
 
 Verification: 55 domain tests and production/TypeScript build passed. Local nine-account and complete extended workflow checks passed. Public account checks and grouped extended feature scenarios passed; final control scenario used the fresh HTTP/1 test helper after the normal login-rate window reset. Zero runtime errors were returned in the final ten-minute production log query. Final deployment dpl_6NBpKxqnQdMDwqiTy4sVzhtwPZ4C is READY.
+
+
+## Reference UI migration — 2026-10-26
+
+The active app remains public-preview in hotel-app-main. hotel_app_main_riku is a read-only reference. The richer UI and pure engine are under public-preview/experience; /api/experience persists versioned state in the existing Neon workspace JSONB. /workspace routes actual authenticated roles to /staff/*; /guide documents client usage. /legacy and /features retain previous requirement exercises.
+
+Nine role accounts plus the independent Finance reviewer retain their existing passwords. Six department specialists are in the private ignored login sheet. Migration 004 adds staff display identity/reference roster IDs. Never commit or deploy credentials, environment files or the local DNS workaround.
+
+Verification before publication: 85 passing tests; all nine authenticated views plus guest → task → completion → inspection, idempotency, independent review, preferences and revocation passed against the actual API/database. The email smoke uses a database fixture and sends no mail. See public-preview/REFERENCE_IMPLEMENTATION.md for feature mapping and simulation boundaries.

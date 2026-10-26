@@ -1,3 +1,7 @@
+# Reference interface upgrade
+
+The main client presentation now starts at https://devatelier.tech/login and opens the dedicated role console. See [REFERENCE_IMPLEMENTATION.md](REFERENCE_IMPLEMENTATION.md) for the implementation map and https://devatelier.tech/guide for role instructions. The earlier exercises below remain available at /legacy and /features.
+
 # Client demonstration scope
 
 The app follows the repository's nine role profiles and its task, case, handover, financial approval, incident, access, audit and policy workflows. The separately requested room QR/email guest portal remains included. No unrelated product modules were added.

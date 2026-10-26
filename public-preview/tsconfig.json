@@ -25,7 +25,12 @@
     "types": [
       "node"
     ],
-    "allowImportingTsExtensions": true
+    "allowImportingTsExtensions": true,
+    "paths": {
+      "@/*": [
+        "./experience/*"
+      ]
+    }
   },
   "include": [
     "next-env.d.ts",

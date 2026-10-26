@@ -7,3 +7,6 @@ tests/
 
 .demo-credentials*
 CLIENT_DEMO_LOGINS.md
+
+.local-network.mjs
+CLIENT_DEMO_LOGINS*.md
