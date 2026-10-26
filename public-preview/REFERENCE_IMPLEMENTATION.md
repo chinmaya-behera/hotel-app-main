@@ -58,3 +58,9 @@ All hotel operational records are synthetic and isolated by visitor workspace, w
 ## External capabilities
 
 Resend room-password delivery uses the verified devatelier.tech sender and configured room recipient. The integration smoke test inserts a one-use database fixture instead of sending email, and must not be presented as fresh mailbox-delivery verification. PMS/POS, card settlement, bank reconciliation, door keys, notification delivery outside the app, spa/restaurant reservations and emergency dispatch remain explicit simulations. No real money moves and no emergency service is contacted.
+
+## Published verification — 26 October 2026
+
+The production-domain smoke passed all nine role API views and the complete saved guest/task/inspection, independent Finance review, specialist identity, preferences, logout and revocation checks at https://devatelier.tech. Both apex and www serve the new guide. Vercel's bounded error-log query returned zero application-error records for the checked release window. Browser review verified the live Executive console.
+
+On this Windows host, Node's TLS client intermittently resets otherwise healthy public requests; TEST_TRANSPORT=curl uses native curl for the smoke test without exposing credentials in command arguments, and never automatically retries a write. The full smoke passed using that transport.
