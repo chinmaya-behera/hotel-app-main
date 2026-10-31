@@ -124,3 +124,12 @@ The active app remains public-preview in hotel-app-main. hotel_app_main_riku is 
 Nine role accounts plus the independent Finance reviewer retain their existing passwords. Six department specialists are in the private ignored login sheet. Migration 004 adds staff display identity/reference roster IDs. Never commit or deploy credentials, environment files or the local DNS workaround.
 
 Verification before publication: 85 passing tests; all nine authenticated views plus guest → task → completion → inspection, idempotency, independent review, preferences and revocation passed against the actual API/database. The email smoke uses a database fixture and sends no mail. See public-preview/REFERENCE_IMPLEMENTATION.md for feature mapping and simulation boundaries.
+
+
+## Vercel account migration — 2026-10-31
+
+Current Vercel owner is chinmayabehera946-8581, team chinmayabehera946-8581s-projects (team_Z0fKRkwqOKZ4CNjXe96fGQuV). Transferred atelier-hotel-preview (prj_6VCWLWH6pQNMic6yZfi5JL5qJfFM) and its Neon resource from the earlier team. User approved the separately emailed devatelier.tech move; domain API confirms destination ownership, while apex/www remain verified. Registrar/get.tech DNS and Resend records were preserved.
+
+Destination public-preview (prj_dggJyh4N7sthA60FVzcvtjkjt76q; public-preview-kappa.vercel.app) had no environment variables. Configured the existing database and email settings and redeployed revision 269ec2a as dpl_DxEhVaRwCX5weUHEMWh3gaw6Yh3F. Its complete live integration smoke passed; canonical-domain role/data/task/inspection checks passed before a local network timeout, and read-only database review confirmed saved task inspection and Finance review. Do not blindly replay database-writing tests after uncertain network outcomes. No email or real payment was sent.
+
+Local .vercel/project.json now targets the destination team and canonical project. The Vercel plugin is authenticated to the destination; the CLI is still authenticated to the source identity, so use the plugin or deliberately sign in to the destination before future CLI deployment. GitHub remains chinmaya-behera/hotel-app-main. Both app projects use the same application revision; keep both releases aligned.
