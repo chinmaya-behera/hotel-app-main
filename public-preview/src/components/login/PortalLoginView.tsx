@@ -320,34 +320,15 @@ export function PortalLoginView() {
 
       {/* Main Content Area - Expansive Large Size Frontend */}
       <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-14 flex flex-col justify-center">
-        {/* Prominent Portal Login Line */}
+        {/* Clean Portal Login Heading */}
         <div className="mb-8">
-          <div
-            className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b ${
-              isLight ? 'border-slate-300/80' : 'border-white/10'
+          <h1
+            className={`text-3xl sm:text-4xl lg:text-5xl font-serif font-bold tracking-tight ${
+              isLight ? 'text-slate-900' : 'text-white'
             }`}
           >
-            <div>
-              <h1
-                className={`text-3xl sm:text-4xl lg:text-5xl font-serif font-bold tracking-tight ${
-                  isLight ? 'text-slate-900' : 'text-white'
-                }`}
-              >
-                Portal Login
-              </h1>
-            </div>
-            <div className="flex items-center gap-2">
-              <span
-                className={`text-xs font-mono px-3 py-1.5 rounded-xl border ${
-                  isLight
-                    ? 'text-slate-600 bg-white/80 border-slate-300/70 shadow-xs'
-                    : 'text-slate-400 bg-white/5 border-white/10'
-                }`}
-              >
-                9 Active Roles Configured
-              </span>
-            </div>
-          </div>
+            Portal Login
+          </h1>
         </div>
 
         {/* Grid Layout - Large size & generous spacing */}
