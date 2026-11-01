@@ -1,42 +1,90 @@
-# Atelier Hotel
+﻿# The Grand ADP · Hotel Management Platform
 
-A beige-toned interactive hotel-management wireframe based on this repository's requirements and workflow diagrams.
+An interactive, high-fidelity luxury hotel operations frontend prototype built with **Next.js 15**, **React 19**, and **Tailwind CSS**.
 
-**[Open the public hotel demo](https://devatelier.tech/login)** · [Vercel fallback](https://atelier-hotel-preview.vercel.app) · [Public implementation and setup](public-preview/README.md)
+The application is fully self-contained as a standalone frontend located in [`public-preview/`](public-preview/), featuring in-browser reactive state persistence (`localStorage`), simulated multi-role workflows, a public luxury resort website, an in-room digital guest portal, and nine specialized staff consoles.
 
-Sign in at **[Client demo login](https://devatelier.tech/login)** using the presenter-provided credentials. See [role coverage and walkthroughs](public-preview/ROLE_COVERAGE.md).
+---
 
-The public preview uses isolated visitor sandboxes, all nine staff demo accounts, twelve rooms and password-protected guest services. Vercel hosts Next.js and Neon stores sandbox data. Public Resend delivery uses the verified devatelier.tech domain and sends room passwords to the email registered by Front Desk.
+## Architecture & Project Structure
 
-**[Open the private live preview](https://hotel-atelier-operations.gamingslayer20.chatgpt.site)** · [Implementation and prototype boundaries](wireframe/WIREFRAME.md)
+The project root preserves all system requirements, workflow diagrams, and domain specifications. The runnable application resides directly within `public-preview/`:
 
-The preview is owner-private and requires ChatGPT sign-in. Use **Switch role** to explore all nine staff personas. Use **Guest experience** for twelve rooms, locally generated QR codes, the “Click me to login” alternative and room-specific guest services.
+```text
+hotel-app-main (branch: frontend-only-replacement)
+├── ARCHITECTURE.md, PRD.md, DESIGN.md...   # Preserved specifications
+├── CLAUDE.md, FRONTEND_FEATURE_MAP.md...   # Sprint mapping and traceability
+├── workflow digrams/                       # 13 hotel operational workflow diagrams
+└── public-preview/                         # Standalone Next.js application root
+    ├── package.json                        # Dependencies (Next.js 15.5, React 19.1, Tailwind 3.4)
+    ├── next.config.mjs                     # Next.js configuration
+    ├── tailwind.config.ts                  # Design tokens and luxury color palette
+    ├── tsconfig.json                       # TypeScript configuration (@/* -> ./src/*)
+    └── src/
+        ├── app/                            # Next.js App Router routes
+        │   ├── page.tsx                    # Landing overview
+        │   ├── hotel/page.tsx              # Luxury resort showcase & booking wizard
+        │   ├── guest/portal/page.tsx       # In-room digital guest services
+        │   ├── login/page.tsx              # Role switcher & demonstration accounts
+        │   └── staff/[role]/page.tsx       # Dynamic role console router
+        ├── components/                     # 14 role-based component modules
+        ├── lib/                            # State store (DemoProvider), mock datasets, domain logic
+        └── types/                          # Complete TypeScript domain interfaces
+```
 
-## Try the main flows
+---
 
-1. Create a request, switch to the department dispatcher and assign eligible staff. Switch to the fulfiller to record progress, then use the supervisor to inspect completed work.
-2. As Front Desk, register a room's guest name/email and confirm identity/stay verification. Open that room's QR or guest login link, request the generated password and enter the password from the actual email.
-3. Submit a guest service request and return to the staff queue to follow its progress.
-4. Explore handover, independent financial approval/execution/review, restricted incidents, access administration and configuration.
+## Key Features
 
-## Implementation
+1. **Public Luxury Hotel Portal (`/hotel`):**
+   - Room catalog (Deluxe, Executive Suite, Royal Penthouse).
+   - Side-by-side room specification compare modal.
+   - Interactive 5-floor architectural unit explorer.
+   - 5-step booking wizard with simulated payment authorization.
+   - Self-contained SVG/CSS architectural scene engine (no external image dependencies).
 
-Source lives in [`wireframe/`](wireframe/): React/Vinext on the Sites Worker runtime, D1-backed operational state and server-only Resend email delivery. Original production architecture recommendations remain in the specification documents; the prototype's single-property persistence is not a migration of the full proposed PostgreSQL ER schema.
+2. **Digital Guest Portal (`/guest/portal`):**
+   - Room-scoped digital concierge, dining orders, housekeeping, and amenity requests.
+   - Live billing folio with charge dispute flows and simulated express checkout.
+   - Non-sensitive lost & found claims.
 
-The role selector is an owner-only persona preview, not production employee authentication. Financial movements, PMS/POS operations and emergency dispatch are explicitly labeled demonstrations. Resend's default sender restricts recipients to the Resend account email; a verified domain is required for other guests. Runtime registrations and secrets are excluded from Git.
+3. **Nine Staff Role Workspaces (`/staff/[role]`):**
+   - **Front Desk:** Arrival registration, stay verification, room moves, folio settlement, and keycard issue.
+   - **Dispatcher:** Real-time departmental queue, auto/manual assignment, duplicate linking, and SLA monitoring.
+   - **Fulfiller:** Task acceptance, step execution, blocker logging, completion evidence, and melodic audio chimes.
+   - **Supervisor:** Dynamic turnover quality scoring (real-time recalculation), room release, corrective reopen, and shift handover.
+   - **Duty Manager:** Cross-department escalations, compensation authorization thresholds, and hotel-wide incident logs.
+   - **Executive / General Manager:** Dual-mode viewer/approver permission switcher, capex approvals, and incident audit.
+   - **Finance:** Itemized invoices, payment records, refund authorizations, and audit exports.
+   - **Security:** Urgent alarm response, incident logging, tactical SVG floor plan orientation, and audio sirens.
+   - **Administrator:** Staff roster management, workflow SLA timers, room QR generation, and system diagnostics.
 
-## Specification and workflows
+4. **Zero-Backend Standalone Operation:**
+   - Pure client-side state machine (`DemoProvider` in `public-preview/src/lib/store.tsx`) with automatic `localStorage` persistence.
+   - Instant client-side CSV spreadsheet generation via Blob URLs (quality audits, invoices, SLA compliance).
+   - Currency localization standardized to Indian Rupee (INR `₹`) with `en-IN` numbering.
 
-- [Product requirements](PRD.md), [architecture](ARCHITECTURE.md), [interaction design](DESIGN.md)
-- [Suggested stack](TECH_STACK.md), [implementation guide](IMPLEMENTATION_GUIDE.md), [ER diagrams](ER_DIAGRAMS.md)
-- [Test plan](TEST_PLAN.md), [security](SECURITY.md), [decision register](DECISIONS.md), [project memory](MEMORY.md)
-- [Workflow diagrams](workflow%20digrams/)
+---
 
-## Verification
+## Local Development
 
-The wireframe passes a production build, TypeScript checks and 15 domain tests. Local browser verification covered persisted request creation, scoped dispatcher assignment, QR generation, actual Resend password delivery with user-confirmed email login, and a guest service request appearing in the staff queue. Hosted deployment succeeded; hosted browser testing requires the owner's sign-in.
+To run the application locally:
 
+```bash
+# 1. Navigate to the application root
+cd public-preview
 
-## Complete client feature guide
+# 2. Install dependencies
+npm install
 
-Open [the interactive feature catalogue](https://devatelier.tech/features) after sign-in. [FEATURE_GUIDE.md](public-preview/FEATURE_GUIDE.md) maps 31 feature areas across REQ-01–12 to roles, screens and usage steps, including each sandbox integration boundary.
+# 3. Start development server
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+---
+
+## Deployment
+
+The application is pre-configured for automated deployment on **Vercel** with the Root Directory configured to `public-preview`. No external database, email provider, or environment variables are required.
