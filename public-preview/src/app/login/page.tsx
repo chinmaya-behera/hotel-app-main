@@ -1,11 +1,11 @@
 import type { Metadata } from 'next';
-import { HomeView } from '@/components/home/HomeView';
+import { PortalLoginView } from '@/components/login/PortalLoginView';
 
 export const metadata: Metadata = {
-  title: 'Portal Login · The Grand ADP',
-  description: 'Portal login for The Grand ADP.',
+  title: 'The Grand ADP — Portal Login',
+  description: 'Luxury resort and operational staff portal login for The Grand ADP.',
 };
 
 export default function LoginPage() {
-  return <HomeView />;
+  return <PortalLoginView />;
 }

@@ -740,6 +740,7 @@ export interface ShiftScheduleRecord {
   shiftType: 'Morning' | 'Evening' | 'Night';
   startTime: string;
   endTime: string;
+  shiftHours?: string;
   floorZone: string;
   status: 'scheduled' | 'on_duty' | 'completed' | 'leave' | 'conflict';
   conflictReason?: string;
