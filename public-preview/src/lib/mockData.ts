@@ -797,13 +797,21 @@ export const menuItems: MenuItem[] = [
   { id: 'm12', name: 'Mango Panna Cotta', category: 'Desserts', price: 9, veg: true },
 ];
 
-export const housekeepingCatalog = [
-  { id: 'hk1', name: 'Extra towels', icon: Droplets },
-  { id: 'hk2', name: 'Toiletries refresh', icon: Sparkles },
-  { id: 'hk3', name: 'Extra pillows', icon: Bed },
-  { id: 'hk4', name: 'Extra bedding / blanket', icon: BedDouble },
-  { id: 'hk5', name: 'Bottled water', icon: GlassWater },
-  { id: 'hk6', name: 'Slippers & robe', icon: Footprints },
+export interface HousekeepingCatalogItem {
+  id: string;
+  name: string;
+  icon: any;
+  desc?: string;
+  image?: string;
+}
+
+export const housekeepingCatalog: readonly HousekeepingCatalogItem[] = [
+  { id: 'hk1', name: 'Extra towels', icon: Droplets, desc: 'Fresh, plush luxury cotton bath & hand towels', image: '/images/amenities/extra-towels.jpg' },
+  { id: 'hk2', name: 'Toiletries refresh', icon: Sparkles, desc: 'Botanical shampoo, conditioner & artisan soap bar', image: '/images/amenities/toiletries-refresh.svg' },
+  { id: 'hk3', name: 'Extra pillows', icon: Bed, desc: 'Hypoallergenic feather-down & memory foam pillows', image: '/images/amenities/extra-pillows.svg' },
+  { id: 'hk4', name: 'Extra bedding / blanket', icon: BedDouble, desc: '400TC Egyptian cotton duvet & cozy throw blanket', image: '/images/amenities/extra-bedding.svg' },
+  { id: 'hk5', name: 'Bottled water', icon: GlassWater, desc: 'Chilled premium glass-bottled mineral water', image: '/images/amenities/bottled-water.svg' },
+  { id: 'hk6', name: 'Slippers & robe', icon: Footprints, desc: 'Soft velour slippers & plush waffle bathrobe', image: '/images/amenities/slippers-robe.svg' },
 ] as const;
 
 export const maintenanceCategories = [
