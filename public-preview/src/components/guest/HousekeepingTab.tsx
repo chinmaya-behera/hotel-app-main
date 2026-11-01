@@ -148,7 +148,7 @@ export function HousekeepingTab({ room }: GuestTabProps) {
         {/* Amenities */}
         <div>
           <GuestSectionHeader title="Amenities" hint="Pick what you need \u2014 a runner will bring it to your room" />
-          <ul className="space-y-2.5">
+          <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {allItems.map((item) => {
               const Icon = item.icon;
               const value = qty[item.id] ?? 0;
