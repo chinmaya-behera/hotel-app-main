@@ -956,3 +956,127 @@ option {
     }
   }
 }
+
+/* Ambient Background Glows */
+.glow-sphere-1 {
+  position: fixed;
+  top: -15%;
+  left: 10%;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.12) 0%, rgba(56, 189, 248, 0) 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+.glow-sphere-2 {
+  position: fixed;
+  bottom: -15%;
+  right: 5%;
+  width: 650px;
+  height: 650px;
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.12) 0%, rgba(168, 85, 247, 0) 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+:root[data-theme='light'] .glow-sphere-1,
+.light .glow-sphere-1,
+:root[data-theme='light'] .glow-sphere-2,
+.light .glow-sphere-2 {
+  display: none !important;
+}
+
+/* Dedicated Light Mode Portal Login Overrides - crisp white cards & clear typography */
+:root[data-theme='light'] .portal-page-wrap,
+.light .portal-page-wrap {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+:root[data-theme='light'] .login-card,
+.light .login-card {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+  box-shadow: 0 20px 45px -15px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04) !important;
+  backdrop-filter: none !important;
+}
+
+:root[data-theme='light'] .login-header,
+.light .login-header {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+:root[data-theme='light'] .login-card-title,
+.light .login-card-title {
+  color: #1e293b !important;
+}
+
+:root[data-theme='light'] .login-card-label,
+.light .login-card-label {
+  color: #334155 !important;
+}
+
+:root[data-theme='light'] .login-card-badge,
+.light .login-card-badge {
+  background-color: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+:root[data-theme='light'] .login-input,
+.light .login-input {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+:root[data-theme='light'] .login-input::placeholder,
+.light .login-input::placeholder {
+  color: #94a3b8 !important;
+}
+
+:root[data-theme='light'] .login-role-btn,
+.light .login-role-btn {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+:root[data-theme='light'] .login-role-btn:hover,
+.light .login-role-btn:hover {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+}
+
+:root[data-theme='light'] .login-role-btn.active,
+.light .login-role-btn.active {
+  background-color: #fffbeb !important;
+  border-color: #f59e0b !important;
+  color: #0f172a !important;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.3) !important;
+}
+
+:root[data-theme='light'] .login-role-num,
+.light .login-role-num {
+  background-color: #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+:root[data-theme='light'] .login-role-btn.active .login-role-num,
+.light .login-role-btn.active .login-role-num {
+  background-color: #fde68a !important;
+  color: #78350f !important;
+}
+
+/* Input autofill styling override */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: inherit;
+  -webkit-box-shadow: 0 0 0px 1000px transparent inset;
+  transition: background-color 5000s ease-in-out 0s;
+}
+

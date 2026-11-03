@@ -297,7 +297,13 @@ interface DemoApi {
   reviewFinancialCompensation: (requestId: string, action: 'approve' | 'reject', comments: string) => void;
   acceptSupervisorEscalatedTask: (taskId: string, managerNotes: string, actionType: 'resolve' | 'reject' | 'escalate_gm') => void;
   /** Phase 3: Staff & Shift Scheduling */
-  updateStaffShiftSchedule: (scheduleId: string, shiftType: 'Morning' | 'Evening' | 'Night', floorZone: string, status?: ShiftScheduleRecord['status'], notes?: string) => void;
+  updateStaffShiftSchedule: (
+    scheduleId: string,
+    shiftTypeOrUpdates: 'Morning' | 'Evening' | 'Night' | Partial<ShiftScheduleRecord>,
+    floorZone?: string,
+    status?: ShiftScheduleRecord['status'],
+    notes?: string
+  ) => void;
   createStaffShiftSchedule: (schedule: Omit<ShiftScheduleRecord, 'id'>) => void;
   /** Phase 3: Department Service Policies */
   saveDepartmentServicePolicy: (policy: DepartmentServicePolicy) => void;
@@ -352,6 +358,9 @@ interface DemoApi {
   markGuestNotificationRead: (id: string) => void;
   markAllGuestNotificationsRead: (room: string) => void;
   updateGuestProfile: (room: string, profile: { name?: string; email?: string; phone?: string; preferences?: Partial<GuestPreferences> }) => void;
+  gestureGuideOpen: boolean;
+  setGestureGuideOpen: (open: boolean) => void;
+  resetActionableExamples: () => void;
 }
 
 export function matchesFloorZone(floorZone: string | undefined, taskFloor: number | undefined): boolean {
@@ -420,6 +429,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<DemoState>(seedState);
   const [hydrated, setHydrated] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [gestureGuideOpen, setGestureGuideOpen] = useState(false);
   const stateRef = useRef(state);
   stateRef.current = state;
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -4950,22 +4960,45 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   );
 
   const updateStaffShiftSchedule = useCallback<DemoApi['updateStaffShiftSchedule']>(
-    (scheduleId, shiftType, floorZone, status, notes) => {
+    (scheduleId, shiftTypeOrUpdates, floorZoneArg, statusArg, notesArg) => {
       setState((prev) => {
         const schedules = prev.shiftSchedules ?? seedShiftSchedules;
         const target = schedules.find((s) => s.id === scheduleId);
         if (!target) return prev;
 
+        let shiftType = target.shiftType;
+        let floorZone = target.floorZone;
+        let status = target.status;
+        let notes = target.notes;
+        let conflictReason = target.conflictReason;
+
+        if (typeof shiftTypeOrUpdates === 'object' && shiftTypeOrUpdates !== null) {
+          const up = shiftTypeOrUpdates as Partial<ShiftScheduleRecord>;
+          if (up.shiftType) shiftType = up.shiftType;
+          if (up.floorZone !== undefined) floorZone = up.floorZone;
+          if (up.status !== undefined) status = up.status;
+          if (up.notes !== undefined) notes = up.notes;
+          if ('conflictReason' in up) conflictReason = up.conflictReason;
+        } else if (typeof shiftTypeOrUpdates === 'string') {
+          shiftType = shiftTypeOrUpdates;
+          if (floorZoneArg !== undefined) floorZone = floorZoneArg;
+          if (statusArg !== undefined) status = statusArg;
+          if (notesArg !== undefined) notes = notesArg;
+        }
+
         const startTime = shiftType === 'Morning' ? '07:00' : shiftType === 'Evening' ? '15:00' : '23:00';
         const endTime = shiftType === 'Morning' ? '15:30' : shiftType === 'Evening' ? '23:30' : '07:30';
+        const shiftHours = `${startTime} – ${endTime}`;
 
         const updated: ShiftScheduleRecord = {
           ...target,
           shiftType,
           startTime,
           endTime,
+          shiftHours,
           floorZone,
           status: status ?? target.status,
+          conflictReason,
           notes: notes ?? target.notes,
         };
 
@@ -5970,6 +6003,26 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     [notify],
   );
 
+  const resetActionableExamples = useCallback(() => {
+    setState((prev) => ({
+      ...prev,
+      items: {
+        ...prev.items,
+        front_desk_coordinator: seedItems.front_desk_coordinator,
+      },
+      frontDesk: {
+        ...prev.frontDesk,
+        stays: prev.frontDesk.stays.map((st) =>
+          st.id === 'stay-hannah' ? { ...st, idChecked: false, preCheckIn: 'pending_verify' } : st
+        ),
+      },
+      safetyAlerts: (prev.safetyAlerts ?? seedSafetyAlerts).map((a) =>
+        a.id === 'alert-3' ? { ...a, status: 'draft_pending_validation' } : a
+      ),
+    }));
+    notify('Action items reset for demonstration');
+  }, [notify]);
+
   const api = useMemo<DemoApi>(
     () => ({
       state,
@@ -6083,6 +6136,9 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       markGuestNotificationRead,
       markAllGuestNotificationsRead,
       updateGuestProfile,
+      gestureGuideOpen,
+      setGestureGuideOpen,
+      resetActionableExamples,
     }),
     [
       state,
@@ -6196,6 +6252,9 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       markGuestNotificationRead,
       markAllGuestNotificationsRead,
       updateGuestProfile,
+      gestureGuideOpen,
+      setGestureGuideOpen,
+      resetActionableExamples,
     ],
   );
 

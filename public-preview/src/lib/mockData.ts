@@ -488,7 +488,7 @@ export const seedItems: Record<RoleId, WorkItem[]> = {
       priority: 'vip',
       ref: 'FD-2042',
       createdAt: '09:35',
-      description: 'Flight lands 18:40, 2 guests, 3 suitcases',
+      description: 'Flight LH430 lands at 18:40 (2 guests, 3 bags). Requested executive airport chauffeur pickup.',
       history: [{ at: '09:35', status: 'Received' }],
     },
     {
@@ -504,12 +504,12 @@ export const seedItems: Record<RoleId, WorkItem[]> = {
       owner: 'Front Desk',
       ref: 'FD-2043',
       createdAt: '09:28',
-      description: 'Would like to leave at 15:00',
+      description: 'Requested departure extension to 15:00. Suite 402 is unassigned until tomorrow; housekeeping permits 15:00 release.',
       history: [{ at: '09:28', status: 'Received' }],
     },
     {
       id: 'fd-5',
-      title: 'Guest case · Lost room key',
+      title: 'Replacement Key Card · Room 518',
       meta: 'Walk-in · Priya Nair · Room 518 · Owner: Front Desk',
       status: 'Open',
       chip: 'Case #2041',
@@ -519,6 +519,7 @@ export const seedItems: Record<RoleId, WorkItem[]> = {
       channel: 'Walk-in',
       ref: 'FD-2041',
       createdAt: '09:31',
+      description: 'Guest misplaced RFID key card at Pool Deck. New key card programmed; ready for counter handover confirmation.',
       history: [{ at: '09:31', status: 'Open', note: 'Captured by walk-in' }],
     },
   ],
@@ -803,13 +804,21 @@ export const menuItems: MenuItem[] = [
   { id: 'm12', name: 'Mango Panna Cotta', category: 'Desserts', price: 9, veg: true },
 ];
 
-export const housekeepingCatalog = [
-  { id: 'hk1', name: 'Extra towels', icon: Droplets },
-  { id: 'hk2', name: 'Toiletries refresh', icon: Sparkles },
-  { id: 'hk3', name: 'Extra pillows', icon: Bed },
-  { id: 'hk4', name: 'Extra bedding / blanket', icon: BedDouble },
-  { id: 'hk5', name: 'Bottled water', icon: GlassWater },
-  { id: 'hk6', name: 'Slippers & robe', icon: Footprints },
+export interface HousekeepingCatalogItem {
+  id: string;
+  name: string;
+  icon: any;
+  desc?: string;
+  image?: string;
+}
+
+export const housekeepingCatalog: readonly HousekeepingCatalogItem[] = [
+  { id: 'hk1', name: 'Extra towels', icon: Droplets, desc: 'Fresh, plush luxury cotton bath & hand towels', image: '/images/amenities/extra-towels.jpg' },
+  { id: 'hk2', name: 'Toiletries refresh', icon: Sparkles, desc: 'Botanical shampoo, conditioner & artisan soap bar', image: '/images/amenities/toiletries-refresh.svg' },
+  { id: 'hk3', name: 'Extra pillows', icon: Bed, desc: 'Hypoallergenic feather-down & memory foam pillows', image: '/images/amenities/extra-pillows.svg' },
+  { id: 'hk4', name: 'Extra bedding / blanket', icon: BedDouble, desc: '400TC Egyptian cotton duvet & cozy throw blanket', image: '/images/amenities/extra-bedding.svg' },
+  { id: 'hk5', name: 'Bottled water', icon: GlassWater, desc: 'Chilled premium glass-bottled mineral water', image: '/images/amenities/bottled-water.svg' },
+  { id: 'hk6', name: 'Slippers & robe', icon: Footprints, desc: 'Soft velour slippers & plush waffle bathrobe', image: '/images/amenities/slippers-robe.svg' },
 ] as const;
 
 export const maintenanceCategories = [
@@ -3010,12 +3019,13 @@ export const seedSafetyAlerts: SafetyAlertRecord[] = [
   {
     id: 'alert-3',
     ref: 'SFT-003',
-    title: 'Basement Utility Substation Thermal Fluctuation',
+    title: 'West Wing Elevator B Routine Inspection',
     priority: 'critical',
-    location: 'Sub-level B2 Electrical Plant',
+    priority: 'warning',
+    location: 'West Wing Guest Elevators (Floors 1–5)',
     affectedFloors: ['B2'],
     incidentType: 'fire_sensor',
-    description: 'Thermal camera sensor flagged 4°C above baseline in breaker cabinet 3. Security patrol dispatched to investigate before broadcast.',
+    description: 'Elevator B offline for scheduled hydraulic sensor recalibration (11:00–12:00). Guests routed to Panoramic Core Elevators.',
     status: 'draft_pending_validation',
     reportedBy: 'Inspector Roy (EMP-0108)',
     reportedAt: 'Today, 16:05',

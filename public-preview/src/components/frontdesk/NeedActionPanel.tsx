@@ -4,17 +4,19 @@ import { useState } from 'react';
 import {
   AlertTriangle,
   ArrowRight,
+  Bell,
+  Car,
+  Check,
   CheckCircle2,
   Clock,
-  Eye,
+  Crown,
   FileCheck2,
-  HelpCircle,
-  Inbox,
-  Radio,
-  Send,
+  KeyRound,
+  RotateCcw,
   ShieldAlert,
   Sparkles,
   UserCheck,
+  X,
   Zap,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
@@ -22,7 +24,15 @@ import { Button } from '@/components/ui/Button';
 import { Panel } from '@/components/ui/Panel';
 import { useDemo } from '@/lib/store';
 import { cn } from '@/lib/utils';
+import {
+  requestStep,
+  verifyPreCheckIn,
+  type RequestStep,
+} from '@/lib/frontDesk';
+import { needsAction } from '@/components/frontdesk/RequestsPanel';
 import type { WorkItem, SafetyAlertRecord } from '@/types/demo';
+
+type FilterType = 'all' | 'requests' | 'checkin' | 'alerts';
 
 export function NeedActionPanel({
   onSwitchTab,
@@ -32,276 +42,464 @@ export function NeedActionPanel({
   const {
     state,
     validateSafetyAlertByFrontDesk,
-    broadcastSafetyAlert,
-    advance,
     fdAction,
     notify,
+    resetActionableExamples,
   } = useDemo();
 
-  const [validationNotes, setValidationNotes] = useState<Record<string, string>>({});
-  const [selectedAlert, setSelectedAlert] = useState<SafetyAlertRecord | null>(null);
+  const [filter, setFilter] = useState<FilterType>('all');
 
-  // 1. Safety Alerts needing validation or broadcast
-  const pendingValidationAlerts = (state.safetyAlerts ?? []).filter(
-    (a) => a.status === 'draft_pending_validation',
-  );
-  const approvedForBroadcastAlerts = (state.safetyAlerts ?? []).filter(
-    (a) => a.status === 'approved_ready_broadcast',
-  );
-
-  // 2. Urgent / Critical Front Desk work items
+  // 1. Actionable guest requests and cases in Front Desk queue
   const queue = state.items.front_desk_coordinator ?? [];
-  const urgentQueue = queue.filter(
-    (i) =>
-      i.priority === 'urgent' ||
-      i.priority === 'critical' ||
-      i.priority === 'safety' ||
-      i.status === 'New' ||
-      i.status === 'Needs action' ||
-      i.status === 'Pending triage',
-  );
+  const actionableRequests = queue.filter(needsAction);
 
-  // 3. Stays needing check-in verification
+  // 2. Expected arrivals needing identity check / pre-arrival verification
   const arrivalsNeedingId = (state.frontDesk?.stays ?? []).filter(
     (st) => st.status === 'expected' && !st.idChecked,
   );
 
-  // 4. Folio disputes needing front desk / finance escalation
-  const complaintsNeedingAction = (state.frontDesk?.complaints ?? []).filter(
-    (c) => c.comp > 0 && !c.compApplied,
+  // 3. Operational and safety advisories needing Front Desk validation
+  const pendingAlerts = (state.safetyAlerts ?? []).filter(
+    (a) => a.status === 'draft_pending_validation',
   );
 
-  const totalActionCount =
-    pendingValidationAlerts.length +
-    approvedForBroadcastAlerts.length +
-    urgentQueue.length +
-    arrivalsNeedingId.length;
+  const totalCount =
+    actionableRequests.length + arrivalsNeedingId.length + pendingAlerts.length;
 
-  const handleValidateAlert = (alert: SafetyAlertRecord) => {
-    const notes = validationNotes[alert.id] || 'Operational impact verified by Front Desk coordinator. Safety perimeter cleared.';
-    validateSafetyAlertByFrontDesk(alert.id, notes);
+  // Handlers with live simulated feedback
+  const handleRequestAction = (
+    itemId: string,
+    step: RequestStep,
+    successMsg: string,
+  ) => {
+    const err = fdAction((s) => requestStep(s, itemId, step));
+    if (err) {
+      notify(err);
+    } else {
+      notify(successMsg);
+    }
   };
 
-  const handleBroadcastAlert = (alert: SafetyAlertRecord) => {
-    broadcastSafetyAlert(alert.id);
+  const handleVerifyStayId = (stayId: string, guest: string, room: string) => {
+    const err = fdAction((s) => verifyPreCheckIn(s, stayId));
+    if (err) {
+      notify(err);
+    } else {
+      notify(`✓ Verified ID for ${guest} · Room ${room}. Digital key activated.`);
+    }
+  };
+
+  const handleValidateAlert = (alertId: string, title: string) => {
+    validateSafetyAlertByFrontDesk(
+      alertId,
+      'Operational impact verified by Front Desk coordinator.',
+    );
+    notify(`✓ Advisory acknowledged: ${title}`);
   };
 
   return (
-    <div className="space-y-6">
-      {/* Overview Banner */}
-      <div className="rounded-2xl border border-rose-500/30 bg-gradient-to-r from-rose-950/40 via-ink-900 to-amber-950/20 p-5 shadow-xl text-white">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-4">
+      {/* Minimal Header & Filter Strip */}
+      <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 sm:p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-xl bg-rose-500/20 text-rose-300 ring-1 ring-rose-500/40">
-              <AlertTriangle className="h-5 w-5" />
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-400/10 text-amber-300 ring-1 ring-amber-400/20">
+              <Zap className="h-5 w-5" />
             </span>
             <div>
-              <h2 className="text-base font-bold font-display text-white">
-                Front Desk Operational Action Queue
-              </h2>
-              <p className="text-xs text-mist-300">
-                Prioritized items requiring immediate front office triage, safety escalation, or guest resolution
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold font-display text-white">Action Queue</h2>
+                <span className="rounded-full bg-amber-400/15 px-2.5 py-0.5 text-xs font-bold text-amber-300">
+                  {totalCount} pending
+                </span>
+              </div>
+              <p className="mt-0.5 text-xs text-mist-400">
+                High-priority guest requests, arrival ID checks, and operational notices requiring immediate attention.
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge tone={totalActionCount > 0 ? 'danger' : 'success'} className="px-3 py-1 text-xs">
-              {totalActionCount} actionable item{totalActionCount === 1 ? '' : 's'}
-            </Badge>
+
+          {/* Filter Pills */}
+          <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-white/[0.03] border border-white/[0.06] self-start sm:self-auto">
+            <button
+              type="button"
+              onClick={() => setFilter('all')}
+              className={cn(
+                'px-3 py-1.5 rounded-lg text-xs font-semibold transition',
+                filter === 'all'
+                  ? 'bg-amber-400 text-ink-950 shadow-sm'
+                  : 'text-mist-300 hover:text-white hover:bg-white/[0.04]',
+              )}
+            >
+              All ({totalCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilter('requests')}
+              className={cn(
+                'px-3 py-1.5 rounded-lg text-xs font-semibold transition',
+                filter === 'requests'
+                  ? 'bg-amber-400 text-ink-950 shadow-sm'
+                  : 'text-mist-300 hover:text-white hover:bg-white/[0.04]',
+              )}
+            >
+              Requests ({actionableRequests.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilter('checkin')}
+              className={cn(
+                'px-3 py-1.5 rounded-lg text-xs font-semibold transition',
+                filter === 'checkin'
+                  ? 'bg-amber-400 text-ink-950 shadow-sm'
+                  : 'text-mist-300 hover:text-white hover:bg-white/[0.04]',
+              )}
+            >
+              Check-In & ID ({arrivalsNeedingId.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilter('alerts')}
+              className={cn(
+                'px-3 py-1.5 rounded-lg text-xs font-semibold transition',
+                filter === 'alerts'
+                  ? 'bg-amber-400 text-ink-950 shadow-sm'
+                  : 'text-mist-300 hover:text-white hover:bg-white/[0.04]',
+              )}
+            >
+              Advisories ({pendingAlerts.length})
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Critical Section 1: Safety Alerts Workflow (Cross-role validation) */}
-      {(pendingValidationAlerts.length > 0 || approvedForBroadcastAlerts.length > 0) && (
-        <Panel
-          title="Safety Alert Broadcast Escalations"
-          hint="Security Responder drafted alerts requiring Front Desk validation or GM approved broadcast"
-          icon={ShieldAlert}
-        >
-          <div className="space-y-3.5">
-            {pendingValidationAlerts.map((alert) => (
+      {/* Action Items List */}
+      <div className="space-y-3">
+        {/* 1. Guest Requests & Inquiries */}
+        {(filter === 'all' || filter === 'requests') &&
+          actionableRequests.map((item) => {
+            const isVip = item.priority === 'vip';
+            const isAirportTransfer = item.id === 'fd-c1' || item.title.toLowerCase().includes('airport');
+            const isLateCheckout = item.id === 'fd-c2' || item.title.toLowerCase().includes('checkout');
+            const isLostKey = item.id === 'fd-5' || item.title.toLowerCase().includes('key');
+
+            return (
               <div
-                key={alert.id}
-                className="rounded-2xl border border-amber-500/30 bg-amber-500/[0.04] p-4.5 space-y-3 text-white"
+                key={item.id}
+                className="group relative rounded-2xl border border-white/10 bg-white/[0.02] p-4.5 transition-all hover:border-white/20 hover:bg-white/[0.03]"
               >
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <Badge tone="warning">Step 2: Front Desk Validation Required</Badge>
-                      <Badge tone="danger">{alert.priority.toUpperCase()}</Badge>
-                      <span className="text-xs font-mono text-mist-400">{alert.ref}</span>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  {/* Left info block */}
+                  <div className="flex items-start gap-3 min-w-0">
+                    <span
+                      className={cn(
+                        'grid h-9 w-9 shrink-0 place-items-center rounded-xl text-sm mt-0.5',
+                        isVip
+                          ? 'bg-amber-400/15 text-amber-300 border border-amber-400/30'
+                          : isLateCheckout
+                            ? 'bg-emerald-400/15 text-emerald-300 border border-emerald-400/30'
+                            : 'bg-sky-400/15 text-sky-300 border border-sky-400/30',
+                      )}
+                    >
+                      {isVip ? (
+                        <Crown className="h-4 w-4" />
+                      ) : isAirportTransfer ? (
+                        <Car className="h-4 w-4" />
+                      ) : isLateCheckout ? (
+                        <Clock className="h-4 w-4" />
+                      ) : (
+                        <KeyRound className="h-4 w-4" />
+                      )}
+                    </span>
+
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-sm font-bold text-white tracking-tight">{item.title}</h3>
+                        {isVip && (
+                          <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-400/30">
+                            VIP
+                          </span>
+                        )}
+                        {item.room && (
+                          <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-mist-200">
+                            Room {item.room}
+                          </span>
+                        )}
+                        <Badge tone={item.tone ?? 'warning'} className="text-[10px]">
+                          {item.chip || item.status}
+                        </Badge>
+                      </div>
+
+                      <p className="text-xs text-mist-200 leading-relaxed max-w-2xl">
+                        {item.description || item.meta}
+                      </p>
+
+                      <div className="flex flex-wrap items-center gap-2 text-[11px] text-mist-400 pt-0.5">
+                        <span>{item.guest ? 'Guest Portal · Verified' : item.channel || 'Walk-in'}</span>
+                        <span>·</span>
+                        <span>Logged {item.createdAt}</span>
+                        {item.ref && (
+                          <>
+                            <span>·</span>
+                            <span className="font-mono text-mist-400">{item.ref}</span>
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <h3 className="mt-1 text-sm font-bold text-white">{alert.title}</h3>
-                    <p className="mt-0.5 text-xs text-mist-300">{alert.description}</p>
-                    <p className="mt-1.5 text-[11px] text-amber-200 font-mono">
-                      Location: {alert.location} · Reported by: {alert.reportedBy} ({alert.reportedAt})
+                  </div>
+
+                  {/* Right Action Buttons */}
+                  <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0">
+                    {isAirportTransfer ? (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="accent"
+                          iconLeft={Car}
+                          onClick={() =>
+                            handleRequestAction(
+                              item.id,
+                              { kind: 'confirm' },
+                              `✓ Confirmed airport chauffeur transfer for Room ${item.room || '518'}. Concierge dispatched.`,
+                            )
+                          }
+                        >
+                          Confirm & Dispatch
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => onSwitchTab?.('requests')}
+                        >
+                          Details
+                        </Button>
+                      </>
+                    ) : isLateCheckout ? (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="accent"
+                          iconLeft={Clock}
+                          onClick={() =>
+                            handleRequestAction(
+                              item.id,
+                              { kind: 'confirm' },
+                              `✓ Approved 15:00 late checkout for Room ${item.room || '402'}. Housekeeping schedule updated.`,
+                            )
+                          }
+                        >
+                          Approve 15:00
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() =>
+                            handleRequestAction(
+                              item.id,
+                              { kind: 'cancel', reason: 'Late checkout unavailable due to immediate back-to-back arrival.' },
+                              `Declined late checkout for Room ${item.room || '402'}.`,
+                            )
+                          }
+                        >
+                          Decline
+                        </Button>
+                      </>
+                    ) : isLostKey ? (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="accent"
+                          iconLeft={KeyRound}
+                          onClick={() =>
+                            handleRequestAction(
+                              item.id,
+                              { kind: 'close' },
+                              `✓ Handed over encoded RFID room key to guest. Case closed.`,
+                            )
+                          }
+                        >
+                          Confirm Key Handover
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="accent"
+                          onClick={() =>
+                            handleRequestAction(
+                              item.id,
+                              { kind: 'confirm' },
+                              `✓ Confirmed ${item.title}.`,
+                            )
+                          }
+                        >
+                          Confirm Action
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => onSwitchTab?.('requests')}
+                        >
+                          View
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+
+        {/* 2. Expected Arrivals Needing ID Check */}
+        {(filter === 'all' || filter === 'checkin') &&
+          arrivalsNeedingId.map((stay) => (
+            <div
+              key={stay.id}
+              className="group relative rounded-2xl border border-sky-400/20 bg-sky-400/[0.02] p-4.5 transition-all hover:border-sky-400/40 hover:bg-sky-400/[0.04]"
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex items-start gap-3 min-w-0">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-sky-400/15 text-sky-300 border border-sky-400/30 text-sm mt-0.5">
+                    <UserCheck className="h-4 w-4" />
+                  </span>
+
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-sm font-bold text-white tracking-tight">
+                        Pre-Arrival ID Check · {stay.guest}
+                      </h3>
+                      {stay.vip && (
+                        <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-400/30">
+                          VIP
+                        </span>
+                      )}
+                      <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-mist-200">
+                        Room {stay.room} ({stay.roomType})
+                      </span>
+                      <Badge tone="warning" className="text-[10px]">
+                        ID Check Needed
+                      </Badge>
+                    </div>
+
+                    <p className="text-xs text-mist-200 leading-relaxed max-w-2xl">
+                      Guest arriving {stay.arrival}. Digital passport scan submitted via Guest Portal. Verify ID at the front desk to issue active digital room key.
                     </p>
+
+                    <div className="flex flex-wrap items-center gap-2 text-[11px] text-mist-400 pt-0.5">
+                      <span>Card on file: {stay.cardMask}</span>
+                      <span>·</span>
+                      <span>{stay.nights} Nights stay</span>
+                      <span>·</span>
+                      <span>Departure: {stay.departure}</span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="pt-2 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex-1">
-                    <input
-                      type="text"
-                      placeholder="Optional front desk triage validation note..."
-                      value={validationNotes[alert.id] || ''}
-                      onChange={(e) =>
-                        setValidationNotes((prev) => ({ ...prev, [alert.id]: e.target.value }))
-                      }
-                      className="field text-xs w-full"
-                    />
-                  </div>
+                <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0">
                   <Button
                     size="sm"
                     variant="accent"
                     iconLeft={FileCheck2}
-                    onClick={() => handleValidateAlert(alert)}
+                    onClick={() => handleVerifyStayId(stay.id, stay.guest, stay.room)}
                   >
-                    Validate & Escalate to Manager
+                    Verify ID & Ready Key
                   </Button>
-                </div>
-              </div>
-            ))}
-
-            {approvedForBroadcastAlerts.map((alert) => (
-              <div
-                key={alert.id}
-                className="rounded-2xl border border-emerald-500/40 bg-emerald-500/[0.05] p-4.5 space-y-3 text-white"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <Badge tone="success">Step 4: Manager Approved · Ready for Broadcast</Badge>
-                      <Badge tone="danger">{alert.priority.toUpperCase()}</Badge>
-                      <span className="text-xs font-mono text-mist-400">{alert.ref}</span>
-                    </div>
-                    <h3 className="mt-1 text-sm font-bold text-white">{alert.title}</h3>
-                    <p className="mt-0.5 text-xs text-mist-300">{alert.description}</p>
-                    <p className="mt-1.5 text-[11px] text-emerald-300 font-mono">
-                      Approved by: {alert.approvedBy} ({alert.approvedAt}) · Scope: Property-Wide
-                    </p>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="accent"
-                    iconLeft={Radio}
-                    onClick={() => handleBroadcastAlert(alert)}
-                    className="shadow-lg shadow-emerald-500/20"
-                  >
-                    Broadcast Live Alert
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Panel>
-      )}
-
-      {/* Section 2: Urgent Guest Requests & Operational Items */}
-      <Panel
-        title="Urgent Guest Cases & In-Flight Inquiries"
-        hint="High priority guest requests routed through Front Desk requiring immediate assignment or status review"
-        icon={Inbox}
-      >
-        {urgentQueue.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-white/10 p-8 text-center text-sm text-mist-400">
-            <CheckCircle2 className="mx-auto h-8 w-8 text-emerald-400/80 mb-2" />
-            <p className="font-medium text-white">No urgent guest requests pending Front Desk action.</p>
-            <p className="text-xs text-mist-500 mt-1">All in-flight requests are actively claimed or dispatched to departments.</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-white/[0.08] overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
-            {urgentQueue.map((item) => (
-              <div key={item.id} className="p-4 space-y-2 hover:bg-white/[0.02] transition">
-                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-semibold text-sm text-white">{item.title}</span>
-                      <Badge tone={item.priority === 'critical' ? 'danger' : 'warning'}>
-                        {item.priority?.toUpperCase() ?? 'URGENT'}
-                      </Badge>
-                      {item.room && <Badge tone="neutral">Room {item.room}</Badge>}
-                      {item.ref && <span className="text-[11px] font-mono text-mist-400">{item.ref}</span>}
-                    </div>
-                    <p className="mt-1 text-xs text-mist-300">{item.description || item.meta}</p>
-                    <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-mist-400">
-                      <span>Source: {item.guest ? 'Guest Portal (Digital)' : 'Front Desk Counter'}</span>
-                      <span>·</span>
-                      <span>Department: {item.routedTo || item.category || 'Front Office'}</span>
-                      <span>·</span>
-                      <span>Status: <strong className="text-white">{item.status}</strong></span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        advance('front_desk_coordinator', item.id, { label: 'Acknowledge', next: 'Acknowledged', message: 'Acknowledged' });
-                      }}
-                    >
-                      Acknowledge
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="subtle"
-                      onClick={() => {
-                        if (onSwitchTab) onSwitchTab('requests');
-                      }}
-                    >
-                      Open in Requests
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Panel>
-
-      {/* Section 3: Expected Arrivals Needing Identity Verification */}
-      {arrivalsNeedingId.length > 0 && (
-        <Panel
-          title="Arrivals Requiring ID Verification"
-          hint="Pre-arrival or arriving guests whose ID has not yet been verified at the counter"
-          icon={UserCheck}
-        >
-          <div className="grid gap-3 sm:grid-cols-2">
-            {arrivalsNeedingId.map((stay) => (
-              <div
-                key={stay.id}
-                className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 space-y-2"
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h4 className="text-sm font-semibold text-white flex items-center gap-2">
-                      {stay.guest}
-                      {stay.vip && <Badge tone="accent">VIP</Badge>}
-                    </h4>
-                    <p className="text-xs text-mist-400">
-                      Room {stay.room} · {stay.roomType} · Arriving {stay.arrival}
-                    </p>
-                  </div>
-                  <Badge tone="warning">ID Check Needed</Badge>
-                </div>
-                <div className="pt-2 flex justify-end">
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => {
-                      if (onSwitchTab) onSwitchTab('stays');
-                    }}
+                    onClick={() => onSwitchTab?.('stays')}
                   >
-                    Go to Stays Board
+                    Stays Board
                   </Button>
                 </div>
               </div>
-            ))}
+            </div>
+          ))}
+
+        {/* 3. Safety & Maintenance Advisories */}
+        {(filter === 'all' || filter === 'alerts') &&
+          pendingAlerts.map((alert) => (
+            <div
+              key={alert.id}
+              className="group relative rounded-2xl border border-amber-400/25 bg-amber-400/[0.02] p-4.5 transition-all hover:border-amber-400/40 hover:bg-amber-400/[0.04]"
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex items-start gap-3 min-w-0">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-amber-400/15 text-amber-300 border border-amber-400/30 text-sm mt-0.5">
+                    <ShieldAlert className="h-4 w-4" />
+                  </span>
+
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-sm font-bold text-white tracking-tight">{alert.title}</h3>
+                      <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-400/30 uppercase">
+                        {alert.priority}
+                      </span>
+                      <span className="font-mono text-[10px] text-mist-400">{alert.ref}</span>
+                    </div>
+
+                    <p className="text-xs text-mist-200 leading-relaxed max-w-2xl">{alert.description}</p>
+
+                    <div className="flex flex-wrap items-center gap-2 text-[11px] text-mist-400 pt-0.5">
+                      <span>Location: {alert.location}</span>
+                      <span>·</span>
+                      <span>Reported by {alert.reportedBy} ({alert.reportedAt})</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0">
+                  <Button
+                    size="sm"
+                    variant="accent"
+                    iconLeft={Check}
+                    onClick={() => handleValidateAlert(alert.id, alert.title)}
+                  >
+                    Acknowledge Advisory
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ))}
+
+        {/* Empty State */}
+        {totalCount === 0 && (
+          <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.01] p-10 text-center space-y-3">
+            <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-emerald-400/10 text-emerald-300 ring-1 ring-emerald-400/20">
+              <CheckCircle2 className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-white">Action Queue Is Clear</h3>
+              <p className="mt-1 text-xs text-mist-400 max-w-md mx-auto">
+                All high-priority guest inquiries, check-in ID verifications, and maintenance advisories have been addressed.
+              </p>
+            </div>
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={resetActionableExamples}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-white/10 bg-white/[0.04] text-xs font-semibold text-mist-200 hover:text-white hover:bg-white/[0.08] transition shadow-sm"
+              >
+                <RotateCcw className="h-3.5 w-3.5 text-amber-300" />
+                <span>Reload Demo Items</span>
+              </button>
+            </div>
           </div>
-        </Panel>
-      )}
+        )}
+
+        {/* Filter empty state when total > 0 but selected filter has 0 */}
+        {totalCount > 0 &&
+          ((filter === 'requests' && actionableRequests.length === 0) ||
+            (filter === 'checkin' && arrivalsNeedingId.length === 0) ||
+            (filter === 'alerts' && pendingAlerts.length === 0)) && (
+            <div className="rounded-2xl border border-dashed border-white/10 p-8 text-center text-xs text-mist-400">
+              <CheckCircle2 className="mx-auto h-6 w-6 text-emerald-400/80 mb-2" />
+              <p className="font-semibold text-white">No pending items in this category.</p>
+              <p className="mt-1">All items in this section have been completed.</p>
+            </div>
+          )}
+      </div>
     </div>
   );
 }
