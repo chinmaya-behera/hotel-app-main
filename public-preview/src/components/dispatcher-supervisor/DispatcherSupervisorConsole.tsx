@@ -518,7 +518,7 @@ export function DispatcherSupervisorConsole() {
                               {p.category}
                             </span>
                           </div>
-                          <p className="text-xs text-mist-300">{p.content}</p>
+                          <p className="text-xs text-mist-300">{p.summary || p.content}</p>
                           <div className="flex items-center justify-between text-[11px] pt-1 text-mist-400">
                             <span className="text-amber-300 font-mono">Limit: {p.authorityLimit}</span>
                             <span>Owner: {p.policyOwner}</span>

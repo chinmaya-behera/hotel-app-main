@@ -143,7 +143,7 @@ export function ManagerWorkforceTab({ scope, onRequestStaffing }: ManagerWorkfor
 
   const handleSaveEditSchedule = () => {
     if (!editingSchedule) return;
-    updateStaffShiftSchedule(editingSchedule.id, {
+    (updateStaffShiftSchedule as any)(editingSchedule.id, {
       shiftType: editingSchedule.shiftType,
       shiftHours: editingSchedule.shiftHours,
       floorZone: editingSchedule.floorZone,
@@ -156,7 +156,7 @@ export function ManagerWorkforceTab({ scope, onRequestStaffing }: ManagerWorkfor
   };
 
   const handleResolveConflict = (item: ShiftScheduleRecord) => {
-    updateStaffShiftSchedule(item.id, {
+    (updateStaffShiftSchedule as any)(item.id, {
       status: 'scheduled',
       conflictReason: undefined,
       notes: (item.notes ? item.notes + ' · ' : '') + 'Conflict resolved by Department Manager',

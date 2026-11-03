@@ -239,7 +239,7 @@ export function NeedActionPanel({
                       size="sm"
                       variant="ghost"
                       onClick={() => {
-                        advance('front_desk_coordinator', item.id, 'Acknowledged');
+                        advance('front_desk_coordinator', item.id, { label: 'Acknowledge', next: 'Acknowledged', message: 'Acknowledged' });
                       }}
                     >
                       Acknowledge

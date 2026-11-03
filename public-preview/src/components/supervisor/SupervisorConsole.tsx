@@ -95,8 +95,8 @@ export function SupervisorConsole() {
   const staffList = useMemo(() => state.staffAccounts ?? [], [state.staffAccounts]);
   const tasks = useMemo(
     () => [
-      ...(state.items.housekeeping ?? []),
-      ...(state.items.room_attendant_fulfiller ?? []),
+      ...((state.items as any).housekeeping ?? []),
+      ...((state.items as any).room_attendant_fulfiller ?? []),
       ...(state.items.task_fulfiller ?? []),
     ],
     [state.items],
