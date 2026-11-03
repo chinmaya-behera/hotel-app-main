@@ -921,3 +921,43 @@ option {
     animation: rise 0.2s ease both;
   }
 }
+
+/* Ambient Background Glows */
+.glow-sphere-1 {
+  position: fixed;
+  top: -15%;
+  left: 10%;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.12) 0%, rgba(56, 189, 248, 0) 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+.glow-sphere-2 {
+  position: fixed;
+  bottom: -15%;
+  right: 5%;
+  width: 650px;
+  height: 650px;
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.12) 0%, rgba(168, 85, 247, 0) 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+:root[data-theme='light'] .glow-sphere-1,
+.light .glow-sphere-1 {
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.15) 0%, rgba(14, 165, 233, 0) 70%);
+}
+:root[data-theme='light'] .glow-sphere-2,
+.light .glow-sphere-2 {
+  background: radial-gradient(circle, rgba(244, 114, 182, 0.13) 0%, rgba(244, 114, 182, 0) 70%);
+}
+
+/* Input autofill styling override */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: inherit;
+  -webkit-box-shadow: 0 0 0px 1000px transparent inset;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
