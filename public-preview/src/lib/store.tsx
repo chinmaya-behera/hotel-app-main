@@ -303,6 +303,9 @@ interface DemoApi {
   broadcastSafetyAlert: (alertId: string) => void;
   resolveSafetyAlert: (alertId: string, notes?: string) => void;
   acknowledgeSafetyAlert: (alertId: string, roleOrUser: string) => void;
+  gestureGuideOpen: boolean;
+  setGestureGuideOpen: (open: boolean) => void;
+  resetActionableExamples: () => void;
 }
 
 export function matchesFloorZone(floorZone: string | undefined, taskFloor: number | undefined): boolean {
@@ -368,6 +371,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<DemoState>(seedState);
   const [hydrated, setHydrated] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [gestureGuideOpen, setGestureGuideOpen] = useState(false);
   const stateRef = useRef(state);
   stateRef.current = state;
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -488,12 +492,12 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         nextItems[roleId] = nextItems[roleId].map((i) =>
           i.id === itemId
             ? {
-                ...i,
-                status: t.next,
-                selfRequested: t.marksSelf ? true : i.selfRequested,
-                blockerReason: t.next === 'Blocked' ? (reason ?? i.blockerReason) : (t.next === 'In progress' ? undefined : i.blockerReason),
-                history: [...(i.history ?? []), historyEntry],
-              }
+              ...i,
+              status: t.next,
+              selfRequested: t.marksSelf ? true : i.selfRequested,
+              blockerReason: t.next === 'Blocked' ? (reason ?? i.blockerReason) : (t.next === 'In progress' ? undefined : i.blockerReason),
+              history: [...(i.history ?? []), historyEntry],
+            }
             : i,
         );
 
@@ -774,14 +778,14 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       const updateTask = (t: WorkItem) =>
         t.id === itemId || (item.ref && t.ref === item.ref)
           ? {
-              ...t,
-              status: 'Reassignment requested',
-              chip: 'Pending supervisor review',
-              tone: 'warning' as const,
-              reassignPending: true,
-              reassignReason: reason,
-              history: [...(t.history ?? []), historyEntry],
-            }
+            ...t,
+            status: 'Reassignment requested',
+            chip: 'Pending supervisor review',
+            tone: 'warning' as const,
+            reassignPending: true,
+            reassignReason: reason,
+            history: [...(t.history ?? []), historyEntry],
+          }
           : t;
 
       return {
@@ -828,12 +832,12 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           task_fulfiller: prev.items.task_fulfiller.map((i) =>
             i.id === fulfillerItemId
               ? {
-                  ...i,
-                  status: approved ? 'Completed' : 'Assigned',
-                  chip: approved ? 'Reassigned' : 'Reassignment declined',
-                  reassignPending: false,
-                  history: [...(i.history ?? []), historyEntry],
-                }
+                ...i,
+                status: approved ? 'Completed' : 'Assigned',
+                chip: approved ? 'Reassigned' : 'Reassignment declined',
+                reassignPending: false,
+                history: [...(i.history ?? []), historyEntry],
+              }
               : i,
           ),
           department_supervisor: prev.items.department_supervisor.map((i) =>
@@ -1003,8 +1007,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
       const taskDept = task.department?.toLowerCase() ||
         (task.category === 'housekeeping' ? 'housekeeping' :
-         task.category === 'maintenance' ? 'maintenance' :
-         task.category === 'room_service' ? 'food & beverage' : 'operations');
+          task.category === 'maintenance' ? 'maintenance' :
+            task.category === 'room_service' ? 'food & beverage' : 'operations');
 
       const taskFloor = task.floor || (task.room ? parseInt(task.room[0], 10) : undefined);
 
@@ -1924,12 +1928,12 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         const updatedRequests = (prev.resourceRequests ?? []).map((r) =>
           r.id === requestId
             ? {
-                ...r,
-                status: action === 'approve' ? ('approved' as const) : ('rejected' as const),
-                reviewedBy: 'Marcus Vance (Duty Manager)',
-                reviewedAt: timestamp,
-                reviewNotes: reviewNotes || (action === 'approve' ? 'Approved by Duty Operations' : 'Declined by Duty Operations'),
-              }
+              ...r,
+              status: action === 'approve' ? ('approved' as const) : ('rejected' as const),
+              reviewedBy: 'Marcus Vance (Duty Manager)',
+              reviewedAt: timestamp,
+              reviewNotes: reviewNotes || (action === 'approve' ? 'Approved by Duty Operations' : 'Declined by Duty Operations'),
+            }
             : r,
         );
 
@@ -2080,11 +2084,11 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         const updatedComplaints = prev.frontDesk.complaints.map((item) =>
           item.id === c.id
             ? {
-                ...item,
-                comp: compAmount,
-                compApplied: withinLimit && compAmount > 0 ? true : item.compApplied,
-                managerNotes: resolutionNotes,
-              }
+              ...item,
+              comp: compAmount,
+              compApplied: withinLimit && compAmount > 0 ? true : item.compApplied,
+              managerNotes: resolutionNotes,
+            }
             : item,
         );
 
@@ -2113,18 +2117,18 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         const updatedFolios =
           withinLimit && compAmount > 0
             ? {
-                ...prev.folios,
-                [c.room]: [
-                  ...(prev.folios[c.room] ?? []),
-                  {
-                    id: uid(),
-                    at: timestamp,
-                    desc: `Service recovery credit (Approved by Duty Manager)`,
-                    amount: -compAmount,
-                    room: c.room,
-                  },
-                ],
-              }
+              ...prev.folios,
+              [c.room]: [
+                ...(prev.folios[c.room] ?? []),
+                {
+                  id: uid(),
+                  at: timestamp,
+                  desc: `Service recovery credit (Approved by Duty Manager)`,
+                  amount: -compAmount,
+                  room: c.room,
+                },
+              ],
+            }
             : prev.folios;
 
         return {
@@ -2230,10 +2234,10 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         const updatedIncidents = (prev.incidents ?? []).map((i) =>
           i.id === inc.id
             ? {
-                ...i,
-                status,
-                timeline: [...i.timeline, timelineEntry],
-              }
+              ...i,
+              status,
+              timeline: [...i.timeline, timelineEntry],
+            }
             : i,
         );
 
@@ -2279,22 +2283,22 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           action === 'approve'
             ? 'Approved'
             : action === 'reject'
-            ? 'Rejected'
-            : 'Info Requested';
+              ? 'Rejected'
+              : 'Info Requested';
 
         const nextChip =
           action === 'approve'
             ? 'GM Approved'
             : action === 'reject'
-            ? 'Declined by GM'
-            : 'Pending Clarification';
+              ? 'Declined by GM'
+              : 'Pending Clarification';
 
         const nextTone =
           action === 'approve'
             ? ('success' as const)
             : action === 'reject'
-            ? ('danger' as const)
-            : ('info' as const);
+              ? ('danger' as const)
+              : ('info' as const);
 
         const historyEntry = {
           at: timestamp,
@@ -2305,19 +2309,19 @@ export function DemoProvider({ children }: { children: ReactNode }) {
             (action === 'approve'
               ? 'Authorized by Executive General Manager Priya Nair'
               : action === 'reject'
-              ? 'Declined by Executive General Manager'
-              : 'Clarification requested on budget impact'),
+                ? 'Declined by Executive General Manager'
+                : 'Clarification requested on budget impact'),
         };
 
         const updatedList = list.map((i) =>
           i.id === itemId
             ? {
-                ...i,
-                status: nextStatus,
-                chip: nextChip,
-                tone: nextTone,
-                history: [...(i.history ?? []), historyEntry],
-              }
+              ...i,
+              status: nextStatus,
+              chip: nextChip,
+              tone: nextTone,
+              history: [...(i.history ?? []), historyEntry],
+            }
             : i,
         );
 
@@ -2422,12 +2426,12 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         const updatedList = list.map((i) =>
           i.id === itemId
             ? {
-                ...i,
-                history: [
-                  ...(i.history ?? []),
-                  { at: timestamp, status: 'Executive Note', note: `[Priya Nair - GM] ${comment}` },
-                ],
-              }
+              ...i,
+              history: [
+                ...(i.history ?? []),
+                { at: timestamp, status: 'Executive Note', note: `[Priya Nair - GM] ${comment}` },
+              ],
+            }
             : i,
         );
 
@@ -2464,12 +2468,12 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           updatedIncidents = updatedIncidents.map((i) =>
             i.id === targetId || i.ref === targetId
               ? {
-                  ...i,
-                  timeline: [
-                    ...i.timeline,
-                    { at: timestamp, text: `[Executive Directive - Priya Nair] ${directiveText}` },
-                  ],
-                }
+                ...i,
+                timeline: [
+                  ...i.timeline,
+                  { at: timestamp, text: `[Executive Directive - Priya Nair] ${directiveText}` },
+                ],
+              }
               : i,
           );
         }
@@ -3142,8 +3146,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
             paymentMethod === 'Cash'
               ? 'Front Desk Cash Register'
               : paymentMethod === 'UPI'
-              ? 'Razorpay Enterprise'
-              : 'HDFC Merchant Gateway',
+                ? 'Razorpay Enterprise'
+                : 'HDFC Merchant Gateway',
           notes: notes || 'Manual payment recorded via Financial Operator console',
           isReconciled: true,
         };
@@ -3200,8 +3204,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         outstandingBalance <= 0
           ? 'Paid'
           : invInput.paidAmount > 0
-          ? 'Partially Paid'
-          : 'Unpaid';
+            ? 'Partially Paid'
+            : 'Unpaid';
 
       const newInvoice: FinanceInvoice = {
         ...invInput,
@@ -3947,15 +3951,15 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         const fulfillerNotif: InAppNotification | null =
           isAssigned && (input.assigneeId === 'EMP-0103' || input.assigneeName === 'Vikram Singh')
             ? {
-                id: uid(),
-                roleId: 'task_fulfiller',
-                title: 'New Task Assigned',
-                message: `Supervisor assigned you ${newTask.title} (${newTask.room ? 'Room ' + newTask.room : 'Floor ' + floor})`,
-                timestamp,
-                read: false,
-                type: 'task',
-                itemId: newTask.id,
-              }
+              id: uid(),
+              roleId: 'task_fulfiller',
+              title: 'New Task Assigned',
+              message: `Supervisor assigned you ${newTask.title} (${newTask.room ? 'Room ' + newTask.room : 'Floor ' + floor})`,
+              timestamp,
+              read: false,
+              type: 'task',
+              itemId: newTask.id,
+            }
             : null;
 
         return {
@@ -4847,10 +4851,10 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         const updatedStaff = (prev.staffAccounts ?? []).map((s) =>
           s.employeeId === target.employeeId
             ? {
-                ...s,
-                shift: shiftType === 'Morning' ? ('Day' as const) : shiftType === 'Evening' ? ('Evening' as const) : ('Night' as const),
-                floorZone,
-              }
+              ...s,
+              shift: shiftType === 'Morning' ? ('Day' as const) : shiftType === 'Evening' ? ('Evening' as const) : ('Night' as const),
+              floorZone,
+            }
             : s,
         );
 
@@ -5233,20 +5237,20 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           safetyAlerts: list.map((a) =>
             a.id === alertId
               ? {
-                  ...a,
-                  status: 'resolved' as const,
-                  resolvedAt: `Today, ${now}`,
-                  auditHistory: [
-                    ...a.auditHistory,
-                    {
-                      at: now,
-                      actor: 'Security & Operations Command',
-                      role: 'security_responder',
-                      action: 'Safety alert resolved and stand-down order broadcasted',
-                      notes,
-                    },
-                  ],
-                }
+                ...a,
+                status: 'resolved' as const,
+                resolvedAt: `Today, ${now}`,
+                auditHistory: [
+                  ...a.auditHistory,
+                  {
+                    at: now,
+                    actor: 'Security & Operations Command',
+                    role: 'security_responder',
+                    action: 'Safety alert resolved and stand-down order broadcasted',
+                    notes,
+                  },
+                ],
+              }
               : a,
           ),
           feed: [
@@ -5296,6 +5300,26 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     timers.current = [];
     setState({ ...seedState(), theme: stateRef.current.theme });
     notify('Demo data reset to its initial state');
+  }, [notify]);
+
+  const resetActionableExamples = useCallback(() => {
+    setState((prev) => ({
+      ...prev,
+      items: {
+        ...prev.items,
+        front_desk_coordinator: seedItems.front_desk_coordinator,
+      },
+      frontDesk: {
+        ...prev.frontDesk,
+        stays: prev.frontDesk.stays.map((st) =>
+          st.id === 'stay-hannah' ? { ...st, idChecked: false, preCheckIn: 'pending_verify' } : st
+        ),
+      },
+      safetyAlerts: (prev.safetyAlerts ?? seedSafetyAlerts).map((a) =>
+        a.id === 'alert-3' ? { ...a, status: 'draft_pending_validation' } : a
+      ),
+    }));
+    notify('Action items reset for demonstration');
   }, [notify]);
 
   const api = useMemo<DemoApi>(
@@ -5395,6 +5419,9 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       broadcastSafetyAlert,
       resolveSafetyAlert,
       acknowledgeSafetyAlert,
+      gestureGuideOpen,
+      setGestureGuideOpen,
+      resetActionableExamples,
     }),
     [
       state,
@@ -5492,6 +5519,9 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       broadcastSafetyAlert,
       resolveSafetyAlert,
       acknowledgeSafetyAlert,
+      gestureGuideOpen,
+      setGestureGuideOpen,
+      resetActionableExamples,
     ],
   );
 
