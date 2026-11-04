@@ -16,11 +16,8 @@ import {
   Bell,
   ChevronLeft,
   ChevronRight,
-  Flame,
   CheckCircle2,
   AlertTriangle,
-  ArrowUpRight,
-  Plus,
   MessageSquare,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
@@ -28,7 +25,7 @@ import type { SupervisorInspection, RoleId } from '@/types/demo';
 import { ROLE_AUTHORITY_PROFILES, SHARED_SERVICE_POLICIES } from '@/lib/policies';
 
 // Dispatcher Tabs
-import { DispatcherOverviewTab } from '@/components/dispatcher/DispatcherOverviewTab';
+import { DispatcherSupervisorOverviewTab } from './DispatcherSupervisorOverviewTab';
 import { DispatcherQueueTab } from '@/components/dispatcher/DispatcherQueueTab';
 import { DispatcherWorkloadTab } from '@/components/dispatcher/DispatcherWorkloadTab';
 import { DispatcherRoutingTab } from '@/components/dispatcher/DispatcherRoutingTab';
@@ -38,7 +35,7 @@ import { DispatcherBlockersTab } from '@/components/dispatcher/DispatcherBlocker
 import { DispatcherGuestMessagesTab } from '@/components/dispatcher/DispatcherGuestMessagesTab';
 
 // Supervisor Tabs
-import { SupervisorOverviewTab } from '@/components/supervisor/SupervisorOverviewTab';
+
 import { SupervisorInspectionsTab } from '@/components/supervisor/SupervisorInspectionsTab';
 import { SupervisorRoomsTab } from '@/components/supervisor/SupervisorRoomsTab';
 import { SupervisorHandoverTab } from '@/components/supervisor/SupervisorHandoverTab';
@@ -92,7 +89,7 @@ export function DispatcherSupervisorConsole() {
   } = useDemo();
 
   const [activeTab, setActiveTab] = useState<DispatcherSupervisorTab>('overview');
-  const [overviewSubView, setOverviewSubView] = useState<'dispatch' | 'supervision'>('dispatch');
+
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Modals state
@@ -166,7 +163,7 @@ export function DispatcherSupervisorConsole() {
     },
     {
       id: 'inspections',
-      label: 'Quality Inspections',
+      label: 'Inspections',
       shortLabel: 'Inspections',
       icon: ClipboardCheck,
       badge: pendingInspections > 0 ? pendingInspections : undefined,
@@ -232,57 +229,16 @@ export function DispatcherSupervisorConsole() {
 
   return (
     <div className="w-full pb-16">
-      {/* Top Banner / Role Notification Bar */}
-      <div className="mb-6 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 backdrop-blur-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <span className="grid h-10 w-10 place-items-center rounded-xl bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
-            DS
-          </span>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-base font-bold text-white font-display">
-                Department Dispatcher / Supervisor Console
-              </h1>
-              <span className="px-2 py-0.5 rounded-full bg-amber-400/20 border border-amber-400/30 text-[10px] font-bold text-amber-300 uppercase tracking-wider">
-                Phase 2 Combined Role
-              </span>
-            </div>
-            <p className="text-xs text-mist-300">
-              Unified field orchestration, request auto-routing, quality inspections, shift handovers & SLA monitor
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 self-stretch sm:self-auto justify-end">
-          <button
-            type="button"
-            onClick={() => setIsCreateTaskModalOpen(true)}
-            className="px-3.5 py-1.5 rounded-xl bg-amber-400 text-ink-950 hover:bg-amber-300 text-xs font-bold transition shadow-md shadow-amber-400/20 flex items-center gap-1.5"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span>Create Task</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setIsEscalateModalOpen(true)}
-            className="px-3 py-1.5 rounded-xl border border-rose-500/30 bg-rose-500/20 text-rose-200 hover:bg-rose-500/30 text-xs font-bold transition flex items-center gap-1.5"
-          >
-            <Flame className="h-3.5 w-3.5" />
-            <span>Escalate Issue</span>
-          </button>
-        </div>
-      </div>
 
       {/* Main Layout: Sticky Sidebar + Dynamic View */}
       <div className="flex flex-col lg:flex-row items-start gap-6">
         {/* Sidebar */}
         <aside
-          className={`shrink-0 transition-all duration-300 ease-in-out ${
+          className={`shrink-0 transition-all duration-300 ease-in-out lg:sticky lg:top-20 z-20 self-start ${
             sidebarCollapsed ? 'w-full lg:w-20' : 'w-full lg:w-72'
           }`}
         >
-          <div className="sticky top-20 rounded-3xl border border-white/10 bg-ink-900/90 p-3 backdrop-blur-xl shadow-2xl space-y-2">
+          <div className="rounded-3xl border border-white/10 bg-ink-900/90 p-3 backdrop-blur-xl shadow-2xl space-y-2 max-h-[calc(100vh-6rem)] overflow-y-auto no-scrollbar">
             <div className="flex items-center justify-between px-3 py-2 border-b border-white/[0.06]">
               {!sidebarCollapsed && (
                 <span className="text-[10px] font-bold uppercase tracking-wider text-mist-400">
@@ -312,11 +268,10 @@ export function DispatcherSupervisorConsole() {
                     key={item.id}
                     type="button"
                     onClick={() => setActiveTab(item.id)}
-                    className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition ${
-                      isActive
-                        ? 'bg-amber-400 text-ink-950 shadow-lg shadow-amber-400/20 font-bold'
-                        : 'text-mist-300 hover:text-white hover:bg-white/[0.04]'
-                    } ${sidebarCollapsed ? 'justify-center px-0' : 'justify-between'}`}
+                    className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition ${isActive
+                      ? 'bg-amber-400 text-ink-950 shadow-lg shadow-amber-400/20 font-bold'
+                      : 'text-mist-300 hover:text-white hover:bg-white/[0.04]'
+                      } ${sidebarCollapsed ? 'justify-center px-0' : 'justify-between'}`}
                     title={sidebarCollapsed ? item.label : undefined}
                   >
                     <div className="flex items-center gap-3 min-w-0">
@@ -326,19 +281,18 @@ export function DispatcherSupervisorConsole() {
 
                     {!sidebarCollapsed && item.badge !== undefined && (
                       <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase ${
-                          item.badgeTone === 'danger'
-                            ? isActive
-                              ? 'bg-ink-950 text-rose-300'
-                              : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                            : item.badgeTone === 'warning'
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase ${item.badgeTone === 'danger'
+                          ? isActive
+                            ? 'bg-ink-950 text-rose-300'
+                            : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                          : item.badgeTone === 'warning'
                             ? isActive
                               ? 'bg-ink-950 text-amber-300'
                               : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
                             : isActive
-                            ? 'bg-ink-950 text-emerald-300'
-                            : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                        }`}
+                              ? 'bg-ink-950 text-emerald-300'
+                              : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                          }`}
                       >
                         {item.badge}
                       </span>
@@ -353,53 +307,19 @@ export function DispatcherSupervisorConsole() {
         {/* Dynamic Tab Content Area */}
         <div className="flex-1 min-w-0 w-full space-y-6">
           {activeTab === 'overview' && (
-            <div className="space-y-6">
-              {/* Overview Sub-switcher */}
-              <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setOverviewSubView('dispatch')}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
-                      overviewSubView === 'dispatch'
-                        ? 'bg-amber-400 text-ink-950 shadow-md shadow-amber-400/20'
-                        : 'border border-white/10 bg-white/[0.03] text-mist-300 hover:text-white'
-                    }`}
-                  >
-                    Dispatcher Operations Stream
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setOverviewSubView('supervision')}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
-                      overviewSubView === 'supervision'
-                        ? 'bg-amber-400 text-ink-950 shadow-md shadow-amber-400/20'
-                        : 'border border-white/10 bg-white/[0.03] text-mist-300 hover:text-white'
-                    }`}
-                  >
-                    Supervisor Quality & Readiness
-                  </button>
-                </div>
-              </div>
-
-              {overviewSubView === 'dispatch' ? (
-                <DispatcherOverviewTab onNavigateTab={(tab) => setActiveTab(tab as DispatcherSupervisorTab)} />
-              ) : (
-                <SupervisorOverviewTab
-                  inspections={inspections}
-                  rooms={rooms}
-                  staffList={staffList}
-                  tasks={allTasks}
-                  incidents={incidents}
-                  onSelectInspection={(insp) => {
-                    setSelectedInspection(insp);
-                    setIsInspectionModalOpen(true);
-                  }}
-                  onNavigateTab={(tab) => setActiveTab(tab as DispatcherSupervisorTab)}
-                  onOpenEscalate={() => setIsEscalateModalOpen(true)}
-                />
-              )}
-            </div>
+            <DispatcherSupervisorOverviewTab
+              inspections={inspections}
+              rooms={rooms}
+              staffList={staffList}
+              tasks={allTasks}
+              incidents={incidents}
+              onSelectInspection={(insp) => {
+                setSelectedInspection(insp);
+                setIsInspectionModalOpen(true);
+              }}
+              onNavigateTab={(tab) => setActiveTab(tab as DispatcherSupervisorTab)}
+              onOpenEscalate={() => setIsEscalateModalOpen(true)}
+            />
           )}
 
           {activeTab === 'queue' && <DispatcherQueueTab />}
@@ -518,7 +438,7 @@ export function DispatcherSupervisorConsole() {
                               {p.category}
                             </span>
                           </div>
-                          <p className="text-xs text-mist-300">{p.content}</p>
+                          <p className="text-xs text-mist-300">{p.summary}</p>
                           <div className="flex items-center justify-between text-[11px] pt-1 text-mist-400">
                             <span className="text-amber-300 font-mono">Limit: {p.authorityLimit}</span>
                             <span>Owner: {p.policyOwner}</span>

@@ -458,17 +458,6 @@ export function DispatcherQueueTab() {
                             </button>
                           )}
 
-                          {!task.isLinkedDuplicate && (
-                            <button
-                              type="button"
-                              onClick={() => setDuplicateModalTask(task)}
-                              className="p-1.5 rounded-xl border border-white/10 text-mist-400 hover:text-sky-300 hover:bg-sky-500/10 transition"
-                              title="Link as duplicate"
-                            >
-                              <Link2 className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-
                           <button
                             type="button"
                             onClick={() => setEscalateModalTask(task)}

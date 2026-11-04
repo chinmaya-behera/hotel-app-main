@@ -16,6 +16,13 @@ import {
   Sun,
   User,
   X,
+  ChevronDown,
+  ArrowUpRight,
+  Building,
+  Clock,
+  MapPin,
+  Mail,
+  CreditCard,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { ServiceAuthorityModal } from '@/components/shared/ServiceAuthorityModal';
@@ -36,6 +43,8 @@ export function TopBar({ active, showRail = true }: TopBarProps) {
   const [policiesModalOpen, setPoliciesModalOpen] = useState(false);
   const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
+  const [profileCardOpen, setProfileCardOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
 
   const isRole = active !== 'home' && active !== 'guest' && active !== 'site';
   const roleId = isRole ? (active as RoleId) : null;
@@ -51,10 +60,17 @@ export function TopBar({ active, showRail = true }: TopBarProps) {
           ((roleId === 'general_manager' || roleId === 'executive_viewer') &&
             (s.roleId === 'general_manager' || s.roleId === 'executive_viewer')),
       ) ?? {
+        id: `staff-${roleId}`,
         name: role?.name ?? 'Staff Member',
         employeeId: 'EMP-0100',
+        email: `${(role?.name ?? 'staff').toLowerCase().replace(/\s+/g, '.')}@grandazure.com`,
         department: role?.scopes[0] ?? 'Operations',
         shift: 'Day' as const,
+        floorZone: 'Property-Wide',
+        financialLimit: 25000,
+        roleId,
+        status: 'active' as const,
+        createdAt: '2026-01-01',
       }
     : null;
 
@@ -62,18 +78,21 @@ export function TopBar({ active, showRail = true }: TopBarProps) {
   const roleNotifications = (state.notifications ?? []).filter((n) => !roleId || n.roleId === roleId);
   const unreadCount = roleNotifications.filter((n) => !n.read).length;
 
-  // Close notification popover on outside click
+  // Close notification & profile popovers on outside click
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
         setNotifDropdownOpen(false);
       }
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setProfileCardOpen(false);
+      }
     }
-    if (notifDropdownOpen) {
+    if (notifDropdownOpen || profileCardOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [notifDropdownOpen]);
+  }, [notifDropdownOpen, profileCardOpen]);
 
   function handleLogoutConfirm() {
     setLogoutModalOpen(false);
@@ -111,27 +130,328 @@ export function TopBar({ active, showRail = true }: TopBarProps) {
             {isRole && staff ? (
               /* Authentic Employee Account Header */
               <div className="flex items-center gap-2 sm:gap-3">
-                {/* Employee Card Pill */}
-                <div className="flex items-center gap-2.5 rounded-full border border-white/10 bg-white/[0.04] py-1 pl-1.5 pr-3 shadow-inner">
-                  <div
-                    className="grid h-7 w-7 place-items-center rounded-full text-xs font-bold text-white shadow-sm"
-                    style={{
-                      background: `linear-gradient(135deg, rgb(${role?.accent ?? '52 211 153'}), rgb(${role?.accent2 ?? '16 185 129'}))`,
+                {/* Clickable Employee Profile Button & Popover Card */}
+                <div className="relative" ref={profileRef}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProfileCardOpen(!profileCardOpen);
+                      setNotifDropdownOpen(false);
                     }}
+                    className={cn(
+                      'flex items-center gap-2.5 rounded-full border py-1 pl-1.5 pr-3 shadow-inner transition-all text-left focus:outline-none focus:ring-2 focus:ring-amber-400/30 cursor-pointer',
+                      profileCardOpen
+                        ? isLight
+                          ? 'border-amber-400 bg-white shadow-md'
+                          : 'border-amber-400/50 bg-white/[0.1] shadow-lg shadow-amber-400/10'
+                        : isLight
+                          ? 'border-slate-300 bg-white hover:border-slate-400'
+                          : 'border-white/10 bg-white/[0.04] hover:border-white/20 hover:bg-white/[0.08]'
+                    )}
+                    style={isLight ? { backgroundColor: '#ffffff' } : undefined}
+                    title="Click to view logged-in profile & role authority policies"
+                    aria-expanded={profileCardOpen}
                   >
-                    {staff.name
-                      .split(' ')
-                      .map((n) => n[0])
-                      .join('')
-                      .slice(0, 2)}
-                  </div>
-                  <div className="hidden text-left sm:block">
-                    <p className="text-xs font-semibold leading-tight text-white">{staff.name}</p>
-                    <p className="text-[10px] text-mist-400 leading-tight">
-                      {staff.department} · {staff.shift} Shift
-                    </p>
-                  </div>
-                  <span className="h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-emerald-400/20" title="Active on duty" />
+                    <div
+                      className="grid h-7 w-7 place-items-center rounded-full text-xs font-bold text-white shadow-sm shrink-0"
+                      style={{
+                        background: `linear-gradient(135deg, rgb(${role?.accent ?? '52 211 153'}), rgb(${role?.accent2 ?? '16 185 129'}))`,
+                      }}
+                    >
+                      {staff.name
+                        .split(' ')
+                        .map((n) => n[0])
+                        .join('')
+                        .slice(0, 2)}
+                    </div>
+                    <div className="hidden text-left sm:block">
+                      <p
+                        className="text-xs font-bold leading-tight flex items-center gap-1"
+                        style={{ color: isLight ? '#0f172a' : '#ffffff' }}
+                      >
+                        <span>{staff.name}</span>
+                        <ChevronDown
+                          className={cn(
+                            'h-3 w-3 transition-transform duration-200',
+                            profileCardOpen
+                              ? isLight ? 'rotate-180 text-amber-600' : 'rotate-180 text-amber-300'
+                              : isLight ? 'text-slate-500' : 'text-mist-400'
+                          )}
+                        />
+                      </p>
+                      <p
+                        className="text-[10px] leading-tight font-medium"
+                        style={{ color: isLight ? '#334155' : '#94a3b8' }}
+                      >
+                        {staff.department} · {staff.shift} Shift
+                      </p>
+                    </div>
+                    <span className="h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-emerald-400/20" title="Active on duty" />
+                  </button>
+
+                  {/* Profile Details Dropdown Card */}
+                  {profileCardOpen && (
+                    <div
+                      className={cn(
+                        'staff-profile-card absolute right-0 top-full mt-2 w-84 sm:w-96 rounded-3xl p-5 z-50 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-2xl shadow-2xl overflow-hidden border-2',
+                        isLight
+                          ? 'border-slate-300 shadow-[0_25px_60px_-15px_rgba(1,31,75,0.18)]'
+                          : 'border-slate-600/90 shadow-[0_25px_60px_-10px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.15)] ring-1 ring-amber-400/30'
+                      )}
+                      style={{
+                        backgroundColor: isLight ? '#ffffff' : '#121a2e',
+                        color: isLight ? '#0f172a' : '#ffffff',
+                      }}
+                    >
+                      {/* Top ambient luxury highlight line */}
+                      <div className="absolute top-0 left-6 right-6 h-[2px] bg-gradient-to-r from-transparent via-amber-400/60 to-transparent" />
+
+                      {/* Card Header with Avatar & Online Badge */}
+                      <div
+                        className="flex items-start justify-between pb-4 border-b"
+                        style={{ borderColor: isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.15)' }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="grid h-12 w-12 place-items-center rounded-2xl text-base font-bold text-white shadow-md border shrink-0"
+                            style={{
+                              background: `linear-gradient(135deg, rgb(${role?.accent ?? '52 211 153'}), rgb(${role?.accent2 ?? '16 185 129'}))`,
+                              borderColor: isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.2)',
+                            }}
+                          >
+                            {staff.name
+                              .split(' ')
+                              .map((n) => n[0])
+                              .join('')
+                              .slice(0, 2)}
+                          </div>
+                          <div className="min-w-0">
+                            <h3
+                              className="font-display text-base font-bold truncate tracking-tight"
+                              style={{ color: isLight ? '#0f172a' : '#ffffff' }}
+                            >
+                              {staff.name}
+                            </h3>
+                            <p
+                              className="text-xs truncate font-semibold profile-dept-text mt-0.5"
+                              style={{ color: isLight ? '#1e40af' : '#93c5fd' }}
+                            >
+                              {role?.name || staff.department}
+                            </p>
+                            <div className="flex items-center gap-1.5 mt-1.5">
+                              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                              <span
+                                className="text-[10px] font-bold uppercase tracking-wider"
+                                style={{ color: isLight ? '#047857' : '#34d399' }}
+                              >
+                                Active · On Duty
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setProfileCardOpen(false)}
+                          className={cn(
+                            'rounded-xl p-1.5 transition-colors cursor-pointer',
+                            isLight
+                              ? 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
+                              : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                          )}
+                          title="Close profile card"
+                        >
+                          <X className="h-4 w-4" aria-hidden />
+                        </button>
+                      </div>
+
+                      {/* Logged-In Person Details Panel */}
+                      <div
+                        className="my-4 rounded-2xl p-3.5 space-y-2.5 text-xs border"
+                        style={{
+                          backgroundColor: isLight ? '#f8fafc' : 'rgba(0, 0, 0, 0.4)',
+                          borderColor: isLight ? '#e2e8f0' : 'rgba(51, 65, 85, 0.8)',
+                        }}
+                      >
+                        <div
+                          className="flex items-center justify-between pb-2 border-b"
+                          style={{ borderColor: isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.1)' }}
+                        >
+                          <span
+                            className="flex items-center gap-2 font-medium"
+                            style={{ color: isLight ? '#475569' : '#cbd5e1' }}
+                          >
+                            <User className="h-3.5 w-3.5 text-amber-500 shrink-0" /> Employee ID
+                          </span>
+                          <span
+                            className="font-mono font-bold"
+                            style={{ color: isLight ? '#b45309' : '#fcd34d' }}
+                          >
+                            {staff.employeeId}
+                          </span>
+                        </div>
+
+                        <div
+                          className="flex items-center justify-between pb-2 border-b"
+                          style={{ borderColor: isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.1)' }}
+                        >
+                          <span
+                            className="flex items-center gap-2 font-medium"
+                            style={{ color: isLight ? '#475569' : '#cbd5e1' }}
+                          >
+                            <Building className="h-3.5 w-3.5 text-amber-500 shrink-0" /> Department
+                          </span>
+                          <span
+                            className="font-bold text-xs"
+                            style={{ color: isLight ? '#0f172a' : '#ffffff' }}
+                          >
+                            {staff.department}
+                          </span>
+                        </div>
+
+                        <div
+                          className="flex items-center justify-between pb-2 border-b"
+                          style={{ borderColor: isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.1)' }}
+                        >
+                          <span
+                            className="flex items-center gap-2 font-medium"
+                            style={{ color: isLight ? '#475569' : '#cbd5e1' }}
+                          >
+                            <Clock className="h-3.5 w-3.5 text-amber-500 shrink-0" /> Shift Schedule
+                          </span>
+                          <span
+                            className="font-medium"
+                            style={{ color: isLight ? '#0f172a' : '#e2e8f0' }}
+                          >
+                            {staff.shift} Shift (07:00 - 15:30)
+                          </span>
+                        </div>
+
+                        <div
+                          className="flex items-center justify-between pb-2 border-b"
+                          style={{ borderColor: isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.1)' }}
+                        >
+                          <span
+                            className="flex items-center gap-2 font-medium"
+                            style={{ color: isLight ? '#475569' : '#cbd5e1' }}
+                          >
+                            <MapPin className="h-3.5 w-3.5 text-amber-500 shrink-0" /> Zone / Station
+                          </span>
+                          <span
+                            className="font-medium"
+                            style={{ color: isLight ? '#0f172a' : '#e2e8f0' }}
+                          >
+                            {staff.floorZone || 'Property-Wide'}
+                          </span>
+                        </div>
+
+                        <div
+                          className="flex items-center justify-between pb-2 border-b"
+                          style={{ borderColor: isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.1)' }}
+                        >
+                          <span
+                            className="flex items-center gap-2 font-medium"
+                            style={{ color: isLight ? '#475569' : '#cbd5e1' }}
+                          >
+                            <Mail className="h-3.5 w-3.5 text-amber-500 shrink-0" /> Work Email
+                          </span>
+                          <span
+                            className="font-mono text-[11px] truncate max-w-[190px] font-medium"
+                            style={{ color: isLight ? '#0f172a' : '#e2e8f0' }}
+                          >
+                            {staff.email || `${staff.name.toLowerCase().replace(/\s+/g, '.')}@grandazure.com`}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-0.5">
+                          <span
+                            className="flex items-center gap-2 font-medium"
+                            style={{ color: isLight ? '#475569' : '#cbd5e1' }}
+                          >
+                            <CreditCard className="h-3.5 w-3.5 text-amber-500 shrink-0" /> Financial Limit
+                          </span>
+                          <span
+                            className="font-mono font-bold"
+                            style={{ color: isLight ? '#047857' : '#34d399' }}
+                          >
+                            {staff.financialLimit ? `₹${staff.financialLimit.toLocaleString('en-IN')}` : 'Operational Scope'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Embedded Policies & Authority Button */}
+                      <div
+                        className="pt-2 space-y-2 border-t"
+                        style={{ borderColor: isLight ? '#e2e8f0' : 'rgba(51, 65, 85, 0.8)' }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileCardOpen(false);
+                            setPoliciesModalOpen(true);
+                          }}
+                          className={cn(
+                            'w-full flex items-center justify-between p-3 rounded-2xl border transition text-left group shadow-sm cursor-pointer',
+                            isLight
+                              ? 'border-amber-300 hover:border-amber-400 hover:bg-amber-100/70'
+                              : 'border-amber-400/50 bg-gradient-to-r from-amber-500/20 to-amber-600/10 hover:from-amber-500/30 hover:to-amber-600/20 text-white shadow-amber-400/10'
+                          )}
+                          style={isLight ? { backgroundColor: '#fffbeb' } : undefined}
+                          title="View service authority limits, policies, and escalation pathways"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <div
+                              className="grid h-8 w-8 place-items-center rounded-xl border shrink-0"
+                              style={{
+                                backgroundColor: isLight ? '#fef3c7' : 'rgba(251, 191, 36, 0.25)',
+                                color: isLight ? '#b45309' : '#fcd34d',
+                                borderColor: isLight ? '#fde68a' : 'rgba(251, 191, 36, 0.5)',
+                              }}
+                            >
+                              <ShieldCheck className="h-4 w-4" aria-hidden />
+                            </div>
+                            <div>
+                              <p
+                                className="text-xs font-bold transition-colors"
+                                style={{ color: isLight ? '#78350f' : '#ffffff' }}
+                              >
+                                Service Policies & Authority
+                              </p>
+                              <p
+                                className="text-[10px]"
+                                style={{ color: isLight ? '#92400e' : 'rgba(252, 211, 77, 0.9)' }}
+                              >
+                                Limits, SOP standards & escalation tiers
+                              </p>
+                            </div>
+                          </div>
+                          <ArrowUpRight
+                            className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                            style={{ color: isLight ? '#b45309' : '#fcd34d' }}
+                          />
+                        </button>
+
+                        {/* Sign out link inside profile card */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileCardOpen(false);
+                            setLogoutModalOpen(true);
+                          }}
+                          className={cn(
+                            'w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold border transition cursor-pointer',
+                            isLight
+                              ? 'border-rose-200 hover:bg-rose-100'
+                              : 'border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 hover:text-white'
+                          )}
+                          style={isLight ? { backgroundColor: '#fff1f2', color: '#be123c' } : undefined}
+                        >
+                          <LogOut className="h-3.5 w-3.5" aria-hidden />
+                          <span>Sign Out Session</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Notifications Bell with Popover */}
@@ -231,16 +551,7 @@ export function TopBar({ active, showRail = true }: TopBarProps) {
                   {isLight ? <Moon className="h-4 w-4" aria-hidden /> : <Sun className="h-4 w-4" aria-hidden />}
                 </button>
 
-                {/* Policies & Service Authority Button */}
-                <button
-                  type="button"
-                  onClick={() => setPoliciesModalOpen(true)}
-                  className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-mist-300 transition-colors hover:border-amber-400/40 hover:bg-amber-400/10 hover:text-amber-200"
-                  title="View service authority limits, policies, and escalation pathways"
-                >
-                  <ShieldCheck className="h-3.5 w-3.5 text-amber-400" aria-hidden />
-                  <span className="hidden sm:inline">Policies</span>
-                </button>
+
 
                 {/* Logout Button */}
                 <button
@@ -291,7 +602,7 @@ export function TopBar({ active, showRail = true }: TopBarProps) {
                     href={r.path}
                     className="rail-chip"
                     style={accentVars(r)}
-                    aria-current={active === r.id ? 'page' : undefined}
+                    aria-current={(active as string) === r.id ? 'page' : undefined}
                   >
                     <Icon className="h-3.5 w-3.5" aria-hidden />
                     {r.short}

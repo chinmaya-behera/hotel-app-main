@@ -921,3 +921,17 @@ option {
     animation: rise 0.2s ease both;
   }
 }
+
+/* Staff Profile Dropdown Card light mode contrast enforcement */
+:root[data-theme='light'] .staff-profile-card {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 25px 60px -15px rgba(1, 31, 75, 0.18) !important;
+}
+:root[data-theme='light'] .staff-profile-card h3 {
+  color: #0f172a !important;
+}
+:root[data-theme='light'] .staff-profile-card .profile-dept-text {
+  color: #1e40af !important;
+}
