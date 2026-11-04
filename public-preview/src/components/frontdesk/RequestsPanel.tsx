@@ -37,12 +37,19 @@ import { cn, money, statusTone } from '@/lib/utils';
 import type { WorkItem } from '@/types/demo';
 
 export type RequestCategory = 'all' | 'concierge' | 'case' | 'lost_found';
+export type RequestSourceTab = 'guest_services' | 'fulfiller_escalations' | 'complaints';
 
 type View = 'action' | 'guest' | 'done' | 'all';
 type Dialog =
   | { kind: 'quote' | 'cancel' | 'route' | 'close' | 'detail'; id: string }
   | { kind: 'new' }
   | null;
+
+const REQUEST_SOURCE_TABS: Array<{ id: RequestSourceTab; label: string }> = [
+  { id: 'guest_services', label: 'From Guests (Services)' },
+  { id: 'fulfiller_escalations', label: 'From Fulfillers (For Escalation or Resolution)' },
+  { id: 'complaints', label: 'Complaints (From Guest)' },
+];
 
 const VIEWS: Array<{ id: View; label: string }> = [
   { id: 'action', label: 'Needs action' },
@@ -78,24 +85,54 @@ const CATEGORY_LABEL: Record<RequestCategory, string> = {
 
 export function RequestsPanel({ initialCategory = 'all' }: { initialCategory?: RequestCategory }) {
   const { state, fdAction } = useDemo();
+  const [sourceTab, setSourceTab] = useState<RequestSourceTab>('guest_services');
   const [view, setView] = useState<View>('action');
-  const [category, setCategory] = useState<RequestCategory>(initialCategory);
   const [query, setQuery] = useState('');
   const [dialog, setDialog] = useState<Dialog>(null);
 
   const all = state.items.front_desk_coordinator ?? [];
-  const counts: Record<View, number> = {
-    action: all.filter(needsAction).length,
-    guest: all.filter((i) => i.status === 'Awaiting guest').length,
-    done: all.filter(isDone).length,
-    all: all.length,
-  };
   const term = query.trim().toLowerCase();
-  const rows = all.filter((i) => {
+
+  const matchesSourceTab = (i: (typeof all)[0]) => {
+    const isComplaint =
+      i.ref?.startsWith('CMP') ||
+      i.ref?.startsWith('CR-') ||
+      i.title.toLowerCase().includes('complaint') ||
+      i.title.toLowerCase().includes('noise') ||
+      i.title.toLowerCase().includes('dispute') ||
+      i.category === 'case';
+
+    if (sourceTab === 'complaints') {
+      return isComplaint;
+    }
+    if (sourceTab === 'fulfiller_escalations') {
+      return (
+        !isComplaint &&
+        (i.status === 'Escalated' ||
+          i.title.toLowerCase().includes('escalat') ||
+          i.meta?.toLowerCase().includes('maintenance') ||
+          i.meta?.toLowerCase().includes('housekeeping') ||
+          i.category === 'lost_found' ||
+          Boolean(i.assignee))
+      );
+    }
+    // guest_services (default)
+    return !isComplaint && !i.status.toLowerCase().includes('escalat');
+  };
+
+  const filteredBySource = all.filter(matchesSourceTab);
+
+  const counts: Record<View, number> = {
+    action: filteredBySource.filter(needsAction).length,
+    guest: filteredBySource.filter((i) => i.status === 'Awaiting guest').length,
+    done: filteredBySource.filter(isDone).length,
+    all: filteredBySource.length,
+  };
+
+  const rows = filteredBySource.filter((i) => {
     if (view === 'action' && !needsAction(i)) return false;
     if (view === 'guest' && i.status !== 'Awaiting guest') return false;
     if (view === 'done' && !isDone(i)) return false;
-    if (category !== 'all' && categoryOf(i) !== category) return false;
     if (term && !`${i.title} ${i.meta} ${i.ref ?? ''} ${i.room ?? ''}`.toLowerCase().includes(term)) return false;
     return true;
   });
@@ -105,49 +142,67 @@ export function RequestsPanel({ initialCategory = 'all' }: { initialCategory?: R
   const dialogItem = dialog && 'id' in dialog ? all.find((i) => i.id === dialog.id) : undefined;
 
   return (
-    <Panel
-      title="Guest requests and cases"
-      hint="Portal requests land here automatically. Swipe a card or use its buttons."
-      icon={Inbox}
-      action={
-        <Button size="sm" variant="accent" iconLeft={ClipboardPlus} onClick={() => setDialog({ kind: 'new' })}>
-          New case
-        </Button>
-      }
-    >
-      <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div role="group" aria-label="Filter by status" className="flex rounded-xl border border-white/10 bg-black/20 p-0.5">
-          {VIEWS.map((v) => (
+    <div className="space-y-4">
+      {/* Top Controls Row: 3 Sub-tabs on left, [+ New Case] & [Search] horizontally aligned on right */}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        {/* 3 Sub-Tabs: From Guests (Services), From Fulfillers (For Escalation or Resolution), Complaints (From Guest) */}
+        <div role="tablist" aria-label="Request categories" className="flex flex-wrap gap-1.5">
+          {REQUEST_SOURCE_TABS.map((t) => (
             <button
-              key={v.id}
+              key={t.id}
               type="button"
-              aria-pressed={view === v.id}
-              onClick={() => setView(v.id)}
-              className={cn('rounded-lg px-3 py-1.5 text-xs font-semibold transition', view === v.id ? 'accent-soft' : 'text-mist-400 hover:text-white')}
+              role="tab"
+              aria-selected={sourceTab === t.id}
+              onClick={() => setSourceTab(t.id)}
+              className={cn(
+                'rounded-full border px-3 py-1.5 text-xs font-semibold transition',
+                sourceTab === t.id ? 'chip-accent' : 'border-white/10 text-mist-300 hover:bg-white/5'
+              )}
             >
-              {v.label} <span className="tabular-nums opacity-70">{counts[v.id]}</span>
+              {t.label}
             </button>
           ))}
         </div>
-        <div className="relative w-full sm:w-56">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mist-400" aria-hidden />
-          <label htmlFor="req-search" className="sr-only">
-            Search requests
-          </label>
-          <input id="req-search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Room, guest or reference" autoComplete="off" className="field w-full pl-9" />
+
+        {/* [+ New Case] button placed directly to the LEFT of the search bar on the same row */}
+        <div className="flex items-center gap-2 w-full lg:w-auto">
+          <Button
+            size="sm"
+            variant="accent"
+            iconLeft={ClipboardPlus}
+            onClick={() => setDialog({ kind: 'new' })}
+            className="shrink-0"
+          >
+            + New Case
+          </Button>
+          <div className="relative w-full sm:w-56">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mist-400" aria-hidden />
+            <label htmlFor="req-search" className="sr-only">
+              Search requests
+            </label>
+            <input
+              id="req-search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Room, guest or reference"
+              autoComplete="off"
+              className="field w-full pl-9"
+            />
+          </div>
         </div>
       </div>
 
-      <div role="group" aria-label="Filter by type" className="mb-4 flex flex-wrap gap-1.5">
-        {CATEGORIES.map((c) => (
+      {/* Status sub-pills row */}
+      <div role="group" aria-label="Filter by status" className="flex rounded-xl border border-white/10 bg-black/20 p-0.5 w-fit">
+        {VIEWS.map((v) => (
           <button
-            key={c.id}
+            key={v.id}
             type="button"
-            aria-pressed={category === c.id}
-            onClick={() => setCategory(c.id)}
-            className={cn('rounded-full border px-3 py-1.5 text-xs font-semibold transition', category === c.id ? 'chip-accent' : 'border-white/10 text-mist-300 hover:bg-white/5')}
+            aria-pressed={view === v.id}
+            onClick={() => setView(v.id)}
+            className={cn('rounded-lg px-3 py-1 text-xs font-semibold transition', view === v.id ? 'accent-soft' : 'text-mist-400 hover:text-white')}
           >
-            {c.label}
+            {v.label} <span className="tabular-nums opacity-70">{counts[v.id]}</span>
           </button>
         ))}
       </div>
@@ -160,7 +215,7 @@ export function RequestsPanel({ initialCategory = 'all' }: { initialCategory?: R
           </p>
         </div>
       ) : (
-        <ul key={`${view}-${category}`} className="fd-stagger space-y-3">
+        <ul key={`${view}-${sourceTab}`} className="fd-stagger space-y-3">
           {rows.map((item, i) => (
             <li key={item.id} style={{ '--i': Math.min(i, 8) } as CSSProperties}>
               <RequestCard
@@ -180,7 +235,7 @@ export function RequestsPanel({ initialCategory = 'all' }: { initialCategory?: R
       {dialog && dialog.kind !== 'new' && dialogItem && dialog.kind === 'route' && <RouteDialog item={dialogItem} onClose={() => setDialog(null)} />}
       {dialog && dialog.kind !== 'new' && dialogItem && dialog.kind === 'close' && <CloseDialog item={dialogItem} onClose={() => setDialog(null)} />}
       {dialog && dialog.kind !== 'new' && dialogItem && dialog.kind === 'detail' && <DetailDialog item={dialogItem} onClose={() => setDialog(null)} />}
-    </Panel>
+    </div>
   );
 }
 
