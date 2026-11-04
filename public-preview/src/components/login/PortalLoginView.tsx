@@ -32,7 +32,7 @@ import {
   Check,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
-import { MANAGER_DEPARTMENTS, MANAGER_DEMO_PASSWORD, type ManagerDepartmentId } from '@/lib/manager-domain';
+import { MANAGER_DEPARTMENTS, MANAGER_DEMO_PASSWORD, managerDepartmentFromEmail, type ManagerDepartmentId } from '@/lib/manager-domain';
 import { DemoCredentialsDialog } from './DemoCredentialsDialog';
 import type { RoleId, DispatcherDepartment } from '@/types/demo';
 
@@ -316,6 +316,19 @@ export function PortalLoginView() {
     if (isSubmitting) return;
 
     const cleanEmail = email.trim().toLowerCase();
+    // Exact manager identities take precedence over broad dispatcher department matching.
+    const managerDepartment = managerDepartmentFromEmail(cleanEmail);
+    if (managerDepartment) {
+      if (password !== MANAGER_DEMO_PASSWORD) {
+        showToast('Email or password does not match a demo account. Open demo credentials to autofill.');
+        return;
+      }
+      setIsSubmitting(true);
+      setManagerDepartment(managerDepartment);
+      setPersona('department_manager');
+      router.push('/staff/department-manager');
+      return;
+    }
     const isDispatcher =
       selectedRoleId === 'dispatcher' ||
       cleanEmail.includes('dispatcher') ||

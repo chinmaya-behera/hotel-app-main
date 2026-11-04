@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MANAGER_DEPARTMENTS, applyManagerCommand, departmentId, ensureManagerState, managerTasks, managerInspections, managerNotifications, reviewManagerEscalation } from '../src/lib/manager-domain.ts';
+import { MANAGER_DEPARTMENTS, applyManagerCommand, departmentId, ensureManagerState, managerTasks, managerInspections, managerNotifications, reviewManagerEscalation, managerDepartmentFromEmail } from '../src/lib/manager-domain.ts';
 
 function fixture(department = 'housekeeping') {
   return ensureManagerState({ persona: 'department_manager', managerDepartment: department, staffAccounts: [], inspections: [], notifications: [], auditTrail: [], items: Object.fromEntries(['task_fulfiller', 'department_dispatcher', 'department_supervisor', 'department_dispatcher_supervisor', 'department_manager', 'front_desk_coordinator', 'financial_operator', 'security_responder', 'executive_viewer', 'general_manager', 'platform_admin'].map(r => [r, []])) });
@@ -11,6 +11,12 @@ test('all four demo identities have unique email addresses and department IDs', 
   assert.equal(MANAGER_DEPARTMENTS.length, 4);
   assert.equal(new Set(MANAGER_DEPARTMENTS.map(d => d.email)).size, 4);
   for (const d of MANAGER_DEPARTMENTS) assert.equal(departmentId(d.name), d.id);
+});
+test('exact manager emails do not collide with dispatcher department names', () => {
+  for (const department of MANAGER_DEPARTMENTS) assert.equal(managerDepartmentFromEmail(department.email), department.id);
+  assert.equal(managerDepartmentFromEmail(' WELLNESS.MANAGER@THEGRANDADP.COM '), 'wellness');
+  assert.equal(managerDepartmentFromEmail('manager@thegrandadp.com'), 'housekeeping');
+  for (const email of ['wellness@thegrandadp.com', 'housekeeping.dispatcher@thegrandadp.com', 'engineering@thegrandadp.com', 'frontdesk@thegrandadp.com']) assert.equal(managerDepartmentFromEmail(email), undefined);
 });
 test('existing saves migrate without duplicating staff, recovery cases or inspections', () => {
   const s = fixture(), next = ensureManagerState(s);

@@ -8,6 +8,11 @@ export const MANAGER_DEPARTMENTS = [
 ] as const;
 export type ManagerDepartmentId = typeof MANAGER_DEPARTMENTS[number]['id'];
 export const MANAGER_DEMO_PASSWORD = 'manager123';
+export function managerDepartmentFromEmail(email: string): ManagerDepartmentId | undefined {
+  const normalized = email.trim().toLowerCase();
+  if (normalized === 'manager@thegrandadp.com') return 'housekeeping';
+  return MANAGER_DEPARTMENTS.find(department => department.email === normalized)?.id;
+}
 export function managerDepartment(id?: string) { return MANAGER_DEPARTMENTS.find(d => d.id === id) ?? MANAGER_DEPARTMENTS[0]; }
 
 export function departmentId(value?: string): ManagerDepartmentId | undefined {

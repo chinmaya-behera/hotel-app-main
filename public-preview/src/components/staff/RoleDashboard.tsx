@@ -99,9 +99,9 @@ export function RoleDashboard({ roleId }: { roleId: RoleId }) {
   if (roleId === 'department_manager') {
     return (
       <div className="department-manager-page">
-        <main className="w-full max-w-[1600px] mx-auto">
+        <div className="dm-page-container">
           <DepartmentManagerConsole />
-        </main>
+        </div>
       </div>
     );
   }

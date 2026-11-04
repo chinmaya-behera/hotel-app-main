@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, type FormEvent } from 'react';
-import { ArrowUpRight, CalendarDays, Package, Plus, X } from 'lucide-react';
+import { ArrowRight, BedDouble, CalendarDays, Flower2, Package, Plus, UtensilsCrossed, Wrench, X } from 'lucide-react';
 import { useDemo } from '@/lib/store';
 import { departmentId, isOpen, managerDepartment, managerTasks, type ManagerDepartmentId } from '@/lib/manager-domain';
 import type { ManagerStockItem } from '@/types/demo';
@@ -45,7 +45,8 @@ export function DepartmentDesk({ summary = false, onOpen, onInspect }: { summary
         ? `${assets.filter(a => a.nextDue <= today).length} services due · ${assets.filter(a => a.workOrderRef).length} linked work orders`
         : `${(state.diningMenu ?? []).filter(item => item.isAvailable).length} menu items available`;
 
-  if (summary) return <div className="dm-desk-summary"><div><span>{DESK_LABELS[department.id]}</span><p>{summaryText}</p></div><button className="dm-text-button" onClick={onOpen}>Open department desk <ArrowUpRight size={15}/></button></div>;
+  const DeskIcon = department.id === 'housekeeping' ? BedDouble : department.id === 'wellness' ? Flower2 : department.id === 'engineering' ? Wrench : UtensilsCrossed;
+  if (summary) return <section className="dm-panel dm-desk-summary"><div className="dm-desk-card-label"><span className="dm-attention-icon"><DeskIcon size={21}/></span><span>Department tools</span></div><h2>{DESK_LABELS[department.id]}</h2><p>{summaryText}</p><div className="dm-desk-card-detail">{department.id === 'housekeeping' ? 'Prepare arrivals, check room status and coordinate your supplies.' : department.id === 'wellness' ? 'Manage treatment schedules, room availability and therapist bookings.' : department.id === 'engineering' ? 'Stay ahead of service dates and keep work orders moving.' : 'Keep guest menus current and review listed allergens.'}</div><button className="dm-primary" onClick={onOpen}>Open department desk <ArrowRight size={16}/></button></section>;
 
   const openModal = (next: NonNullable<typeof modal>) => { setModal(next); dialog.current?.showModal(); };
   const close = () => { dialog.current?.close(); setModal(null); };

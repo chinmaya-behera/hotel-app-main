@@ -35,7 +35,9 @@ The previous `manager@thegrandadp.com` account remains an alias for the housekee
 
 ## Department tools and design
 
-All manager screens, forms and dialogs use the requested [Color Hunt palette](https://colorhunt.co/palette/ebe2ccded6c1cfc6b1b7b09e): `#EBE2CC`, `#DED6C1`, `#CFC6B1`, `#B7B09E`. Dark neutral text provides readable contrast. Shared layouts use thin separators, flat surfaces and concise actions.
+The manager workspace has a dedicated theme independent of shared role colours: parchment `#EBE2CC` backgrounds, soft beige `#DED6C1` highlights, sand `#CFC6B1` dividers, taupe `#B7B09E` control borders, dark brown-charcoal `#353229` headings and primary buttons, and muted brown-grey `#686252` secondary text.
+
+The overview separates actionable escalations, inspection assignments, department tools and a live shift snapshot. KPI cards open their related screens. Navigation is grouped into Workspace, Management and Personal sections, becomes an icon rail on compact desktop screens, and uses a keyboard-accessible drawer on mobile. Tables, forms and dialogs share larger text, consistent spacing and visible focus states. The selected department loads before the dashboard renders, avoiding a flash of another department's default preview.
 
 | Department desk | Implemented behavior | Research reference |
 | --- | --- | --- |
