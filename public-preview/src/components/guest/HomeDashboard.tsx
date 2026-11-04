@@ -19,6 +19,9 @@ import {
   Send,
   AlertTriangle,
   CheckCircle2,
+  Hotel,
+  Compass,
+  Palmtree,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
 import { cn } from '@/lib/utils';
@@ -69,24 +72,24 @@ function getStatusStyle(status: 'Pending' | 'Accepted' | 'Assigned' | 'In Progre
   switch (status) {
     case 'In Progress':
       return {
-        dot: 'bg-emerald-400 ring-4 ring-emerald-400/20',
-        badge: 'bg-emerald-400/15 text-emerald-300 border-emerald-400/30',
+        dot: 'bg-emerald-400 ring-4 ring-emerald-400/25 animate-pulse',
+        badge: 'bg-emerald-400/15 text-emerald-300 border-emerald-400/40 ring-1 ring-emerald-400/20 font-bold',
       };
     case 'Assigned':
       return {
-        dot: 'bg-indigo-400 ring-4 ring-indigo-400/20',
-        badge: 'bg-indigo-400/15 text-indigo-300 border-indigo-400/30',
+        dot: 'bg-sky-400 ring-4 ring-sky-400/20',
+        badge: 'bg-sky-400/15 text-sky-300 border-sky-400/30 font-bold',
       };
     case 'Accepted':
       return {
-        dot: 'bg-sky-400 ring-4 ring-sky-400/20',
-        badge: 'bg-sky-400/15 text-sky-300 border-sky-400/30',
+        dot: 'bg-indigo-400 ring-4 ring-indigo-400/20',
+        badge: 'bg-indigo-400/15 text-indigo-300 border-indigo-400/30 font-bold',
       };
     case 'Pending':
     default:
       return {
         dot: 'bg-amber-400 ring-4 ring-amber-400/20',
-        badge: 'bg-amber-400/15 text-amber-300 border-amber-400/30',
+        badge: 'bg-amber-400/15 text-amber-300 border-amber-400/30 font-bold',
       };
   }
 }
@@ -112,7 +115,7 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
   // Interactive Quick Action Sheet states
   const [dndSheetOpen, setDndSheetOpen] = useState(false);
   const [dndDuration, setDndDuration] = useState('Until 12:00 PM Tomorrow');
-  const [dndNote, setDndNote] = useState('Please hold all housekeeping and knock delivery');
+  const [dndNote, setDndNote] = useState('Please hold all room service and knock delivery');
 
   const [fdSheetOpen, setFdSheetOpen] = useState(false);
   const [fdSubject, setFdSubject] = useState('Luggage assistance request');
@@ -156,11 +159,11 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
       title: hkService,
       category: 'housekeeping',
       description: hkInstructions || 'Requested via Quick Services',
-      meta: 'Housekeeping · Room ' + room,
+      meta: 'Room Service · Room ' + room,
     });
     setHkSheetOpen(false);
     setHkInstructions('');
-    showToast(`Request submitted (${hkService})`);
+    showToast(`Room Service request submitted (${hkService})`);
   }
 
   function handleSendReminder(e: React.FormEvent) {
@@ -222,7 +225,7 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
     // 2. Active Reminders
     for (const rem of state.guestReminders ?? []) {
       if (rem.room !== room) continue;
-      if (rem.status === 'completed' || rem.status === 'cancelled') continue;
+      if (rem.status === 'dismissed') continue;
 
       list.push({
         id: rem.id,
@@ -238,7 +241,7 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
     // 3. Pending Front Desk Messages
     for (const msg of state.frontDeskMessages ?? []) {
       if (msg.room !== room) continue;
-      if (msg.status === 'resolved' || msg.status === 'closed' || msg.status === 'cancelled') continue;
+      if (msg.status === 'Closed') continue;
 
       const hasReplies = msg.replies && msg.replies.length > 0;
       list.push({
@@ -256,6 +259,7 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
     for (const cmp of state.guestComplaints ?? []) {
       if (cmp.room !== room) continue;
       if (['Resolved', 'Rejected', 'Cancelled', 'Closed'].includes(cmp.status)) continue;
+      const cmpDate = (cmp as any).createdAt || (cmp as any).submittedAt || new Date().toISOString();
 
       list.push({
         id: cmp.id,
@@ -263,8 +267,8 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
         serviceName: cmp.category ? `Complaint: ${cmp.category}` : 'Service Issue',
         description: cmp.description,
         status: cmp.status === 'In Progress' ? 'In Progress' : cmp.status === 'Assigned' ? 'Assigned' : 'Pending',
-        rawDate: cmp.createdAt || new Date().toISOString(),
-        timestamp: formatTimestamp(cmp.createdAt),
+        rawDate: cmpDate,
+        timestamp: formatTimestamp(cmpDate),
       });
     }
 
@@ -272,15 +276,17 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
     for (const rpt of state.guestLostReports ?? []) {
       if (rpt.room !== room) continue;
       if (['Resolved', 'Returned', 'Closed', 'Cancelled'].includes(rpt.status)) continue;
+      const rptLocation = (rpt as any).location;
+      const rptDate = (rpt as any).reportedAt || (rpt as any).createdAt || new Date().toISOString();
 
       list.push({
         id: rpt.id,
         type: 'lost_found',
         serviceName: `Lost & Found: ${rpt.itemName}`,
-        description: rpt.location ? `Location: ${rpt.location}` : rpt.description,
+        description: rptLocation ? `Location: ${rptLocation}` : rpt.description,
         status: 'Pending',
-        rawDate: rpt.reportedAt || new Date().toISOString(),
-        timestamp: formatTimestamp(rpt.reportedAt),
+        rawDate: rptDate,
+        timestamp: formatTimestamp(rptDate),
       });
     }
 
@@ -327,34 +333,45 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
         </div>
       )}
 
-      {/* 1. COMPACT HOTEL HEADER */}
+      {/* 1. COMPACT LUXURY HOTEL HEADER */}
       <div
         data-tour="tour-home"
-        className="guest-card p-4 sm:p-5 flex items-center justify-between gap-4"
+        className="guest-card p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 border border-cyan-500/20 bg-gradient-to-r from-ink-900/90 via-ink-900/70 to-ink-900/90 shadow-[0_4px_24px_rgba(0,0,0,0.35)]"
       >
-        <div className="space-y-0.5">
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-400">
-            The Grand ADP
-          </p>
-          <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight">
-            Welcome, {guestName.split(' ')[0]}
-          </h1>
+        <div className="flex items-center gap-3.5 min-w-0">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-cyan-400/20 to-cyan-600/10 border border-cyan-400/30 text-cyan-300 shadow-[0_0_15px_rgba(34,211,238,0.2)]">
+            <Hotel className="h-6 w-6" />
+          </div>
+          <div className="min-w-0 space-y-0.5">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] text-cyan-400">
+                The Grand ADP
+              </span>
+              <span className="hidden sm:inline-block text-[9px] font-semibold uppercase tracking-wider text-mist-400 border-l border-white/10 pl-2">
+                Luxury Resort &amp; Suites
+              </span>
+            </div>
+            <h1 className="text-base sm:text-lg md:text-xl font-bold text-white tracking-tight truncate">
+              Welcome, {guestName.split(' ')[0]}
+            </h1>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
           {prefs?.dnd && (
-            <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[10px] font-bold">
+            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[10px] font-bold">
+              <span className="h-1.5 w-1.5 rounded-full bg-rose-400 animate-pulse" />
               <MoonStar className="h-3 w-3" />
-              <span>DND</span>
+              <span>DND Active</span>
             </span>
           )}
           <button
             type="button"
             onClick={() => onNavigate('profile')}
-            className="guest-chip-btn px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 hover:border-amber-400/40 transition-colors"
-            title="View Profile & Stay"
+            className="px-3 py-1.5 rounded-xl border border-white/10 bg-white/5 hover:border-cyan-400/40 text-xs font-semibold text-mist-200 hover:text-white flex items-center gap-1.5 transition-all shadow-sm group"
+            title="View Room & Stay Details"
           >
-            <BedDouble className="h-3.5 w-3.5 text-amber-400" />
+            <BedDouble className="h-3.5 w-3.5 text-cyan-400 group-hover:scale-110 transition-transform" />
             <span>Room {room}</span>
           </button>
         </div>
@@ -367,128 +384,186 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
       >
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-bold text-white flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-amber-400" />
+            <Sparkles className="h-4 w-4 text-cyan-400" />
             <span>Quick Services</span>
           </h2>
           <button
             type="button"
             onClick={() => onNavigate('services')}
-            className="text-[11px] font-semibold text-amber-300 hover:text-amber-200 flex items-center gap-1"
+            className="text-[11px] font-semibold text-cyan-300 hover:text-cyan-200 flex items-center gap-1 transition-colors"
           >
             <span>All Services</span>
             <ArrowRight className="h-3 w-3" />
           </button>
         </div>
 
-        {/* 10-Service Directory in a Clean, Compact Responsive Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
-          {/* 1. Housekeeping */}
+        {/* 12-Service Directory in an Evenly Balanced, Responsive Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-3 md:gap-3.5">
+          {/* 1. Dining */}
           <button
-            type="button"
-            onClick={() => onNavigate('services', 'housekeeping')}
-            className="guest-tile p-3 text-left flex flex-col justify-between hover:border-amber-400/40 transition-all group min-h-[92px]"
-          >
-            <div className="flex items-start justify-between">
-              <span className="grid h-8 w-8 place-items-center rounded-xl bg-amber-400/15 text-amber-300 group-hover:scale-110 transition-transform">
-                <Sparkles className="h-4 w-4" />
-              </span>
-              <span className="text-[10px] text-mist-400 group-hover:text-amber-300">&rarr;</span>
-            </div>
-            <p className="mt-3 text-xs font-bold text-white truncate">Housekeeping</p>
-          </button>
-
-          {/* 2. Dining */}
-          <button
+            data-tour="tour-quick-dining"
             type="button"
             onClick={() => onNavigate('services', 'dining')}
-            className="guest-tile p-3 text-left flex flex-col justify-between hover:border-amber-400/40 transition-all group min-h-[92px]"
+            className="guest-tile p-3 sm:p-3.5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_4px_20px_rgba(34,211,238,0.12)] transition-all group min-h-[104px] sm:min-h-[110px] md:min-h-[116px]"
           >
             <div className="flex items-start justify-between">
-              <span className="grid h-8 w-8 place-items-center rounded-xl bg-amber-400/15 text-amber-300 group-hover:scale-110 transition-transform">
-                <UtensilsCrossed className="h-4 w-4" />
+              <span className="grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-xl bg-amber-400/15 text-amber-300 border border-amber-400/20 group-hover:scale-105 transition-transform">
+                <UtensilsCrossed className="h-4 sm:h-5 w-4 sm:w-5" />
               </span>
-              <span className="text-[10px] text-mist-400 group-hover:text-amber-300">&rarr;</span>
+              <span className="text-[10px] text-mist-400 group-hover:text-cyan-300 group-hover:translate-x-0.5 transition-all">&rarr;</span>
             </div>
-            <p className="mt-3 text-xs font-bold text-white truncate">Dining</p>
+            <div>
+              <p className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 transition-colors truncate">Dining</p>
+              <p className="text-[10px] text-mist-400 group-hover:text-mist-300 truncate mt-0.5">Menu &amp; Order</p>
+            </div>
+          </button>
+
+          {/* 2. Room Service */}
+          <button
+            data-tour="tour-quick-room-service"
+            type="button"
+            onClick={() => onNavigate('services', 'room_service')}
+            className="guest-tile p-3 sm:p-3.5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_4px_20px_rgba(34,211,238,0.12)] transition-all group min-h-[104px] sm:min-h-[110px] md:min-h-[116px]"
+          >
+            <div className="flex items-start justify-between">
+              <span className="grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-xl bg-cyan-400/15 text-cyan-300 border border-cyan-400/20 group-hover:scale-105 transition-transform">
+                <Sparkles className="h-4 sm:h-5 w-4 sm:w-5" />
+              </span>
+              <span className="text-[10px] text-mist-400 group-hover:text-cyan-300 group-hover:translate-x-0.5 transition-all">&rarr;</span>
+            </div>
+            <div>
+              <p className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 transition-colors truncate">Room Service</p>
+              <p className="text-[10px] text-mist-400 group-hover:text-mist-300 truncate mt-0.5">Amenities &amp; Care</p>
+            </div>
           </button>
 
           {/* 3. Maintenance */}
           <button
+            data-tour="tour-quick-maintenance"
             type="button"
             onClick={() => onNavigate('services', 'maintenance')}
-            className="guest-tile p-3 text-left flex flex-col justify-between hover:border-amber-400/40 transition-all group min-h-[92px]"
+            className="guest-tile p-3 sm:p-3.5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_4px_20px_rgba(34,211,238,0.12)] transition-all group min-h-[104px] sm:min-h-[110px] md:min-h-[116px]"
           >
             <div className="flex items-start justify-between">
-              <span className="grid h-8 w-8 place-items-center rounded-xl bg-sky-400/15 text-sky-300 group-hover:scale-110 transition-transform">
-                <Wrench className="h-4 w-4" />
+              <span className="grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-xl bg-sky-400/15 text-sky-300 border border-sky-400/20 group-hover:scale-105 transition-transform">
+                <Wrench className="h-4 sm:h-5 w-4 sm:w-5" />
               </span>
-              <span className="text-[10px] text-mist-400 group-hover:text-amber-300">&rarr;</span>
+              <span className="text-[10px] text-mist-400 group-hover:text-cyan-300 group-hover:translate-x-0.5 transition-all">&rarr;</span>
             </div>
-            <p className="mt-3 text-xs font-bold text-white truncate">Maintenance</p>
+            <div>
+              <p className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 transition-colors truncate">Maintenance</p>
+              <p className="text-[10px] text-mist-400 group-hover:text-mist-300 truncate mt-0.5">Room Repairs</p>
+            </div>
           </button>
 
-          {/* 4. Spa & Concierge */}
+          {/* 4. Spa */}
           <button
+            data-tour="tour-quick-services"
             type="button"
             onClick={() => onNavigate('services', 'spa')}
-            className="guest-tile p-3 text-left flex flex-col justify-between hover:border-amber-400/40 transition-all group min-h-[92px]"
+            className="guest-tile p-3 sm:p-3.5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_4px_20px_rgba(34,211,238,0.12)] transition-all group min-h-[104px] sm:min-h-[110px] md:min-h-[116px]"
           >
             <div className="flex items-start justify-between">
-              <span className="grid h-8 w-8 place-items-center rounded-xl bg-purple-400/15 text-purple-300 group-hover:scale-110 transition-transform">
-                <Flower2 className="h-4 w-4" />
+              <span className="grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-xl bg-purple-400/15 text-purple-300 border border-purple-400/20 group-hover:scale-105 transition-transform">
+                <Flower2 className="h-4 sm:h-5 w-4 sm:w-5" />
               </span>
-              <span className="text-[10px] text-mist-400 group-hover:text-amber-300">&rarr;</span>
+              <span className="text-[10px] text-mist-400 group-hover:text-cyan-300 group-hover:translate-x-0.5 transition-all">&rarr;</span>
             </div>
-            <p className="mt-3 text-xs font-bold text-white truncate">Spa &amp; Concierge</p>
+            <div>
+              <p className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 transition-colors truncate">Spa</p>
+              <p className="text-[10px] text-mist-400 group-hover:text-mist-300 truncate mt-0.5">Wellness &amp; Care</p>
+            </div>
           </button>
 
-          {/* 5. Front Desk */}
+          {/* 5. Concierge */}
+          <button
+            type="button"
+            onClick={() => onNavigate('services', 'concierge')}
+            className="guest-tile p-3 sm:p-3.5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_4px_20px_rgba(34,211,238,0.12)] transition-all group min-h-[104px] sm:min-h-[110px] md:min-h-[116px]"
+          >
+            <div className="flex items-start justify-between">
+              <span className="grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-xl bg-indigo-400/15 text-indigo-300 border border-indigo-400/20 group-hover:scale-105 transition-transform">
+                <Compass className="h-4 sm:h-5 w-4 sm:w-5" />
+              </span>
+              <span className="text-[10px] text-mist-400 group-hover:text-cyan-300 group-hover:translate-x-0.5 transition-all">&rarr;</span>
+            </div>
+            <div>
+              <p className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 transition-colors truncate">Concierge</p>
+              <p className="text-[10px] text-mist-400 group-hover:text-mist-300 truncate mt-0.5">Tours &amp; Travel</p>
+            </div>
+          </button>
+
+          {/* 6. Recreation */}
+          <button
+            type="button"
+            onClick={() => onNavigate('services', 'recreation')}
+            className="guest-tile p-3 sm:p-3.5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_4px_20px_rgba(34,211,238,0.12)] transition-all group min-h-[104px] sm:min-h-[110px] md:min-h-[116px]"
+          >
+            <div className="flex items-start justify-between">
+              <span className="grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-xl bg-teal-400/15 text-teal-300 border border-teal-400/20 group-hover:scale-105 transition-transform">
+                <Palmtree className="h-4 sm:h-5 w-4 sm:w-5" />
+              </span>
+              <span className="text-[10px] text-mist-400 group-hover:text-cyan-300 group-hover:translate-x-0.5 transition-all">&rarr;</span>
+            </div>
+            <div>
+              <p className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 transition-colors truncate">Recreation</p>
+              <p className="text-[10px] text-mist-400 group-hover:text-mist-300 truncate mt-0.5">Pool &amp; Sports</p>
+            </div>
+          </button>
+
+          {/* 7. Front Desk */}
           <button
             data-tour="tour-front-desk"
             type="button"
             onClick={() => setFdSheetOpen(true)}
-            className="guest-tile p-3 text-left flex flex-col justify-between hover:border-amber-400/40 transition-all group min-h-[92px]"
+            className="guest-tile p-3 sm:p-3.5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_4px_20px_rgba(34,211,238,0.12)] transition-all group min-h-[104px] sm:min-h-[110px] md:min-h-[116px]"
           >
             <div className="flex items-start justify-between">
-              <span className="grid h-8 w-8 place-items-center rounded-xl bg-indigo-400/15 text-indigo-300 group-hover:scale-110 transition-transform">
-                <MessageSquare className="h-4 w-4" />
+              <span className="grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-xl bg-cyan-400/15 text-cyan-300 border border-cyan-400/20 group-hover:scale-105 transition-transform">
+                <MessageSquare className="h-4 sm:h-5 w-4 sm:w-5" />
               </span>
-              <span className="text-[10px] text-mist-400 group-hover:text-amber-300">&rarr;</span>
+              <span className="text-[10px] text-mist-400 group-hover:text-cyan-300 group-hover:translate-x-0.5 transition-all">&rarr;</span>
             </div>
-            <p className="mt-3 text-xs font-bold text-white truncate">Front Desk</p>
+            <div>
+              <p className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 transition-colors truncate">Front Desk</p>
+              <p className="text-[10px] text-mist-400 group-hover:text-mist-300 truncate mt-0.5">24/7 Desk Chat</p>
+            </div>
           </button>
 
-          {/* 6. Reminders */}
+          {/* 8. Reminders */}
           <button
             type="button"
             onClick={() => setReminderSheetOpen(true)}
-            className="guest-tile p-3 text-left flex flex-col justify-between hover:border-amber-400/40 transition-all group min-h-[92px]"
+            className="guest-tile p-3 sm:p-3.5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_4px_20px_rgba(34,211,238,0.12)] transition-all group min-h-[104px] sm:min-h-[110px] md:min-h-[116px]"
           >
             <div className="flex items-start justify-between">
-              <span className="grid h-8 w-8 place-items-center rounded-xl bg-amber-400/15 text-amber-300 group-hover:scale-110 transition-transform">
-                <Bell className="h-4 w-4" />
+              <span className="grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-xl bg-amber-400/15 text-amber-300 border border-amber-400/20 group-hover:scale-105 transition-transform">
+                <Bell className="h-4 sm:h-5 w-4 sm:w-5" />
               </span>
-              <span className="text-[10px] text-mist-400 group-hover:text-amber-300">&rarr;</span>
+              <span className="text-[10px] text-mist-400 group-hover:text-cyan-300 group-hover:translate-x-0.5 transition-all">&rarr;</span>
             </div>
-            <p className="mt-3 text-xs font-bold text-white truncate">Reminders</p>
+            <div>
+              <p className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 transition-colors truncate">Reminders</p>
+              <p className="text-[10px] text-mist-400 group-hover:text-mist-300 truncate mt-0.5">Wake-up Calls</p>
+            </div>
           </button>
 
-          {/* 7. Do Not Disturb */}
+          {/* 9. Do Not Disturb */}
           <button
             type="button"
             onClick={() => setDndSheetOpen(true)}
-            className="guest-tile p-3 text-left flex flex-col justify-between hover:border-amber-400/40 transition-all group min-h-[92px]"
+            className="guest-tile p-3 sm:p-3.5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_4px_20px_rgba(34,211,238,0.12)] transition-all group min-h-[104px] sm:min-h-[110px] md:min-h-[116px]"
           >
             <div className="flex items-start justify-between">
               <span
                 className={cn(
-                  'grid h-8 w-8 place-items-center rounded-xl transition-transform group-hover:scale-110',
+                  'grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-xl transition-transform group-hover:scale-105 border',
                   prefs?.dnd
-                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                    : 'bg-white/10 text-mist-300'
+                    ? 'bg-rose-500/20 text-rose-300 border-rose-500/30'
+                    : 'bg-white/10 text-mist-300 border-white/10'
                 )}
               >
-                <MoonStar className="h-4 w-4" />
+                <MoonStar className="h-4 sm:h-5 w-4 sm:w-5" />
               </span>
               <span
                 className={cn(
@@ -499,53 +574,67 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
                 {prefs?.dnd ? 'ON' : 'OFF'}
               </span>
             </div>
-            <p className="mt-3 text-xs font-bold text-white truncate">Do Not Disturb</p>
+            <div>
+              <p className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 transition-colors truncate">DND</p>
+              <p className="text-[10px] text-mist-400 group-hover:text-mist-300 truncate mt-0.5">
+                {prefs?.dnd ? 'Active (ON)' : 'Privacy (OFF)'}
+              </p>
+            </div>
           </button>
 
-          {/* 8. Complaints */}
+          {/* 10. Complaints */}
           <button
             type="button"
             onClick={() => onNavigate('complaints')}
-            className="guest-tile p-3 text-left flex flex-col justify-between hover:border-amber-400/40 transition-all group min-h-[92px]"
+            className="guest-tile p-3 sm:p-3.5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_4px_20px_rgba(34,211,238,0.12)] transition-all group min-h-[104px] sm:min-h-[110px] md:min-h-[116px]"
           >
             <div className="flex items-start justify-between">
-              <span className="grid h-8 w-8 place-items-center rounded-xl bg-rose-400/15 text-rose-300 group-hover:scale-110 transition-transform">
-                <HeartHandshake className="h-4 w-4" />
+              <span className="grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-xl bg-rose-400/15 text-rose-300 border border-rose-400/20 group-hover:scale-105 transition-transform">
+                <HeartHandshake className="h-4 sm:h-5 w-4 sm:w-5" />
               </span>
-              <span className="text-[10px] text-mist-400 group-hover:text-amber-300">&rarr;</span>
+              <span className="text-[10px] text-mist-400 group-hover:text-cyan-300 group-hover:translate-x-0.5 transition-all">&rarr;</span>
             </div>
-            <p className="mt-3 text-xs font-bold text-white truncate">Complaints</p>
+            <div>
+              <p className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 transition-colors truncate">Complaints</p>
+              <p className="text-[10px] text-mist-400 group-hover:text-mist-300 truncate mt-0.5">Case Support</p>
+            </div>
           </button>
 
-          {/* 9. Lost & Found */}
+          {/* 11. Lost & Found */}
           <button
             type="button"
             onClick={() => onNavigate('lost_found')}
-            className="guest-tile p-3 text-left flex flex-col justify-between hover:border-amber-400/40 transition-all group min-h-[92px]"
+            className="guest-tile p-3 sm:p-3.5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_4px_20px_rgba(34,211,238,0.12)] transition-all group min-h-[104px] sm:min-h-[110px] md:min-h-[116px]"
           >
             <div className="flex items-start justify-between">
-              <span className="grid h-8 w-8 place-items-center rounded-xl bg-teal-400/15 text-teal-300 group-hover:scale-110 transition-transform">
-                <PackageSearch className="h-4 w-4" />
+              <span className="grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-xl bg-teal-400/15 text-teal-300 border border-teal-400/20 group-hover:scale-105 transition-transform">
+                <PackageSearch className="h-4 sm:h-5 w-4 sm:w-5" />
               </span>
-              <span className="text-[10px] text-mist-400 group-hover:text-amber-300">&rarr;</span>
+              <span className="text-[10px] text-mist-400 group-hover:text-cyan-300 group-hover:translate-x-0.5 transition-all">&rarr;</span>
             </div>
-            <p className="mt-3 text-xs font-bold text-white truncate">Lost &amp; Found</p>
+            <div>
+              <p className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 transition-colors truncate">Lost &amp; Found</p>
+              <p className="text-[10px] text-mist-400 group-hover:text-mist-300 truncate mt-0.5">Item Inquiries</p>
+            </div>
           </button>
 
-          {/* 10. Folio & Checkout */}
+          {/* 12. Folio & Checkout */}
           <button
             data-tour="tour-folio"
             type="button"
             onClick={() => onNavigate('profile', 'folio')}
-            className="guest-tile p-3 text-left flex flex-col justify-between hover:border-amber-400/40 transition-all group min-h-[92px]"
+            className="guest-tile p-3 sm:p-3.5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_4px_20px_rgba(34,211,238,0.12)] transition-all group min-h-[104px] sm:min-h-[110px] md:min-h-[116px]"
           >
             <div className="flex items-start justify-between">
-              <span className="grid h-8 w-8 place-items-center rounded-xl bg-emerald-400/15 text-emerald-300 group-hover:scale-110 transition-transform">
-                <Receipt className="h-4 w-4" />
+              <span className="grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-xl bg-emerald-400/15 text-emerald-300 border border-emerald-400/20 group-hover:scale-105 transition-transform">
+                <Receipt className="h-4 sm:h-5 w-4 sm:w-5" />
               </span>
-              <span className="text-[10px] text-mist-400 group-hover:text-amber-300">&rarr;</span>
+              <span className="text-[10px] text-mist-400 group-hover:text-cyan-300 group-hover:translate-x-0.5 transition-all">&rarr;</span>
             </div>
-            <p className="mt-3 text-xs font-bold text-white truncate">Folio &amp; Checkout</p>
+            <div>
+              <p className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 transition-colors truncate">Folio</p>
+              <p className="text-[10px] text-mist-400 group-hover:text-mist-300 truncate mt-0.5">Bill &amp; Checkout</p>
+            </div>
           </button>
         </div>
       </section>
@@ -558,11 +647,11 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-bold text-white flex items-center gap-2">
-              <ListChecks className="h-4 w-4 text-amber-400" />
+              <ListChecks className="h-4 w-4 text-cyan-400" />
               <span>Pending Requests</span>
             </h2>
             {pendingItems.length > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-400 text-ink-950">
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-cyan-400 text-ink-950">
                 {pendingItems.length}
               </span>
             )}
@@ -571,17 +660,21 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
           <button
             type="button"
             onClick={() => onNavigate('activity')}
-            className="text-[11px] font-semibold text-amber-300 hover:text-amber-200 flex items-center gap-1"
+            className="text-[11px] font-semibold text-cyan-300 hover:text-cyan-200 flex items-center gap-1 transition-colors"
           >
             <span>History</span>
             <ArrowRight className="h-3 w-3" />
           </button>
         </div>
 
-        {/* 4. MINIMAL EMPTY STATE */}
+        {/* 4. MINIMAL EMPTY STATE / TIMELINE LIST */}
         {pendingItems.length === 0 ? (
-          <div className="py-8 text-center text-xs text-mist-400">
-            You&apos;re all caught up!
+          <div className="guest-card p-6 text-center text-xs text-mist-400 flex flex-col items-center justify-center gap-2 border border-white/5">
+            <span className="grid h-8 w-8 place-items-center rounded-xl bg-white/5 text-emerald-400">
+              <CheckCircle2 className="h-4 w-4" />
+            </span>
+            <p className="font-semibold text-mist-300">You&apos;re all caught up!</p>
+            <p className="text-[11px] text-mist-400">No active pending requests for Room {room}.</p>
           </div>
         ) : (
           <div className="relative pl-6 space-y-3 before:absolute before:left-2.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-white/10">
@@ -600,29 +693,32 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
                   />
 
                   {/* Timeline Card */}
-                  <div className="guest-card flex-1 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:border-white/20 transition-all">
+                  <div
+                    onClick={() => onNavigate('activity')}
+                    className="guest-card flex-1 p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:border-cyan-400/30 transition-all cursor-pointer"
+                  >
                     <div className="min-w-0 space-y-0.5">
-                      <div className="flex items-center gap-2">
-                        <span className="grid h-6 w-6 place-items-center rounded-lg bg-white/5 text-amber-300 shrink-0">
+                      <div className="flex items-center gap-2.5">
+                        <span className="grid h-7 w-7 place-items-center rounded-lg bg-white/5 text-cyan-300 shrink-0">
                           <ItemIcon className="h-3.5 w-3.5" />
                         </span>
-                        <p className="text-xs font-bold text-white truncate">{item.serviceName}</p>
+                        <p className="text-xs sm:text-sm font-bold text-white truncate">{item.serviceName}</p>
                       </div>
                       {item.description && (
-                        <p className="text-[11px] text-mist-300 line-clamp-1 pl-8">
+                        <p className="text-[11px] text-mist-300 line-clamp-1 pl-9.5">
                           {item.description}
                         </p>
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pl-8 sm:pl-0">
+                    <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pl-9.5 sm:pl-0">
                       <span className="text-[10px] text-mist-400 font-mono flex items-center gap-1">
                         <Clock className="h-3 w-3" />
                         <span>{item.timestamp}</span>
                       </span>
                       <span
                         className={cn(
-                          'px-2 py-0.5 rounded-full text-[10px] font-bold border tracking-wide',
+                          'px-2.5 py-0.5 rounded-full text-[10px] font-bold border tracking-wide',
                           style.badge
                         )}
                       >
@@ -797,24 +893,24 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
         </GuestSheet>
       )}
 
-      {/* QUICK HOUSEKEEPING SHEET */}
+      {/* QUICK ROOM SERVICE SHEET */}
       {hkSheetOpen && (
         <GuestSheet
-          title="Request Housekeeping"
+          title="Request Room Service"
           onClose={() => setHkSheetOpen(false)}
           footer={
             <div className="flex items-center gap-2 w-full">
               <button
                 type="button"
                 onClick={() => setHkSheetOpen(false)}
-                className="flex-1 py-2.5 px-3 rounded-xl border border-white/10 text-xs font-semibold text-mist-300"
+                className="flex-1 py-2.5 px-3 rounded-xl border border-white/10 text-xs font-semibold text-mist-300 hover:text-white"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleSendHkRequest}
-                className="flex-2 py-2.5 px-3 rounded-xl bg-amber-400 text-ink-950 text-xs font-bold hover:bg-amber-300 shadow-md flex items-center justify-center gap-1.5"
+                className="flex-2 py-2.5 px-3 rounded-xl bg-cyan-400 text-ink-950 text-xs font-bold hover:bg-cyan-300 shadow-md flex items-center justify-center gap-1.5"
               >
                 <Sparkles className="h-3.5 w-3.5" />
                 <span>Submit Request</span>
@@ -825,7 +921,7 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
           <form onSubmit={handleSendHkRequest} className="space-y-3.5 text-xs">
             <div className="space-y-1">
               <label htmlFor="qhk-srv" className="text-mist-300 font-semibold block">
-                Service
+                Service / Supplies
               </label>
               <select
                 id="qhk-srv"
@@ -853,14 +949,14 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
 
             <div className="space-y-1">
               <label htmlFor="qhk-note" className="text-mist-300 font-semibold block">
-                Additional Notes (Optional)
+                Special Delivery Instructions (Optional)
               </label>
               <textarea
                 id="qhk-note"
                 rows={2}
                 value={hkInstructions}
                 onChange={(e) => setHkInstructions(e.target.value)}
-                placeholder="e.g. Leave on table, do not disturb if resting..."
+                placeholder="e.g. Leave package by vanity table, please knock softly..."
                 className="guest-field w-full px-3 py-2 text-xs text-white"
               />
             </div>

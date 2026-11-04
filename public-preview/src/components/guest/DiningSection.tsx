@@ -394,44 +394,25 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
 
   return (
     <div className="space-y-5 pb-28 max-w-5xl mx-auto">
-      {/* 1. MINIMAL DINING HEADING & SEARCH */}
-      <div className="guest-card p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <span className="grid h-8 w-8 place-items-center rounded-xl bg-amber-400/20 text-amber-300">
-              <UtensilsCrossed className="h-4 w-4" />
-            </span>
-            <div>
-              <h1 className="text-base sm:text-lg font-bold text-white tracking-tight">
-                Dining
-              </h1>
-              <p className="text-[11px] text-mist-400">
-                Gourmet in-room dining &bull; Prepared fresh &bull; Delivered to Room {room}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Small Search Bar */}
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-mist-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search dishes, ingredients..."
-            className="w-full rounded-xl bg-ink-950/80 border border-white/10 pl-9 pr-8 py-2 text-xs text-white placeholder-mist-400 focus:outline-none focus:border-amber-400/50 transition-colors"
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-mist-400 hover:text-white"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          )}
-        </div>
+      {/* 1. SEARCH BAR - PROMINENT FIRST ELEMENT */}
+      <div className="relative w-full pt-1">
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-mist-400" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search dishes, cuisines, or ingredients..."
+          className="w-full rounded-2xl bg-ink-900/90 border border-white/10 pl-10 pr-9 py-3 text-xs sm:text-sm text-white placeholder-mist-400 focus:outline-none focus:border-amber-400/60 shadow-md transition-colors"
+        />
+        {searchQuery && (
+          <button
+            type="button"
+            onClick={() => setSearchQuery('')}
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-mist-400 hover:text-white p-1"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
 
       {/* 2. COMPACT FOOD FILTERS & ALLERGENS */}
@@ -756,7 +737,6 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
       {/* 6. ALLERGEN EXCLUSION MODAL */}
       {allergenModalOpen && (
         <GuestSheet
-          isOpen={allergenModalOpen}
           onClose={() => setAllergenModalOpen(false)}
           title="Filter by Allergens"
         >
@@ -832,7 +812,6 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
       {/* 7. DISH INGREDIENTS & ALLERGENS INFO SHEET */}
       {infoDish && (
         <GuestSheet
-          isOpen={Boolean(infoDish)}
           onClose={() => setInfoDish(null)}
           title={infoDish.name}
         >
@@ -918,7 +897,6 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
       {/* 8. FOOD CUSTOMISATION SHEET */}
       {customizingDish && (
         <GuestSheet
-          isOpen={Boolean(customizingDish)}
           onClose={() => setCustomizingDish(null)}
           title={`Customise ${customizingDish.name}`}
         >
@@ -1067,7 +1045,6 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
       {/* 9. CART & ORDER SUMMARY SHEET */}
       {cartSheetOpen && (
         <GuestSheet
-          isOpen={cartSheetOpen}
           onClose={() => setCartSheetOpen(false)}
           title="Your Dining Order"
         >
@@ -1280,7 +1257,6 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
       {/* 10. ORDER CONFIRMATION & 6-STAGE TIMELINE TRACKER MODAL */}
       {trackingModalOpen && (
         <GuestSheet
-          isOpen={trackingModalOpen}
           onClose={() => setTrackingModalOpen(false)}
           title="Order Tracking"
         >

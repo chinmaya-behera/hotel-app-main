@@ -329,71 +329,23 @@ export function SpaConciergeTab({
         </div>
       )}
 
-      {/* 1. TOP HEADER & 3-SEGMENT NAVIGATION */}
-      <div className="guest-card p-4 sm:p-5 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-purple-400/20 text-purple-300">
-              {activeSection === 'spa' ? (
-                <Flower2 className="h-5 w-5" />
-              ) : activeSection === 'concierge' ? (
-                <Compass className="h-5 w-5" />
-              ) : (
-                <Palmtree className="h-5 w-5" />
-              )}
-            </span>
-            <div>
-              <h1 className="text-base sm:text-lg font-bold text-white tracking-tight">
-                {activeSection === 'spa'
-                  ? 'Spa & Wellness'
-                  : activeSection === 'concierge'
-                  ? 'Concierge Services'
-                  : 'Resort Recreation & Activities'}
-              </h1>
-              <p className="text-[11px] text-mist-400">
-                The Grand Azure Lifestyle Hub &bull; Room {room} ({guestName.split(' ')[0]})
-              </p>
-            </div>
-          </div>
-
-          {/* Search Bar */}
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-mist-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search experiences..."
-              className="w-full rounded-xl bg-ink-950/80 border border-white/10 pl-9 pr-7 py-2 text-xs text-white placeholder-mist-400 focus:outline-none focus:border-purple-400/50 transition-colors"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-mist-400 hover:text-white"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* 3-Section Segmented Control: Spa & Wellness | Concierge | Recreation */}
-        <div className="grid grid-cols-3 gap-1.5 p-1 rounded-2xl bg-ink-950/80 border border-white/10">
+      {/* 1. 3-SEGMENT NAVIGATION TOGGLE (First prominent element) */}
+      <div className="space-y-3 pt-1">
+        <div className="grid grid-cols-3 gap-1.5 p-1.5 rounded-2xl bg-ink-900/90 border border-white/10 shadow-md">
           <button
             type="button"
             onClick={() => {
               setActiveSection('spa');
               setSearchQuery('');
             }}
-            className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+            className={`py-2.5 px-2 sm:px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 sm:gap-2 transition-all ${
               activeSection === 'spa'
-                ? 'bg-purple-500 text-white shadow-md'
-                : 'text-mist-400 hover:text-white'
+                ? 'bg-cyan-400 text-ink-950 font-black shadow-md'
+                : 'text-mist-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            <Flower2 className="h-3.5 w-3.5" />
-            <span>Spa &amp; Wellness</span>
+            <Flower2 className="h-4 w-4 shrink-0" />
+            <span className="truncate">Spa &amp; Wellness</span>
           </button>
 
           <button
@@ -402,14 +354,14 @@ export function SpaConciergeTab({
               setActiveSection('concierge');
               setSearchQuery('');
             }}
-            className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+            className={`py-2.5 px-2 sm:px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 sm:gap-2 transition-all ${
               activeSection === 'concierge'
-                ? 'bg-purple-500 text-white shadow-md'
-                : 'text-mist-400 hover:text-white'
+                ? 'bg-cyan-400 text-ink-950 font-black shadow-md'
+                : 'text-mist-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            <Compass className="h-3.5 w-3.5" />
-            <span>Concierge</span>
+            <Compass className="h-4 w-4 shrink-0" />
+            <span className="truncate">Concierge</span>
           </button>
 
           <button
@@ -418,15 +370,36 @@ export function SpaConciergeTab({
               setActiveSection('recreation');
               setSearchQuery('');
             }}
-            className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+            className={`py-2.5 px-2 sm:px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 sm:gap-2 transition-all ${
               activeSection === 'recreation'
-                ? 'bg-purple-500 text-white shadow-md'
-                : 'text-mist-400 hover:text-white'
+                ? 'bg-cyan-400 text-ink-950 font-black shadow-md'
+                : 'text-mist-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            <Palmtree className="h-3.5 w-3.5" />
-            <span>Recreation</span>
+            <Palmtree className="h-4 w-4 shrink-0" />
+            <span className="truncate">Recreation</span>
           </button>
+        </div>
+
+        {/* Search Bar */}
+        <div className="relative w-full">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-mist-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={`Search ${activeSection === 'spa' ? 'spa treatments' : activeSection === 'concierge' ? 'concierge services' : 'activities & facilities'}...`}
+            className="w-full rounded-xl bg-ink-900/80 border border-white/10 pl-9 pr-8 py-2.5 text-xs text-white placeholder-mist-400 focus:outline-none focus:border-cyan-400/50 transition-colors"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-mist-400 hover:text-white"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
         </div>
       </div>
 

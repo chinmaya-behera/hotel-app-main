@@ -1,12 +1,12 @@
 'use client';
 
-import { DiningSection } from './DiningSection';
+import { HousekeepingCatalogueSection } from './HousekeepingCatalogueSection';
 import type { GuestTabProps } from '@/components/guest/types';
 
 /**
- * Backward-compatible wrapper for DiningSection
- * All guest-facing instances have been renamed to Dining.
+ * RoomServiceTab renders the Room Service section (Room cleaning, amenities & supplies).
+ * (Note: Food & beverage ordering is handled by DiningSection).
  */
 export function RoomServiceTab(props: GuestTabProps) {
-  return <DiningSection {...props} />;
+  return <HousekeepingCatalogueSection {...props} />;
 }

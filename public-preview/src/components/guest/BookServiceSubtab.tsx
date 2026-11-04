@@ -45,8 +45,8 @@ const TIME_SLOTS = [
 
 const DEPARTMENTS = [
   { id: 'all', label: 'All Departments', icon: Layers },
-  { id: 'Housekeeping', label: 'Housekeeping', icon: Sparkles },
-  { id: 'Food & Beverage', label: 'Room Service (Dining)', icon: UtensilsCrossed },
+  { id: 'Housekeeping', label: 'Room Service', icon: Sparkles },
+  { id: 'Food & Beverage', label: 'Dining', icon: UtensilsCrossed },
   { id: 'Maintenance & Engineering', label: 'Maintenance', icon: Wrench },
   { id: 'Laundry', label: 'Laundry & Valet', icon: Shirt },
   { id: 'Front Desk', label: 'Front Desk', icon: ConciergeBell },

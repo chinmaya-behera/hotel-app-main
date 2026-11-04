@@ -50,6 +50,7 @@ const NAV_MAP: Record<string, GuestMainSection> = {
   alerts: 'notifications',
   complaints: 'services',
   lost_found: 'services',
+  dining: 'services',
   room_service: 'services',
   housekeeping: 'services',
   maintenance: 'services',
@@ -399,10 +400,11 @@ function TabPanel({
       return <AllServicesSection {...tabProps} initialSubtab="complaints" />;
     case 'lost_found':
       return <AllServicesSection {...tabProps} initialSubtab="lost_found" />;
+    case 'dining':
+      return <AllServicesSection {...tabProps} initialSubtab="dining" />;
     case 'room_service':
-      return <AllServicesSection {...tabProps} initialSubtab="room_service" />;
     case 'housekeeping':
-      return <AllServicesSection {...tabProps} initialSubtab="housekeeping" />;
+      return <AllServicesSection {...tabProps} initialSubtab="room_service" />;
     case 'maintenance':
       return <AllServicesSection {...tabProps} initialSubtab="maintenance" />;
     case 'spa':
