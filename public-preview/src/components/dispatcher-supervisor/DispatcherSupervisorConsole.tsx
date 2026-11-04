@@ -19,6 +19,9 @@ import {
   CheckCircle2,
   AlertTriangle,
   MessageSquare,
+  HeartPulse,
+  Wrench,
+  UtensilsCrossed,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
 import type { SupervisorInspection, RoleId, DispatcherDepartment, WorkItem, StaffAccount } from '@/types/demo';
@@ -76,6 +79,7 @@ interface NavItem {
 export function DispatcherSupervisorConsole() {
   const {
     state,
+    setActiveDispatcherDept,
     approveInspection,
     reopenInspection,
     reviewFulfillerReassignment,
@@ -390,8 +394,101 @@ export function DispatcherSupervisorConsole() {
     },
   ];
 
+  // Visual details for active department
+  const deptMeta = {
+    'Housekeeping': {
+      title: 'Housekeeping Operations',
+      subtitle: 'Turnover readiness, room cleaning, deep clean sanitization & linen logistics',
+      gradient: 'from-emerald-500 to-teal-600',
+      icon: Sparkles,
+      colorClass: 'text-emerald-400',
+      bgClass: 'bg-emerald-500/10 border-emerald-500/30',
+    },
+    'Wellness': {
+      title: 'Wellness & Spa Operations',
+      subtitle: 'Ayurvedic treatments, hydrotherapy pools, wellness suites & therapy appointments',
+      gradient: 'from-teal-500 to-cyan-600',
+      icon: HeartPulse,
+      colorClass: 'text-cyan-400',
+      bgClass: 'bg-cyan-500/10 border-cyan-500/30',
+    },
+    'Maintenance & Engineering': {
+      title: 'Maintenance & Engineering Operations',
+      subtitle: 'HVAC climate systems, plumbing, electrical repairs & IoT asset alerts',
+      gradient: 'from-amber-500 to-orange-600',
+      icon: Wrench,
+      colorClass: 'text-amber-400',
+      bgClass: 'bg-amber-500/10 border-amber-500/30',
+    },
+    'Food & Beverages': {
+      title: 'Food & Beverages Operations',
+      subtitle: 'In-room dining orders, kitchen expediting, tray presentation & minibar replenishment',
+      gradient: 'from-purple-500 to-pink-600',
+      icon: UtensilsCrossed,
+      colorClass: 'text-purple-400',
+      bgClass: 'bg-purple-500/10 border-purple-500/30',
+    },
+  }[currentDept];
+
+  const DeptIcon = deptMeta.icon;
+
   return (
     <div className="w-full pb-16">
+      {/* Active Department Header Banner & Interactive Switcher */}
+      <div className="rounded-3xl border border-white/10 bg-ink-900/90 p-4 sm:p-5 backdrop-blur-xl shadow-2xl mb-6">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div className="flex items-center gap-3.5 min-w-0">
+            <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${deptMeta.gradient} flex items-center justify-center text-white shadow-lg shadow-black/40 shrink-0`}>
+              <DeptIcon className="w-6 h-6" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono uppercase tracking-wider border ${deptMeta.bgClass} ${deptMeta.colorClass}`}>
+                  {currentDept} Portal
+                </span>
+                <span className="text-xs text-mist-400 font-mono">
+                  {allTasks.length} {currentDept} Tasks · {staffList.length} Staff on Roster
+                </span>
+              </div>
+              <h1 className="text-lg sm:text-xl font-bold font-display text-white mt-0.5 truncate">
+                {deptMeta.title}
+              </h1>
+              <p className="text-xs text-mist-400 line-clamp-1">
+                {deptMeta.subtitle}
+              </p>
+            </div>
+          </div>
+
+          {/* Department Switcher Tabs */}
+          <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-2xl border border-white/10 bg-ink-950/80 shrink-0">
+            {(['Housekeeping', 'Wellness', 'Maintenance & Engineering', 'Food & Beverages'] as DispatcherDepartment[]).map((d) => {
+              const isCurrent = d === currentDept;
+              const icons = {
+                'Housekeeping': Sparkles,
+                'Wellness': HeartPulse,
+                'Maintenance & Engineering': Wrench,
+                'Food & Beverages': UtensilsCrossed,
+              };
+              const PIcon = icons[d];
+              return (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setActiveDispatcherDept(d)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                    isCurrent
+                      ? 'bg-amber-400 text-ink-950 shadow-md font-extrabold'
+                      : 'text-mist-300 hover:text-white hover:bg-white/[0.06]'
+                  }`}
+                >
+                  <PIcon className="w-3.5 h-3.5 shrink-0" />
+                  <span>{d}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
 
       {/* Main Layout: Sticky Sidebar + Dynamic View */}
       <div className="flex flex-col lg:flex-row items-start gap-6">
