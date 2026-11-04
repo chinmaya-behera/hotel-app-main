@@ -33,7 +33,7 @@ import type { WorkItem } from '@/types/demo';
 
 type PrimaryView = 'my_tasks' | 'all_tasks';
 type MyTasksFilter = 'all' | 'pending' | 'in_progress' | 'blocked' | 'overdue' | 'completed';
-type AllTasksFilter = 'all_eligible' | 'open_pool' | 'in_progress' | 'colleagues';
+type AllTasksFilter = 'all_eligible' | 'open_pool' | 'in_progress';
 
 const BLOCKER_REASONS = [
   'Guest requested privacy (Do Not Disturb)',
@@ -185,12 +185,6 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
           task.status === 'In progress' ||
           task.status === 'On the way' ||
           task.status === 'Blocked'
-        );
-      if (allFilter === 'colleagues')
-        return (
-          task.assignee &&
-          !isTaskAssignedToProfile(task, activeProfile) &&
-          task.status !== 'Completed'
         );
       return true;
     });
@@ -504,20 +498,6 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
             )}
           >
             In Progress
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setAllFilter('colleagues')}
-            className={cn(
-              'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all',
-              allFilter === 'colleagues'
-                ? 'bg-purple-400 text-ink-950 shadow-md shadow-purple-400/25 font-bold'
-                : 'border border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
-            )}
-          >
-            <Users className="h-3 w-3" />
-            Colleague Tasks
           </button>
         </div>
       )}
@@ -865,14 +845,6 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                           Request Reassign
                         </button>
                       </>
-                    )}
-
-                    {/* Assigned to Colleague in All Tasks View */}
-                    {primaryView === 'all_tasks' && !isUnassigned && !isAssignedToMe && (
-                      <div className="flex flex-1 items-center justify-between text-xs text-mist-400 py-1">
-                        <span>Assigned to colleague</span>
-                        <span className="font-semibold text-white">{task.assignee}</span>
-                      </div>
                     )}
                   </div>
                 )}
