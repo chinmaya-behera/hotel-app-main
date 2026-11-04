@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <rect width="200" height="200" fill="#f5f7fa"/>
+  <!-- shadow -->
+  <ellipse cx="100" cy="172" rx="70" ry="8" fill="#d0d5de" opacity="0.4"/>
+  <!-- bottom pillow -->
+  <rect x="22" y="105" width="156" height="65" rx="18" fill="white" stroke="#e2e6ed" stroke-width="1.5"/>
+  <rect x="28" y="111" width="144" height="53" rx="14" fill="#f9fafc"/>
+  <!-- bottom pillow seam -->
+  <line x1="100" y1="113" x2="100" y2="162" stroke="#e2e6ed" stroke-width="1" stroke-dasharray="3,3"/>
+  <!-- bottom pillow piping -->
+  <rect x="22" y="160" width="156" height="6" rx="3" fill="#e8ecf2"/>
+  <!-- top pillow -->
+  <rect x="30" y="48" width="140" height="62" rx="18" fill="white" stroke="#e2e6ed" stroke-width="1.5"/>
+  <rect x="36" y="54" width="128" height="50" rx="14" fill="#f9fafc"/>
+  <!-- top pillow seam -->
+  <line x1="100" y1="56" x2="100" y2="102" stroke="#e2e6ed" stroke-width="1" stroke-dasharray="3,3"/>
+  <!-- top pillow piping -->
+  <rect x="30" y="99" width="140" height="6" rx="3" fill="#e8ecf2"/>
+  <!-- soft texture dots top pillow -->
+  <circle cx="60" cy="70" r="2" fill="#e8ecf2"/>
+  <circle cx="80" cy="64" r="1.5" fill="#e8ecf2"/>
+  <circle cx="140" cy="72" r="2" fill="#e8ecf2"/>
+  <circle cx="120" cy="66" r="1.5" fill="#e8ecf2"/>
+</svg>
