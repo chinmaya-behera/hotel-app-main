@@ -485,7 +485,9 @@ export function PortalLoginView() {
             <div className="portal-card-heading"><div><p className="portal-eyebrow">02 / CHOOSE A WORKSPACE</p><h2 id="portal-workspaces-title">Quick logins</h2></div><span className="portal-helper">Autofill your account</span></div>
             <div className="portal-role-grid">
               {PRESET_ROLES.map(role => {
-                const isSelected = role.id === 'manager' ? !!managerSelected : role.id === selectedRoleId;
+                const isManager = role.id === 'manager';
+                const isFulfiller = role.id === 'fulfiller';
+                const isSelected = isManager ? !!managerSelected : isFulfiller ? !!fulfillerSelected : role.id === selectedRoleId;
                 const Icon = role.icon;
                 const isDispatcher = role.id === 'dispatcher';
                 return <React.Fragment key={role.id}>

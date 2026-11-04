@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { Suspense, useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
@@ -32,7 +32,7 @@ import { playChime } from './chime';
 
 type FulfillerTab = 'tasks' | 'notifications' | 'policies' | 'performance' | 'profile';
 
-export function FulfillerApp() {
+function FulfillerAppContent() {
   const { state, setPersona, setSoundEnabled, setTheme, setActiveDispatcherDept, toasts } = useDemo();
   const [activeTab, setActiveTab] = useState<FulfillerTab>('tasks');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -294,5 +294,13 @@ export function FulfillerApp() {
         </nav>
       </div>
     </div>
+  );
+}
+
+export function FulfillerApp() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-stone-900 flex items-center justify-center text-stone-300">Loading Task Fulfiller Portal...</div>}>
+      <FulfillerAppContent />
+    </Suspense>
   );
 }
