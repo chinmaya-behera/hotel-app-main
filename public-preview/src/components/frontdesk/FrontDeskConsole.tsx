@@ -5,18 +5,14 @@ import { useLayoutEffect, useEffect, useRef, useState, type CSSProperties, type 
 import {
   Activity,
   BedDouble,
-  CircleHelp,
   HeartHandshake,
-  Hand,
   Inbox,
   KeyRound,
   Landmark,
-  LockKeyhole,
   LogIn,
   LogOut,
   PackageSearch,
   UserCheck,
-  AlertTriangle,
   Crown,
   Bell,
   BookOpen,
@@ -31,19 +27,16 @@ import { ReconcilePanel } from '@/components/frontdesk/ReconcilePanel';
 import { RequestsPanel, isDone, needsAction, type RequestCategory } from '@/components/frontdesk/RequestsPanel';
 import { RoomsPanel } from '@/components/frontdesk/RoomsPanel';
 import { StaysPanel } from '@/components/frontdesk/StaysPanel';
-import { NeedActionPanel } from '@/components/frontdesk/NeedActionPanel';
 import { GuestRemindersPanel } from '@/components/frontdesk/GuestRemindersPanel';
 import { VipPreviewPanel } from '@/components/frontdesk/VipPreviewPanel';
 import { FrontDeskPoliciesPanel } from '@/components/frontdesk/FrontDeskPoliciesPanel';
-import { GestureGuideModal } from '@/components/shared/GestureGuideModal';
 import { CountUp, spotlight } from '@/lib/gestures';
 import { useDemo } from '@/lib/store';
 import { cn } from '@/lib/utils';
 
-type TabId = 'needaction' | 'stays' | 'vip' | 'reminders' | 'rooms' | 'requests' | 'lostfound' | 'recovery' | 'reconcile' | 'policies';
+type TabId = 'stays' | 'vip' | 'reminders' | 'rooms' | 'requests' | 'lostfound' | 'recovery' | 'reconcile' | 'policies';
 
 const TABS: Array<{ id: TabId; label: string; icon: LucideIcon }> = [
-  { id: 'needaction', label: 'Need action', icon: AlertTriangle },
   { id: 'stays', label: 'Stays', icon: UserCheck },
   { id: 'vip', label: 'VIP guests', icon: Crown },
   { id: 'reminders', label: 'Reminders', icon: Bell },
@@ -56,7 +49,7 @@ const TABS: Array<{ id: TabId; label: string; icon: LucideIcon }> = [
 ];
 
 export function FrontDeskConsole() {
-  const { state, gestureGuideOpen, setGestureGuideOpen } = useDemo();
+  const { state } = useDemo();
   const [tab, setTab] = useState<TabId>('stays');
   const [reqCategory, setReqCategory] = useState<RequestCategory>('all');
   const [pill, setPill] = useState({ left: 0, width: 0 });
@@ -75,13 +68,8 @@ export function FrontDeskConsole() {
   const claims = queue.filter((i) => i.category === 'lost_found' && !isDone(i));
   const vipCount = stays.filter((s) => s.vip).length;
   const pendingReminders = (state.guestReminders ?? []).filter((r) => r.status === 'pending');
-  const arrivalsNeedingId = arrivals.filter((a) => !a.idChecked);
-  const safetyAlertsPending = (state.safetyAlerts ?? []).filter(
-    (a) => a.status === 'draft_pending_validation' || a.status === 'approved_ready_broadcast',
-  );
 
   const counts: Record<TabId, { n: number; alert: boolean }> = {
-    needaction: { n: actionable.length + arrivalsNeedingId.length + safetyAlertsPending.length, alert: safetyAlertsPending.length > 0 || arrivalsNeedingId.length > 0 },
     stays: { n: arrivals.length, alert: arrivals.some((a) => !a.idChecked) },
     vip: { n: vipCount, alert: false },
     reminders: { n: pendingReminders.length, alert: false },
@@ -97,7 +85,6 @@ export function FrontDeskConsole() {
     { label: 'Arrivals expected', value: arrivals.length, note: `${arrivals.filter((a) => !a.idChecked).length} need ID check`, icon: LogIn },
     { label: 'In house', value: inHouse.length, note: 'Guests with an active QR session', icon: KeyRound },
     { label: 'Departing today', value: departing.length, note: 'Folio and checkout checks', icon: LogOut },
-    { label: 'Needs action', value: actionable.length + arrivalsNeedingId.length + safetyAlertsPending.length, note: 'Urgent requests and pending checks', icon: Inbox },
     { label: 'Rooms ready', value: readyRooms.length, note: 'Vacant and inspected', icon: BedDouble },
     { label: 'Sync issues', value: failedSync.length, note: 'Paid but not booked', icon: Landmark },
   ];
@@ -118,7 +105,7 @@ export function FrontDeskConsole() {
     measure();
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
-  }, [tab, counts.needaction.n, counts.vip.n, counts.reminders.n, counts.requests.n, counts.stays.n, counts.recovery.n, counts.reconcile.n, counts.lostfound.n, counts.rooms.n]);
+  }, [tab, counts.vip.n, counts.reminders.n, counts.requests.n, counts.stays.n, counts.recovery.n, counts.reconcile.n, counts.lostfound.n, counts.rooms.n]);
 
   function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
     let next = idx;
@@ -133,126 +120,124 @@ export function FrontDeskConsole() {
     refs.current[target.id]?.focus();
   }
 
-
-
   return (
-    <>
-      {/* KPI Cards Strip */}
-      <div className="fd-stagger grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-        {kpis.map((k, i) => {
-          const Icon = k.icon;
-          return (
-            <div key={k.label} style={{ '--i': i } as CSSProperties} className="panel fd-spot p-4" {...spotlight}>
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-medium text-mist-300">{k.label}</p>
-                <span className="accent-soft grid h-8 w-8 place-items-center rounded-lg">
-                  <Icon className="h-4 w-4" aria-hidden />
-                </span>
+    <div className="flex-1 min-h-0 flex flex-col overflow-hidden w-full">
+      {/* 1. Sticky/Fixed Numeric Overview KPI Row (5 evenly spaced cards) */}
+      <div className="shrink-0 mb-3 sm:mb-4">
+        <div className="fd-stagger grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-5">
+          {kpis.map((k, i) => {
+            const Icon = k.icon;
+            return (
+              <div key={k.label} style={{ '--i': i } as CSSProperties} className="panel fd-spot p-3.5 sm:p-4" {...spotlight}>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-mist-300 truncate mr-2">{k.label}</p>
+                  <span className="accent-soft grid h-7 w-7 sm:h-8 sm:w-8 place-items-center rounded-lg shrink-0">
+                    <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden />
+                  </span>
+                </div>
+                <p className="mt-1.5 sm:mt-2 text-2xl sm:text-3xl font-bold tabular-nums text-white">
+                  <CountUp value={k.value} />
+                </p>
+                <p className="mt-0.5 text-[10px] sm:text-[11px] text-mist-400 truncate">{k.note}</p>
               </div>
-              <p className="mt-2 text-3xl font-bold tabular-nums text-white">
-                <CountUp value={k.value} />
-              </p>
-              <p className="mt-0.5 text-[11px] text-mist-400">{k.note}</p>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
 
-      {/* Main Workspace Layout: Expanded 2-Column Desktop Grid */}
-      <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,2.5fr)_minmax(320px,1fr)]">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
-            <div className="fd-tabs" role="tablist" aria-label="Front Desk sections" onKeyDown={onKeyDown}>
+      {/* 2. Main Workspace Split: Left Content + Sticky Right Activity Sidebar */}
+      <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-4 xl:gap-5 overflow-hidden">
+        {/* Left Column: Horizontal Section Navigation Bar + Independently Scrollable Section Content */}
+        <div className="flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden">
+          {/* Horizontal Section Navigation Bar (Sticky at top of content area) */}
+          <div className="shrink-0 mb-3 flex items-center justify-between gap-3">
+            <div className="fd-tabs flex-1 min-w-0 overflow-x-auto no-scrollbar" role="tablist" aria-label="Front Desk sections" onKeyDown={onKeyDown}>
               <span className="fd-tab-pill" style={{ transform: `translateX(${pill.left}px)`, width: pill.width }} aria-hidden />
               {TABS.map((t) => {
-              const Icon = t.icon;
-              const c = counts[t.id];
-              const selected = tab === t.id;
-              return (
-                <button
-                  key={t.id}
-                  ref={(el) => {
-                    refs.current[t.id] = el;
-                  }}
-                  type="button"
-                  role="tab"
-                  id={`fd-tab-${t.id}`}
-                  aria-selected={selected}
-                  aria-controls={`fd-panel-${t.id}`}
-                  tabIndex={selected ? 0 : -1}
-                  onClick={() => {
-                    if (t.id === 'requests') setReqCategory('all');
-                    setTab(t.id);
-                  }}
-                  className="fd-tab"
-                >
-                  <Icon className="h-4 w-4" aria-hidden />
-                  {t.label}
-                  {c.n > 0 && (
-                    <span className="fd-tab-count" data-alert={c.alert} aria-label={`${c.n} pending`}>
-                      {c.n}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+                const Icon = t.icon;
+                const c = counts[t.id];
+                const selected = tab === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    ref={(el) => {
+                      refs.current[t.id] = el;
+                    }}
+                    type="button"
+                    role="tab"
+                    id={`fd-tab-${t.id}`}
+                    aria-selected={selected}
+                    aria-controls={`fd-panel-${t.id}`}
+                    tabIndex={selected ? 0 : -1}
+                    onClick={() => {
+                      if (t.id === 'requests') setReqCategory('all');
+                      setTab(t.id);
+                    }}
+                    className="fd-tab shrink-0"
+                  >
+                    <Icon className="h-4 w-4 shrink-0" aria-hidden />
+                    <span>{t.label}</span>
+                    {c && c.n > 0 && (
+                      <span className="fd-tab-count" data-alert={c.alert} aria-label={`${c.n} pending`}>
+                        {c.n}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setGestureGuideOpen(true)}
-            className="grid h-8 w-8 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-sm hover:border-amber-400/40 hover:bg-white/[0.08] transition shadow-sm"
-            aria-label="Open gesture guide and keyboard shortcut instructions"
+          {/* Independently Scrollable Main Section Content Area */}
+          <div className="flex-1 min-h-0 overflow-y-auto pr-1 pb-6 space-y-4">
+            <div key={tab} id={`fd-panel-${tab}`} role="tabpanel" aria-labelledby={`fd-tab-${tab}`} className={cn(swap)}>
+              {tab === 'stays' && <StaysPanel />}
+              {tab === 'vip' && <VipPreviewPanel onSwitchTab={(t) => setTab(t as TabId)} />}
+              {tab === 'reminders' && <GuestRemindersPanel />}
+              {tab === 'rooms' && <RoomsPanel />}
+              {tab === 'requests' && <RequestsPanel initialCategory={reqCategory} />}
+              {tab === 'recovery' && <ComplaintsPanel />}
+              {tab === 'reconcile' && <ReconcilePanel />}
+              {tab === 'policies' && <FrontDeskPoliciesPanel />}
+              {tab === 'lostfound' && (
+                <div className="space-y-4">
+                  <LostFoundManager title="Log a found item" hint="Sensitive items never show a photo to guests" icon={PackageSearch} />
+                  <Panel title="Guest claims" hint="Release only after an in-person ID check" icon={PackageSearch}>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <p className="text-sm text-mist-200">
+                        {claims.length === 0 ? 'No open claims from the Guest Portal.' : `${claims.length} open claim${claims.length === 1 ? '' : 's'} from guests.`}
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setReqCategory('lost_found');
+                          setTab('requests');
+                        }}
+                      >
+                        Open claims in Requests
+                      </Button>
+                    </div>
+                  </Panel>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Sticky Recent Activity Sidebar (Reduced Width ~290px, Stretches Full Height) */}
+        <div className="w-full lg:w-72 xl:w-[290px] shrink-0 h-full min-h-0 flex flex-col overflow-hidden">
+          <Panel
+            title="Recent activity"
+            hint="Property activity log"
+            icon={Activity}
+            className="h-full flex flex-col min-h-0 overflow-hidden shadow-lg"
+            bodyClassName="flex-1 min-h-0 overflow-y-auto p-3.5 sm:p-4"
           >
-            🖐️
-
-          </button>
-        </div>
-
-          <div key={tab} id={`fd-panel-${tab}`} role="tabpanel" aria-labelledby={`fd-tab-${tab}`} className={cn('mt-4', swap)}>
-            {tab === 'needaction' && <NeedActionPanel onSwitchTab={(t) => setTab(t as TabId)} />}
-            {tab === 'stays' && <StaysPanel />}
-            {tab === 'vip' && <VipPreviewPanel onSwitchTab={(t) => setTab(t as TabId)} />}
-            {tab === 'reminders' && <GuestRemindersPanel />}
-            {tab === 'rooms' && <RoomsPanel />}
-            {tab === 'requests' && <RequestsPanel initialCategory={reqCategory} />}
-            {tab === 'recovery' && <ComplaintsPanel />}
-            {tab === 'reconcile' && <ReconcilePanel />}
-            {tab === 'policies' && <FrontDeskPoliciesPanel />}
-            {tab === 'lostfound' && (
-              <div className="space-y-4">
-                <LostFoundManager title="Log a found item" hint="Sensitive items never show a photo to guests" icon={PackageSearch} />
-                <Panel title="Guest claims" hint="Release only after an in-person ID check" icon={PackageSearch}>
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <p className="text-sm text-mist-200">
-                      {claims.length === 0 ? 'No open claims from the Guest Portal.' : `${claims.length} open claim${claims.length === 1 ? '' : 's'} from guests.`}
-                    </p>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        setReqCategory('lost_found');
-                        setTab('requests');
-                      }}
-                    >
-                      Open claims in Requests
-                    </Button>
-                  </div>
-                </Panel>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="space-y-6 lg:sticky lg:top-24">
-          <Panel title="Recent activity" hint="Property activity log" icon={Activity}>
-            <FeedList limit={8} />
+            <FeedList limit={25} />
           </Panel>
         </div>
       </div>
-
-      {/* Contextual Gesture Guide Modal */}
-      <GestureGuideModal isOpen={gestureGuideOpen} onClose={() => setGestureGuideOpen(false)} />
-    </>
+    </div>
   );
 }
