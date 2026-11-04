@@ -37,6 +37,7 @@ import {
 import { useDemo } from '@/lib/store';
 import { MANAGER_DEPARTMENTS, MANAGER_DEMO_PASSWORD, managerDepartmentFromEmail, type ManagerDepartmentId } from '@/lib/manager-domain';
 import { DemoCredentialsDialog } from './DemoCredentialsDialog';
+import { FULFILLER_PROFILES, type FulfillerDeptKey } from '@/components/staff/fulfiller/fulfillerProfiles';
 import type { RoleId, DispatcherDepartment } from '@/types/demo';
 
 interface PresetRole {
@@ -213,8 +214,26 @@ export const DISPATCHER_DEPARTMENTS: DispatcherDeptOption[] = [
   },
 ];
 
+const FULFILLER_DEPARTMENTS: { key: FulfillerDeptKey; name: string }[] = [
+  { key: 'housekeeping', name: 'Housekeeping' },
+  { key: 'wellness', name: 'Spa & Wellness' },
+  { key: 'maintenance', name: 'Maintenance & Engineering' },
+  { key: 'fnb', name: 'Food & Beverages' },
+];
+
 const DEMO_ACCOUNTS: PresetRole[] = [
   ...MANAGER_DEPARTMENTS.map((d, index) => ({ id: `manager-${d.id}`, num: `M${index + 1}`, name: `${d.name} Manager`, email: d.email, pass: MANAGER_DEMO_PASSWORD, icon: Gauge, color: 'from-purple-500 to-indigo-600', path: '/staff/department-manager', personaId: 'department_manager' as const, departmentId: d.id })),
+  ...FULFILLER_DEPARTMENTS.map((fd, index) => ({
+    id: `fulfiller-${fd.key}`,
+    num: `F${index + 1}`,
+    name: `Task Fulfiller — ${fd.name} (${FULFILLER_PROFILES[fd.key].employeeName})`,
+    email: FULFILLER_PROFILES[fd.key].email,
+    pass: 'task123',
+    icon: ClipboardCheck,
+    color: FULFILLER_PROFILES[fd.key].colorGradient,
+    path: `/staff/fulfiller?dept=${fd.key}`,
+    personaId: 'task_fulfiller' as const,
+  })),
   ...PRESET_ROLES,
 ];
 
@@ -230,6 +249,7 @@ export function PortalLoginView() {
   const [showPassword, setShowPassword] = useState(false);
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const [previewDepartment, setPreviewDepartment] = useState<ManagerDepartmentId>('housekeeping');
+  const [previewFulfillerDept, setPreviewFulfillerDept] = useState<FulfillerDeptKey>('housekeeping');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -260,9 +280,25 @@ export function PortalLoginView() {
   }, [isLight, state.theme]);
 
   const managerSelected = selectedRoleId === 'manager' || selectedRoleId?.startsWith('manager-');
+  const fulfillerSelected = selectedRoleId === 'fulfiller' || selectedRoleId?.startsWith('fulfiller-');
   const activeRole = DEMO_ACCOUNTS.find((r) => r.id === selectedRoleId) || PRESET_ROLES.find((r) => r.id === selectedRoleId);
 
+  const handleSelectFulfillerDept = (dept: FulfillerDeptKey) => {
+    setPreviewFulfillerDept(dept);
+    const profile = FULFILLER_PROFILES[dept];
+    setSelectedRoleId(`fulfiller-${dept}`);
+    setEmail(profile.email);
+    setPassword('task123');
+    showToast(`Task Fulfiller (${profile.departmentName}) loaded`);
+  };
+
   const handleSelectRole = (role: PresetRole) => {
+    if (role.id === 'fulfiller') {
+      setDispatcherDropdownOpen(false);
+      handleSelectFulfillerDept(previewFulfillerDept);
+      return;
+    }
+
     if (role.id === 'dispatcher') {
       setDispatcherDropdownOpen(!dispatcherDropdownOpen);
       setSelectedRoleId(role.id);
@@ -332,6 +368,25 @@ export function PortalLoginView() {
       router.push('/staff/department-manager');
       return;
     }
+    const isFulfiller =
+      selectedRoleId === 'fulfiller' ||
+      selectedRoleId?.startsWith('fulfiller-') ||
+      cleanEmail.includes('fulfiller');
+
+    if (isFulfiller) {
+      let targetDept: FulfillerDeptKey = previewFulfillerDept;
+      if (cleanEmail.includes('wellness')) targetDept = 'wellness';
+      else if (cleanEmail.includes('eng') || cleanEmail.includes('maint')) targetDept = 'maintenance';
+      else if (cleanEmail.includes('dining') || cleanEmail.includes('fnb') || cleanEmail.includes('food')) targetDept = 'fnb';
+      else if (cleanEmail.includes('housekeeping')) targetDept = 'housekeeping';
+
+      setIsSubmitting(true);
+      setPersona('task_fulfiller');
+      showToast(`Signing in as Task Fulfiller (${FULFILLER_PROFILES[targetDept].departmentName})...`);
+      router.push(`/staff/fulfiller?dept=${targetDept}`);
+      return;
+    }
+
     const isDispatcher =
       selectedRoleId === 'dispatcher' ||
       cleanEmail.includes('dispatcher') ||
@@ -415,7 +470,7 @@ export function PortalLoginView() {
         <div className="portal-intro"><p className="portal-eyebrow">THE GRAND ADP · STAFF ACCESS</p><h1>Your workspace, ready.</h1><p>Choose your role and sign in to continue the day.</p></div>
         <div className="portal-grid">
           <section className="portal-card portal-signin" aria-labelledby="portal-signin-title">
-            <div className="portal-card-heading"><div><p className="portal-eyebrow">01 / YOUR ACCOUNT</p><h2 id="portal-signin-title">Sign in</h2></div><span className="portal-account-badge"><Lock size={13}/>{managerSelected ? 'Department manager' : activeRole?.name || 'Staff access'}</span></div>
+            <div className="portal-card-heading"><div><p className="portal-eyebrow">01 / YOUR ACCOUNT</p><h2 id="portal-signin-title">Sign in</h2></div><span className="portal-account-badge"><Lock size={13}/>{managerSelected ? 'Department manager' : fulfillerSelected ? `Task Fulfiller (${FULFILLER_PROFILES[previewFulfillerDept].departmentName})` : activeRole?.name || 'Staff access'}</span></div>
             <form onSubmit={handleLoginSubmit} className="portal-form">
               <div className="portal-field"><label htmlFor="emailInput">Email address</label><div className="portal-input-wrap"><Mail size={17}/><input id="emailInput" type="email" autoComplete="username" required value={email} onChange={e => setEmail(e.target.value)} placeholder="name@thegrandadp.com"/></div></div>
               <div className="portal-field"><div className="portal-label-row"><label htmlFor="passwordInput">Password</label><button type="button" className="portal-text-button" onClick={handleForgotPassword}>Forgot?</button></div><div className="portal-input-wrap"><Lock size={17}/><input id="passwordInput" type={showPassword ? 'text' : 'password'} autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)} placeholder="Enter your password"/><button type="button" aria-label="Toggle password visibility" aria-pressed={showPassword} onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff size={17}/> : <Eye size={17}/>}</button></div></div>
@@ -434,8 +489,8 @@ export function PortalLoginView() {
                 const Icon = role.icon;
                 const isDispatcher = role.id === 'dispatcher';
                 return <React.Fragment key={role.id}>
-                  <button type="button" className="portal-role" data-selected={isSelected} onClick={() => handleSelectRole(role)} aria-pressed={isSelected} aria-expanded={role.id === 'manager' ? !!managerSelected : isDispatcher ? dispatcherDropdownOpen : undefined} aria-controls={role.id === 'manager' ? 'manager-preview-selector' : isDispatcher ? 'dispatcher-preview-selector' : undefined}>
-                    <span className={`portal-role-icon ${role.color}`}><Icon size={18}/></span><span className="portal-role-name">{role.name}{isDispatcher && isSelected && <small>{selectedDept}</small>}</span><span className="portal-role-number">{isSelected ? <Check size={15}/> : role.num}</span>{(isDispatcher || role.id === 'manager') && <ChevronDown size={14} className="portal-role-chevron"/>}
+                  <button type="button" className="portal-role" data-selected={isSelected} onClick={() => handleSelectRole(role)} aria-pressed={isSelected} aria-expanded={isManager ? !!managerSelected : isFulfiller ? !!fulfillerSelected : isDispatcher ? dispatcherDropdownOpen : undefined} aria-controls={isManager ? 'manager-preview-selector' : isFulfiller ? 'fulfiller-preview-selector' : isDispatcher ? 'dispatcher-preview-selector' : undefined}>
+                    <span className={`portal-role-icon ${role.color}`}><Icon size={18}/></span><span className="portal-role-name">{role.name}{isDispatcher && isSelected && <small>{selectedDept}</small>}{isFulfiller && isSelected && <small>{FULFILLER_PROFILES[previewFulfillerDept].departmentName}</small>}</span><span className="portal-role-number">{isSelected ? <Check size={15}/> : role.num}</span>{(isDispatcher || isManager || isFulfiller) && <ChevronDown size={14} className="portal-role-chevron"/>}
                   </button>
                   {isDispatcher && dispatcherDropdownOpen && <div className="portal-department-picker" id="dispatcher-preview-selector"><div className="portal-picker-heading"><strong>Choose department console</strong><span>4 departments</span></div><p>Choose a department to load its dispatcher account.</p><div className="portal-dispatcher-grid">{DISPATCHER_DEPARTMENTS.map(dept => {
                     const DeptIcon = dept.icon;
@@ -444,6 +499,29 @@ export function PortalLoginView() {
                 </React.Fragment>;
               })}
             </div>
+                        {fulfillerSelected && (
+              <div id="fulfiller-preview-selector" className="manager-preview-selector">
+                <div className="portal-picker-heading">
+                  <label htmlFor="fulfiller-preview-department">Task fulfiller preview</label>
+                  <span>4 departments</span>
+                </div>
+                <select
+                  id="fulfiller-preview-department"
+                  value={previewFulfillerDept}
+                  onChange={(event) => {
+                    const department = event.target.value as FulfillerDeptKey;
+                    handleSelectFulfillerDept(department);
+                  }}
+                >
+                  {FULFILLER_DEPARTMENTS.map((d) => (
+                    <option key={d.key} value={d.key}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+                <p>Select a department to autofill its preview login.</p>
+              </div>
+            )}
             {managerSelected && <div id="manager-preview-selector" className="manager-preview-selector"><div className="portal-picker-heading"><label htmlFor="manager-preview-department">Department manager preview</label><span>4 departments</span></div><select id="manager-preview-department" value={previewDepartment} onChange={event => { const department = event.target.value as ManagerDepartmentId; const account = DEMO_ACCOUNTS.find(role => role.departmentId === department && role.id !== 'manager'); if (account) handleSelectRole(account); }}>{MANAGER_DEPARTMENTS.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select><p>Select a department to autofill its preview login.</p></div>}
             <div className="portal-scope-note"><ShieldAlert size={15}/><span>Each workspace opens the tools for its selected role.</span></div>
           </section>

@@ -382,11 +382,6 @@ export interface SupervisorInspection {
   followUpAction?: string;
   assignedSupervisorId?: string;
   assignedSupervisorName?: string;
-  department?: string;
-  completedChecklistCount?: number;
-  totalChecklistCount?: number;
-  scheduledTime?: string;
-  createdAt?: string;
 }
 
 export interface LostFoundItem {

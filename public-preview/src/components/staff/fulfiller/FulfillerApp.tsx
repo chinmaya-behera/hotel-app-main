@@ -2,18 +2,15 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import {
   Activity,
   Bell,
   CheckCircle2,
-  ChevronLeft,
-  Gauge,
-  Hotel,
   House,
   ListChecks,
   Moon,
   ShieldCheck,
-  Sparkles,
   Sun,
   User,
   Volume2,
@@ -26,15 +23,44 @@ import { FulfillerNotificationsTab } from './FulfillerNotificationsTab';
 import { FulfillerPerformanceTab } from './FulfillerPerformanceTab';
 import { FulfillerProfileTab } from './FulfillerProfileTab';
 import { FulfillerPoliciesTab } from './FulfillerPoliciesTab';
+import {
+  FULFILLER_PROFILES,
+  type FulfillerDeptKey,
+  type FulfillerProfile,
+} from './fulfillerProfiles';
 import { playChime } from './chime';
 
 type FulfillerTab = 'tasks' | 'notifications' | 'policies' | 'performance' | 'profile';
 
 export function FulfillerApp() {
-  const { state, setPersona, setSoundEnabled, setTheme } = useDemo();
+  const { state, setPersona, setSoundEnabled, setTheme, setActiveDispatcherDept, toasts } = useDemo();
   const [activeTab, setActiveTab] = useState<FulfillerTab>('tasks');
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevTaskCountRef = useRef<number | null>(null);
+
+  const searchParams = useSearchParams();
+  const rawParam = (searchParams?.get('dept') || '').toLowerCase();
+
+  const getInitialDept = (): FulfillerDeptKey => {
+    if (rawParam.includes('well') || rawParam.includes('spa')) return 'wellness';
+    if (rawParam.includes('maint') || rawParam.includes('eng')) return 'maintenance';
+    if (rawParam.includes('fnb') || rawParam.includes('food') || rawParam.includes('dining')) return 'fnb';
+    if (state.activeDispatcherDept === 'Wellness') return 'wellness';
+    if (state.activeDispatcherDept === 'Maintenance & Engineering') return 'maintenance';
+    if (state.activeDispatcherDept === 'Food & Beverages') return 'fnb';
+    return 'housekeeping';
+  };
+
+  const [activeDeptKey, setActiveDeptKey] = useState<FulfillerDeptKey>(getInitialDept);
+
+  useEffect(() => {
+    if (rawParam.includes('well') || rawParam.includes('spa')) setActiveDeptKey('wellness');
+    else if (rawParam.includes('maint') || rawParam.includes('eng')) setActiveDeptKey('maintenance');
+    else if (rawParam.includes('fnb') || rawParam.includes('food') || rawParam.includes('dining')) setActiveDeptKey('fnb');
+    else if (rawParam.includes('house')) setActiveDeptKey('housekeeping');
+  }, [rawParam]);
+
+  const profile: FulfillerProfile = FULFILLER_PROFILES[activeDeptKey] || FULFILLER_PROFILES.housekeeping;
 
   // Set persona on mount
   useEffect(() => {
@@ -57,18 +83,23 @@ export function FulfillerApp() {
   // Scroll to top on tab change
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [activeTab]);
+  }, [activeTab, activeDeptKey]);
 
-  const activeTaskCount = tasks.filter((t) => t.status === 'Assigned' || t.status === 'Accepted' || t.status === 'In progress').length;
+  const activeTaskCount = tasks.filter(
+    (t) => t.status === 'Assigned' || t.status === 'Accepted' || t.status === 'In progress',
+  ).length;
   const notifications = (state.notifications ?? []).filter((n) => n.roleId === 'task_fulfiller');
   const unreadNotifCount = notifications.filter((n) => !n.read).length;
 
   const isLight = state.theme === 'light';
 
-  return (
+    return (
     <div className="fixed inset-0 flex items-center justify-center overflow-hidden bg-gradient-to-b from-[#070e1c] via-[#091322] to-[#040810]">
       {/* Centered Phone Shell Container on Desktop, Full Screen on Mobile */}
-      <div className="relative flex flex-col w-full h-full sm:h-[844px] sm:max-h-[calc(100dvh-2rem)] sm:w-[412px] sm:rounded-[2.8rem] sm:border-[8px] sm:border-[#0f172a] sm:shadow-[0_25px_80px_-15px_rgba(0,0,0,0.8),0_0_0_1px_rgba(255,255,255,0.08)] bg-ink-950 overflow-hidden text-white">
+      <div
+        id="fulfiller-phone-shell"
+        className="relative flex flex-col w-full h-full sm:h-[844px] sm:max-h-[calc(100dvh-2rem)] sm:w-[412px] sm:rounded-[2.8rem] sm:border-[8px] sm:border-[#0f172a] sm:shadow-[0_25px_80px_-15px_rgba(0,0,0,0.8),0_0_0_1px_rgba(255,255,255,0.08)] bg-ink-950 overflow-hidden text-white"
+      >
         {/* Phone Speaker Notch (Desktop Shell Only) */}
         <div className="hidden sm:flex absolute top-0 inset-x-0 z-50 justify-center pointer-events-none pt-2">
           <div className="h-4 w-28 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center gap-2">
@@ -77,25 +108,54 @@ export function FulfillerApp() {
           </div>
         </div>
 
+        {/* In-Mobile Toast Notification Banner */}
+        {toasts && toasts.length > 0 && (
+          <div className="absolute top-14 inset-x-3 z-[60] pointer-events-none flex flex-col items-center gap-2">
+            {toasts.map((t) => (
+              <div
+                key={t.id}
+                className="toast-in pointer-events-auto w-full max-w-[380px] flex items-start gap-2.5 rounded-2xl border border-emerald-400/40 bg-ink-900/95 backdrop-blur-xl px-3.5 py-2.5 text-xs text-white shadow-2xl animate-in slide-in-from-top-3 duration-200"
+              >
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-white leading-snug">{t.text}</p>
+                  <p className="mt-0.5 text-[10px] uppercase font-mono tracking-wider text-mist-400">
+                    Task Notification
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Mobile Header Bar */}
         <header className="shrink-0 border-b border-white/[0.08] bg-ink-950/90 backdrop-blur-xl px-4 pt-3 pb-3 sm:pt-6 z-40">
           <div className="flex items-center justify-between gap-3">
             {/* Identity */}
-            <div className="flex items-center gap-2.5">
-              <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 text-xs font-bold text-ink-950 shadow-md shadow-emerald-500/20">
-                VS
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div
+                className={cn(
+                  'grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br text-xs font-bold text-ink-950 shadow-md shrink-0',
+                  profile.colorGradient,
+                )}
+              >
+                {profile.avatarInitials}
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <h1 className="text-xs font-bold text-white truncate">Vikram Singh</h1>
+                  <h1 className="text-xs font-bold text-white truncate">
+                    {profile.employeeName}
+                  </h1>
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 ring-2 ring-emerald-400/20 shrink-0" />
                 </div>
-                <p className="text-[10px] text-mist-400 truncate">Housekeeping · Floors 1–5</p>
+                <p className="text-[10px] text-mist-300 truncate font-medium">
+                  {profile.departmentName} · {profile.zone}
+                </p>
               </div>
             </div>
 
             {/* Quick Header Actions */}
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 shrink-0">
               {/* Sound Toggle */}
               <button
                 type="button"
@@ -104,7 +164,11 @@ export function FulfillerApp() {
                 title={isSoundOn ? 'Mute task chime' : 'Enable task chime'}
                 aria-label="Toggle task chime"
               >
-                {isSoundOn ? <Volume2 className="h-3.5 w-3.5 text-emerald-400" /> : <VolumeX className="h-3.5 w-3.5 text-mist-500" />}
+                {isSoundOn ? (
+                  <Volume2 className="h-3.5 w-3.5 text-emerald-400" />
+                ) : (
+                  <VolumeX className="h-3.5 w-3.5 text-mist-500" />
+                )}
               </button>
 
               {/* Theme Toggle */}
@@ -133,13 +197,13 @@ export function FulfillerApp() {
 
         {/* Scrollable Tab Content Container */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 pt-3 no-scrollbar overscroll-contain">
-          {activeTab === 'tasks' && <FulfillerTasksTab />}
+          {activeTab === 'tasks' && <FulfillerTasksTab profile={profile} />}
           {activeTab === 'notifications' && (
             <FulfillerNotificationsTab onNavigateToTasks={() => setActiveTab('tasks')} />
           )}
           {activeTab === 'policies' && <FulfillerPoliciesTab />}
           {activeTab === 'performance' && <FulfillerPerformanceTab />}
-          {activeTab === 'profile' && <FulfillerProfileTab />}
+          {activeTab === 'profile' && <FulfillerProfileTab profile={profile} />}
         </div>
 
         {/* Mobile Bottom Navigation Bar */}

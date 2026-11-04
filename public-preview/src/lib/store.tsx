@@ -136,7 +136,7 @@ function seedState(): DemoState {
   }) as DemoState);
 }
 
-interface Toast {
+export interface Toast {
   id: number;
   text: string;
 }
@@ -167,6 +167,7 @@ export interface GuestRequestInput {
 }
 
 interface DemoApi {
+  toasts: Toast[];
   setManagerDepartment: (department: ManagerDepartmentId) => void;
   departmentManagerCommand: (command: ManagerCommand) => boolean;
   state: DemoState;
@@ -4572,7 +4573,6 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         status: 'pending',
         priority: input.priority || 'normal',
         score: 0,
-        completedAt: timestamp,
         completedChecklistCount: 0,
         totalChecklistCount: 15,
         scheduledTime: timestamp,
@@ -6193,6 +6193,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       gestureGuideOpen,
       setGestureGuideOpen,
       resetActionableExamples,
+      toasts,
     }),
     [
       setManagerDepartment,
@@ -6311,12 +6312,14 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       gestureGuideOpen,
       setGestureGuideOpen,
       resetActionableExamples,
+      toasts,
     ],
   );
 
   return (
     <DemoContext.Provider value={api}>
       {children}
+      {state.persona !== 'task_fulfiller' && (
       <div
         aria-live="polite"
         className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex flex-col items-center gap-2 px-4 sm:items-end sm:pr-6"
@@ -6334,6 +6337,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           </div>
         ))}
       </div>
+      )}
     </DemoContext.Provider>
   );
 }
