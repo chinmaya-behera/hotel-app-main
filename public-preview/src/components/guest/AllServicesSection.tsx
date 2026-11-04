@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Sparkles,
   UtensilsCrossed,
@@ -47,6 +47,12 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<'all' | 'room' | 'dining' | 'desk' | 'finance'>('all');
+    useEffect(() => {
+    setActiveSubView(
+      initialSubtab && initialSubtab !== 'all' ? (initialSubtab as GuestServicesSubtab) : null
+    );
+  }, [initialSubtab]);
+
   const [activeSubView, setActiveSubView] = useState<GuestServicesSubtab | null>(
     (initialSubtab as GuestServicesSubtab) && initialSubtab !== 'all' ? (initialSubtab as GuestServicesSubtab) : null,
   );
@@ -56,6 +62,8 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
       id: 'room_service' as const,
       name: 'Room Service',
       category: 'room',
+      categoryBadge: 'Housekeeping & Care',
+      bannerImage: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80',
       icon: Sparkles,
       color: 'bg-cyan-400/15 text-cyan-300 border-cyan-400/30',
       tagline: 'Towels, bed linen, room refresh & luxury toiletries',
@@ -66,6 +74,8 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
       id: 'dining' as const,
       name: 'Dining',
       category: 'dining',
+      categoryBadge: 'Gourmet Culinary',
+      bannerImage: 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80',
       icon: UtensilsCrossed,
       color: 'bg-amber-400/15 text-amber-300 border-amber-400/30',
       tagline: 'Gourmet cuisine, chef specials, beverages & desserts',
@@ -76,6 +86,8 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
       id: 'maintenance' as const,
       name: 'Maintenance & Technical Support',
       category: 'room',
+      categoryBadge: 'Engineering & Repairs',
+      bannerImage: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=800&q=80',
       icon: Wrench,
       color: 'bg-sky-400/15 text-sky-300 border-sky-400/30',
       tagline: 'AC temperature, plumbing, electrical & electronics',
@@ -86,6 +98,8 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
       id: 'spa' as const,
       name: 'Spa, Concierge & Recreation',
       category: 'dining',
+      categoryBadge: 'Wellness & Concierge',
+      bannerImage: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=800&q=80',
       icon: Flower2,
       color: 'bg-purple-400/15 text-purple-300 border-purple-400/30',
       tagline: 'Holistic wellness treatments, airport transfers & leisure activities',
@@ -96,6 +110,8 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
       id: 'front_desk' as const,
       name: 'Front Desk Direct Channel',
       category: 'desk',
+      categoryBadge: '24/7 Front Office',
+      bannerImage: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80',
       icon: MessageSquare,
       color: 'bg-indigo-400/15 text-indigo-300 border-indigo-400/30',
       tagline: '24/7 direct communication with Front Desk team',
@@ -106,6 +122,8 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
       id: 'reminders' as const,
       name: 'Reminders & Wake-up Calls',
       category: 'desk',
+      categoryBadge: 'Guest Reminders',
+      bannerImage: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=800&q=80',
       icon: Bell,
       color: 'bg-amber-400/15 text-amber-300 border-amber-400/30',
       tagline: 'Scheduled telephone wake-up calls & taxi transfers',
@@ -116,6 +134,8 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
       id: 'dnd' as const,
       name: 'Do Not Disturb (DND)',
       category: 'room',
+      categoryBadge: 'Suite Privacy',
+      bannerImage: 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=800&q=80',
       icon: MoonStar,
       color: prefs?.dnd
         ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
@@ -128,6 +148,8 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
       id: 'complaints' as const,
       name: 'Complaints & Service Recovery',
       category: 'desk',
+      categoryBadge: 'Guest Relations',
+      bannerImage: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=800&q=80',
       icon: HeartHandshake,
       color: 'bg-rose-400/15 text-rose-300 border-rose-400/30',
       tagline: 'Formal case registration escalated directly to Duty Manager',
@@ -138,6 +160,8 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
       id: 'lost_found' as const,
       name: 'Lost and Found',
       category: 'desk',
+      categoryBadge: 'Concierge Custody',
+      bannerImage: 'https://images.unsplash.com/photo-1553531384-cc64ac80f931?auto=format&fit=crop&w=800&q=80',
       icon: PackageSearch,
       color: 'bg-teal-400/15 text-teal-300 border-teal-400/30',
       tagline: 'Lodge missing items or enquire about property turned in',
@@ -148,6 +172,8 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
       id: 'folio' as const,
       name: 'Folio & Express Checkout',
       category: 'finance',
+      categoryBadge: 'Billing & Folio',
+      bannerImage: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80',
       icon: Receipt,
       color: 'bg-emerald-400/15 text-emerald-300 border-emerald-400/30',
       tagline: 'Itemised charges, GST tax invoice & card settlement',
@@ -171,23 +197,7 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
   if (activeSubView) {
     return (
       <div className="space-y-4">
-        {/* Back to all services banner */}
-        <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/5">
-          <button
-            type="button"
-            onClick={() => setActiveSubView(null)}
-            className="flex items-center gap-1.5 text-xs font-bold text-cyan-400 hover:text-white transition-colors"
-          >
-            <span>&larr; Back to All Services</span>
-          </button>
-          <span className="text-[11px] font-semibold text-mist-400 capitalize">
-            {activeSubView === 'room_service' || activeSubView === 'housekeeping'
-              ? 'Room Service'
-              : activeSubView === 'dining'
-              ? 'Dining'
-              : activeSubView.replace('_', ' ')}
-          </span>
-        </div>
+        {/* Sub-view rendered without top pill bar per specification */}
 
         {/* Render specific service component */}
         {activeSubView === 'dining' && (
@@ -339,7 +349,7 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
       </div>
 
       {/* Services List / Cards */}
-      <div className="space-y-3">
+      <div className="space-y-4">
         <GuestSectionHeader
           title="Available Services Directory"
           hint={`${filteredServices.length} direct services ready for Room ${room}`}
@@ -350,64 +360,93 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
             No services match &quot;{searchQuery}&quot;. Please try a different search keyword.
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 sm:gap-6">
             {filteredServices.map((svc) => {
               const Icon = svc.icon;
 
               return (
                 <div
                   key={svc.id}
-                  className="guest-card p-4 sm:p-5 lg:p-6 flex flex-col justify-between space-y-3.5 hover:border-amber-400/40 transition-all border border-white/10"
+                  className="guest-card overflow-hidden flex flex-col justify-between hover:border-cyan-400/50 hover:shadow-[0_12px_36px_rgba(0,0,0,0.35)] transition-all duration-300 border border-white/10 group"
                 >
-                  <div className="space-y-2">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <span className={`grid h-9 w-9 place-items-center rounded-xl border ${svc.color}`}>
-                          <Icon className="h-4 w-4" />
-                        </span>
-                        <div>
-                          <h3 className="text-xs font-bold text-white">{svc.name}</h3>
-                          <p className="text-[10px] text-mist-400">{svc.tagline}</p>
-                        </div>
-                      </div>
+                  {/* Card Banner Image with subtle gradient and Category Badge */}
+                  <div className="relative h-44 sm:h-48 w-full overflow-hidden bg-ink-900">
+                    <img
+                      src={svc.bannerImage}
+                      alt={svc.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      loading="lazy"
+                    />
+                    {/* Subtle gradient overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-ink-950 via-ink-950/40 to-transparent" />
+
+                    {/* Category badge pinned to top-left */}
+                    <div className="absolute top-3 left-3">
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-black/60 backdrop-blur-md text-amber-300 border border-amber-400/30 shadow-md">
+                        {svc.categoryBadge}
+                      </span>
                     </div>
 
-                    {/* Highlights bullet pills */}
-                    <div className="flex flex-wrap gap-1 pt-1">
-                      {svc.highlights.map((h, i) => (
-                        <span
-                          key={i}
-                          className="px-2 py-0.5 rounded-md bg-white/5 text-[9px] text-mist-300 font-medium"
-                        >
-                          {h}
-                        </span>
-                      ))}
+                    {/* Department icon floating on bottom-left */}
+                    <div className="absolute bottom-3 left-3 flex items-center gap-2">
+                      <span className={`grid h-10 w-10 place-items-center rounded-xl shadow-lg border backdrop-blur-md bg-ink-950/80 ${svc.color}`}>
+                        <Icon className="h-5 w-5" />
+                      </span>
                     </div>
                   </div>
 
-                  {/* Action button */}
-                  <div className="pt-2 border-t border-white/5 flex items-center justify-between">
-                    {svc.id === 'dnd' && prefs?.dnd && (
-                      <span className="text-[10px] font-bold text-rose-300 flex items-center gap-1">
-                        <MoonStar className="h-3 w-3" />
-                        <span>Active</span>
-                      </span>
-                    )}
+                  {/* Card Content Body */}
+                  <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-4">
+                    <div className="space-y-2">
+                      <div>
+                        <h3 className="text-sm sm:text-base font-bold text-white group-hover:text-cyan-300 transition-colors">
+                          {svc.name}
+                        </h3>
+                        <p className="text-xs text-mist-300 mt-0.5 line-clamp-2">
+                          {svc.tagline}
+                        </p>
+                      </div>
 
-                    {svc.id === 'folio' && (
-                      <span className="text-[10px] font-mono font-bold text-amber-300">
-                        Due: {money(currentBalance)}
-                      </span>
-                    )}
+                      {/* Highlights bullet pills */}
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {svc.highlights.map((h, i) => (
+                          <span
+                            key={i}
+                            className="px-2.5 py-0.5 rounded-md bg-white/5 border border-white/5 text-[10px] text-mist-300 font-medium"
+                          >
+                            {h}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
 
-                    <button
-                      type="button"
-                      onClick={() => setActiveSubView(svc.id)}
-                      className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-400 text-ink-950 text-xs font-bold hover:bg-amber-300 transition-colors shadow-sm"
-                    >
-                      <span>{svc.actionText}</span>
-                      <ArrowRight className="h-3.5 w-3.5" />
-                    </button>
+                    {/* Card Footer with CTA */}
+                    <div className="pt-3 border-t border-white/5 flex items-center justify-between gap-3">
+                      {svc.id === 'dnd' && prefs?.dnd && (
+                        <span className="text-xs font-bold text-rose-300 flex items-center gap-1.5">
+                          <MoonStar className="h-3.5 w-3.5 animate-pulse" />
+                          <span>Active</span>
+                        </span>
+                      )}
+
+                      {svc.id === 'folio' && (
+                        <span className="text-xs font-mono font-bold text-amber-300">
+                          Due: {money(currentBalance)}
+                        </span>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveSubView(svc.id);
+                          onNavigate('services', svc.id);
+                        }}
+                        className="ml-auto inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-amber-400 text-ink-950 text-xs font-black hover:bg-amber-300 transition-all shadow-md group-hover:shadow-[0_0_16px_rgba(251,191,36,0.4)] group-hover:translate-x-0.5"
+                      >
+                        <span>{svc.actionText}</span>
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -418,4 +457,3 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
     </div>
   );
 }
-

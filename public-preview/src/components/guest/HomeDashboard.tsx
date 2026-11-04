@@ -336,30 +336,30 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
       {/* 1. COMPACT LUXURY HOTEL HEADER */}
       <div
         data-tour="tour-home"
-        className="guest-card p-5 sm:p-6 lg:p-7 flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6 border border-cyan-500/25 bg-gradient-to-r from-ink-900/95 via-ink-900/80 to-ink-900/95 shadow-[0_8px_32px_rgba(0,0,0,0.4)] relative overflow-hidden"
+        className="guest-card p-4 sm:p-6 lg:p-7 flex flex-row items-center justify-between gap-3 sm:gap-6 border border-cyan-500/25 bg-gradient-to-r from-ink-900/95 via-ink-900/80 to-ink-900/95 shadow-[0_8px_32px_rgba(0,0,0,0.4)] relative overflow-hidden"
       >
-        <div className="flex items-center gap-4 sm:gap-5 min-w-0">
-          <div className="grid h-12 w-12 sm:h-14 sm:w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-cyan-400/25 to-cyan-600/10 border border-cyan-400/35 text-cyan-300 shadow-[0_0_20px_rgba(34,211,238,0.25)]">
-            <Hotel className="h-6 w-6 sm:h-7 sm:w-7" />
+        <div className="flex items-center gap-3 sm:gap-5 min-w-0">
+          <div className="grid h-11 w-11 sm:h-14 sm:w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-cyan-400/25 to-cyan-600/10 border border-cyan-400/35 text-cyan-300 shadow-[0_0_20px_rgba(34,211,238,0.25)]">
+            <Hotel className="h-5 w-5 sm:h-7 sm:w-7" />
           </div>
-          <div className="min-w-0 space-y-1">
-            <div className="flex items-center gap-2.5">
-              <span className="text-[11px] sm:text-xs font-black uppercase tracking-[0.22em] text-cyan-400">
+          <div className="min-w-0 space-y-0.5 sm:space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.22em] text-cyan-400">
                 The Grand ADP
               </span>
               <span className="hidden sm:inline-block text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-mist-400 border-l border-white/10 pl-2.5">
                 Luxury Resort &amp; Suites
               </span>
             </div>
-            <h1 className="text-lg sm:text-2xl lg:text-3xl font-extrabold text-white tracking-tight truncate">
+            <h1 className="text-base sm:text-2xl lg:text-3xl font-extrabold text-white tracking-tight truncate">
               Welcome, {guestName.split(' ')[0]}
             </h1>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 sm:gap-3 self-start sm:self-center shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {prefs?.dnd && (
-            <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold">
+            <span className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold">
               <span className="h-2 w-2 rounded-full bg-rose-400 animate-pulse" />
               <MoonStar className="h-3.5 w-3.5" />
               <span>DND Active</span>
@@ -368,10 +368,10 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
           <button
             type="button"
             onClick={() => onNavigate('profile')}
-            className="px-3.5 sm:px-4 py-2 rounded-xl border border-white/10 bg-white/5 hover:border-cyan-400/40 text-xs sm:text-sm font-semibold text-mist-200 hover:text-white flex items-center gap-2 transition-all shadow-sm group"
+            className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl border border-white/10 bg-white/5 hover:border-cyan-400/40 text-xs sm:text-sm font-semibold text-mist-200 hover:text-white flex items-center gap-1.5 sm:gap-2 transition-all shadow-sm group whitespace-nowrap"
             title="View Room & Stay Details"
           >
-            <BedDouble className="h-4 w-4 text-cyan-400 group-hover:scale-110 transition-transform" />
+            <BedDouble className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-cyan-400 group-hover:scale-110 transition-transform" />
             <span>Room {room}</span>
           </button>
         </div>
@@ -397,22 +397,22 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
           </button>
         </div>
 
-        {/* 12-Service Directory in an Evenly Balanced, Responsive Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-4.5">
+        {/* 6 Essential Quick Services in an Evenly Balanced Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-4.5">
           {/* 1. Dining */}
           <button
             data-tour="tour-quick-dining"
             type="button"
             onClick={() => onNavigate('services', 'dining')}
-            className="guest-tile p-3.5 sm:p-4 lg:p-4.5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_24px_rgba(34,211,238,0.15)] transition-all group min-h-[124px] sm:min-h-[136px] lg:min-h-[148px]"
+            className="guest-tile p-4 sm:p-4.5 lg:p-5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_24px_rgba(34,211,238,0.15)] transition-all group min-h-[136px] sm:min-h-[148px] lg:min-h-[156px]"
           >
             <div className="flex items-start justify-between">
-              <span className="grid h-10 w-10 sm:h-11 sm:w-11 lg:h-12 lg:w-12 place-items-center rounded-xl sm:rounded-2xl shadow-sm bg-amber-400/15 text-amber-300 border border-amber-400/20 group-hover:scale-105 transition-transform">
-                <UtensilsCrossed className="h-5 w-5 sm:h-5.5 sm:w-5.5 lg:h-6 lg:w-6" />
+              <span className="grid h-12 w-12 sm:h-14 sm:w-14 place-items-center rounded-2xl shadow-sm bg-amber-400/15 text-amber-300 border border-amber-400/20 group-hover:scale-105 transition-transform p-2.5">
+                <UtensilsCrossed className="h-7 w-7 sm:h-8 sm:w-8" />
               </span>
               <span className="text-xs text-mist-400 group-hover:text-cyan-300 group-hover:translate-x-1 transition-all">&rarr;</span>
             </div>
-            <div>
+            <div className="mt-2">
               <p className="text-xs sm:text-sm lg:text-base font-bold text-white group-hover:text-cyan-300 transition-colors truncate">Dining</p>
               <p className="text-[11px] sm:text-xs text-mist-400 group-hover:text-mist-200 truncate mt-0.5 sm:mt-1 font-medium">Menu &amp; Order</p>
             </div>
@@ -423,15 +423,15 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
             data-tour="tour-quick-room-service"
             type="button"
             onClick={() => onNavigate('services', 'room_service')}
-            className="guest-tile p-3.5 sm:p-4 lg:p-4.5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_24px_rgba(34,211,238,0.15)] transition-all group min-h-[124px] sm:min-h-[136px] lg:min-h-[148px]"
+            className="guest-tile p-4 sm:p-4.5 lg:p-5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_24px_rgba(34,211,238,0.15)] transition-all group min-h-[136px] sm:min-h-[148px] lg:min-h-[156px]"
           >
             <div className="flex items-start justify-between">
-              <span className="grid h-10 w-10 sm:h-11 sm:w-11 lg:h-12 lg:w-12 place-items-center rounded-xl sm:rounded-2xl shadow-sm bg-cyan-400/15 text-cyan-300 border border-cyan-400/20 group-hover:scale-105 transition-transform">
-                <Sparkles className="h-5 w-5 sm:h-5.5 sm:w-5.5 lg:h-6 lg:w-6" />
+              <span className="grid h-12 w-12 sm:h-14 sm:w-14 place-items-center rounded-2xl shadow-sm bg-cyan-400/15 text-cyan-300 border border-cyan-400/20 group-hover:scale-105 transition-transform p-2.5">
+                <Sparkles className="h-7 w-7 sm:h-8 sm:w-8" />
               </span>
               <span className="text-xs text-mist-400 group-hover:text-cyan-300 group-hover:translate-x-1 transition-all">&rarr;</span>
             </div>
-            <div>
+            <div className="mt-2">
               <p className="text-xs sm:text-sm lg:text-base font-bold text-white group-hover:text-cyan-300 transition-colors truncate">Room Service</p>
               <p className="text-[11px] sm:text-xs text-mist-400 group-hover:text-mist-200 truncate mt-0.5 sm:mt-1 font-medium">Amenities &amp; Care</p>
             </div>
@@ -442,198 +442,72 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
             data-tour="tour-quick-maintenance"
             type="button"
             onClick={() => onNavigate('services', 'maintenance')}
-            className="guest-tile p-3.5 sm:p-4 lg:p-4.5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_24px_rgba(34,211,238,0.15)] transition-all group min-h-[124px] sm:min-h-[136px] lg:min-h-[148px]"
+            className="guest-tile p-4 sm:p-4.5 lg:p-5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_24px_rgba(34,211,238,0.15)] transition-all group min-h-[136px] sm:min-h-[148px] lg:min-h-[156px]"
           >
             <div className="flex items-start justify-between">
-              <span className="grid h-10 w-10 sm:h-11 sm:w-11 lg:h-12 lg:w-12 place-items-center rounded-xl sm:rounded-2xl shadow-sm bg-sky-400/15 text-sky-300 border border-sky-400/20 group-hover:scale-105 transition-transform">
-                <Wrench className="h-5 w-5 sm:h-5.5 sm:w-5.5 lg:h-6 lg:w-6" />
+              <span className="grid h-12 w-12 sm:h-14 sm:w-14 place-items-center rounded-2xl shadow-sm bg-sky-400/15 text-sky-300 border border-sky-400/20 group-hover:scale-105 transition-transform p-2.5">
+                <Wrench className="h-7 w-7 sm:h-8 sm:w-8" />
               </span>
               <span className="text-xs text-mist-400 group-hover:text-cyan-300 group-hover:translate-x-1 transition-all">&rarr;</span>
             </div>
-            <div>
+            <div className="mt-2">
               <p className="text-xs sm:text-sm lg:text-base font-bold text-white group-hover:text-cyan-300 transition-colors truncate">Maintenance</p>
               <p className="text-[11px] sm:text-xs text-mist-400 group-hover:text-mist-200 truncate mt-0.5 sm:mt-1 font-medium">Room Repairs</p>
             </div>
           </button>
 
-          {/* 4. Spa */}
-          <button
-            data-tour="tour-quick-services"
-            type="button"
-            onClick={() => onNavigate('services', 'spa')}
-            className="guest-tile p-3.5 sm:p-4 lg:p-4.5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_24px_rgba(34,211,238,0.15)] transition-all group min-h-[124px] sm:min-h-[136px] lg:min-h-[148px]"
-          >
-            <div className="flex items-start justify-between">
-              <span className="grid h-10 w-10 sm:h-11 sm:w-11 lg:h-12 lg:w-12 place-items-center rounded-xl sm:rounded-2xl shadow-sm bg-purple-400/15 text-purple-300 border border-purple-400/20 group-hover:scale-105 transition-transform">
-                <Flower2 className="h-5 w-5 sm:h-5.5 sm:w-5.5 lg:h-6 lg:w-6" />
-              </span>
-              <span className="text-xs text-mist-400 group-hover:text-cyan-300 group-hover:translate-x-1 transition-all">&rarr;</span>
-            </div>
-            <div>
-              <p className="text-xs sm:text-sm lg:text-base font-bold text-white group-hover:text-cyan-300 transition-colors truncate">Spa</p>
-              <p className="text-[11px] sm:text-xs text-mist-400 group-hover:text-mist-200 truncate mt-0.5 sm:mt-1 font-medium">Wellness &amp; Care</p>
-            </div>
-          </button>
-
-          {/* 5. Concierge */}
-          <button
-            type="button"
-            onClick={() => onNavigate('services', 'concierge')}
-            className="guest-tile p-3.5 sm:p-4 lg:p-4.5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_24px_rgba(34,211,238,0.15)] transition-all group min-h-[124px] sm:min-h-[136px] lg:min-h-[148px]"
-          >
-            <div className="flex items-start justify-between">
-              <span className="grid h-10 w-10 sm:h-11 sm:w-11 lg:h-12 lg:w-12 place-items-center rounded-xl sm:rounded-2xl shadow-sm bg-indigo-400/15 text-indigo-300 border border-indigo-400/20 group-hover:scale-105 transition-transform">
-                <Compass className="h-5 w-5 sm:h-5.5 sm:w-5.5 lg:h-6 lg:w-6" />
-              </span>
-              <span className="text-xs text-mist-400 group-hover:text-cyan-300 group-hover:translate-x-1 transition-all">&rarr;</span>
-            </div>
-            <div>
-              <p className="text-xs sm:text-sm lg:text-base font-bold text-white group-hover:text-cyan-300 transition-colors truncate">Concierge</p>
-              <p className="text-[11px] sm:text-xs text-mist-400 group-hover:text-mist-200 truncate mt-0.5 sm:mt-1 font-medium">Tours &amp; Travel</p>
-            </div>
-          </button>
-
-          {/* 6. Recreation */}
-          <button
-            type="button"
-            onClick={() => onNavigate('services', 'recreation')}
-            className="guest-tile p-3.5 sm:p-4 lg:p-4.5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_24px_rgba(34,211,238,0.15)] transition-all group min-h-[124px] sm:min-h-[136px] lg:min-h-[148px]"
-          >
-            <div className="flex items-start justify-between">
-              <span className="grid h-10 w-10 sm:h-11 sm:w-11 lg:h-12 lg:w-12 place-items-center rounded-xl sm:rounded-2xl shadow-sm bg-teal-400/15 text-teal-300 border border-teal-400/20 group-hover:scale-105 transition-transform">
-                <Palmtree className="h-5 w-5 sm:h-5.5 sm:w-5.5 lg:h-6 lg:w-6" />
-              </span>
-              <span className="text-xs text-mist-400 group-hover:text-cyan-300 group-hover:translate-x-1 transition-all">&rarr;</span>
-            </div>
-            <div>
-              <p className="text-xs sm:text-sm lg:text-base font-bold text-white group-hover:text-cyan-300 transition-colors truncate">Recreation</p>
-              <p className="text-[11px] sm:text-xs text-mist-400 group-hover:text-mist-200 truncate mt-0.5 sm:mt-1 font-medium">Pool &amp; Sports</p>
-            </div>
-          </button>
-
-          {/* 7. Front Desk */}
+          {/* 4. Front Desk */}
           <button
             data-tour="tour-front-desk"
             type="button"
             onClick={() => setFdSheetOpen(true)}
-            className="guest-tile p-3.5 sm:p-4 lg:p-4.5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_24px_rgba(34,211,238,0.15)] transition-all group min-h-[124px] sm:min-h-[136px] lg:min-h-[148px]"
+            className="guest-tile p-4 sm:p-4.5 lg:p-5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_24px_rgba(34,211,238,0.15)] transition-all group min-h-[136px] sm:min-h-[148px] lg:min-h-[156px]"
           >
             <div className="flex items-start justify-between">
-              <span className="grid h-10 w-10 sm:h-11 sm:w-11 lg:h-12 lg:w-12 place-items-center rounded-xl sm:rounded-2xl shadow-sm bg-cyan-400/15 text-cyan-300 border border-cyan-400/20 group-hover:scale-105 transition-transform">
-                <MessageSquare className="h-5 w-5 sm:h-5.5 sm:w-5.5 lg:h-6 lg:w-6" />
+              <span className="grid h-12 w-12 sm:h-14 sm:w-14 place-items-center rounded-2xl shadow-sm bg-indigo-400/15 text-indigo-300 border border-indigo-400/20 group-hover:scale-105 transition-transform p-2.5">
+                <MessageSquare className="h-7 w-7 sm:h-8 sm:w-8" />
               </span>
               <span className="text-xs text-mist-400 group-hover:text-cyan-300 group-hover:translate-x-1 transition-all">&rarr;</span>
             </div>
-            <div>
+            <div className="mt-2">
               <p className="text-xs sm:text-sm lg:text-base font-bold text-white group-hover:text-cyan-300 transition-colors truncate">Front Desk</p>
               <p className="text-[11px] sm:text-xs text-mist-400 group-hover:text-mist-200 truncate mt-0.5 sm:mt-1 font-medium">24/7 Desk Chat</p>
             </div>
           </button>
 
-          {/* 8. Reminders */}
+          {/* 5. Reminders */}
           <button
             type="button"
             onClick={() => setReminderSheetOpen(true)}
-            className="guest-tile p-3.5 sm:p-4 lg:p-4.5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_24px_rgba(34,211,238,0.15)] transition-all group min-h-[124px] sm:min-h-[136px] lg:min-h-[148px]"
+            className="guest-tile p-4 sm:p-4.5 lg:p-5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_24px_rgba(34,211,238,0.15)] transition-all group min-h-[136px] sm:min-h-[148px] lg:min-h-[156px]"
           >
             <div className="flex items-start justify-between">
-              <span className="grid h-10 w-10 sm:h-11 sm:w-11 lg:h-12 lg:w-12 place-items-center rounded-xl sm:rounded-2xl shadow-sm bg-amber-400/15 text-amber-300 border border-amber-400/20 group-hover:scale-105 transition-transform">
-                <Bell className="h-5 w-5 sm:h-5.5 sm:w-5.5 lg:h-6 lg:w-6" />
+              <span className="grid h-12 w-12 sm:h-14 sm:w-14 place-items-center rounded-2xl shadow-sm bg-amber-400/15 text-amber-300 border border-amber-400/20 group-hover:scale-105 transition-transform p-2.5">
+                <Bell className="h-7 w-7 sm:h-8 sm:w-8" />
               </span>
               <span className="text-xs text-mist-400 group-hover:text-cyan-300 group-hover:translate-x-1 transition-all">&rarr;</span>
             </div>
-            <div>
+            <div className="mt-2">
               <p className="text-xs sm:text-sm lg:text-base font-bold text-white group-hover:text-cyan-300 transition-colors truncate">Reminders</p>
               <p className="text-[11px] sm:text-xs text-mist-400 group-hover:text-mist-200 truncate mt-0.5 sm:mt-1 font-medium">Wake-up Calls</p>
             </div>
           </button>
 
-          {/* 9. Do Not Disturb */}
-          <button
-            type="button"
-            onClick={() => setDndSheetOpen(true)}
-            className="guest-tile p-3.5 sm:p-4 lg:p-4.5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_24px_rgba(34,211,238,0.15)] transition-all group min-h-[124px] sm:min-h-[136px] lg:min-h-[148px]"
-          >
-            <div className="flex items-start justify-between">
-              <span
-                className={cn(
-                  'grid h-10 w-10 sm:h-11 sm:w-11 lg:h-12 lg:w-12 place-items-center rounded-xl sm:rounded-2xl shadow-sm transition-transform group-hover:scale-105 border',
-                  prefs?.dnd
-                    ? 'bg-rose-500/20 text-rose-300 border-rose-500/30'
-                    : 'bg-white/10 text-mist-300 border-white/10'
-                )}
-              >
-                <MoonStar className="h-5 w-5 sm:h-5.5 sm:w-5.5 lg:h-6 lg:w-6" />
-              </span>
-              <span
-                className={cn(
-                  'text-[10px] sm:text-[11px] px-2 py-0.5 rounded-full font-bold',
-                  prefs?.dnd ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-white/10 text-mist-400'
-                )}
-              >
-                {prefs?.dnd ? 'ON' : 'OFF'}
-              </span>
-            </div>
-            <div>
-              <p className="text-xs sm:text-sm lg:text-base font-bold text-white group-hover:text-cyan-300 transition-colors truncate">DND</p>
-              <p className="text-[11px] sm:text-xs text-mist-400 group-hover:text-mist-200 truncate mt-0.5 sm:mt-1 font-medium">
-                {prefs?.dnd ? 'Active (ON)' : 'Privacy (OFF)'}
-              </p>
-            </div>
-          </button>
-
-          {/* 10. Complaints */}
-          <button
-            type="button"
-            onClick={() => onNavigate('complaints')}
-            className="guest-tile p-3.5 sm:p-4 lg:p-4.5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_24px_rgba(34,211,238,0.15)] transition-all group min-h-[124px] sm:min-h-[136px] lg:min-h-[148px]"
-          >
-            <div className="flex items-start justify-between">
-              <span className="grid h-10 w-10 sm:h-11 sm:w-11 lg:h-12 lg:w-12 place-items-center rounded-xl sm:rounded-2xl shadow-sm bg-rose-400/15 text-rose-300 border border-rose-400/20 group-hover:scale-105 transition-transform">
-                <HeartHandshake className="h-5 w-5 sm:h-5.5 sm:w-5.5 lg:h-6 lg:w-6" />
-              </span>
-              <span className="text-xs text-mist-400 group-hover:text-cyan-300 group-hover:translate-x-1 transition-all">&rarr;</span>
-            </div>
-            <div>
-              <p className="text-xs sm:text-sm lg:text-base font-bold text-white group-hover:text-cyan-300 transition-colors truncate">Complaints</p>
-              <p className="text-[11px] sm:text-xs text-mist-400 group-hover:text-mist-200 truncate mt-0.5 sm:mt-1 font-medium">Case Support</p>
-            </div>
-          </button>
-
-          {/* 11. Lost & Found */}
+          {/* 6. Lost & Found */}
           <button
             type="button"
             onClick={() => onNavigate('lost_found')}
-            className="guest-tile p-3.5 sm:p-4 lg:p-4.5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_24px_rgba(34,211,238,0.15)] transition-all group min-h-[124px] sm:min-h-[136px] lg:min-h-[148px]"
+            className="guest-tile p-4 sm:p-4.5 lg:p-5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_24px_rgba(34,211,238,0.15)] transition-all group min-h-[136px] sm:min-h-[148px] lg:min-h-[156px]"
           >
             <div className="flex items-start justify-between">
-              <span className="grid h-10 w-10 sm:h-11 sm:w-11 lg:h-12 lg:w-12 place-items-center rounded-xl sm:rounded-2xl shadow-sm bg-teal-400/15 text-teal-300 border border-teal-400/20 group-hover:scale-105 transition-transform">
-                <PackageSearch className="h-5 w-5 sm:h-5.5 sm:w-5.5 lg:h-6 lg:w-6" />
+              <span className="grid h-12 w-12 sm:h-14 sm:w-14 place-items-center rounded-2xl shadow-sm bg-teal-400/15 text-teal-300 border border-teal-400/20 group-hover:scale-105 transition-transform p-2.5">
+                <PackageSearch className="h-7 w-7 sm:h-8 sm:w-8" />
               </span>
               <span className="text-xs text-mist-400 group-hover:text-cyan-300 group-hover:translate-x-1 transition-all">&rarr;</span>
             </div>
-            <div>
+            <div className="mt-2">
               <p className="text-xs sm:text-sm lg:text-base font-bold text-white group-hover:text-cyan-300 transition-colors truncate">Lost &amp; Found</p>
               <p className="text-[11px] sm:text-xs text-mist-400 group-hover:text-mist-200 truncate mt-0.5 sm:mt-1 font-medium">Item Inquiries</p>
-            </div>
-          </button>
-
-          {/* 12. Folio & Checkout */}
-          <button
-            data-tour="tour-folio"
-            type="button"
-            onClick={() => onNavigate('profile', 'folio')}
-            className="guest-tile p-3.5 sm:p-4 lg:p-4.5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_24px_rgba(34,211,238,0.15)] transition-all group min-h-[124px] sm:min-h-[136px] lg:min-h-[148px]"
-          >
-            <div className="flex items-start justify-between">
-              <span className="grid h-10 w-10 sm:h-11 sm:w-11 lg:h-12 lg:w-12 place-items-center rounded-xl sm:rounded-2xl shadow-sm bg-emerald-400/15 text-emerald-300 border border-emerald-400/20 group-hover:scale-105 transition-transform">
-                <Receipt className="h-5 w-5 sm:h-5.5 sm:w-5.5 lg:h-6 lg:w-6" />
-              </span>
-              <span className="text-xs text-mist-400 group-hover:text-cyan-300 group-hover:translate-x-1 transition-all">&rarr;</span>
-            </div>
-            <div>
-              <p className="text-xs sm:text-sm lg:text-base font-bold text-white group-hover:text-cyan-300 transition-colors truncate">Folio</p>
-              <p className="text-[11px] sm:text-xs text-mist-400 group-hover:text-mist-200 truncate mt-0.5 sm:mt-1 font-medium">Bill &amp; Checkout</p>
             </div>
           </button>
         </div>

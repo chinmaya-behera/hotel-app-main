@@ -114,9 +114,43 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
     scrollRef.current?.scrollTo({ top: 0 });
   }, [tab, subtab]);
 
+    // Browser History API integration for hardware / browser back button
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // Seed initial root state if not already set
+    if (!window.history.state || !window.history.state.portal) {
+      window.history.replaceState({ portal: true, tab: 'home', subtab: undefined }, '');
+    }
+
+    const onPopState = (event: PopStateEvent) => {
+      const state = event.state;
+      if (state && state.portal && state.tab) {
+        setTab(state.tab as GuestTabId);
+        setSubtab(state.subtab);
+      } else {
+        // Fallback safely to home tab - never exit or log the user out
+        setTab('home');
+        setSubtab(undefined);
+        window.history.pushState({ portal: true, tab: 'home', subtab: undefined }, '');
+      }
+    };
+
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
   function handleNavigate(targetTab: GuestTabId, targetSubtab?: string) {
+    if (tab === targetTab && subtab === targetSubtab) return;
     setTab(targetTab);
     setSubtab(targetSubtab);
+
+    if (typeof window !== 'undefined') {
+      window.history.pushState(
+        { portal: true, tab: targetTab, subtab: targetSubtab },
+        ''
+      );
+    }
   }
 
   const tabProps = guest
@@ -160,16 +194,6 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
             >
               {/* Brand & Room Info */}
               <div className="flex min-w-0 items-center gap-3 sm:gap-3.5">
-                {activeNav !== 'home' && (
-                  <button
-                    type="button"
-                    onClick={() => handleNavigate('home')}
-                    aria-label="Back to home dashboard"
-                    className="guest-chip-btn grid h-8 w-8 shrink-0 place-items-center rounded-full md:hidden"
-                  >
-                    <ChevronLeft className="h-4 w-4" aria-hidden />
-                  </button>
-                )}
                 <span
                   className="grid h-10 w-10 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-xl shadow-md cursor-pointer"
                   style={{ background: 'linear-gradient(135deg, rgb(var(--a)), rgb(var(--b)))', color: 'var(--on-a)' }}
