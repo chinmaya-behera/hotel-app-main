@@ -10,7 +10,7 @@ export const DESK_LABELS: Record<ManagerDepartmentId, string> = {
   housekeeping: 'Room readiness',
   wellness: 'Appointments',
   engineering: 'Maintenance plan',
-  'food-beverages': 'Kitchen & stock',
+  'food-beverages': 'Menu & allergens',
 };
 
 function localDateTime(date: Date) {
@@ -31,7 +31,6 @@ export function DepartmentDesk({ summary = false, onOpen, onInspect }: { summary
   if (!operations) return null;
 
   const stock = operations.stock.filter(item => departmentId(item.department) === department.id);
-  const lowStock = stock.filter(item => item.onHand < item.par).length;
   const rooms = state.frontDesk.rooms;
   const appointments = operations.appointments.filter(a => showPast || a.status === 'booked').toSorted((a, b) => a.start.localeCompare(b.start));
   const therapists = state.staffAccounts.filter(staff => departmentId(staff.department) === 'wellness' && staff.roleId === 'task_fulfiller' && staff.status === 'active' && !['break', 'off_duty'].includes(staff.availability || 'on_duty'));
@@ -44,7 +43,7 @@ export function DepartmentDesk({ summary = false, onOpen, onInspect }: { summary
       ? `${operations.appointments.filter(a => a.status === 'booked').length} appointment${operations.appointments.filter(a => a.status === 'booked').length === 1 ? '' : 's'} · ${therapists.length} available therapist${therapists.length === 1 ? '' : 's'}`
       : department.id === 'engineering'
         ? `${assets.filter(a => a.nextDue <= today).length} services due · ${assets.filter(a => a.workOrderRef).length} linked work orders`
-        : `${(state.diningMenu ?? []).filter(item => item.isAvailable).length} menu items available · ${lowStock} stock items below target`;
+        : `${(state.diningMenu ?? []).filter(item => item.isAvailable).length} menu items available`;
 
   if (summary) return <div className="dm-desk-summary"><div><span>{DESK_LABELS[department.id]}</span><p>{summaryText}</p></div><button className="dm-text-button" onClick={onOpen}>Open department desk <ArrowUpRight size={15}/></button></div>;
 
@@ -110,13 +109,13 @@ export function DepartmentDesk({ summary = false, onOpen, onInspect }: { summary
       })}
     </section>}
 
-    <section className="dm-panel">
-      <div className="dm-panel-heading"><div><h2>{department.id === 'housekeeping' ? 'Linen & supplies' : department.id === 'wellness' ? 'Treatment supplies' : department.id === 'engineering' ? 'Spare parts' : 'Kitchen stock'}</h2><p>Record counts and request the quantity needed to reach each target. Requests do not change stock.</p></div><Package size={19}/></div>
+    {department.id !== 'food-beverages' && <section className="dm-panel">
+      <div className="dm-panel-heading"><div><h2>{department.id === 'housekeeping' ? 'Linen & supplies' : department.id === 'wellness' ? 'Treatment supplies' : 'Spare parts'}</h2><p>Record counts and request the quantity needed to reach each target. Requests do not change stock.</p></div><Package size={19}/></div>
       <div className="dm-table-wrap"><table className="dm-table"><thead><tr><th>Item</th><th>On hand / target</th><th>Shortfall</th><th>Actions</th></tr></thead><tbody>{stock.map(item => {
         const pending = state.resourceRequests?.some(request => request.id === item.requisitionId && request.status === 'pending');
         return <tr key={item.id}><td><strong>{item.name}</strong><small>{item.unit}{item.lastCountedAt ? ` · Counted ${new Date(item.lastCountedAt).toLocaleDateString('en-IN')}` : ' · Sample opening count'}</small></td><td>{item.onHand} / {item.par}</td><td>{Math.max(0, item.par - item.onHand)} {item.unit}</td><td><div className="dm-record-actions"><button className="dm-text-button" onClick={() => openModal(item)}>Update count</button><button className="dm-small-button" disabled={pending || item.onHand >= item.par} onClick={() => departmentManagerCommand({ type: 'replenish', stockId: item.id })}>{pending ? 'Request pending' : 'Request stock'}</button></div></td></tr>;
       })}</tbody></table></div>
-    </section>
+    </section>}
 
     {department.id === 'food-beverages' && <section className="dm-panel">
       <div className="dm-panel-heading"><div><h2>Menu availability & allergens</h2><p>Availability changes are shared with the guest dining menu.</p></div></div>
