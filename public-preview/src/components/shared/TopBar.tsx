@@ -31,7 +31,7 @@ import { useDemo } from '@/lib/store';
 import { managerDepartment, managerNotifications } from '@/lib/manager-domain';
 import { HOME_ACCENT, quickLinks, roles, roleById } from '@/lib/roles';
 import { accentVars, cn } from '@/lib/utils';
-import type { ActiveId, RoleId } from '@/types/demo';
+import type { ActiveId, RoleId, StaffAccount } from '@/types/demo';
 
 interface TopBarProps {
   active: ActiveId;
@@ -54,7 +54,7 @@ export function TopBar({ active, showRail = true }: TopBarProps) {
 
   // Active employee record from shared staff roster
   const department = managerDepartment(state.managerDepartment);
-  const managerStaff = roleId === 'department_manager' ? { name: state.managerProfiles?.[department.id]?.name || department.person, employeeId: `MGR-${department.id.toUpperCase()}`, department: department.name, shift: 'Day' as const } : null;
+  const managerStaff: StaffAccount | null = roleId === 'department_manager' ? ({ id: `MGR-${department.id.toUpperCase()}`, name: state.managerProfiles?.[department.id]?.name || department.person, employeeId: `MGR-${department.id.toUpperCase()}`, department: department.name, shift: 'Day' as const, email: department.email, floorZone: 'Property-Wide', financialLimit: 16000, roleId: 'department_manager', status: 'active', createdAt: '2026-01-01' } as StaffAccount) : null;
   const staff = managerStaff ?? (roleId
     ? (state.staffAccounts ?? []).find((s) => {
         if (
@@ -222,7 +222,7 @@ export function TopBar({ active, showRail = true }: TopBarProps) {
                     >
                       {staff.name
                         .split(' ')
-                        .map((n) => n[0])
+                        .map((n: string) => n[0])
                         .join('')
                         .slice(0, 2)}
                     </div>
@@ -283,7 +283,7 @@ export function TopBar({ active, showRail = true }: TopBarProps) {
                           >
                             {staff.name
                               .split(' ')
-                              .map((n) => n[0])
+                              .map((n: string) => n[0])
                               .join('')
                               .slice(0, 2)}
                           </div>

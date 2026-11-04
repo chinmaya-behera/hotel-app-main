@@ -485,9 +485,11 @@ export function PortalLoginView() {
             <div className="portal-card-heading"><div><p className="portal-eyebrow">02 / CHOOSE A WORKSPACE</p><h2 id="portal-workspaces-title">Quick logins</h2></div><span className="portal-helper">Autofill your account</span></div>
             <div className="portal-role-grid">
               {PRESET_ROLES.map(role => {
-                const isSelected = role.id === 'manager' ? !!managerSelected : role.id === selectedRoleId;
-                const Icon = role.icon;
+                const isManager = role.id === 'manager';
+                const isFulfiller = role.id === 'fulfiller';
                 const isDispatcher = role.id === 'dispatcher';
+                const isSelected = isManager ? !!managerSelected : isFulfiller ? !!fulfillerSelected : role.id === selectedRoleId;
+                const Icon = role.icon;
                 return <React.Fragment key={role.id}>
                   <button type="button" className="portal-role" data-selected={isSelected} onClick={() => handleSelectRole(role)} aria-pressed={isSelected} aria-expanded={isManager ? !!managerSelected : isFulfiller ? !!fulfillerSelected : isDispatcher ? dispatcherDropdownOpen : undefined} aria-controls={isManager ? 'manager-preview-selector' : isFulfiller ? 'fulfiller-preview-selector' : isDispatcher ? 'dispatcher-preview-selector' : undefined}>
                     <span className={`portal-role-icon ${role.color}`}><Icon size={18}/></span><span className="portal-role-name">{role.name}{isDispatcher && isSelected && <small>{selectedDept}</small>}{isFulfiller && isSelected && <small>{FULFILLER_PROFILES[previewFulfillerDept].departmentName}</small>}</span><span className="portal-role-number">{isSelected ? <Check size={15}/> : role.num}</span>{(isDispatcher || isManager || isFulfiller) && <ChevronDown size={14} className="portal-role-chevron"/>}
