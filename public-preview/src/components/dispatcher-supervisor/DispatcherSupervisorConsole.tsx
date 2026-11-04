@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import {
   LayoutDashboard,
   Layers,
@@ -22,6 +22,8 @@ import {
   HeartPulse,
   Wrench,
   UtensilsCrossed,
+  ChevronDown,
+  Check,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
 import type { SupervisorInspection, RoleId, DispatcherDepartment, WorkItem, StaffAccount } from '@/types/demo';
@@ -93,6 +95,20 @@ export function DispatcherSupervisorConsole() {
   } = useDemo();
 
   const [activeTab, setActiveTab] = useState<DispatcherSupervisorTab>('overview');
+  const [deptDropdownOpen, setDeptDropdownOpen] = useState(false);
+  const deptMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (deptMenuRef.current && !deptMenuRef.current.contains(event.target as Node)) {
+        setDeptDropdownOpen(false);
+      }
+    }
+    if (deptDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [deptDropdownOpen]);
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -459,33 +475,57 @@ export function DispatcherSupervisorConsole() {
             </div>
           </div>
 
-          {/* Department Switcher Tabs */}
-          <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-2xl border border-white/10 bg-ink-950/80 shrink-0">
-            {(['Housekeeping', 'Wellness', 'Maintenance & Engineering', 'Food & Beverages'] as DispatcherDepartment[]).map((d) => {
-              const isCurrent = d === currentDept;
-              const icons = {
-                'Housekeeping': Sparkles,
-                'Wellness': HeartPulse,
-                'Maintenance & Engineering': Wrench,
-                'Food & Beverages': UtensilsCrossed,
-              };
-              const PIcon = icons[d];
-              return (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => setActiveDispatcherDept(d)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                    isCurrent
-                      ? 'bg-amber-400 text-ink-950 shadow-md font-extrabold'
-                      : 'text-mist-300 hover:text-white hover:bg-white/[0.06]'
-                  }`}
-                >
-                  <PIcon className="w-3.5 h-3.5 shrink-0" />
-                  <span>{d}</span>
-                </button>
-              );
-            })}
+          {/* Department Dropdown Menu */}
+          <div className="relative shrink-0" ref={deptMenuRef}>
+            <button
+              type="button"
+              onClick={() => setDeptDropdownOpen(!deptDropdownOpen)}
+              className="px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition flex items-center gap-2.5 border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] hover:border-amber-400/40 text-white cursor-pointer shadow-sm"
+            >
+              <DeptIcon className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>{currentDept} Supervisor</span>
+              <ChevronDown
+                className={`w-4 h-4 text-mist-400 transition-transform duration-200 ${
+                  deptDropdownOpen ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
+
+            {deptDropdownOpen && (
+              <div className="absolute right-0 top-full mt-2 z-50 w-72 rounded-2xl border border-white/10 bg-ink-900/95 backdrop-blur-xl shadow-2xl p-2 space-y-1.5">
+                {(['Housekeeping', 'Wellness', 'Maintenance & Engineering', 'Food & Beverages'] as DispatcherDepartment[]).map((d) => {
+                  const isCurrent = d === currentDept;
+                  const icons = {
+                    'Housekeeping': Sparkles,
+                    'Wellness': HeartPulse,
+                    'Maintenance & Engineering': Wrench,
+                    'Food & Beverages': UtensilsCrossed,
+                  };
+                  const PIcon = icons[d];
+                  return (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => {
+                        setActiveDispatcherDept(d);
+                        setDeptDropdownOpen(false);
+                      }}
+                      className={`w-full text-left flex items-center justify-between px-3 py-2.5 rounded-xl border transition cursor-pointer ${
+                        isCurrent
+                          ? 'bg-amber-400/10 border-amber-400/70 text-white ring-1 ring-amber-400/40 font-bold shadow-sm'
+                          : 'bg-white/[0.03] border-white/5 hover:border-white/20 text-mist-200 hover:text-white font-medium hover:bg-white/[0.08]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <PIcon className="w-4 h-4 shrink-0 text-amber-400" />
+                        <span className="text-xs sm:text-sm truncate">{d} Supervisor</span>
+                      </div>
+                      {isCurrent && <Check className="w-4 h-4 text-amber-400 shrink-0 ml-1.5" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>
