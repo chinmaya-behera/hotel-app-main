@@ -182,16 +182,17 @@ export function taskMatchesFulfillerDept(t: WorkItem, deptKey: FulfillerDeptKey)
   return false;
 }
 
-export function taskMatchesFulfillerAssignee(t: WorkItem, profile: FulfillerProfile): boolean {
-  if (!t.assignee && !t.assigneeId) return true;
+export function isTaskAssignedToProfile(t: WorkItem, profile: FulfillerProfile): boolean {
+  if (!t.assignee && !t.assigneeId) return false;
   const a = (t.assignee || '').toLowerCase();
   const aid = (t.assigneeId || '').toLowerCase();
   const eName = profile.employeeName.toLowerCase();
   const eId = profile.employeeId.toLowerCase();
+  const firstName = eName.split(' ')[0];
 
-  return (
-    a.includes(eName) ||
-    aid === eId ||
-    (!t.assignee && !t.assigneeId)
-  );
+  return a.includes(eName) || aid === eId || a.includes(firstName);
+}
+
+export function taskMatchesFulfillerAssignee(t: WorkItem, profile: FulfillerProfile): boolean {
+  return isTaskAssignedToProfile(t, profile);
 }

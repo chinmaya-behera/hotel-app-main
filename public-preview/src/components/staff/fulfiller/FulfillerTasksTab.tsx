@@ -27,7 +27,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
-import { FULFILLER_PROFILES, type FulfillerProfile, taskMatchesFulfillerDept, taskMatchesFulfillerAssignee } from './fulfillerProfiles';
+import { FULFILLER_PROFILES, type FulfillerProfile, taskMatchesFulfillerDept, taskMatchesFulfillerAssignee, isTaskAssignedToProfile } from './fulfillerProfiles';
 import { cn, statusTone } from '@/lib/utils';
 import type { WorkItem } from '@/types/demo';
 
@@ -189,8 +189,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
       if (allFilter === 'colleagues')
         return (
           task.assignee &&
-          task.assignee !== 'Vikram Singh' &&
-          task.assigneeId !== 'EMP-0103' &&
+          !isTaskAssignedToProfile(task, activeProfile) &&
           task.status !== 'Completed'
         );
       return true;
@@ -546,7 +545,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
             const isCompleted = task.status === 'Completed';
             const isReassignPending = task.status === 'Reassignment requested' || task.reassignPending;
             const isUnassigned = task.status === 'Unassigned' || task.status === 'Received' || !task.assignee;
-            const isAssignedToMe = task.assignee === 'Vikram Singh' || task.assigneeId === 'EMP-0103';
+            const isAssignedToMe = isTaskAssignedToProfile(task, activeProfile);
 
             return (
               <div
@@ -623,6 +622,13 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     {isUnassigned ? 'Unassigned' : task.status}
                   </span>
                 </div>
+
+                {isBlocked && task.blockerReason && (
+                  <div className="mt-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-2.5 py-1.5 text-xs text-rose-300 flex items-center gap-2">
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-rose-400" />
+                    <span><strong>Blocked:</strong> {task.blockerReason}</span>
+                  </div>
+                )}
 
                 {/* Title & Metadata */}
                 <div className="mt-2.5 cursor-pointer" onClick={() => setSelectedTask(task)}>
@@ -748,6 +754,20 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                         </button>
                         <button
                           type="button"
+                          onClick={() =>
+                            advance('task_fulfiller', task.id, {
+                              label: 'Start work',
+                              next: 'In progress',
+                              message: 'Work commenced',
+                            })
+                          }
+                          className="flex items-center justify-center gap-1.5 rounded-xl bg-sky-500 py-2 px-3 text-xs font-semibold text-ink-950 shadow-md shadow-sky-500/20 active:scale-[0.98] transition-transform"
+                        >
+                          <Play className="h-3.5 w-3.5 fill-current" />
+                          Start
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => setReassignModalTask(task)}
                           className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-medium text-mist-300 hover:text-white transition-colors"
                         >
@@ -848,7 +868,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     )}
 
                     {/* Assigned to Colleague in All Tasks View */}
-                    {!isUnassigned && !isAssignedToMe && (
+                    {primaryView === 'all_tasks' && !isUnassigned && !isAssignedToMe && (
                       <div className="flex flex-1 items-center justify-between text-xs text-mist-400 py-1">
                         <span>Assigned to colleague</span>
                         <span className="font-semibold text-white">{task.assignee}</span>
@@ -1131,14 +1151,66 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                 )}
 
                 {selectedTask.status !== 'Completed' &&
-                  (selectedTask.assignee === 'Vikram Singh' || selectedTask.assigneeId === 'EMP-0103') && (
-                    <button
-                      type="button"
-                      onClick={() => handleComplete(selectedTask)}
-                      className="rounded-xl bg-emerald-500 px-5 py-2 text-xs font-bold text-ink-950 shadow-lg shadow-emerald-500/25 active:scale-95 transition-transform"
-                    >
-                      Complete Task
-                    </button>
+                  isTaskAssignedToProfile(selectedTask, activeProfile) && (
+                    <div className="flex items-center gap-2">
+                      {selectedTask.status === 'Assigned' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            advance('task_fulfiller', selectedTask.id, {
+                              label: 'Accept',
+                              next: 'Accepted',
+                              message: 'Task accepted',
+                            });
+                            setSelectedTask(null);
+                          }}
+                          className="rounded-xl bg-emerald-500 px-4 py-2 text-xs font-bold text-ink-950 shadow-lg shadow-emerald-500/25 active:scale-95 transition-transform"
+                        >
+                          Accept Task
+                        </button>
+                      )}
+                      {(selectedTask.status === 'Accepted' || selectedTask.status === 'Assigned') && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            advance('task_fulfiller', selectedTask.id, {
+                              label: 'Start work',
+                              next: 'In progress',
+                              message: 'Work commenced',
+                            });
+                            setSelectedTask(null);
+                          }}
+                          className="rounded-xl bg-sky-500 px-4 py-2 text-xs font-bold text-ink-950 shadow-lg shadow-sky-500/25 active:scale-95 transition-transform"
+                        >
+                          Start Work
+                        </button>
+                      )}
+                      {(selectedTask.status === 'In progress' || selectedTask.status === 'On the way') && (
+                        <button
+                          type="button"
+                          onClick={() => handleComplete(selectedTask)}
+                          className="rounded-xl bg-emerald-500 px-5 py-2 text-xs font-bold text-ink-950 shadow-lg shadow-emerald-500/25 active:scale-95 transition-transform"
+                        >
+                          Complete Task
+                        </button>
+                      )}
+                      {selectedTask.status === 'Blocked' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            advance('task_fulfiller', selectedTask.id, {
+                              label: 'Resume',
+                              next: 'In progress',
+                              message: 'Blocker resolved, work resumed',
+                            });
+                            setSelectedTask(null);
+                          }}
+                          className="rounded-xl bg-sky-500 px-4 py-2 text-xs font-bold text-ink-950 shadow-lg shadow-sky-500/25 active:scale-95 transition-transform"
+                        >
+                          Resume Work
+                        </button>
+                      )}
+                    </div>
                   )}
               </div>
             </div>
