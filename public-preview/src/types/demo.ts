@@ -504,6 +504,11 @@ export interface StayRecord {
   nights: number;
   status: StayStatus;
   departsToday?: boolean;
+  vipTier?: string;
+  milestone?: string;
+  dietarySummary?: string;
+  preferencesSummary?: string;
+  gmStatus?: string;
   /** F08: pre-arrival registration state */
   preCheckIn: 'none' | 'pending_verify' | 'verified';
   idChecked: boolean;

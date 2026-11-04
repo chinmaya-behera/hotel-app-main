@@ -74,11 +74,15 @@ export const overview: Kpi[] = [
 ];
 
 export const seedFeed: FeedEntry[] = [
-  { id: 's1', at: '09:42', role: 'Housekeeping', text: 'Room 402 towels request dispatched' },
-  { id: 's2', at: '09:38', role: 'Dispatcher', text: 'AC fault in Room 305 flagged overdue' },
-  { id: 's3', at: '09:31', role: 'Front Desk', text: 'Guest case opened: lost key, Room 518' },
-  { id: 's4', at: '09:12', role: 'Finance', text: 'Minibar dispute approved by Duty Manager' },
-  { id: 's5', at: '08:55', role: 'Security', text: 'Pool deck patrol completed' },
+  { id: 's1', at: '02:38 PM', role: 'Front Desk', text: 'FD-2042 · Airport transfer in progress for Room 518' },
+  { id: 's2', at: '01:15 PM', role: 'Housekeeping', text: 'Room 402 towels request dispatched to floor attendant' },
+  { id: 's3', at: '11:42 AM', role: 'Dispatcher', text: 'AC fault in Room 305 flagged Overdue' },
+  { id: 's4', at: '10:30 AM', role: 'Front Desk', text: 'FD-2041 · Guest case closed: replacement key card handed over for Room 518' },
+  { id: 's5', at: '09:50 AM', role: 'Front Desk', text: 'FD-2043 · Late checkout approved for Room 402 (Elena Rostova)' },
+  { id: 's6', at: '09:12 AM', role: 'Finance', text: 'Minibar dispute approved by Duty Manager for Folio 402' },
+  { id: 's7', at: '08:55 AM', role: 'Security', text: 'SEC-001 · Pool deck morning safety patrol completed' },
+  { id: 's8', at: '08:30 AM', role: 'Housekeeping', text: 'Room 206 deep clean completed · awaiting supervisor inspection' },
+  { id: 's9', at: '08:05 AM', role: 'Front Desk', text: 'VIP Chairman arrival protocol initiated for Room 401' },
 ];
 
 export const seedNotifications: InAppNotification[] = [
@@ -1073,13 +1077,15 @@ export const seedIntegrations: Record<string, IntegrationState> = {
 };
 
 const FLOORS: Array<{ floor: number; pattern: string }> = [
-  { floor: 3, pattern: 'OOVDOOXV' },
-  { floor: 4, pattern: 'OODOOVOL' },
-  { floor: 5, pattern: 'OOVOOXOO' },
+  { floor: 1, pattern: 'VOVDOVVVLDVO' }, // 101 to 112 (12 rooms)
+  { floor: 2, pattern: 'VVOODOVVDVVO' }, // 201 to 212 (12 rooms)
+  { floor: 3, pattern: 'VOVDDOXVVOVD' }, // 301 to 312 (12 rooms)
+  { floor: 4, pattern: 'OODOOVOLVDVO' }, // 401 to 412 (12 rooms)
+  { floor: 5, pattern: 'OOVOOXOOVLVO' }, // 501 to 512 (12 rooms)
 ];
 
 export const roomGrid: Array<{ no: string; state: RoomState }> = FLOORS.flatMap(({ floor, pattern }) =>
-  pattern.split('').map((state, i) => ({ no: `${floor}0${i + 1}`, state: state as RoomState })),
+  pattern.split('').map((state, i) => ({ no: `${floor}${String(i + 1).padStart(2, '0')}`, state: state as RoomState })),
 );
 
 export const ROOM_LEGEND: Array<{ state: RoomState; label: string }> = [
@@ -1238,6 +1244,24 @@ export const seedHotelServices: HotelServiceItem[] = [
 ];
 
 export const seedGuestPreferences: Record<string, GuestPreferences> = {
+  '401': {
+    allergies: ['Peanuts', 'Tree nuts'],
+    dietaryRestrictions: ['Strictly nut-free', 'Organic whole foods'],
+    dnd: false,
+    personalInstructions: 'VIP Chairman Protocol: Feather-free hypoallergenic bedding, daily Financial Times, sparkling water replenished twice daily.',
+    pillowPreference: 'Hypoallergenic foam',
+    roomTemperature: '20°C',
+    specialRequests: ['High floor quiet wing', 'Executive boardroom booking assistance'],
+  },
+  '310': {
+    allergies: [],
+    dietaryRestrictions: ['Gluten-Free & Organic', 'Sommelier wine pairing'],
+    dnd: false,
+    personalInstructions: '10th Wedding Anniversary: Chilled vintage champagne and berry amenity platter prepared on arrival.',
+    pillowPreference: 'Down surround medium',
+    roomTemperature: '21°C',
+    specialRequests: ['Quiet wing away from elevators', 'Evening turndown at 18:00 with herbal tea'],
+  },
   '402': {
     allergies: ['Peanuts', 'Tree nuts'],
     dietaryRestrictions: ['Vegetarian', 'Gluten-sensitive'],
@@ -1264,6 +1288,24 @@ export const seedGuestPreferences: Record<string, GuestPreferences> = {
     pillowPreference: 'Firm ergonomic',
     roomTemperature: '22°C',
     specialRequests: ['High-speed LAN cable'],
+  },
+  '201': {
+    allergies: ['Lactose', 'Gluten'],
+    dietaryRestrictions: ['Strict Vegan', 'Lactose-Free Organic'],
+    dnd: false,
+    personalInstructions: 'Keynote Speaker Protocol: Quiet executive corner, extra desk lamp, silent turndown.',
+    pillowPreference: 'Ergonomic cervical memory foam',
+    roomTemperature: '19°C',
+    specialRequests: ['Audio conference testing', 'High-speed encrypted Wi-Fi portal'],
+  },
+  '105': {
+    allergies: ['Shellfish', 'Pollen'],
+    dietaryRestrictions: ['Gluten-Free', 'Kosher Certified Meals'],
+    dnd: false,
+    personalInstructions: 'Diplomatic Envoy Protocol: Private garden terrace access, discrete floor escort.',
+    pillowPreference: 'Silk encased hypoallergenic down',
+    roomTemperature: '20.5°C',
+    specialRequests: ['Daily mineral water glass bottles', 'GM private greeting on arrival'],
   },
 };
 
@@ -1322,6 +1364,15 @@ export const folioSeed: Record<string, FolioLine[]> = {
     { id: 'f305-3', label: 'Spa · Deep Tissue Massage', amount: 95, date: 'Mon 20 Oct' },
     { id: 'f305-4', label: 'Taxes & service charge', amount: 136.5, date: 'Sat 18 Oct' },
   ],
+  '401': [
+    { id: 'f401-1', label: 'Room charge · Ambassador Suite (3 nights)', amount: 1650, date: 'Mon 19 Oct' },
+    { id: 'f401-2', label: 'Resort fee & Executive Lounge Access', amount: 90, date: 'Mon 19 Oct' },
+    { id: 'f401-3', label: 'In-Room Dining · Private Dinner', amount: 110, date: 'Tue 20 Oct' },
+  ],
+  '310': [
+    { id: 'f310-1', label: 'Deposit · Penthouse Suite (4 nights)', amount: 2400, date: 'Wed 21 Oct' },
+    { id: 'f310-2', label: 'Anniversary Champagne & Florals (Comped)', amount: 0, date: 'Wed 21 Oct' },
+  ],
   '518': [
     { id: 'f518-1', label: 'Room charge · Presidential Suite (3 nights)', amount: 2100, date: 'Thu 22 Oct' },
     { id: 'f518-2', label: 'Resort fee', amount: 90, date: 'Thu 22 Oct' },
@@ -1352,14 +1403,16 @@ function seedRoom(no: string, state: RoomState): RoomRecord {
 
 const baseRooms: RoomRecord[] = [
   { no: '127', floor: 1, occupied: false, readiness: 'ready', dnd: false },
-  { no: '210', floor: 2, occupied: false, readiness: 'inspection_pending', dnd: false, note: 'Deep clean done · waiting for supervisor inspection' },
   ...roomGrid.map((r) => seedRoom(r.no, r.state)),
   { no: '518', floor: 5, occupied: true, readiness: 'ready', dnd: false },
 ];
 
 const seededRooms: RoomRecord[] = baseRooms.map((r) => {
+  if (r.no === '104') return { ...r, readiness: 'cleaning' as const };
+  if (r.no === '206') return { ...r, readiness: 'inspection_pending' as const, note: 'Deep clean done · waiting for supervisor inspection' };
   if (r.no === '304') return { ...r, readiness: 'cleaning' as const };
-  if (r.no === '403') return { ...r, readiness: 'inspection_pending' as const };
+  if (r.no === '403') return { ...r, readiness: 'inspection_pending' as const, note: 'Corner room inspected · awaiting final signoff' };
+  if (r.no === '505') return { ...r, readiness: 'cleaning' as const };
   return r;
 });
 
@@ -1427,20 +1480,128 @@ export const frontDeskSeed: FrontDeskState = {
       preferences: seedGuestPreferences['402'],
     },
     {
+      id: 'stay-alistair',
+      room: '401',
+      guest: 'Lord Alistair Sterling',
+      vip: true,
+      vipTier: "👑 Chairman's Club",
+      roomType: 'Ambassador Suite',
+      arrival: 'Mon 19 Oct',
+      departure: 'Today · Late Checkout 16:00',
+      departsToday: true,
+      nights: 4,
+      status: 'in_house',
+      milestone: '💼 Executive Board Stay',
+      dietarySummary: '🥜 Severe Nut Allergy',
+      preferencesSummary: '🛏️ Hypoallergenic Pillows',
+      gmStatus: '✓ GM Welcome Card Placed',
+      preCheckIn: 'verified',
+      idChecked: true,
+      paid: 1850,
+      cardMask: '•••• 9901',
+      preferences: seedGuestPreferences['401'],
+    },
+    {
+      id: 'stay-vance',
+      room: '310',
+      guest: 'Camilla & Julian Vance',
+      vip: true,
+      vipTier: '⭐ Celebrity / Diplomatic',
+      roomType: 'Penthouse Suite',
+      arrival: 'Today · Arriving 14:00',
+      departure: 'Sun 25 Oct',
+      departsToday: false,
+      nights: 4,
+      status: 'in_house',
+      milestone: '🥂 10th Wedding Anniversary',
+      dietarySummary: '🌱 Gluten-Free & Organic',
+      preferencesSummary: '🤫 High Floor Quiet Wing',
+      gmStatus: '⏳ Amenity Tray Pending 18:00',
+      preCheckIn: 'verified',
+      idChecked: true,
+      paid: 0,
+      cardMask: '•••• 6420',
+      preferences: seedGuestPreferences['310'],
+    },
+    {
       id: 'stay-priya',
       room: '518',
       guest: 'Priya Nair',
       vip: true,
+      vipTier: '💎 Ambassador VIP',
       roomType: 'Presidential Suite',
       arrival: 'Thu 22 Oct',
       departure: 'Sun 25 Oct',
       nights: 3,
       status: 'in_house',
+      milestone: '🎂 Milestone Birthday',
+      dietarySummary: '🌱 Vegan Organic & Shellfish Allergy',
+      preferencesSummary: '🚗 Airport Chauffeur Assigned',
+      gmStatus: '✓ GM Welcome Card Placed',
       preCheckIn: 'verified',
       idChecked: true,
       paid: 0,
       cardMask: '•••• 1881',
       preferences: seedGuestPreferences['518'],
+    },
+    {
+      id: 'stay-soren',
+      room: '201',
+      guest: 'Dr. Soren Lindqvist',
+      vip: true,
+      vipTier: '💎 Keynote Speaker / Laureate',
+      roomType: 'Executive Corner Suite',
+      arrival: 'Today · Arriving 15:00',
+      departure: 'Sat 24 Oct',
+      departsToday: false,
+      nights: 3,
+      status: 'expected',
+      milestone: '🎤 Global Tech Summit Keynote',
+      dietarySummary: '🥦 Strict Vegan & Lactose-Free',
+      preferencesSummary: '📚 Silent Wing & Extra Desk Lamp',
+      gmStatus: '✓ GM Welcome Note Placed',
+      preCheckIn: 'verified',
+      idChecked: true,
+      paid: 2400,
+      cardMask: '•••• 7741',
+      preferences: seedGuestPreferences['201'],
+    },
+    {
+      id: 'stay-sophia',
+      room: '105',
+      guest: 'Sophia & Arthur Sterling-Fox',
+      vip: true,
+      vipTier: '👑 Royal Patron Society',
+      roomType: 'Garden Terrace Suite',
+      arrival: 'Mon 19 Oct',
+      departure: 'Mon 26 Oct',
+      departsToday: false,
+      nights: 7,
+      status: 'in_house',
+      milestone: '🕊️ Diplomatic Envoy Visit',
+      dietarySummary: '🍷 Kosher & Low Sodium',
+      preferencesSummary: '🛡️ Security Protocol & Garden Access',
+      gmStatus: '✓ GM Private Greeting Confirmed',
+      preCheckIn: 'verified',
+      idChecked: true,
+      paid: 4800,
+      cardMask: '•••• 8820',
+      preferences: seedGuestPreferences['105'],
+    },
+    {
+      id: 'stay-clara',
+      room: '102',
+      guest: 'Clara Dupont',
+      roomType: 'Deluxe King',
+      arrival: 'Sun 18 Oct',
+      departure: 'Today · Departed 09:15',
+      departsToday: true,
+      nights: 3,
+      status: 'checked_out',
+      preCheckIn: 'verified',
+      idChecked: true,
+      paid: 750,
+      cardMask: '•••• 1290',
     },
   ],
   sync: [
@@ -3798,3 +3959,169 @@ export const seedGuestLostReports: GuestLostItemRecord[] = [
   },
 ];
 
+
+
+/* ---- Front Desk Notifications, Shift Handover Notes & Incidents ---- */
+
+export interface FDNotification {
+  id: string;
+  dept: 'Front Desk' | 'Housekeeping' | 'Maintenance' | 'Security' | 'Finance' | 'GM Office';
+  title: string;
+  message: string;
+  timestamp: string;
+  read: boolean;
+  urgent: boolean;
+  actionText?: string;
+}
+
+export const frontDeskNotificationsSeed: FDNotification[] = [
+  {
+    id: 'fdn-1',
+    dept: 'GM Office',
+    title: 'VIP Arrival: Dr. Soren Lindqvist (Room 201)',
+    message: 'Global Tech Summit keynote speaker arriving at 15:00. Ensure GM welcome letter and keynote badge kit are waiting at Front Desk.',
+    timestamp: '10 mins ago',
+    read: false,
+    urgent: true,
+    actionText: 'View Stay',
+  },
+  {
+    id: 'fdn-2',
+    dept: 'Housekeeping',
+    title: 'Room 310 Penthouse Turnover Completed',
+    message: 'Housekeeping lead Vikram Singh completed turnover for Room 310. Inspected and ready for VIP arrival Camilla & Julian Vance.',
+    timestamp: '25 mins ago',
+    read: false,
+    urgent: false,
+    actionText: 'View Room',
+  },
+  {
+    id: 'fdn-3',
+    dept: 'Finance',
+    title: 'Folio Dispute Escalation: Room 402',
+    message: 'Automated minibar charge ($85.00) disputed by guest Elena Rostova. Financial operator requested Front Desk verification.',
+    timestamp: '40 mins ago',
+    read: false,
+    urgent: true,
+    actionText: 'Open Dispute',
+  },
+  {
+    id: 'fdn-4',
+    dept: 'Security',
+    title: 'Keycard Re-encoder Hardware Audit Passed',
+    message: 'Daily RFID reader and keycard encryption check completed. All desk terminals operating on secure firmware v4.12.',
+    timestamp: '1 hour ago',
+    read: true,
+    urgent: false,
+  },
+  {
+    id: 'fdn-5',
+    dept: 'Maintenance',
+    title: 'Room 204 AC Compressor Servicing Complete',
+    message: 'Engineering completed filter replacement and thermal calibration. Room restored to sellable status.',
+    timestamp: '2 hours ago',
+    read: true,
+    urgent: false,
+  },
+];
+
+export interface ShiftHandoverNote {
+  id: string;
+  author: string;
+  role: string;
+  shift: 'Day' | 'Evening' | 'Night';
+  time: string;
+  category: 'VIP / Arrival' | 'Cash / Folio' | 'Maintenance' | 'General';
+  note: string;
+  priority: 'normal' | 'high' | 'critical';
+}
+
+export const shiftHandoverNotesSeed: ShiftHandoverNote[] = [
+  {
+    id: 'shn-1',
+    author: 'Sunita Patel',
+    role: 'Lead Front Desk Coordinator',
+    shift: 'Day',
+    time: '08:30 AM',
+    category: 'VIP / Arrival',
+    note: 'Lord Alistair Sterling (Room 401) requested 16:00 late checkout; GM welcome card and nut-free fruit basket verified.',
+    priority: 'high',
+  },
+  {
+    id: 'shn-2',
+    author: 'Sunita Patel',
+    role: 'Lead Front Desk Coordinator',
+    shift: 'Day',
+    time: '11:15 AM',
+    category: 'Cash / Folio',
+    note: 'Desk Cash Drawer #2 reconciled at ₹45,000 float. Credit card terminal #1 batch settlement synced with Opera Cloud PMS.',
+    priority: 'normal',
+  },
+  {
+    id: 'shn-3',
+    author: 'Rajesh K.',
+    role: 'Night Auditor',
+    shift: 'Night',
+    time: '06:45 AM',
+    category: 'Maintenance',
+    note: 'Service Elevator B was flagged for minor door delay at 03:00. Engineering notified; technician scheduled for 14:00 inspection.',
+    priority: 'normal',
+  },
+];
+
+export interface FDIncident {
+  id: string;
+  ref: string;
+  title: string;
+  source: 'Guest Report' | 'Front Desk Patrol' | 'Housekeeping Alert' | 'Security Dispatch';
+  room?: string;
+  location: string;
+  severity: 'low' | 'medium' | 'high';
+  status: 'active' | 'dispatched_security' | 'investigating' | 'resolved';
+  description: string;
+  reportedAt: string;
+  securityOfficer?: string;
+  broadcastSent?: boolean;
+}
+
+export const frontDeskIncidentsSeed: FDIncident[] = [
+  {
+    id: 'inc-1',
+    ref: 'INC-204',
+    title: 'Water Seepage Near Service Elevator B (Floor 3)',
+    source: 'Housekeeping Alert',
+    location: 'Floor 3 East Corridor',
+    severity: 'medium',
+    status: 'dispatched_security',
+    description: 'Housekeeping noticed water pooling near service elevator shaft door. Engineering and safety team en route.',
+    reportedAt: 'Today, 09:12 AM',
+    securityOfficer: 'Officer Ramesh K. (Patrol Unit 2)',
+    broadcastSent: false,
+  },
+  {
+    id: 'inc-2',
+    ref: 'INC-205',
+    title: 'Unregistered Visitor Attempting Floor Access',
+    source: 'Front Desk Patrol',
+    location: 'Lobby North Elevators',
+    severity: 'low',
+    status: 'resolved',
+    description: 'Visitor without guest escort tried accessing Level 4. Intercepted by front desk concierge; verified courier and escorted.',
+    reportedAt: 'Today, 08:45 AM',
+    securityOfficer: 'Officer Meera S.',
+    broadcastSent: false,
+  },
+  {
+    id: 'inc-3',
+    ref: 'INC-206',
+    title: 'Emergency Alarm Test Notification & Basement Sensor Trip',
+    source: 'Security Dispatch',
+    location: 'Basement Utility Substation',
+    severity: 'high',
+    status: 'active',
+    description: 'Thermal sensor in basement utility substation logged 4°C above baseline. Security patrol deployed to verify chiller cooling loop.',
+    reportedAt: 'Today, 10:20 AM',
+    securityOfficer: 'Chief Security Officer Dave',
+    broadcastSent: true,
+  },
+];

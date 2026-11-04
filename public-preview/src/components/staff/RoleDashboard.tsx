@@ -88,7 +88,7 @@ export function RoleDashboard({ roleId }: { roleId: RoleId }) {
     return (
       <div style={accentVars(role)} className="h-screen w-full overflow-hidden flex flex-col bg-ink-950">
         <TopBar active={roleId} />
-        <main className="flex-1 min-h-0 w-full max-w-[1720px] mx-auto px-3 sm:px-5 lg:px-6 pt-3 pb-3 overflow-hidden flex flex-col">
+        <main className="flex-1 min-h-0 w-full max-w-[1720px] mx-auto px-3 sm:px-4 lg:px-5 pt-2 pb-2 overflow-hidden flex flex-col">
           <FrontDeskConsole />
         </main>
       </div>
