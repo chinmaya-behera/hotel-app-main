@@ -25,6 +25,7 @@ import { ActivitySection } from '@/components/guest/ActivitySection';
 import { NotificationsHubSection } from '@/components/guest/NotificationsHubSection';
 import { ProfileSection } from '@/components/guest/ProfileSection';
 import { GuestInteractiveTour } from '@/components/guest/GuestInteractiveTour';
+import { useEmergencyBroadcast } from '@/lib/emergencyBroadcast';
 import { GuestConfirm, GuestPill } from '@/components/guest/guestUi';
 import type { GuestTabId, GuestMainSection } from '@/components/guest/types';
 import { guests } from '@/lib/mockData';
@@ -103,12 +104,10 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
     return (state.guestNotifications ?? []).filter((n) => n.room === room && !n.read).length;
   }, [state.guestNotifications, room]);
 
-  // Critical alerts count for badge
-  const criticalAlertsCount = useMemo(() => {
-    const safety = (state.safetyAlerts ?? []).filter((a) => a.priority === 'critical');
-    const hotel = (state.hotelAlerts ?? []).filter((a) => a.severity === 'Critical');
-    return safety.length + hotel.length;
-  }, [state.safetyAlerts, state.hotelAlerts]);
+  const { alert: emergencyAlert, isBroadcastActive } = useEmergencyBroadcast();
+
+  // Critical alerts count for badge - only active when Front Desk broadcast is live
+  const criticalAlertsCount = isBroadcastActive && emergencyAlert ? 1 : 0;
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 });
@@ -166,7 +165,7 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
 
   return (
     <div className="guest-stage">
-      <div className="guest-frame guest-shell">
+      <div className="guest-frame guest-shell w-full max-w-full overflow-x-hidden box-border">
         {!valid || !guest || !tabProps ? (
           <div className="flex flex-1 flex-col items-center justify-center px-8 text-center min-h-[500px]">
             <span className="grid h-14 w-14 place-items-center rounded-2xl border border-rose-400/30 bg-rose-500/10 text-rose-500">
@@ -272,7 +271,7 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
               </nav>
 
               {/* Header Right Actions */}
-              <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
+              <div data-tour="tour-header-controls" className="flex shrink-0 items-center gap-2 sm:gap-2.5">
                 {/* Take Tour Button */}
                 <button
                   type="button"
@@ -307,8 +306,8 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
             </header>
 
             {/* MAIN CONTENT AREA */}
-            <div ref={scrollRef} className="guest-scroll">
-              <div className="px-4 sm:px-8 lg:px-12 xl:px-16 py-5 sm:py-7 lg:py-9 max-w-[1540px] mx-auto w-full">
+            <div ref={scrollRef} className="guest-scroll w-full max-w-full overflow-x-hidden box-border">
+              <div className="px-4 sm:px-8 lg:px-12 xl:px-16 py-5 sm:py-7 lg:py-9 max-w-[1540px] mx-auto w-full box-border overflow-x-hidden">
                 <TabPanel tab={tab} subtab={subtab} tabProps={tabProps} />
               </div>
             </div>
@@ -381,6 +380,7 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
             isOpen={tourOpen}
             onClose={() => setTourOpen(false)}
             onNavigate={handleNavigate}
+            isLight={isLight}
           />
         )}
 

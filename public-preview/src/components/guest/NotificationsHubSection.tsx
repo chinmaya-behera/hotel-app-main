@@ -33,7 +33,7 @@ export function NotificationsHubSection({ room, guestName, onNavigate, initialSu
   }, [state.safetyAlerts, state.hotelAlerts]);
 
   return (
-    <div data-tour="tour-alerts-notifications" className="space-y-6 sm:space-y-8 pb-12 max-w-7xl mx-auto w-full">
+    <div data-tour="tour-notifications-tab" className="space-y-6 sm:space-y-8 pb-12 max-w-7xl mx-auto w-full">
       {/* 2-Segment Switcher keeping Personal Notifications and Hotel Alerts Strictly Separate */}
       <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-black/30 border border-white/5">
         <button

@@ -252,7 +252,7 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
   }
 
   return (
-    <div className="space-y-6 sm:space-y-8 pb-12 max-w-7xl mx-auto w-full">
+    <div data-tour="tour-services-tab" className="space-y-6 sm:space-y-8 pb-12 max-w-7xl mx-auto w-full">
       {/* Header & Search */}
       <div className="guest-card p-4 space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -261,9 +261,6 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
               <Layers className="h-4 w-4 text-amber-400" />
               <span>All Hotel Services &amp; Amenities</span>
             </h2>
-            <p className="text-[11px] text-mist-400">
-              Access all 10 departments directly without navigating nested submenus
-            </p>
           </div>
         </div>
 

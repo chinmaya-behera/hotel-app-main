@@ -272,7 +272,7 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
   }
 
   return (
-    <div className="space-y-6 sm:space-y-8 pb-12 max-w-7xl mx-auto w-full">
+    <div data-tour="tour-activity-tab" className="space-y-6 sm:space-y-8 pb-12 max-w-7xl mx-auto w-full">
       {/* Toast Alert */}
       {toastMessage && (
         <div className="guest-card flex items-start gap-2.5 border-emerald-400/40 bg-emerald-400/10 px-4 py-3 text-xs text-white shadow-lg">
