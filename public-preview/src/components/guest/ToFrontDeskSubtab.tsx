@@ -88,7 +88,7 @@ export function ToFrontDeskSubtab({ room, guestName }: GuestTabProps) {
   }
 
   return (
-    <div className="space-y-5 pb-6">
+    <div className="space-y-6 sm:space-y-8 pb-12 max-w-7xl mx-auto w-full">
       {/* Toast Alert */}
       {successToast && (
         <div className="guest-card flex items-start gap-2.5 border-emerald-400/40 bg-emerald-400/10 px-4 py-3 text-sm text-white">
@@ -101,7 +101,7 @@ export function ToFrontDeskSubtab({ room, guestName }: GuestTabProps) {
       )}
 
       {/* Hero Header */}
-      <div className="guest-card p-4 space-y-2">
+      <div className="guest-card p-4 sm:p-5 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <span className="grid h-8 w-8 place-items-center rounded-xl bg-amber-400/15 text-amber-300">

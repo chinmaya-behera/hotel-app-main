@@ -155,11 +155,11 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
           <>
             {/* RESPONSIVE LUXURY HEADER */}
             <header
-              className="guest-surface guest-header flex shrink-0 items-center justify-between gap-3 px-4 sm:px-6 lg:px-8 py-3 border-b border-white/10"
+              className="guest-surface guest-header flex shrink-0 items-center justify-between gap-3 px-4 sm:px-6 lg:px-8 xl:px-12 py-3.5 sm:py-4 border-b border-white/10"
               style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top, 0px))' }}
             >
               {/* Brand & Room Info */}
-              <div className="flex min-w-0 items-center gap-3">
+              <div className="flex min-w-0 items-center gap-3 sm:gap-3.5">
                 {activeNav !== 'home' && (
                   <button
                     type="button"
@@ -171,11 +171,11 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
                   </button>
                 )}
                 <span
-                  className="grid h-9 w-9 shrink-0 place-items-center rounded-xl shadow-md cursor-pointer"
+                  className="grid h-10 w-10 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-xl shadow-md cursor-pointer"
                   style={{ background: 'linear-gradient(135deg, rgb(var(--a)), rgb(var(--b)))', color: 'var(--on-a)' }}
                   onClick={() => handleNavigate('home')}
                 >
-                  <Hotel className="h-5 w-5" aria-hidden />
+                  <Hotel className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden />
                 </span>
                 <div
                   className="min-w-0 cursor-pointer"
@@ -183,21 +183,21 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
                   title="View Profile & Stay"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="block truncate text-xs sm:text-sm font-black tracking-tight text-white hover:text-amber-300 transition-colors">
+                    <span className="block truncate text-xs sm:text-sm lg:text-base font-black tracking-tight text-white hover:text-amber-300 transition-colors">
                       The Grand ADP
                     </span>
-                    <span className="hidden sm:inline-block text-[10px] text-amber-400 font-mono font-semibold uppercase tracking-wider">
+                    <span className="hidden sm:inline-block text-[10px] sm:text-xs text-amber-400 font-mono font-semibold uppercase tracking-wider">
                       Resort &amp; Suites
                     </span>
                   </div>
-                  <span className="guest-muted flex items-center gap-1.5 text-[10px] sm:text-[11px]">
-                    <BedDouble className="h-3 w-3 text-amber-400" aria-hidden /> Room {room} · {guest.name}
+                  <span className="guest-muted flex items-center gap-1.5 text-[10px] sm:text-xs">
+                    <BedDouble className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-400" aria-hidden /> Room {room} · {guest.name}
                   </span>
                 </div>
               </div>
 
               {/* DESKTOP TOP NAVIGATION BAR (Visible on md/lg screens) */}
-              <nav className="hidden md:flex items-center gap-1 p-1 rounded-xl bg-black/20 border border-white/5">
+              <nav className="hidden md:flex items-center gap-1.5 p-1 rounded-xl bg-black/20 border border-white/5">
                 {NAV.map((t) => {
                   const Icon = t.icon;
                   const active = activeNav === t.id;
@@ -211,18 +211,18 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
                       type="button"
                       onClick={() => handleNavigate(t.id)}
                       className={cn(
-                        'flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all relative',
+                        'flex items-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all relative',
                         active
                           ? 'bg-amber-400 text-ink-950 font-bold shadow-sm'
                           : 'text-mist-300 hover:text-white hover:bg-white/5'
                       )}
                     >
-                      <Icon className="h-4 w-4 shrink-0" />
+                      <Icon className="h-4 w-4 sm:h-4.5 sm:w-4.5 shrink-0" />
                       <span>{t.label}</span>
                       {hasActivityBadge && (
                         <span
                           className={cn(
-                            'px-1.5 py-0.2 rounded-full text-[9px] font-bold',
+                            'px-1.5 py-0.2 rounded-full text-[10px] font-bold',
                             active ? 'bg-black/20 text-ink-950' : 'bg-amber-400 text-ink-950'
                           )}
                         >
@@ -248,15 +248,15 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
               </nav>
 
               {/* Header Right Actions */}
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
                 {/* Take Tour Button */}
                 <button
                   type="button"
                   onClick={() => setTourOpen(true)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-white/10 hover:border-amber-400/40 text-mist-300 hover:text-amber-300 text-xs font-semibold transition-all"
+                  className="flex items-center gap-1.5 px-3 py-1.5 sm:py-2 rounded-xl border border-white/10 hover:border-amber-400/40 text-mist-300 hover:text-amber-300 text-xs sm:text-sm font-semibold transition-all"
                   title="Interactive App Guide"
                 >
-                  <Compass className="h-3.5 w-3.5 text-amber-400" />
+                  <Compass className="h-4 w-4 text-amber-400" />
                   <span className="hidden sm:inline">App Guide</span>
                 </button>
 
@@ -264,27 +264,27 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
                   type="button"
                   onClick={() => setTheme(isLight ? 'dark' : 'light')}
                   aria-label={isLight ? 'Switch to dark theme' : 'Switch to light theme'}
-                  className="guest-chip-btn grid h-8 w-8 place-items-center rounded-full hover:border-amber-400/40"
+                  className="guest-chip-btn grid h-8 w-8 sm:h-9 sm:w-9 place-items-center rounded-full hover:border-amber-400/40"
                   title={isLight ? 'Switch to dark theme' : 'Switch to light theme'}
                 >
-                  {isLight ? <Moon className="h-3.5 w-3.5" aria-hidden /> : <Sun className="h-3.5 w-3.5" aria-hidden />}
+                  {isLight ? <Moon className="h-4 w-4" aria-hidden /> : <Sun className="h-4 w-4" aria-hidden />}
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setLogoutOpen(true)}
                   aria-label="Log out"
-                  className="guest-chip-btn grid h-8 w-8 place-items-center rounded-full hover:border-rose-400/40"
+                  className="guest-chip-btn grid h-8 w-8 sm:h-9 sm:w-9 place-items-center rounded-full hover:border-rose-400/40"
                   title="Logout"
                 >
-                  <LogOut className="h-3.5 w-3.5 text-mist-400 hover:text-rose-400" aria-hidden />
+                  <LogOut className="h-4 w-4 text-mist-400 hover:text-rose-400" aria-hidden />
                 </button>
               </div>
             </header>
 
             {/* MAIN CONTENT AREA */}
             <div ref={scrollRef} className="guest-scroll">
-              <div className="px-3.5 py-4 sm:px-6 lg:px-8">
+              <div className="px-4 sm:px-8 lg:px-12 xl:px-16 py-5 sm:py-7 lg:py-9 max-w-[1540px] mx-auto w-full">
                 <TabPanel tab={tab} subtab={subtab} tabProps={tabProps} />
               </div>
             </div>

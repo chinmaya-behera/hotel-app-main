@@ -149,7 +149,7 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
   }
 
   return (
-    <div className="space-y-4 pb-8">
+    <div className="space-y-6 sm:space-y-8 pb-12 max-w-7xl mx-auto w-full">
       {/* Toast Alert */}
       {toastMessage && (
         <div className="guest-card flex items-start gap-2.5 border-emerald-400/40 bg-emerald-400/10 px-4 py-3 text-xs text-white shadow-lg">
@@ -159,7 +159,7 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
       )}
 
       {/* Header & Filter Pills */}
-      <div className="guest-card p-4 space-y-3">
+      <div className="guest-card p-4 sm:p-5 space-y-3.5">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-sm font-bold text-white flex items-center gap-2">

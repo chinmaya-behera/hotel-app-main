@@ -53,7 +53,7 @@ export function DndSubtab({ room, guestName }: GuestTabProps) {
   }
 
   return (
-    <div className="space-y-5 pb-6">
+    <div className="space-y-6 sm:space-y-8 pb-12 max-w-7xl mx-auto w-full">
       {/* Hero DND Status Card */}
       <div
         className={cn(

@@ -203,7 +203,7 @@ export function LostFoundSection({ room, guestName, onNavigate, initialSubtab }:
   }
 
   return (
-    <div className="space-y-5 pb-8">
+    <div className="space-y-6 sm:space-y-8 pb-12 max-w-7xl mx-auto w-full">
       {/* Success Banner */}
       {successToast && (
         <div className="guest-card flex items-start gap-2.5 border-emerald-400/40 bg-emerald-400/10 px-4 py-3 text-sm text-white">
@@ -339,7 +339,7 @@ export function LostFoundSection({ room, guestName, onNavigate, initialSubtab }:
                 hint="We haven't found an item matching your search. Please file a lost item report below so our team can alert you immediately if it turns up."
               />
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
                 {filteredFoundItems.map((item) => {
                   const isClaimedByMe = item.claimedRoom === room;
                   return (
@@ -348,7 +348,7 @@ export function LostFoundSection({ room, guestName, onNavigate, initialSubtab }:
                       className="guest-card overflow-hidden flex flex-col justify-between hover:border-amber-400/30 transition-all"
                     >
                       {/* Item Preview Header */}
-                      <div className="guest-surface-2 relative h-36 flex items-center justify-center overflow-hidden bg-black/40">
+                      <div className="guest-surface-2 relative h-40 sm:h-44 md:h-48 flex items-center justify-center overflow-hidden bg-black/40">
                         {item.photo ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img

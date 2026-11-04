@@ -29,7 +29,7 @@ export function ProfileSection({ room, guestName, onNavigate, initialSubtab }: G
   ];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6 sm:space-y-8 pb-12 max-w-7xl mx-auto w-full">
       {/* Top 3-segment Navigation Pills */}
       <div className="grid grid-cols-3 gap-1.5 p-1 rounded-2xl bg-black/30 border border-white/5">
         {SUBTABS.map((tab) => {
