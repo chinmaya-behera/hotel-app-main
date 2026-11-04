@@ -188,6 +188,12 @@ export function PortalLoginView() {
     }
   }, [isLight, state.theme]);
 
+  useEffect(() => {
+    DEMO_ACCOUNTS.forEach((r) => {
+      router.prefetch(r.path);
+    });
+  }, [router]);
+
   const activeRole = DEMO_ACCOUNTS.find((r) => r.id === selectedRoleId);
 
   const handleSelectRole = (role: PresetRole) => {

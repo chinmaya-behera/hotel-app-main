@@ -1,0 +1,7 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm --prefix public-preview run build",
+  "outputDirectory": "public-preview/.next",
+  "installCommand": "npm --prefix public-preview install"
+}
+
