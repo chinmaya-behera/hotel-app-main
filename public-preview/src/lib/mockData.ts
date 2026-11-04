@@ -55,6 +55,12 @@ import type {
   DepartmentServicePolicy,
   GuestReminder,
   SafetyAlertRecord,
+  HotelAlert,
+  GuestNotification,
+  GuestFrontDeskMessage,
+  DndHistoryRecord,
+  GuestComplaintRecord,
+  GuestLostItemRecord,
 } from '@/types/demo';
 
 /** Compact "today at a glance" strip on the demo home. All values are sample data. */
@@ -482,7 +488,7 @@ export const seedItems: Record<RoleId, WorkItem[]> = {
       priority: 'vip',
       ref: 'FD-2042',
       createdAt: '09:35',
-      description: 'Flight lands 18:40, 2 guests, 3 suitcases',
+      description: 'Flight LH430 lands at 18:40 (2 guests, 3 bags). Requested executive airport chauffeur pickup.',
       history: [{ at: '09:35', status: 'Received' }],
     },
     {
@@ -498,12 +504,12 @@ export const seedItems: Record<RoleId, WorkItem[]> = {
       owner: 'Front Desk',
       ref: 'FD-2043',
       createdAt: '09:28',
-      description: 'Would like to leave at 15:00',
+      description: 'Requested departure extension to 15:00. Suite 402 is unassigned until tomorrow; housekeeping permits 15:00 release.',
       history: [{ at: '09:28', status: 'Received' }],
     },
     {
       id: 'fd-5',
-      title: 'Guest case · Lost room key',
+      title: 'Replacement Key Card · Room 518',
       meta: 'Walk-in · Priya Nair · Room 518 · Owner: Front Desk',
       status: 'Open',
       chip: 'Case #2041',
@@ -513,6 +519,7 @@ export const seedItems: Record<RoleId, WorkItem[]> = {
       channel: 'Walk-in',
       ref: 'FD-2041',
       createdAt: '09:31',
+      description: 'Guest misplaced RFID key card at Pool Deck. New key card programmed; ready for counter handover confirmation.',
       history: [{ at: '09:31', status: 'Open', note: 'Captured by walk-in' }],
     },
   ],
@@ -797,13 +804,21 @@ export const menuItems: MenuItem[] = [
   { id: 'm12', name: 'Mango Panna Cotta', category: 'Desserts', price: 9, veg: true },
 ];
 
-export const housekeepingCatalog = [
-  { id: 'hk1', name: 'Extra towels', icon: Droplets },
-  { id: 'hk2', name: 'Toiletries refresh', icon: Sparkles },
-  { id: 'hk3', name: 'Extra pillows', icon: Bed },
-  { id: 'hk4', name: 'Extra bedding / blanket', icon: BedDouble },
-  { id: 'hk5', name: 'Bottled water', icon: GlassWater },
-  { id: 'hk6', name: 'Slippers & robe', icon: Footprints },
+export interface HousekeepingCatalogItem {
+  id: string;
+  name: string;
+  icon: any;
+  desc?: string;
+  image?: string;
+}
+
+export const housekeepingCatalog: readonly HousekeepingCatalogItem[] = [
+  { id: 'hk1', name: 'Extra towels', icon: Droplets, desc: 'Fresh, plush luxury cotton bath & hand towels', image: '/images/amenities/extra-towels.jpg' },
+  { id: 'hk2', name: 'Toiletries refresh', icon: Sparkles, desc: 'Botanical shampoo, conditioner & artisan soap bar', image: '/images/amenities/toiletries-refresh.svg' },
+  { id: 'hk3', name: 'Extra pillows', icon: Bed, desc: 'Hypoallergenic feather-down & memory foam pillows', image: '/images/amenities/extra-pillows.svg' },
+  { id: 'hk4', name: 'Extra bedding / blanket', icon: BedDouble, desc: '400TC Egyptian cotton duvet & cozy throw blanket', image: '/images/amenities/extra-bedding.svg' },
+  { id: 'hk5', name: 'Bottled water', icon: GlassWater, desc: 'Chilled premium glass-bottled mineral water', image: '/images/amenities/bottled-water.svg' },
+  { id: 'hk6', name: 'Slippers & robe', icon: Footprints, desc: 'Soft velour slippers & plush waffle bathrobe', image: '/images/amenities/slippers-robe.svg' },
 ] as const;
 
 export const maintenanceCategories = [
@@ -3004,12 +3019,13 @@ export const seedSafetyAlerts: SafetyAlertRecord[] = [
   {
     id: 'alert-3',
     ref: 'SFT-003',
-    title: 'Basement Utility Substation Thermal Fluctuation',
+    title: 'West Wing Elevator B Routine Inspection',
     priority: 'critical',
-    location: 'Sub-level B2 Electrical Plant',
+    priority: 'warning',
+    location: 'West Wing Guest Elevators (Floors 1–5)',
     affectedFloors: ['B2'],
     incidentType: 'fire_sensor',
-    description: 'Thermal camera sensor flagged 4°C above baseline in breaker cabinet 3. Security patrol dispatched to investigate before broadcast.',
+    description: 'Elevator B offline for scheduled hydraulic sensor recalibration (11:00–12:00). Guests routed to Panoramic Core Elevators.',
     status: 'draft_pending_validation',
     reportedBy: 'Inspector Roy (EMP-0108)',
     reportedAt: 'Today, 16:05',
@@ -3020,6 +3036,257 @@ export const seedSafetyAlerts: SafetyAlertRecord[] = [
   },
 ];
 
+/* ---- Phase 2 Seed: Hotel Alerts ---- */
+export const seedHotelAlerts: HotelAlert[] = [
+  {
+    id: 'alt-1',
+    ref: 'ALT-2026-001',
+    title: 'Pool Deck Lightning & Coastal Wind Advisory',
+    description: 'Meteorological advisory in effect until 17:00. Infinity Pool deck loungers secured. Indoor heated lap pool and hydrotherapy circuit on Floor 2 remain open.',
+    category: 'Weather Alerts',
+    severity: 'High',
+    timestamp: 'Today, 11:20',
+    location: 'Floor 1 Pool Terrace & Beachfront Boardwalk',
+    affectedFloors: ['1'],
+    guidance: 'Guests are advised to use the enclosed Skybridge between Wings A and B. Outdoor cabana bookings rescheduled complimentary.',
+    active: true,
+  },
+  {
+    id: 'alt-2',
+    ref: 'ALT-2026-002',
+    title: 'West Wing Guest Elevator B Calibration',
+    description: 'Elevator B is undergoing planned routine hydraulic recalibration. Core Panoramic Elevators and Service Lift 4 are running on accelerated dispatch.',
+    category: 'Safety Alerts',
+    severity: 'Medium',
+    timestamp: 'Today, 08:30',
+    location: 'West Wing Elevator Foyer (Floors 1–5)',
+    affectedFloors: ['1', '2', '3', '4', '5'],
+    guidance: 'Please expect an extra 60–90 seconds during peak morning departure hours (10:00–11:30 AM).',
+    active: true,
+  },
+  {
+    id: 'alt-3',
+    ref: 'ALT-2026-003',
+    title: 'Private Degustation Dinner in Amber Lounge',
+    description: 'Amber Horizon Lounge on Level 5 will be reserved for a private diplomat banquet between 19:30 and 22:30. In-room dining and The Azure Bistro remain fully available.',
+    category: 'Hotel Announcements',
+    severity: 'Low',
+    timestamp: 'Today, 09:00',
+    location: 'Level 5 Rooftop Lounge',
+    affectedFloors: ['5'],
+    guidance: 'Complimentary champagne cocktails served at Palm Courtyard for all in-house guests from 18:00 to 19:30.',
+    active: true,
+  },
+  {
+    id: 'alt-4',
+    ref: 'ALT-2026-004',
+    title: 'Scheduled Fibre Network Redundancy Switchover',
+    description: 'IT & Systems will perform a 10-minute seamless fibre optic core test between 03:00 and 03:15 AM tomorrow. Wi-Fi and streaming services will maintain backup cellular failover.',
+    category: 'Important Operational Alerts',
+    severity: 'Low',
+    timestamp: 'Yesterday, 18:00',
+    location: 'Entire Property & In-Room Wi-Fi',
+    guidance: 'No disruption anticipated. Emergency VoIP lines and Front Desk dial 0 remain 100% active.',
+    active: true,
+  },
+];
 
+/* ---- Phase 2 Seed: Guest Personal Notifications ---- */
+export const seedGuestNotifications: GuestNotification[] = [
+  {
+    id: 'gnotif-1',
+    room: '402',
+    category: 'Service Request Updates',
+    title: 'Housekeeping Request Accepted',
+    message: 'Your request for hypoallergenic pillows and fresh towels has been assigned to attendant Vikram Singh. Estimated arrival in ~5 minutes.',
+    date: 'Today',
+    time: '09:42',
+    read: false,
+    targetTab: 'services',
+    targetSubtab: 'book',
+    targetId: 'HK-402-001',
+  },
+  {
+    id: 'gnotif-2',
+    room: '402',
+    category: 'Reminder Updates',
+    title: 'Wake-Up Call Scheduled',
+    message: 'Front Desk has logged your morning wake-up call for 06:30 AM with an airport limousine reminder.',
+    date: 'Today',
+    time: '09:15',
+    read: false,
+    targetTab: 'services',
+    targetSubtab: 'reminders',
+    targetId: 'rem-1',
+  },
+  {
+    id: 'gnotif-3',
+    room: '402',
+    category: 'Front Desk Messages',
+    title: 'Front Desk Reply: Late Checkout',
+    message: 'Front Desk Coordinator Maya Lin responded: Late checkout until 14:00 has been granted complimentary for your stay.',
+    date: 'Today',
+    time: '08:50',
+    read: true,
+    targetTab: 'services',
+    targetSubtab: 'front_desk',
+    targetId: 'msg-402-1',
+  },
+  {
+    id: 'gnotif-4',
+    room: '402',
+    category: 'Complaint Updates',
+    title: 'Complaint Under Review',
+    message: 'Duty Manager Marcus Vance is reviewing ticket CR-402-001 regarding the bathroom water pressure. Engineering has been dispatched.',
+    date: 'Today',
+    time: '08:20',
+    read: true,
+    targetTab: 'complaints',
+    targetId: 'CR-402-001',
+  },
+  {
+    id: 'gnotif-5',
+    room: '402',
+    category: 'Payment/Billing Updates',
+    title: 'Payment Received · ₹15,000',
+    message: 'Advance reservation deposit posted successfully to your folio against Card ending in •••• 4242.',
+    date: 'Yesterday',
+    time: '18:45',
+    read: true,
+    targetTab: 'profile',
+    targetSubtab: 'folio',
+  },
+  {
+    id: 'gnotif-6',
+    room: '402',
+    category: 'Booking Updates',
+    title: 'Stay Verified & Mobile Key Active',
+    message: 'Welcome to The Grand ADP. Your Deluxe King Suite 402 is verified and your digital QR room pass is live.',
+    date: 'Wed 21 Oct',
+    time: '14:00',
+    read: true,
+    targetTab: 'profile',
+    targetSubtab: 'bookings',
+  },
+  {
+    id: 'gnotif-7',
+    room: '402',
+    category: 'General Announcements',
+    title: 'Complimentary Coastal Sunset Yoga',
+    message: 'Join our wellness master on the Ocean Breeze Lawn at 17:30. Mats and herbal refreshments provided.',
+    date: 'Wed 21 Oct',
+    time: '10:00',
+    read: true,
+    targetTab: 'services',
+    targetSubtab: 'book',
+  },
+];
 
+/* ---- Phase 2 Seed: Direct Front Desk Messages ---- */
+export const seedFrontDeskMessages: GuestFrontDeskMessage[] = [
+  {
+    id: 'msg-402-1',
+    room: '402',
+    guestName: 'Elena Rostova',
+    bookingRef: 'BK-7740',
+    subject: 'Late checkout & private airport limousine',
+    message: 'Hello Front Desk, could I please request a late checkout tomorrow around 14:00? Also I would like assistance arranging a private car to Goa International Airport.',
+    instructions: 'Preference for a quiet Mercedes sedan if available. Traveling with 2 standard suitcases.',
+    status: 'Responded',
+    createdAt: 'Today, 08:35',
+    replies: [
+      {
+        id: 'rep-1',
+        sender: 'front_desk',
+        senderName: 'Maya Lin (Front Desk Lead)',
+        text: 'Good morning Elena. We are delighted to extend your checkout until 14:00 complimentary in recognition of your VIP stay. For your airport transfer, we have reserved our chauffeur-driven Mercedes E-Class for 13:45 at ₹3,800. May I confirm this booking for you?',
+        at: 'Today, 08:50',
+      },
+      {
+        id: 'rep-2',
+        sender: 'guest',
+        senderName: 'Elena Rostova',
+        text: 'That is wonderful news, thank you so much Maya! Yes, please confirm the Mercedes for 13:45. Charge it directly to my room folio.',
+        at: 'Today, 09:05',
+      },
+      {
+        id: 'rep-3',
+        sender: 'front_desk',
+        senderName: 'Maya Lin (Front Desk Lead)',
+        text: 'Confirmed! Chauffeur Ramesh will be waiting at the lobby porte-cochère at 13:45. Your luggage will be collected from Room 402 at 13:30. Have a relaxing stay!',
+        at: 'Today, 09:12',
+      },
+    ],
+  },
+];
+
+/* ---- Phase 2 Seed: DND History Log ---- */
+export const seedDndHistory: DndHistoryRecord[] = [
+  {
+    id: 'dnd-1',
+    room: '402',
+    action: 'activated',
+    duration: 'Until 08:00 AM',
+    instructions: 'Please do not ring bell or knock before 08:00 AM.',
+    timestamp: 'Today, 00:30',
+    updatedBy: 'Guest (Mobile Portal)',
+  },
+  {
+    id: 'dnd-2',
+    room: '402',
+    action: 'deactivated',
+    duration: 'Manual release',
+    instructions: 'Turned off by guest.',
+    timestamp: 'Today, 08:05',
+    updatedBy: 'Guest (Mobile Portal)',
+  },
+];
+
+/* ---- Phase 2 Seed: Guest Complaints ---- */
+export const seedGuestComplaints: GuestComplaintRecord[] = [
+  {
+    id: 'cmp-1',
+    complaintId: 'CMP-402-001',
+    room: '402',
+    guestName: 'Elena Rostova',
+    bookingRef: 'BK-7740',
+    category: 'Maintenance',
+    title: 'AC unit condensation and faint whistling',
+    description: 'The master bedroom AC vent has a slight whistling noise when cooling and there are small water droplets forming on the outer louvre grill.',
+    submittedAt: 'Today, 08:15',
+    status: 'In Progress',
+    assignedTo: 'Vikram Singh (Engineering)',
+    responseRemarks: 'Duty Manager Marcus Vance reviewed. Technician Vikram dispatched with replacement filter and coil sealant. Expected resolution by 11:30 AM.',
+    history: [
+      { at: '08:15', status: 'Submitted', note: 'Logged by guest via digital portal' },
+      { at: '08:20', status: 'Under Review', note: 'Reviewed by Front Desk Lead Maya Lin' },
+      { at: '08:35', status: 'Assigned', note: 'Dispatched to Engineering Lead Vikram Singh' },
+      { at: '08:45', status: 'In Progress', note: 'Technician on site inspecting vent louvre' },
+    ],
+  },
+];
+
+/* ---- Phase 2 Seed: Guest Lost & Found Reports ---- */
+export const seedGuestLostReports: GuestLostItemRecord[] = [
+  {
+    id: 'lr-1',
+    ref: 'LF-402-001',
+    room: '402',
+    guestName: 'Elena Rostova',
+    guestPhone: '+91 98765 43210',
+    itemName: 'Gold Montblanc Rollerball Pen',
+    category: 'Personal Care / Stationery',
+    description: 'Black precious resin with gold-coated trim. Clip has custom engraving initials "E.R." in cursive.',
+    dateLost: 'Yesterday (22 Oct)',
+    timeLost: 'Around 20:30',
+    lastLocation: 'Azure Horizon Lounge, Table 14 near the terrace',
+    status: 'Under Investigation',
+    submittedAt: 'Today, 08:45',
+    staffNotes: 'Security patrol notified to inspect Amber Lounge seating booths.',
+    history: [
+      { at: '08:45', status: 'Reported', note: 'Report logged by guest' },
+      { at: '09:00', status: 'Under Investigation', note: 'Front Desk cross-referencing recent night shift turn-in log' },
+    ],
+  },
+];
 

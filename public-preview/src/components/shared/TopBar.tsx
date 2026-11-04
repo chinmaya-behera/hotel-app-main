@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { ServiceAuthorityModal } from '@/components/shared/ServiceAuthorityModal';
+import { GestureGuideModal } from '@/components/shared/GestureGuideModal';
 import { useDemo } from '@/lib/store';
 import { HOME_ACCENT, quickLinks, roles, roleById } from '@/lib/roles';
 import { accentVars, cn } from '@/lib/utils';
@@ -38,7 +39,7 @@ interface TopBarProps {
 
 export function TopBar({ active, showRail = true }: TopBarProps) {
   const router = useRouter();
-  const { state, reset, setTheme, markNotificationRead, clearAllNotifications } = useDemo();
+  const { state, reset, setTheme, markNotificationRead, clearAllNotifications, gestureGuideOpen, setGestureGuideOpen } = useDemo();
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
   const [policiesModalOpen, setPoliciesModalOpen] = useState(false);
   const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
@@ -551,7 +552,16 @@ export function TopBar({ active, showRail = true }: TopBarProps) {
                   {isLight ? <Moon className="h-4 w-4" aria-hidden /> : <Sun className="h-4 w-4" aria-hidden />}
                 </button>
 
-
+                {/* Gesture Guide Emoji Button (Only emoji, no text) */}
+                <button
+                  type="button"
+                  onClick={() => setGestureGuideOpen(true)}
+                  className="grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-base transition-all hover:border-amber-400/40 hover:bg-amber-400/10 hover:scale-105 active:scale-95 cursor-pointer"
+                  title="Gesture & Keyboard Shortcuts"
+                  aria-label="Gesture and keyboard shortcut instructions"
+                >
+                  🖐️
+                </button>
 
                 {/* Logout Button */}
                 <button
@@ -679,6 +689,11 @@ export function TopBar({ active, showRail = true }: TopBarProps) {
           roleId={roleId}
         />
       )}
+      {/* Reusable Gesture & Shortcut Guide Modal */}
+      <GestureGuideModal
+        isOpen={gestureGuideOpen}
+        onClose={() => setGestureGuideOpen(false)}
+      />
     </>
   );
 }

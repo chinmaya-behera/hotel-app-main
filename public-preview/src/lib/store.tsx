@@ -11,6 +11,8 @@ import {
   type ReactNode,
 } from 'react';
 import { CircleCheck } from 'lucide-react';
+import { INITIAL_DINING_CATEGORIES, INITIAL_DINING_MENU } from '@/components/guest/diningData';
+import type { DiningMenuItem, DietaryType, AllergenType, PortionOption, MenuItemAddon } from '@/types/demo';
 import {
   folioSeed,
   frontDeskSeed,
@@ -77,7 +79,18 @@ import type {
   GuestReminder,
   SafetyAlertRecord,
   SafetyAlertStatus,
-} from '@/types/demo';
+  Tone,
+  GuestMessageRecord,
+  DndHistoryRecord,
+  GuestFrontDeskMessage,
+  GuestComplaintRecord,
+  GuestLostItemRecord,
+  GuestNotification,
+  HotelAlert,
+  GuestFrontDeskReply,
+  ComplaintCase,
+  ComplaintCategory,
+  } from '@/types/demo';
 
 const STORAGE_KEY = 'grand-azure-demo-v1';
 
@@ -116,6 +129,8 @@ function seedState(): DemoState {
     departmentPolicies: seedDepartmentPolicies,
     guestReminders: seedGuestReminders,
     safetyAlerts: seedSafetyAlerts,
+    diningMenu: INITIAL_DINING_MENU,
+    diningCategories: INITIAL_DINING_CATEGORIES,
   }) as DemoState;
 }
 
@@ -140,6 +155,7 @@ export interface GuestRequestInput {
   priority?: WorkItem['priority'];
   dnd?: boolean;
   photoAttached?: boolean;
+  photoUrl?: string;
   chip?: string;
   tone?: WorkItem['tone'];
   /** optional immediate charge posted to the room folio (e.g. a spa booking) */
@@ -159,6 +175,13 @@ interface DemoApi {
   setTheme: (theme: ThemeMode) => void;
   submitGuestRequest: (input: GuestRequestInput) => string;
   placeRoomServiceOrder: (room: string, lines: OrderLine[], note?: string) => string;
+  placeDiningOrder: (room: string, lines: OrderLine[], note?: string) => string;
+  addDiningMenuItem: (item: Omit<DiningMenuItem, 'id'>) => string;
+  updateDiningMenuItem: (id: string, updates: Partial<DiningMenuItem>) => void;
+  deleteDiningMenuItem: (id: string) => void;
+  toggleDiningMenuItemAvailability: (id: string) => void;
+  addDiningCategory: (category: string) => void;
+  removeDiningCategory: (category: string) => void;
   cancelGuestItem: (roleId: RoleId, itemId: string) => void;
   submitGuestFeedback: (roleId: RoleId, itemId: string, rating: number, comment?: string) => void;
   disputeFolioCharge: (room: string, lineId: string, reason: string) => void;
@@ -274,7 +297,13 @@ interface DemoApi {
   reviewFinancialCompensation: (requestId: string, action: 'approve' | 'reject', comments: string) => void;
   acceptSupervisorEscalatedTask: (taskId: string, managerNotes: string, actionType: 'resolve' | 'reject' | 'escalate_gm') => void;
   /** Phase 3: Staff & Shift Scheduling */
-  updateStaffShiftSchedule: (scheduleId: string, shiftType: 'Morning' | 'Evening' | 'Night', floorZone: string, status?: ShiftScheduleRecord['status'], notes?: string) => void;
+  updateStaffShiftSchedule: (
+    scheduleId: string,
+    shiftTypeOrUpdates: 'Morning' | 'Evening' | 'Night' | Partial<ShiftScheduleRecord>,
+    floorZone?: string,
+    status?: ShiftScheduleRecord['status'],
+    notes?: string
+  ) => void;
   createStaffShiftSchedule: (schedule: Omit<ShiftScheduleRecord, 'id'>) => void;
   /** Phase 3: Department Service Policies */
   saveDepartmentServicePolicy: (policy: DepartmentServicePolicy) => void;
@@ -297,6 +326,41 @@ interface DemoApi {
   broadcastSafetyAlert: (alertId: string) => void;
   resolveSafetyAlert: (alertId: string, notes?: string) => void;
   acknowledgeSafetyAlert: (alertId: string, roleOrUser: string) => void;
+  updateDndStatus: (room: string, active: boolean, duration?: string, instructions?: string) => void;
+  submitGuestMessageToFrontDesk: (room: string, subject: string, message: string, instructions?: string) => string;
+  replyGuestMessage: (messageId: string, replyText: string, sender: 'guest' | 'front_desk') => void;
+  submitGuestComplaint: (input: {
+    room: string;
+    guestName: string;
+    title: string;
+    category: ComplaintCategory;
+    description: string;
+    photoUrl?: string;
+  }) => string;
+  submitGuestLostItemReport: (input: {
+    room: string;
+    guestName: string;
+    itemName: string;
+    category: string;
+    description: string;
+    dateLost?: string;
+    lastLocation?: string;
+    photoUrl?: string;
+    additionalInfo?: string;
+  }) => string;
+  submitGuestFoundItemClaim: (input: {
+    room: string;
+    guestName: string;
+    itemId: string;
+    itemName: string;
+    message: string;
+  }) => string;
+  markGuestNotificationRead: (id: string) => void;
+  markAllGuestNotificationsRead: (room: string) => void;
+  updateGuestProfile: (room: string, profile: { name?: string; email?: string; phone?: string; preferences?: Partial<GuestPreferences> }) => void;
+  gestureGuideOpen: boolean;
+  setGestureGuideOpen: (open: boolean) => void;
+  resetActionableExamples: () => void;
 }
 
 export function matchesFloorZone(floorZone: string | undefined, taskFloor: number | undefined): boolean {
@@ -334,7 +398,9 @@ const DEPT_PREFIX: Record<string, string> = {
   maintenance: 'MX',
   spa: 'SP',
   concierge: 'CC',
-  room_service: 'RS',
+  recreation: 'REC',
+  room_service: 'DIN',
+  dining: 'DIN',
   folio: 'FD',
   lost_found: 'LF',
 };
@@ -352,16 +418,18 @@ const GUEST_REQUEST_LIFECYCLE: LifecycleStep[] = [
 ];
 
 const ORDER_LIFECYCLE: LifecycleStep[] = [
-  { status: 'Preparing', delayMs: 5000, chip: 'In the kitchen', tone: 'info' },
-  { status: 'Ready', delayMs: 14000, chip: 'Ready for dispatch', tone: 'info' },
-  { status: 'On the way', delayMs: 22000, chip: 'Runner dispatched', tone: 'warning' },
-  { status: 'Delivered', delayMs: 34000, chip: 'Delivered', tone: 'success' },
+  { status: 'Accepted', delayMs: 4000, chip: 'Kitchen accepted', tone: 'info' },
+  { status: 'Preparing', delayMs: 12000, chip: 'Chef preparing', tone: 'info' },
+  { status: 'Ready', delayMs: 22000, chip: 'Plated & packaged', tone: 'info' },
+  { status: 'Out for Delivery', delayMs: 32000, chip: 'Runner dispatched', tone: 'warning' },
+  { status: 'Delivered', delayMs: 46000, chip: 'Delivered to room', tone: 'success' },
 ];
 
 export function DemoProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<DemoState>(seedState);
   const [hydrated, setHydrated] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [gestureGuideOpen, setGestureGuideOpen] = useState(false);
   const stateRef = useRef(state);
   stateRef.current = state;
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -417,6 +485,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           departmentPolicies: saved.departmentPolicies ?? base.departmentPolicies,
           guestReminders: saved.guestReminders ?? base.guestReminders,
           safetyAlerts: saved.safetyAlerts ?? base.safetyAlerts,
+          diningMenu: saved.diningMenu ?? base.diningMenu,
+          diningCategories: saved.diningCategories ?? base.diningCategories,
         });
       }
     } catch {
@@ -482,12 +552,12 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         nextItems[roleId] = nextItems[roleId].map((i) =>
           i.id === itemId
             ? {
-                ...i,
-                status: t.next,
-                selfRequested: t.marksSelf ? true : i.selfRequested,
-                blockerReason: t.next === 'Blocked' ? (reason ?? i.blockerReason) : (t.next === 'In progress' ? undefined : i.blockerReason),
-                history: [...(i.history ?? []), historyEntry],
-              }
+              ...i,
+              status: t.next,
+              selfRequested: t.marksSelf ? true : i.selfRequested,
+              blockerReason: t.next === 'Blocked' ? (reason ?? i.blockerReason) : (t.next === 'In progress' ? undefined : i.blockerReason),
+              history: [...(i.history ?? []), historyEntry],
+            }
             : i,
         );
 
@@ -611,6 +681,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         createdAt,
         dnd: input.dnd,
         photoAttached: input.photoAttached,
+        photoUrl: input.photoUrl,
         owner: isConcierge ? 'Front Desk' : undefined,
         history: [{ at: createdAt, status: isConcierge ? 'Received' : 'Unassigned', note: isConcierge ? 'Awaiting Front Desk routing' : 'Placed in department queue (open pool)' }],
       };
@@ -768,14 +839,14 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       const updateTask = (t: WorkItem) =>
         t.id === itemId || (item.ref && t.ref === item.ref)
           ? {
-              ...t,
-              status: 'Reassignment requested',
-              chip: 'Pending supervisor review',
-              tone: 'warning' as const,
-              reassignPending: true,
-              reassignReason: reason,
-              history: [...(t.history ?? []), historyEntry],
-            }
+            ...t,
+            status: 'Reassignment requested',
+            chip: 'Pending supervisor review',
+            tone: 'warning' as const,
+            reassignPending: true,
+            reassignReason: reason,
+            history: [...(t.history ?? []), historyEntry],
+          }
           : t;
 
       return {
@@ -822,12 +893,12 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           task_fulfiller: prev.items.task_fulfiller.map((i) =>
             i.id === fulfillerItemId
               ? {
-                  ...i,
-                  status: approved ? 'Completed' : 'Assigned',
-                  chip: approved ? 'Reassigned' : 'Reassignment declined',
-                  reassignPending: false,
-                  history: [...(i.history ?? []), historyEntry],
-                }
+                ...i,
+                status: approved ? 'Completed' : 'Assigned',
+                chip: approved ? 'Reassigned' : 'Reassignment declined',
+                reassignPending: false,
+                history: [...(i.history ?? []), historyEntry],
+              }
               : i,
           ),
           department_supervisor: prev.items.department_supervisor.map((i) =>
@@ -997,8 +1068,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
       const taskDept = task.department?.toLowerCase() ||
         (task.category === 'housekeeping' ? 'housekeeping' :
-         task.category === 'maintenance' ? 'maintenance' :
-         task.category === 'room_service' ? 'food & beverage' : 'operations');
+          task.category === 'maintenance' ? 'maintenance' :
+            task.category === 'room_service' ? 'food & beverage' : 'operations');
 
       const taskFloor = task.floor || (task.room ? parseInt(task.room[0], 10) : undefined);
 
@@ -1469,16 +1540,16 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const placeRoomServiceOrder = useCallback<DemoApi['placeRoomServiceOrder']>(
     (room, lines, note) => {
       const total = Math.round(lines.reduce((sum, l) => sum + l.price * l.qty, 0) * 100) / 100;
-      const ref = nextRef('RS', room);
+      const ref = nextRef('DIN', room);
       const id = uid();
       const createdAt = nowLabel();
       const summary = lines.map((l) => `${l.qty}× ${l.name}`).join(', ');
       const newItem: WorkItem = {
         id,
-        title: `Room service order ${ref}`,
-        meta: `F&B · ${summary} · Room ${room}`,
-        status: 'Received',
-        chip: 'Just now',
+        title: `Dining order ${ref}`,
+        meta: `Dining · ${summary} · Room ${room}`,
+        status: 'Order Placed',
+        chip: 'Order Placed',
         tone: 'info',
         room,
         guest: true,
@@ -1488,15 +1559,19 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         createdAt,
         orderLines: lines,
         amount: total,
-        history: [{ at: createdAt, status: 'Received' }],
+        history: [{ at: createdAt, status: 'Order Placed' }],
       };
 
       setState((prev) => ({
         ...prev,
-        items: { ...prev.items, department_dispatcher: [newItem, ...prev.items.department_dispatcher] },
+        items: {
+          ...prev.items,
+          department_dispatcher: [newItem, ...prev.items.department_dispatcher],
+          department_dispatcher_supervisor: [newItem, ...(prev.items.department_dispatcher_supervisor ?? [])],
+        },
         folios: {
           ...prev.folios,
-          [room]: [...(prev.folios[room] ?? []), { id: `fo-${id}`, label: `Room service · ${summary}`, amount: total, date: createdAt }],
+          [room]: [...(prev.folios[room] ?? []), { id: `fo-${id}`, label: `Dining · ${summary}`, amount: total, date: createdAt }],
         },
         feed: [
           { id: uid(), at: createdAt, role: 'Guest Portal', text: `${ref} placed · ${summary} · Room ${room}` },
@@ -1504,11 +1579,100 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         ].slice(0, 30),
       }));
 
-      notify(`Order placed · Reference ${ref}`);
-      scheduleLifecycle('department_dispatcher', id, ref, `Order ${ref}`, ORDER_LIFECYCLE);
+      notify(`Dining order placed · Reference ${ref}`);
+      scheduleLifecycle('department_dispatcher', id, ref, `Dining ${ref}`, ORDER_LIFECYCLE);
       return ref;
     },
     [notify, scheduleLifecycle],
+  );
+
+  const placeDiningOrder = placeRoomServiceOrder;
+
+  const addDiningMenuItem = useCallback<DemoApi['addDiningMenuItem']>(
+    (item) => {
+      const id = `din-${Date.now().toString().slice(-6)}`;
+      const newItem: DiningMenuItem = { ...item, id };
+      setState((prev) => ({
+        ...prev,
+        diningMenu: [newItem, ...(prev.diningMenu ?? [])],
+        feed: [
+          {
+            id: uid(),
+            at: nowLabel(),
+            role: 'F&B Manager',
+            text: `Added dish: "${newItem.name}" (${newItem.category} · ₹${newItem.price})`,
+          },
+          ...prev.feed,
+        ].slice(0, 30),
+      }));
+      notify(`Dish "${newItem.name}" added to Dining menu`);
+      return id;
+    },
+    [notify],
+  );
+
+  const updateDiningMenuItem = useCallback<DemoApi['updateDiningMenuItem']>(
+    (id, updates) => {
+      setState((prev) => ({
+        ...prev,
+        diningMenu: (prev.diningMenu ?? []).map((item) =>
+          item.id === id ? { ...item, ...updates } : item,
+        ),
+      }));
+      notify('Dish details updated');
+    },
+    [notify],
+  );
+
+  const deleteDiningMenuItem = useCallback<DemoApi['deleteDiningMenuItem']>(
+    (id) => {
+      setState((prev) => ({
+        ...prev,
+        diningMenu: (prev.diningMenu ?? []).filter((item) => item.id !== id),
+      }));
+      notify('Dish removed from menu');
+    },
+    [notify],
+  );
+
+  const toggleDiningMenuItemAvailability = useCallback<DemoApi['toggleDiningMenuItemAvailability']>(
+    (id) => {
+      setState((prev) => ({
+        ...prev,
+        diningMenu: (prev.diningMenu ?? []).map((item) =>
+          item.id === id ? { ...item, isAvailable: !item.isAvailable } : item,
+        ),
+      }));
+    },
+    [],
+  );
+
+  const addDiningCategory = useCallback<DemoApi['addDiningCategory']>(
+    (category) => {
+      const clean = category.trim();
+      if (!clean) return;
+      setState((prev) => {
+        const existing = prev.diningCategories ?? [];
+        if (existing.includes(clean)) return prev;
+        return {
+          ...prev,
+          diningCategories: [...existing, clean],
+        };
+      });
+      notify(`Category "${clean}" added`);
+    },
+    [notify],
+  );
+
+  const removeDiningCategory = useCallback<DemoApi['removeDiningCategory']>(
+    (category) => {
+      setState((prev) => ({
+        ...prev,
+        diningCategories: (prev.diningCategories ?? []).filter((c) => c !== category),
+      }));
+      notify(`Category "${category}" removed`);
+    },
+    [notify],
   );
 
   const cancelGuestItem = useCallback<DemoApi['cancelGuestItem']>(
@@ -1918,12 +2082,12 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         const updatedRequests = (prev.resourceRequests ?? []).map((r) =>
           r.id === requestId
             ? {
-                ...r,
-                status: action === 'approve' ? ('approved' as const) : ('rejected' as const),
-                reviewedBy: 'Marcus Vance (Duty Manager)',
-                reviewedAt: timestamp,
-                reviewNotes: reviewNotes || (action === 'approve' ? 'Approved by Duty Operations' : 'Declined by Duty Operations'),
-              }
+              ...r,
+              status: action === 'approve' ? ('approved' as const) : ('rejected' as const),
+              reviewedBy: 'Marcus Vance (Duty Manager)',
+              reviewedAt: timestamp,
+              reviewNotes: reviewNotes || (action === 'approve' ? 'Approved by Duty Operations' : 'Declined by Duty Operations'),
+            }
             : r,
         );
 
@@ -2074,11 +2238,11 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         const updatedComplaints = prev.frontDesk.complaints.map((item) =>
           item.id === c.id
             ? {
-                ...item,
-                comp: compAmount,
-                compApplied: withinLimit && compAmount > 0 ? true : item.compApplied,
-                managerNotes: resolutionNotes,
-              }
+              ...item,
+              comp: compAmount,
+              compApplied: withinLimit && compAmount > 0 ? true : item.compApplied,
+              managerNotes: resolutionNotes,
+            }
             : item,
         );
 
@@ -2107,18 +2271,17 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         const updatedFolios =
           withinLimit && compAmount > 0
             ? {
-                ...prev.folios,
-                [c.room]: [
-                  ...(prev.folios[c.room] ?? []),
-                  {
-                    id: uid(),
-                    at: timestamp,
-                    desc: `Service recovery credit (Approved by Duty Manager)`,
-                    amount: -compAmount,
-                    room: c.room,
-                  },
-                ],
-              }
+              ...prev.folios,
+              [c.room]: [
+                ...(prev.folios[c.room] ?? []),
+                {
+                  id: uid(),
+                  date: timestamp,
+                  label: `Service recovery credit (Approved by Duty Manager)`,
+                  amount: -compAmount,
+                },
+              ],
+            }
             : prev.folios;
 
         return {
@@ -2224,10 +2387,10 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         const updatedIncidents = (prev.incidents ?? []).map((i) =>
           i.id === inc.id
             ? {
-                ...i,
-                status,
-                timeline: [...i.timeline, timelineEntry],
-              }
+              ...i,
+              status,
+              timeline: [...i.timeline, timelineEntry],
+            }
             : i,
         );
 
@@ -2273,22 +2436,22 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           action === 'approve'
             ? 'Approved'
             : action === 'reject'
-            ? 'Rejected'
-            : 'Info Requested';
+              ? 'Rejected'
+              : 'Info Requested';
 
         const nextChip =
           action === 'approve'
             ? 'GM Approved'
             : action === 'reject'
-            ? 'Declined by GM'
-            : 'Pending Clarification';
+              ? 'Declined by GM'
+              : 'Pending Clarification';
 
         const nextTone =
           action === 'approve'
             ? ('success' as const)
             : action === 'reject'
-            ? ('danger' as const)
-            : ('info' as const);
+              ? ('danger' as const)
+              : ('info' as const);
 
         const historyEntry = {
           at: timestamp,
@@ -2299,19 +2462,19 @@ export function DemoProvider({ children }: { children: ReactNode }) {
             (action === 'approve'
               ? 'Authorized by Executive General Manager Priya Nair'
               : action === 'reject'
-              ? 'Declined by Executive General Manager'
-              : 'Clarification requested on budget impact'),
+                ? 'Declined by Executive General Manager'
+                : 'Clarification requested on budget impact'),
         };
 
         const updatedList = list.map((i) =>
           i.id === itemId
             ? {
-                ...i,
-                status: nextStatus,
-                chip: nextChip,
-                tone: nextTone,
-                history: [...(i.history ?? []), historyEntry],
-              }
+              ...i,
+              status: nextStatus,
+              chip: nextChip,
+              tone: nextTone,
+              history: [...(i.history ?? []), historyEntry],
+            }
             : i,
         );
 
@@ -2416,12 +2579,12 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         const updatedList = list.map((i) =>
           i.id === itemId
             ? {
-                ...i,
-                history: [
-                  ...(i.history ?? []),
-                  { at: timestamp, status: 'Executive Note', note: `[Priya Nair - GM] ${comment}` },
-                ],
-              }
+              ...i,
+              history: [
+                ...(i.history ?? []),
+                { at: timestamp, status: 'Executive Note', note: `[Priya Nair - GM] ${comment}` },
+              ],
+            }
             : i,
         );
 
@@ -2458,12 +2621,12 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           updatedIncidents = updatedIncidents.map((i) =>
             i.id === targetId || i.ref === targetId
               ? {
-                  ...i,
-                  timeline: [
-                    ...i.timeline,
-                    { at: timestamp, text: `[Executive Directive - Priya Nair] ${directiveText}` },
-                  ],
-                }
+                ...i,
+                timeline: [
+                  ...i.timeline,
+                  { at: timestamp, text: `[Executive Directive - Priya Nair] ${directiveText}` },
+                ],
+              }
               : i,
           );
         }
@@ -3136,8 +3299,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
             paymentMethod === 'Cash'
               ? 'Front Desk Cash Register'
               : paymentMethod === 'UPI'
-              ? 'Razorpay Enterprise'
-              : 'HDFC Merchant Gateway',
+                ? 'Razorpay Enterprise'
+                : 'HDFC Merchant Gateway',
           notes: notes || 'Manual payment recorded via Financial Operator console',
           isReconciled: true,
         };
@@ -3194,8 +3357,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         outstandingBalance <= 0
           ? 'Paid'
           : invInput.paidAmount > 0
-          ? 'Partially Paid'
-          : 'Unpaid';
+            ? 'Partially Paid'
+            : 'Unpaid';
 
       const newInvoice: FinanceInvoice = {
         ...invInput,
@@ -3914,8 +4077,9 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         room: input.room,
         floor,
         department: input.department,
-        category: input.category as any,
-        priority: input.priority,
+        category: (input.category as WorkItem['category']) || 'maintenance',
+        priority: (input.priority === 'low' ? 'normal' : input.priority === 'standard' ? 'normal' : input.priority) as WorkItem['priority'],
+
         slaDue: input.slaDue || '30 mins',
         status: isAssigned ? 'Assigned' : 'Unassigned',
         assignee: isAssigned ? input.assigneeName : undefined,
@@ -3941,15 +4105,15 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         const fulfillerNotif: InAppNotification | null =
           isAssigned && (input.assigneeId === 'EMP-0103' || input.assigneeName === 'Vikram Singh')
             ? {
-                id: uid(),
-                roleId: 'task_fulfiller',
-                title: 'New Task Assigned',
-                message: `Supervisor assigned you ${newTask.title} (${newTask.room ? 'Room ' + newTask.room : 'Floor ' + floor})`,
-                timestamp,
-                read: false,
-                type: 'task',
-                itemId: newTask.id,
-              }
+              id: uid(),
+              roleId: 'task_fulfiller',
+              title: 'New Task Assigned',
+              message: `Supervisor assigned you ${newTask.title} (${newTask.room ? 'Room ' + newTask.room : 'Floor ' + floor})`,
+              timestamp,
+              read: false,
+              type: 'task',
+              itemId: newTask.id,
+            }
             : null;
 
         return {
@@ -4477,7 +4641,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         let nextStatus: CompensationStatus = target.status;
         let actionLabel = '';
 
-        if (action === 'approved') {
+        if (action === 'approve') {
           nextStatus = 'pending_financial_operator';
           actionLabel = 'Approved by Dept Manager → Forwarded to Financial Operator';
         } else if (action === 'escalate_gm') {
@@ -4500,7 +4664,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           ...target,
           status: nextStatus,
           deptManagerDecision: {
-            action: action === 'approved' ? 'approved' : action === 'escalate_gm' ? 'escalated_to_gm' : 'rejected',
+            action: action === 'approve' ? 'approved' : action === 'escalate_gm' ? 'escalated_to_gm' : 'rejected',
             decidedBy: 'Marcus Vance (Department Manager)',
             decidedAt: timestamp,
             comments,
@@ -4542,7 +4706,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
               id: uid(),
               at: timestamp,
               role: 'Department Manager',
-              text: `Marcus Vance ${action === 'approved' ? 'approved & forwarded to Finance' : action === 'escalate_gm' ? 'escalated to GM' : 'rejected'} ₹${target.amount.toLocaleString('en-IN')} claim for Room ${target.room}`,
+              text: `Marcus Vance ${action === 'approve' ? 'approved & forwarded to Finance' : action === 'escalate_gm' ? 'escalated to GM' : 'rejected'} ₹${target.amount.toLocaleString('en-IN')} claim for Room ${target.room}`,
             },
             ...prev.feed,
           ].slice(0, 30),
@@ -4550,7 +4714,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       });
 
       notify(
-        action === 'approved'
+        action === 'approve'
           ? 'Standard compensation approved and forwarded to Financial Operator'
           : action === 'escalate_gm'
             ? 'High-value claim escalated to General Manager'
@@ -4796,32 +4960,55 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   );
 
   const updateStaffShiftSchedule = useCallback<DemoApi['updateStaffShiftSchedule']>(
-    (scheduleId, shiftType, floorZone, status, notes) => {
+    (scheduleId, shiftTypeOrUpdates, floorZoneArg, statusArg, notesArg) => {
       setState((prev) => {
         const schedules = prev.shiftSchedules ?? seedShiftSchedules;
         const target = schedules.find((s) => s.id === scheduleId);
         if (!target) return prev;
 
+        let shiftType = target.shiftType;
+        let floorZone = target.floorZone;
+        let status = target.status;
+        let notes = target.notes;
+        let conflictReason = target.conflictReason;
+
+        if (typeof shiftTypeOrUpdates === 'object' && shiftTypeOrUpdates !== null) {
+          const up = shiftTypeOrUpdates as Partial<ShiftScheduleRecord>;
+          if (up.shiftType) shiftType = up.shiftType;
+          if (up.floorZone !== undefined) floorZone = up.floorZone;
+          if (up.status !== undefined) status = up.status;
+          if (up.notes !== undefined) notes = up.notes;
+          if ('conflictReason' in up) conflictReason = up.conflictReason;
+        } else if (typeof shiftTypeOrUpdates === 'string') {
+          shiftType = shiftTypeOrUpdates;
+          if (floorZoneArg !== undefined) floorZone = floorZoneArg;
+          if (statusArg !== undefined) status = statusArg;
+          if (notesArg !== undefined) notes = notesArg;
+        }
+
         const startTime = shiftType === 'Morning' ? '07:00' : shiftType === 'Evening' ? '15:00' : '23:00';
         const endTime = shiftType === 'Morning' ? '15:30' : shiftType === 'Evening' ? '23:30' : '07:30';
+        const shiftHours = `${startTime} – ${endTime}`;
 
         const updated: ShiftScheduleRecord = {
           ...target,
           shiftType,
           startTime,
           endTime,
+          shiftHours,
           floorZone,
           status: status ?? target.status,
+          conflictReason,
           notes: notes ?? target.notes,
         };
 
         const updatedStaff = (prev.staffAccounts ?? []).map((s) =>
           s.employeeId === target.employeeId
             ? {
-                ...s,
-                shift: shiftType === 'Morning' ? ('Day' as const) : shiftType === 'Evening' ? ('Evening' as const) : ('Night' as const),
-                floorZone,
-              }
+              ...s,
+              shift: shiftType === 'Morning' ? ('Day' as const) : shiftType === 'Evening' ? ('Evening' as const) : ('Night' as const),
+              floorZone,
+            }
             : s,
         );
 
@@ -5204,20 +5391,20 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           safetyAlerts: list.map((a) =>
             a.id === alertId
               ? {
-                  ...a,
-                  status: 'resolved' as const,
-                  resolvedAt: `Today, ${now}`,
-                  auditHistory: [
-                    ...a.auditHistory,
-                    {
-                      at: now,
-                      actor: 'Security & Operations Command',
-                      role: 'security_responder',
-                      action: 'Safety alert resolved and stand-down order broadcasted',
-                      notes,
-                    },
-                  ],
-                }
+                ...a,
+                status: 'resolved' as const,
+                resolvedAt: `Today, ${now}`,
+                auditHistory: [
+                  ...a.auditHistory,
+                  {
+                    at: now,
+                    actor: 'Security & Operations Command',
+                    role: 'security_responder',
+                    action: 'Safety alert resolved and stand-down order broadcasted',
+                    notes,
+                  },
+                ],
+              }
               : a,
           ),
           feed: [
@@ -5269,6 +5456,573 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     notify('Demo data reset to its initial state');
   }, [notify]);
 
+
+  const updateDndStatus = useCallback<DemoApi['updateDndStatus']>(
+    (room, active, duration, instructions) => {
+      const timestamp = nowLabel();
+      const newDndEntry: DndHistoryRecord = {
+        id: `dnd-${uid()}`,
+        room,
+        action: active ? 'activated' : 'deactivated',
+        duration: duration || (active ? 'Until further notice' : 'Manual release'),
+        instructions: instructions || (active ? 'Do not disturb requested' : 'DND deactivated by guest'),
+        timestamp,
+        updatedBy: 'Guest (Mobile Portal)',
+      };
+
+      setState((prev) => {
+        const nextRooms = (prev.frontDesk?.rooms ?? []).map((r) =>
+          r.no === room ? { ...r, dnd: active } : r
+        );
+        const prevPrefs = prev.guestPreferences?.[room] ?? {
+          allergies: [],
+          dietaryRestrictions: [],
+          dnd: false,
+          personalInstructions: '',
+          specialRequests: [],
+        };
+        const nextPrefs = {
+          ...prev.guestPreferences,
+          [room]: { ...prevPrefs, dnd: active, personalInstructions: instructions || prevPrefs.personalInstructions },
+        };
+        const nextHistory = [newDndEntry, ...(prev.dndHistory ?? [])];
+
+        const guestNotif: GuestNotification = {
+          id: `gnotif-${uid()}`,
+          room,
+          category: 'Service Request Updates',
+          title: active ? 'Do Not Disturb Active' : 'Do Not Disturb Deactivated',
+          message: active
+            ? `DND is set for Room ${room} (${newDndEntry.duration}). Housekeeping and callers will hold service.`
+            : 'DND has been cleared. Normal hotel service has resumed.',
+          date: 'Today',
+          time: timestamp,
+          read: false,
+          targetTab: 'services',
+          targetSubtab: 'dnd',
+        };
+
+        const staffNotif: InAppNotification = {
+          id: uid(),
+          roleId: 'front_desk_coordinator',
+          title: active ? `Room ${room} Activated DND` : `Room ${room} Cleared DND`,
+          message: active
+            ? `Guest in Room ${room} set DND (${newDndEntry.duration}). Note: ${newDndEntry.instructions}`
+            : `Guest in Room ${room} cleared DND status.`,
+          timestamp,
+          read: false,
+          type: 'alert',
+        };
+
+        return {
+          ...prev,
+          dndHistory: nextHistory,
+          guestPreferences: nextPrefs,
+          frontDesk: {
+            ...prev.frontDesk,
+            rooms: nextRooms,
+          },
+          guestNotifications: [guestNotif, ...(prev.guestNotifications ?? [])],
+          notifications: [staffNotif, ...(prev.notifications ?? [])],
+          feed: [
+            {
+              id: uid(),
+              at: timestamp,
+              role: 'Guest Portal',
+              text: `Room ${room} ${active ? 'enabled' : 'disabled'} Do Not Disturb · ${newDndEntry.duration}`,
+            },
+            ...prev.feed,
+          ].slice(0, 30),
+        };
+      });
+      notify(active ? `Do Not Disturb activated for Room ${room}` : 'Do Not Disturb turned off');
+    },
+    [notify],
+  );
+
+  const submitGuestMessageToFrontDesk = useCallback<DemoApi['submitGuestMessageToFrontDesk']>(
+    (room, subject, message, instructions) => {
+      const timestamp = nowLabel();
+      const id = `msg-${uid()}`;
+      const stay = (stateRef.current.frontDesk?.stays ?? []).find((s) => s.room === room && s.status === 'in_house');
+      const guestName = stay?.guest ?? 'Guest of Room ' + room;
+
+      const newMsg: GuestFrontDeskMessage = {
+        id,
+        room,
+        guestName,
+        subject,
+        message,
+        instructions,
+        status: 'Received',
+        createdAt: `Today, ${timestamp}`,
+        replies: [],
+        bookingRef: stay?.bookingRef ?? 'BK-7740',
+      };
+
+      const fdTask: WorkItem = {
+        id: `fd-msg-${id}`,
+        title: `Guest Message · ${subject}`,
+        meta: `Direct Portal Message · Room ${room} · ${guestName}`,
+        status: 'Open',
+        chip: 'Guest message',
+        tone: 'info',
+        room,
+        guest: true,
+        category: 'front_desk',
+        description: `${message}${instructions ? ` (Notes: ${instructions})` : ''}`,
+        createdAt: timestamp,
+        owner: 'Front Desk',
+        ref: `MSG-${room}-${String(Date.now()).slice(-4)}`,
+        history: [{ at: timestamp, status: 'Received', note: 'Received directly from Guest Portal' }],
+      };
+
+      const guestNotif: GuestNotification = {
+        id: `gnotif-${uid()}`,
+        room,
+        category: 'Front Desk Messages',
+        title: 'Message Delivered to Front Desk',
+        message: `Your message "${subject}" has been received by our Front Desk team. We will respond promptly.`,
+        date: 'Today',
+        time: timestamp,
+        read: false,
+        targetTab: 'services',
+        targetSubtab: 'front_desk',
+        targetId: id,
+      };
+
+      setState((prev) => ({
+        ...prev,
+        frontDeskMessages: [newMsg, ...(prev.frontDeskMessages ?? [])],
+        guestNotifications: [guestNotif, ...(prev.guestNotifications ?? [])],
+        items: {
+          ...prev.items,
+          front_desk_coordinator: [fdTask, ...(prev.items.front_desk_coordinator ?? [])],
+        },
+        feed: [
+          {
+            id: uid(),
+            at: timestamp,
+            role: 'Guest Portal',
+            text: `Guest message received from Room ${room}: "${subject}"`,
+          },
+          ...prev.feed,
+        ].slice(0, 30),
+      }));
+
+      notify('Message sent to Front Desk');
+      return id;
+    },
+    [notify],
+  );
+
+  const replyGuestMessage = useCallback<DemoApi['replyGuestMessage']>(
+    (messageId, replyText, sender) => {
+      const timestamp = nowLabel();
+      const replyEntry: GuestFrontDeskReply = {
+        id: `rep-${uid()}`,
+        sender,
+        senderName: sender === 'guest' ? 'You (Guest)' : 'Maya Lin (Front Desk Lead)',
+        text: replyText.trim(),
+        at: `Today, ${timestamp}`,
+      };
+
+      setState((prev) => {
+        const msgs = (prev.frontDeskMessages ?? []).map((m) => {
+          if (m.id === messageId) {
+            return {
+              ...m,
+              status: (sender === 'guest' ? 'Sent' : 'Responded') as GuestFrontDeskMessage['status'],
+              replies: [...m.replies, replyEntry],
+            };
+          }
+          return m;
+        });
+
+        const target = (prev.frontDeskMessages ?? []).find((m) => m.id === messageId);
+        const room = target?.room ?? '402';
+
+        let guestNotifs = prev.guestNotifications ?? [];
+        if (sender === 'front_desk') {
+          guestNotifs = [
+            {
+              id: `gnotif-${uid()}`,
+              room,
+              category: 'Front Desk Messages',
+              title: `Front Desk Replied: ${target?.subject || 'Inquiry'}`,
+              message: replyText.slice(0, 120),
+              date: 'Today',
+              time: timestamp,
+              read: false,
+              targetTab: 'services',
+              targetSubtab: 'front_desk',
+              targetId: messageId,
+            },
+            ...guestNotifs,
+          ];
+        }
+
+        return {
+          ...prev,
+          frontDeskMessages: msgs,
+          guestNotifications: guestNotifs,
+          feed: [
+            {
+              id: uid(),
+              at: timestamp,
+              role: sender === 'guest' ? 'Guest Portal' : 'Front Desk',
+              text: sender === 'guest' ? `Guest reply on #${messageId}` : `Front Desk responded to Room ${room}`,
+            },
+            ...prev.feed,
+          ].slice(0, 30),
+        };
+      });
+
+      notify(sender === 'guest' ? 'Reply sent to Front Desk' : 'Response dispatched to guest');
+    },
+    [notify],
+  );
+
+  const submitGuestComplaint = useCallback<DemoApi['submitGuestComplaint']>(
+    (input) => {
+      const timestamp = nowLabel();
+      const complaintId = `CMP-${input.room}-${String(Date.now()).slice(-4)}`;
+      const id = `cmp-${uid()}`;
+      const stay = (stateRef.current.frontDesk?.stays ?? []).find((s) => s.room === input.room && s.status === 'in_house');
+
+      const newRecord: GuestComplaintRecord = {
+        id,
+        complaintId,
+        room: input.room,
+        guestName: input.guestName,
+        bookingRef: stay?.bookingRef,
+        category: input.category,
+        title: input.title,
+        description: input.description,
+        photoUrl: input.photoUrl,
+        submittedAt: `Today, ${timestamp}`,
+        status: 'Submitted',
+        assignedTo: 'Front Desk & Duty Operations',
+        history: [
+          { at: timestamp, status: 'Submitted', note: 'Registered via Guest Portal' },
+          { at: timestamp, status: 'Under Review', note: 'Routing to Duty Manager & Department Head' },
+        ],
+      };
+
+      const complaintCase: ComplaintCase = {
+        id: `cc-${id}`,
+        ref: complaintId,
+        room: input.room,
+        guest: input.guestName,
+        summary: `[${input.category}] ${input.title}: ${input.description.slice(0, 80)}`,
+        severity: input.category === 'Staff Behaviour' || input.category === 'Billing' ? 'critical' : 'normal',
+        comp: 0,
+        compApplied: false,
+        createdAt: timestamp,
+        category: input.category,
+        status: 'Submitted',
+        photoUrl: input.photoUrl,
+      };
+
+      const managerTask: WorkItem = {
+        id: `mgr-cmp-${id}`,
+        title: `Guest Complaint · ${input.category}: ${input.title}`,
+        meta: `Room ${input.room} · ${input.guestName} · Portal submission`,
+        status: 'Open',
+        chip: 'Guest Complaint',
+        tone: 'danger',
+        room: input.room,
+        guest: true,
+        priority: 'urgent',
+        ref: complaintId,
+        createdAt: timestamp,
+        description: input.description,
+        history: [{ at: timestamp, status: 'Submitted', note: 'Logged by guest' }],
+      };
+
+      const guestNotif: GuestNotification = {
+        id: `gnotif-${uid()}`,
+        room: input.room,
+        category: 'Complaint Updates',
+        title: `Complaint Registered · ${complaintId}`,
+        message: `Your complaint regarding "${input.title}" is under active review by hotel management. Ticket: ${complaintId}`,
+        date: 'Today',
+        time: timestamp,
+        read: false,
+        targetTab: 'complaints',
+        targetId: complaintId,
+      };
+
+      setState((prev) => ({
+        ...prev,
+        guestComplaints: [newRecord, ...(prev.guestComplaints ?? [])],
+        guestNotifications: [guestNotif, ...(prev.guestNotifications ?? [])],
+        frontDesk: {
+          ...prev.frontDesk,
+          complaints: [complaintCase, ...(prev.frontDesk?.complaints ?? [])],
+        },
+        items: {
+          ...prev.items,
+          department_manager: [managerTask, ...(prev.items.department_manager ?? [])],
+          front_desk_coordinator: [managerTask, ...(prev.items.front_desk_coordinator ?? [])],
+        },
+        feed: [
+          {
+            id: uid(),
+            at: timestamp,
+            role: 'Guest Portal',
+            text: `Complaint ${complaintId} registered for Room ${input.room} (${input.category})`,
+          },
+          ...prev.feed,
+        ].slice(0, 30),
+      }));
+
+      notify(`Complaint registered (ID: ${complaintId})`);
+      return complaintId;
+    },
+    [notify],
+  );
+
+  const submitGuestLostItemReport = useCallback<DemoApi['submitGuestLostItemReport']>(
+    (input) => {
+      const timestamp = nowLabel();
+      const ref = `LF-${input.room}-${String(Date.now()).slice(-4)}`;
+      const id = `lr-${uid()}`;
+
+      const newRecord: GuestLostItemRecord = {
+        id,
+        ref,
+        room: input.room,
+        guestName: input.guestName,
+        itemName: input.itemName,
+        category: input.category,
+        description: input.description,
+        dateLost: input.dateLost || "Today",
+        lastLocation: input.lastLocation || "Hotel Property",
+        photoUrl: input.photoUrl,
+        additionalInfo: input.additionalInfo,
+        status: 'Reported',
+        submittedAt: `Today, ${timestamp}`,
+        history: [
+          { at: timestamp, status: 'Reported', note: 'Report logged via Guest Portal' },
+          { at: timestamp, status: 'Under Investigation', note: 'Front Desk & Security cross-referencing found items inventory' },
+        ],
+      };
+
+      const lostTask: WorkItem = {
+        id: `fd-lf-${id}`,
+        title: `Lost Item · ${input.itemName}`,
+        meta: `Lost & Found · Room ${input.room} · ${input.guestName}`,
+        status: 'Open',
+        chip: 'Lost item report',
+        tone: 'warning',
+        room: input.room,
+        guest: true,
+        category: 'lost_found',
+        description: `Item: ${input.itemName} (${input.category})\nLast location: ${input.lastLocation}\nLost around: ${input.dateLost}\n${input.description}`,
+        createdAt: timestamp,
+        ref,
+        history: [{ at: timestamp, status: 'Reported', note: 'Report submitted by guest' }],
+      };
+
+      const guestNotif: GuestNotification = {
+        id: `gnotif-${uid()}`,
+        room: input.room,
+        category: 'Service Request Updates',
+        title: `Lost Item Reported · ${ref}`,
+        message: `Your report for "${input.itemName}" has been received. Front Desk and Security are searching recent turn-in logs.`,
+        date: 'Today',
+        time: timestamp,
+        read: false,
+        targetTab: 'lost_found',
+        targetId: ref,
+      };
+
+      setState((prev) => ({
+        ...prev,
+        guestLostReports: [newRecord, ...(prev.guestLostReports ?? [])],
+        guestNotifications: [guestNotif, ...(prev.guestNotifications ?? [])],
+        items: {
+          ...prev.items,
+          front_desk_coordinator: [lostTask, ...(prev.items.front_desk_coordinator ?? [])],
+        },
+        feed: [
+          {
+            id: uid(),
+            at: timestamp,
+            role: 'Guest Portal',
+            text: `Lost item report ${ref} (${input.itemName}) filed for Room ${input.room}`,
+          },
+          ...prev.feed,
+        ].slice(0, 30),
+      }));
+
+      notify(`Lost item report submitted (${ref})`);
+      return ref;
+    },
+    [notify],
+  );
+
+  const submitGuestFoundItemClaim = useCallback<DemoApi['submitGuestFoundItemClaim']>(
+    (input) => {
+      const timestamp = nowLabel();
+      const ref = `CLM-${input.room}-${String(Date.now()).slice(-4)}`;
+
+      setState((prev) => {
+        const nextLostFound = (prev.lostFound ?? []).map((item) => {
+          if (item.id === input.itemId) {
+            return {
+              ...item,
+              claimed: true,
+              claimedRoom: input.room,
+            };
+          }
+          return item;
+        });
+
+        const claimTask: WorkItem = {
+          id: `clm-${uid()}`,
+          title: `Found Item Claim · ${input.itemName}`,
+          meta: `Ownership Verification · Room ${input.room} · ${input.guestName}`,
+          status: 'Open',
+          chip: 'Claim verification',
+          tone: 'info',
+          room: input.room,
+          guest: true,
+          category: 'lost_found',
+          description: `Guest claims item ${input.itemName} (Found item #${input.itemId}). Note: ${input.message}`,
+          createdAt: timestamp,
+          ref,
+          history: [{ at: timestamp, status: 'Verification Pending', note: 'Guest submitted ownership verification details' }],
+        };
+
+        const guestNotif: GuestNotification = {
+          id: `gnotif-${uid()}`,
+          room: input.room,
+          category: 'Service Request Updates',
+          title: `Claim Submitted for ${input.itemName}`,
+          message: 'Your ownership claim has been submitted to Front Desk. Please present matching ID to verify and collect.',
+          date: 'Today',
+          time: timestamp,
+          read: false,
+          targetTab: 'lost_found',
+          targetId: ref,
+        };
+
+        return {
+          ...prev,
+          lostFound: nextLostFound,
+          guestNotifications: [guestNotif, ...(prev.guestNotifications ?? [])],
+          items: {
+            ...prev.items,
+            front_desk_coordinator: [claimTask, ...(prev.items.front_desk_coordinator ?? [])],
+          },
+          feed: [
+            {
+              id: uid(),
+              at: timestamp,
+              role: 'Guest Portal',
+              text: `Room ${input.room} claimed found item #${input.itemId} (${input.itemName})`,
+            },
+            ...prev.feed,
+          ].slice(0, 30),
+        };
+      });
+
+      notify('Claim submitted to Front Desk for verification');
+      return ref;
+    },
+    [notify],
+  );
+
+  const markGuestNotificationRead = useCallback<DemoApi['markGuestNotificationRead']>(
+    (id) => {
+      setState((prev) => ({
+        ...prev,
+        guestNotifications: (prev.guestNotifications ?? []).map((n) =>
+          n.id === id ? { ...n, read: true } : n
+        ),
+      }));
+    },
+    [],
+  );
+
+  const markAllGuestNotificationsRead = useCallback<DemoApi['markAllGuestNotificationsRead']>(
+    (room) => {
+      setState((prev) => ({
+        ...prev,
+        guestNotifications: (prev.guestNotifications ?? []).map((n) =>
+          n.room === room ? { ...n, read: true } : n
+        ),
+      }));
+      notify('All notifications marked as read');
+    },
+    [notify],
+  );
+
+  const updateGuestProfile = useCallback<DemoApi['updateGuestProfile']>(
+    (room, profile) => {
+      setState((prev) => {
+        const nextStays = (prev.frontDesk?.stays ?? []).map((s) => {
+          if (s.room === room) {
+            return {
+              ...s,
+              guest: profile.name || s.guest,
+            };
+          }
+          return s;
+        });
+
+        const prevPrefs = prev.guestPreferences?.[room] ?? {
+          allergies: [],
+          dietaryRestrictions: [],
+          dnd: false,
+          personalInstructions: '',
+          specialRequests: [],
+        };
+
+        const nextPrefs = {
+          ...prev.guestPreferences,
+          [room]: {
+            ...prevPrefs,
+            ...(profile.preferences ?? {}),
+          },
+        };
+
+        return {
+          ...prev,
+          frontDesk: {
+            ...prev.frontDesk,
+            stays: nextStays,
+          },
+          guestPreferences: nextPrefs,
+        };
+      });
+      notify('Guest profile updated successfully');
+    },
+    [notify],
+  );
+
+  const resetActionableExamples = useCallback(() => {
+    setState((prev) => ({
+      ...prev,
+      items: {
+        ...prev.items,
+        front_desk_coordinator: seedItems.front_desk_coordinator,
+      },
+      frontDesk: {
+        ...prev.frontDesk,
+        stays: prev.frontDesk.stays.map((st) =>
+          st.id === 'stay-hannah' ? { ...st, idChecked: false, preCheckIn: 'pending_verify' } : st
+        ),
+      },
+      safetyAlerts: (prev.safetyAlerts ?? seedSafetyAlerts).map((a) =>
+        a.id === 'alert-3' ? { ...a, status: 'draft_pending_validation' } : a
+      ),
+    }));
+    notify('Action items reset for demonstration');
+  }, [notify]);
+
   const api = useMemo<DemoApi>(
     () => ({
       state,
@@ -5281,6 +6035,13 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       setTheme,
       submitGuestRequest,
       placeRoomServiceOrder,
+      placeDiningOrder,
+      addDiningMenuItem,
+      updateDiningMenuItem,
+      deleteDiningMenuItem,
+      toggleDiningMenuItemAvailability,
+      addDiningCategory,
+      removeDiningCategory,
       cancelGuestItem,
       submitGuestFeedback,
       disputeFolioCharge,
@@ -5366,6 +6127,18 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       broadcastSafetyAlert,
       resolveSafetyAlert,
       acknowledgeSafetyAlert,
+      updateDndStatus,
+      submitGuestMessageToFrontDesk,
+      replyGuestMessage,
+      submitGuestComplaint,
+      submitGuestLostItemReport,
+      submitGuestFoundItemClaim,
+      markGuestNotificationRead,
+      markAllGuestNotificationsRead,
+      updateGuestProfile,
+      gestureGuideOpen,
+      setGestureGuideOpen,
+      resetActionableExamples,
     }),
     [
       state,
@@ -5378,6 +6151,13 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       setTheme,
       submitGuestRequest,
       placeRoomServiceOrder,
+      placeDiningOrder,
+      addDiningMenuItem,
+      updateDiningMenuItem,
+      deleteDiningMenuItem,
+      toggleDiningMenuItemAvailability,
+      addDiningCategory,
+      removeDiningCategory,
       cancelGuestItem,
       submitGuestFeedback,
       disputeFolioCharge,
@@ -5463,6 +6243,18 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       broadcastSafetyAlert,
       resolveSafetyAlert,
       acknowledgeSafetyAlert,
+      updateDndStatus,
+      submitGuestMessageToFrontDesk,
+      replyGuestMessage,
+      submitGuestComplaint,
+      submitGuestLostItemReport,
+      submitGuestFoundItemClaim,
+      markGuestNotificationRead,
+      markAllGuestNotificationsRead,
+      updateGuestProfile,
+      gestureGuideOpen,
+      setGestureGuideOpen,
+      resetActionableExamples,
     ],
   );
 

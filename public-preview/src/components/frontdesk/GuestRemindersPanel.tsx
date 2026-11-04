@@ -226,7 +226,7 @@ export function GuestRemindersPanel() {
                         {rem.priority.toUpperCase()}
                       </Badge>
                       <Badge tone={rem.status === 'completed' ? 'success' : rem.status === 'pending' ? 'warning' : 'neutral'}>
-                        {rem.status.toUpperCase()}
+                        {(rem.status ?? "pending").toUpperCase()}
                       </Badge>
                     </div>
                     <p className="text-xs text-mist-200">{rem.text}</p>

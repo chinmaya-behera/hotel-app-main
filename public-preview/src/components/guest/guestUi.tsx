@@ -200,18 +200,30 @@ export function StatusTimeline({ history }: { history: GuestHistoryEntry[] }) {
 /* Delivery tracking (room-service orders)                             */
 /* ------------------------------------------------------------------ */
 
-const DELIVERY_STEPS = ['Received', 'Preparing', 'Ready', 'On the way', 'Delivered'];
+const DELIVERY_STEPS = [
+  'Order Placed',
+  'Accepted',
+  'Preparing',
+  'Ready',
+  'Out for Delivery',
+  'Delivered',
+];
+
 const DELIVERY_ETA: Record<string, string> = {
-  Received: 'Arrives in ~25 min',
-  Preparing: 'Arrives in ~20 min',
-  Ready: 'Arrives in ~10 min',
-  'On the way': 'Arriving in ~3 min',
-  Delivered: 'Delivered',
+  'Order Placed': 'Kitchen received (~25m)',
+  Received: 'Kitchen received (~25m)',
+  Accepted: 'Chef acknowledged order',
+  Preparing: 'Cooking in progress (~20m)',
+  Ready: 'Plated & packaged (~10m)',
+  'Out for Delivery': 'Runner arriving (~3m)',
+  'On the way': 'Runner arriving (~3m)',
+  Delivered: 'Delivered to room',
 };
 
 export function DeliveryTracker({ status }: { status: string }) {
   if (status === 'Cancelled') return null;
-  const idx = Math.max(0, DELIVERY_STEPS.indexOf(status));
+  const normalized = status === 'Received' ? 'Order Placed' : status === 'On the way' ? 'Out for Delivery' : status;
+  const idx = Math.max(0, DELIVERY_STEPS.indexOf(normalized));
   return (
     <div className="guest-surface-2 rounded-xl px-3 py-3" aria-label={`Delivery status: ${status}`}>
       <div className="flex items-center justify-between gap-2 text-[11px]">

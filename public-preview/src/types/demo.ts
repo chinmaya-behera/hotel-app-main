@@ -63,7 +63,9 @@ export interface WorkItem {
   /** reference number shown to the guest, e.g. "HK-402-003" */
   ref?: string;
   /** guest-portal originating module, when this item came from the Guest Portal */
-  category?: 'housekeeping' | 'maintenance' | 'spa' | 'concierge' | 'room_service' | 'folio' | 'lost_found';
+  category?: 'housekeeping' | 'maintenance' | 'spa' | 'concierge' | 'recreation' | 'room_service' | 'folio' | 'lost_found' | 'safety' | 'laundry' | 'front_desk';
+  notes?: string;
+  note?: string;
   description?: string;
   createdAt?: string;
   history?: GuestHistoryEntry[];
@@ -126,6 +128,7 @@ export interface WorkItem {
   /** Security Responder Report details filed upon resolution */
   securityReport?: {
     summary: string;
+  content?: string;
     observations: string;
     actionsTaken: string;
     outcome: string;
@@ -149,12 +152,18 @@ export interface WorkItem {
 export interface InAppNotification {
   id: string;
   title: string;
-  message: string;
+  message?: string;
+  summary?: string;
   timestamp: string;
-  roleId: RoleId;
+  roleId?: RoleId;
   read: boolean;
   type?: 'task' | 'alert' | 'system' | 'reassign';
   itemId?: string;
+  priority?: 'normal' | 'urgent' | 'vip' | 'critical' | 'warning';
+  link?: string;
+  tone?: string;
+  targetRole?: RoleId | string;
+  category?: string;
 }
 
 export interface GuestHistoryEntry {
@@ -192,6 +201,52 @@ export interface MenuItem {
   price: number;
   desc?: string;
   veg?: boolean;
+}
+
+export type DietaryType = 'veg' | 'non_veg' | 'vegan';
+
+export type AllergenType =
+  | 'Dairy'
+  | 'Nuts'
+  | 'Peanuts'
+  | 'Gluten'
+  | 'Soy'
+  | 'Eggs'
+  | 'Shellfish'
+  | 'Fish';
+
+export interface PortionOption {
+  name: string;
+  priceDelta: number;
+}
+
+export interface MenuItemAddon {
+  id: string;
+  name: string;
+  price: number;
+}
+
+export type MealTimeSlot = 'breakfast' | 'lunch' | 'dinner' | 'all_day' | 'late_night';
+
+export interface DiningMenuItem {
+  id: string;
+  name: string;
+  category: string;
+  price: number;
+  dietary: DietaryType;
+  rating?: number;
+  ratingCount?: number;
+  image: string;
+  desc?: string;
+  ingredients: string[];
+  allergens: AllergenType[];
+  isAvailable: boolean;
+  mealTimes?: MealTimeSlot[];
+  supportsSpiceLevel?: boolean;
+  supportsPortionSize?: boolean;
+  portionOptions?: PortionOption[];
+  availableAddons?: MenuItemAddon[];
+  prepNotesAllowed?: boolean;
 }
 
 export interface FolioLine {
@@ -280,7 +335,7 @@ export type InspectionType = 'turnover' | 'deep_clean' | 'vip_prep' | 'maintenan
 
 export interface InspectionCheckItem {
   id: string;
-  category: 'Bathroom & Sanitization' | 'Bedding & Linens' | 'Minibar & Amenities' | 'Electronics & Climate' | 'Safety & Keycard';
+  category: 'Bathroom & Sanitization' | 'Bedding & Linens' | 'Minibar & Amenities' | 'Electronics & Climate' | 'Safety & Keycard' | 'bedding' | 'bathroom' | 'amenities' | 'electronics' | 'cleanliness';
   label: string;
   passed: boolean;
   notes?: string;
@@ -413,6 +468,7 @@ export type StayStatus = 'expected' | 'in_house' | 'checked_out';
 export interface GuestPreferences {
   allergies: string[];
   dietaryRestrictions: string[];
+  dietary?: string[];
   dnd: boolean;
   personalInstructions: string;
   pillowPreference?: string;
@@ -484,13 +540,20 @@ export interface ComplaintCase {
   guest: string;
   summary: string;
   severity: 'normal' | 'vip' | 'critical';
-  /** compensation proposed for the guest */
   comp: number;
   compApplied: boolean;
   createdAt: string;
-  /** the Duty Manager alert created for this complaint */
-  managerItemId: string;
+  managerItemId?: string;
   repeatOf?: string;
+  guestName?: string;
+  description?: string;
+  category?: string;
+  compOffered?: boolean;
+  compAmount?: number;
+  loggedBy?: string;
+  status?: string;
+  responseRemarks?: string;
+  photoUrl?: string;
 }
 
 /* ---- Public website bookings (frontend-only simulation; never a real reservation or payment) ---- */
@@ -580,9 +643,9 @@ export interface AuditEvent {
   actor: string;
   actorRole: string;
   action: string;
-  category: 'Access' | 'Workflow' | 'Integration' | 'Hotel' | 'Security';
+  category: 'Access' | 'Workflow' | 'Integration' | 'Hotel' | 'Security' | 'Finance';
   resource: string;
-  outcome: 'success' | 'warning' | 'denied';
+  outcome: 'success' | 'warning' | 'denied' | 'failure';
   details?: string;
 }
 
@@ -701,6 +764,8 @@ export interface CompensationRequest {
   amount: number;
   reason: string;
   supportingEvidence?: string;
+  category?: string;
+  evidence?: string;
   requestedBy: string;
   requestedAt: string;
   status: CompensationStatus;
@@ -740,6 +805,7 @@ export interface ShiftScheduleRecord {
   shiftType: 'Morning' | 'Evening' | 'Night';
   startTime: string;
   endTime: string;
+  shiftHours?: string;
   floorZone: string;
   status: 'scheduled' | 'on_duty' | 'completed' | 'leave' | 'conflict';
   conflictReason?: string;
@@ -752,15 +818,16 @@ export interface DepartmentServicePolicy {
   id: string;
   department: string;
   title: string;
-  category: 'Service Standard' | 'Escalation Threshold' | 'Operating Procedure' | 'Guest Recovery';
+  category: 'Service Standard' | 'Escalation Threshold' | 'Operating Procedure' | 'Guest Recovery' | string;
+  content?: string;
   scope: string;
   policyOwner: string;
   summary: string;
-  authorityLimit?: number;
+  authorityLimit?: number | string;
   escalationTarget: string;
   effectiveDate: string;
   lastUpdated: string;
-  isManagerLevel: true;
+  isManagerLevel?: boolean;
 }
 
 export interface DemoState {
@@ -821,21 +888,38 @@ export interface DemoState {
   guestReminders?: GuestReminder[];
   /** Safety Alert Broadcasts (Security -> Front Desk -> Manager -> All) - Phase 4 */
   safetyAlerts?: SafetyAlertRecord[];
+  dndHistory?: DndHistoryRecord[];
+  frontDeskMessages?: GuestFrontDeskMessage[];
+  guestComplaints?: GuestComplaintRecord[];
+  guestLostReports?: GuestLostItemRecord[];
+  guestNotifications?: GuestNotification[];
+  hotelAlerts?: HotelAlert[];
+  diningMenu?: DiningMenuItem[];
+  diningCategories?: string[];
 }
 
 /* ---- Phase 4: Guest Reminders & Safety Alert Broadcast Engine ---- */
+
+export type GuestReminderPriority = 'normal' | 'urgent' | 'vip';
 
 export interface GuestReminder {
   id: string;
   guestName: string;
   room: string;
   stayId?: string;
-  text: string;
-  dueDateTime: string;
-  status: 'pending' | 'completed' | 'dismissed';
-  priority: 'normal' | 'urgent' | 'vip';
-  createdBy: string;
+  title?: string;
+  text?: string;
+  notes?: string;
+  dueDateTime?: string;
+  dueDate?: string;
+  dueTime?: string;
+  status?: 'pending' | 'completed' | 'dismissed';
+  priority: GuestReminderPriority;
+  createdBy?: string;
+  assignedTo?: string;
   createdAt: string;
+  specialInstructions?: string;
+  category?: string;
 }
 
 export type SafetyAlertStatus =
@@ -875,5 +959,151 @@ export interface SafetyAlertRecord {
   broadcastScope: 'all_staff' | 'hotel_wide' | 'security_only';
   auditHistory: SafetyAlertAuditStep[];
   acknowledgedBy?: string[];
+}
+
+/* ---- Guest Side Domain Models (Six Main Sections) ---- */
+
+export interface DndHistoryRecord {
+  id: string;
+  room: string;
+  action: 'activated' | 'deactivated';
+  duration?: string;
+  instructions?: string;
+  timestamp: string;
+  updatedBy: string;
+}
+
+export interface GuestFrontDeskReply {
+  id: string;
+  sender: 'guest' | 'front_desk';
+  senderName: string;
+  text: string;
+  at: string;
+}
+
+export interface GuestFrontDeskMessage {
+  id: string;
+  room: string;
+  guestName: string;
+  subject: string;
+  message: string;
+  instructions?: string;
+  status: 'Sent' | 'Received' | 'Responded' | 'Closed';
+  createdAt: string;
+  replies: GuestFrontDeskReply[];
+  bookingRef?: string;
+}
+
+export type ComplaintStatus =
+  | 'Submitted'
+  | 'Under Review'
+  | 'Assigned'
+  | 'In Progress'
+  | 'Resolved'
+  | 'Rejected';
+
+export type ComplaintCategory =
+  | 'Room Issues'
+  | 'Housekeeping'
+  | 'Food and Dining'
+  | 'Staff Behaviour'
+  | 'Maintenance'
+  | 'Billing'
+  | 'Other';
+
+export interface GuestComplaintRecord {
+  id: string;
+  complaintId: string;
+  room: string;
+  guestName: string;
+  bookingRef?: string;
+  category: ComplaintCategory;
+  title: string;
+  description: string;
+  photoUrl?: string;
+  submittedAt: string;
+  status: ComplaintStatus;
+  assignedTo?: string;
+  responseRemarks?: string;
+  resolvedAt?: string;
+  compensationOffered?: number;
+  history: Array<{ at: string; status: string; note?: string; actor?: string }>;
+}
+
+export type LostItemStatus =
+  | 'Reported'
+  | 'Under Investigation'
+  | 'Item Found'
+  | 'Verification Pending'
+  | 'Returned to Guest'
+  | 'Closed';
+
+export interface GuestLostItemRecord {
+  id: string;
+  ref: string;
+  room: string;
+  guestName: string;
+  guestPhone?: string;
+  itemName: string;
+  category: string;
+  description: string;
+  dateLost: string;
+  timeLost?: string;
+  lastLocation: string;
+  photoUrl?: string;
+  additionalInfo?: string;
+  status: LostItemStatus;
+  submittedAt: string;
+  claimNote?: string;
+  staffNotes?: string;
+  matchedFoundItemId?: string;
+  history: Array<{ at: string; status: string; note?: string }>;
+}
+
+export type GuestNotificationCategory =
+  | 'Booking Updates'
+  | 'Service Request Updates'
+  | 'Reminder Updates'
+  | 'Front Desk Messages'
+  | 'Complaint Updates'
+  | 'Payment/Billing Updates'
+  | 'General Announcements';
+
+export interface GuestNotification {
+  id: string;
+  room: string;
+  category: GuestNotificationCategory;
+  title: string;
+  message: string;
+  date: string;
+  time: string;
+  read: boolean;
+  targetTab?: 'services' | 'alerts' | 'complaints' | 'lost_found' | 'notifications' | 'profile';
+  targetSubtab?: string;
+  targetId?: string;
+}
+
+export type AlertSeverity = 'Critical' | 'High' | 'Medium' | 'Low';
+
+export type AlertCategory =
+  | 'Emergency Alerts'
+  | 'Safety Alerts'
+  | 'Weather Alerts'
+  | 'Hotel Announcements'
+  | 'Important Operational Alerts';
+
+export interface HotelAlert {
+  id: string;
+  ref: string;
+  title: string;
+  description: string;
+  category: AlertCategory;
+  severity: AlertSeverity;
+  timestamp: string;
+  location?: string;
+  affectedFloors?: string[];
+  guidance?: string;
+  active: boolean;
+  requiresAcknowledgement?: boolean;
 }
 

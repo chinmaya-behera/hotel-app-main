@@ -1,57 +1,74 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   BedDouble,
   ChevronLeft,
-  CircleDollarSign,
   Hotel,
   House,
-  ListChecks,
   LogOut,
   Moon,
-  PackageSearch,
   ShieldOff,
   Sun,
-  UtensilsCrossed,
+  Sparkles,
+  ListChecks,
+  Bell,
+  User,
+  Compass,
   type LucideIcon,
 } from 'lucide-react';
-import { FolioTab } from '@/components/guest/FolioTab';
-import { HomeTab } from '@/components/guest/HomeTab';
-import { HousekeepingTab } from '@/components/guest/HousekeepingTab';
-import { LostFoundTab } from '@/components/guest/LostFoundTab';
-import { MaintenanceTab } from '@/components/guest/MaintenanceTab';
-import { RequestsTab } from '@/components/guest/RequestsTab';
-import { RoomServiceTab } from '@/components/guest/RoomServiceTab';
-import { SpaConciergeTab } from '@/components/guest/SpaConciergeTab';
+import { HomeDashboard } from '@/components/guest/HomeDashboard';
+import { AllServicesSection } from '@/components/guest/AllServicesSection';
+import { ActivitySection } from '@/components/guest/ActivitySection';
+import { NotificationsHubSection } from '@/components/guest/NotificationsHubSection';
+import { ProfileSection } from '@/components/guest/ProfileSection';
+import { GuestInteractiveTour } from '@/components/guest/GuestInteractiveTour';
 import { GuestConfirm, GuestPill } from '@/components/guest/guestUi';
-import type { GuestTabId } from '@/components/guest/types';
+import type { GuestTabId, GuestMainSection } from '@/components/guest/types';
 import { guests } from '@/lib/mockData';
 import { useDemo } from '@/lib/store';
 import { cn } from '@/lib/utils';
 
-/** Bottom navigation. Housekeeping, Maintenance and Spa open from Home and keep Home highlighted. */
-const NAV: { id: GuestTabId; label: string; icon: LucideIcon }[] = [
+/** The 5 navigation sections */
+const NAV: { id: GuestMainSection; label: string; icon: LucideIcon }[] = [
   { id: 'home', label: 'Home', icon: House },
-  { id: 'room_service', label: 'Dining', icon: UtensilsCrossed },
-  { id: 'requests', label: 'Requests', icon: ListChecks },
-  { id: 'folio', label: 'Folio', icon: CircleDollarSign },
-  { id: 'lost_found', label: 'Lost & found', icon: PackageSearch },
+  { id: 'services', label: 'Services', icon: Sparkles },
+  { id: 'activity', label: 'My Activity', icon: ListChecks },
+  { id: 'notifications', label: 'Notifications', icon: Bell },
+  { id: 'profile', label: 'Profile', icon: User },
 ];
 
-const NAV_GROUP: Partial<Record<GuestTabId, GuestTabId>> = {
-  housekeeping: 'home',
-  maintenance: 'home',
-  spa: 'home',
+const NAV_MAP: Record<string, GuestMainSection> = {
+  home: 'home',
+  services: 'services',
+  activity: 'activity',
+  notifications: 'notifications',
+  profile: 'profile',
+  // Backward compatibility mappings
+  alerts: 'notifications',
+  complaints: 'services',
+  lost_found: 'services',
+  dining: 'services',
+  room_service: 'services',
+  housekeeping: 'services',
+  maintenance: 'services',
+  spa: 'services',
+  front_desk: 'services',
+  reminders: 'services',
+  dnd: 'services',
+  requests: 'activity',
+  folio: 'profile',
 };
 
 export function GuestPortalPreview({ room, token }: { room: string; token: string }) {
   const router = useRouter();
   const { state, setTheme } = useDemo();
   const [tab, setTab] = useState<GuestTabId>('home');
+  const [subtab, setSubtab] = useState<string | undefined>(undefined);
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const stay = (state.frontDesk?.stays ?? []).find((st) => st.room === room && st.status === 'in_house');
@@ -62,18 +79,62 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
   const valid = Boolean(guest) && token === 'demo-token' && !revoked;
   const isLight = state.theme === 'light';
 
+  // Listen for custom open-guest-tour event
+  useEffect(() => {
+    const handleOpen = () => setTourOpen(true);
+    window.addEventListener('open-guest-tour', handleOpen);
+    return () => window.removeEventListener('open-guest-tour', handleOpen);
+  }, []);
+
+  // Active activity count for badge
+  const activeActivityCount = useMemo(() => {
+    const allItems = Object.values(state.items ?? {}).flat();
+    const activeTasks = allItems.filter(
+      (i) => i.guest && i.room === room && !['Completed', 'Delivered', 'Cancelled', 'Closed'].includes(i.status),
+    ).length;
+    const pendingReminders = (state.guestReminders ?? []).filter(
+      (r) => r.room === room && r.status !== 'completed',
+    ).length;
+    return activeTasks + pendingReminders;
+  }, [state.items, state.guestReminders, room]);
+
+  // Unread personal notifications count for badge
+  const unreadNotifCount = useMemo(() => {
+    return (state.guestNotifications ?? []).filter((n) => n.room === room && !n.read).length;
+  }, [state.guestNotifications, room]);
+
+  // Critical alerts count for badge
+  const criticalAlertsCount = useMemo(() => {
+    const safety = (state.safetyAlerts ?? []).filter((a) => a.priority === 'critical');
+    const hotel = (state.hotelAlerts ?? []).filter((a) => a.severity === 'Critical');
+    return safety.length + hotel.length;
+  }, [state.safetyAlerts, state.hotelAlerts]);
+
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 });
-  }, [tab]);
+  }, [tab, subtab]);
 
-  const tabProps = guest ? { room, guestName: guest.name, onNavigate: setTab } : null;
-  const activeNav = NAV_GROUP[tab] ?? tab;
+  function handleNavigate(targetTab: GuestTabId, targetSubtab?: string) {
+    setTab(targetTab);
+    setSubtab(targetSubtab);
+  }
+
+  const tabProps = guest
+    ? {
+        room,
+        guestName: guest.name,
+        onNavigate: handleNavigate,
+        initialSubtab: subtab,
+      }
+    : null;
+
+  const activeNav = NAV_MAP[tab] ?? 'home';
 
   return (
     <div className="guest-stage">
       <div className="guest-frame guest-shell">
         {!valid || !guest || !tabProps ? (
-          <div className="flex flex-1 flex-col items-center justify-center px-8 text-center">
+          <div className="flex flex-1 flex-col items-center justify-center px-8 text-center min-h-[500px]">
             <span className="grid h-14 w-14 place-items-center rounded-2xl border border-rose-400/30 bg-rose-500/10 text-rose-500">
               <ShieldOff className="h-7 w-7" aria-hidden />
             </span>
@@ -92,79 +153,183 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
           </div>
         ) : (
           <>
+            {/* RESPONSIVE LUXURY HEADER */}
             <header
-              className="guest-surface guest-header flex shrink-0 items-center justify-between gap-3 px-4 pb-3"
+              className="guest-surface guest-header flex shrink-0 items-center justify-between gap-3 px-4 sm:px-6 lg:px-8 py-3 border-b border-white/10"
               style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top, 0px))' }}
             >
-              <div className="flex min-w-0 items-center gap-2.5">
-                {tab !== 'home' && (
+              {/* Brand & Room Info */}
+              <div className="flex min-w-0 items-center gap-3">
+                {activeNav !== 'home' && (
                   <button
                     type="button"
-                    onClick={() => setTab('home')}
-                    aria-label="Back to home"
-                    className="guest-chip-btn grid h-9 w-9 shrink-0 place-items-center rounded-full"
+                    onClick={() => handleNavigate('home')}
+                    aria-label="Back to home dashboard"
+                    className="guest-chip-btn grid h-8 w-8 shrink-0 place-items-center rounded-full md:hidden"
                   >
                     <ChevronLeft className="h-4 w-4" aria-hidden />
                   </button>
                 )}
                 <span
-                  className="grid h-9 w-9 shrink-0 place-items-center rounded-xl"
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-xl shadow-md cursor-pointer"
                   style={{ background: 'linear-gradient(135deg, rgb(var(--a)), rgb(var(--b)))', color: 'var(--on-a)' }}
+                  onClick={() => handleNavigate('home')}
                 >
-                  <Hotel className="h-4 w-4" aria-hidden />
+                  <Hotel className="h-5 w-5" aria-hidden />
                 </span>
-                <span className="min-w-0 leading-tight">
-                  <span className="block truncate text-sm font-bold">The Grand ADP</span>
-                  <span className="guest-muted flex items-center gap-1 text-[11px]">
-                    <BedDouble className="h-3 w-3" aria-hidden /> Room {room}
+                <div
+                  className="min-w-0 cursor-pointer"
+                  onClick={() => handleNavigate('profile')}
+                  title="View Profile & Stay"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="block truncate text-xs sm:text-sm font-black tracking-tight text-white hover:text-amber-300 transition-colors">
+                      The Grand ADP
+                    </span>
+                    <span className="hidden sm:inline-block text-[10px] text-amber-400 font-mono font-semibold uppercase tracking-wider">
+                      Resort &amp; Suites
+                    </span>
+                  </div>
+                  <span className="guest-muted flex items-center gap-1.5 text-[10px] sm:text-[11px]">
+                    <BedDouble className="h-3 w-3 text-amber-400" aria-hidden /> Room {room} · {guest.name}
                   </span>
-                </span>
+                </div>
               </div>
+
+              {/* DESKTOP TOP NAVIGATION BAR (Visible on md/lg screens) */}
+              <nav className="hidden md:flex items-center gap-1 p-1 rounded-xl bg-black/20 border border-white/5">
+                {NAV.map((t) => {
+                  const Icon = t.icon;
+                  const active = activeNav === t.id;
+                  const hasActivityBadge = t.id === 'activity' && activeActivityCount > 0;
+                  const hasNotifBadge = t.id === 'notifications' && unreadNotifCount > 0;
+                  const hasCriticalAlert = t.id === 'notifications' && criticalAlertsCount > 0;
+
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => handleNavigate(t.id)}
+                      className={cn(
+                        'flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all relative',
+                        active
+                          ? 'bg-amber-400 text-ink-950 font-bold shadow-sm'
+                          : 'text-mist-300 hover:text-white hover:bg-white/5'
+                      )}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" />
+                      <span>{t.label}</span>
+                      {hasActivityBadge && (
+                        <span
+                          className={cn(
+                            'px-1.5 py-0.2 rounded-full text-[9px] font-bold',
+                            active ? 'bg-black/20 text-ink-950' : 'bg-amber-400 text-ink-950'
+                          )}
+                        >
+                          {activeActivityCount}
+                        </span>
+                      )}
+                      {hasNotifBadge && (
+                        <span
+                          className={cn(
+                            'px-1.5 py-0.2 rounded-full text-[9px] font-bold',
+                            active ? 'bg-black/20 text-ink-950' : 'bg-amber-400 text-ink-950'
+                          )}
+                        >
+                          {unreadNotifCount}
+                        </span>
+                      )}
+                      {hasCriticalAlert && !hasNotifBadge && (
+                        <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+                      )}
+                    </button>
+                  );
+                })}
+              </nav>
+
+              {/* Header Right Actions */}
               <div className="flex shrink-0 items-center gap-2">
+                {/* Take Tour Button */}
+                <button
+                  type="button"
+                  onClick={() => setTourOpen(true)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-white/10 hover:border-amber-400/40 text-mist-300 hover:text-amber-300 text-xs font-semibold transition-all"
+                  title="Interactive App Guide"
+                >
+                  <Compass className="h-3.5 w-3.5 text-amber-400" />
+                  <span className="hidden sm:inline">App Guide</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={() => setTheme(isLight ? 'dark' : 'light')}
                   aria-label={isLight ? 'Switch to dark theme' : 'Switch to light theme'}
-                  className="guest-chip-btn grid h-9 w-9 place-items-center rounded-full"
+                  className="guest-chip-btn grid h-8 w-8 place-items-center rounded-full hover:border-amber-400/40"
+                  title={isLight ? 'Switch to dark theme' : 'Switch to light theme'}
                 >
-                  {isLight ? <Moon className="h-4 w-4" aria-hidden /> : <Sun className="h-4 w-4" aria-hidden />}
+                  {isLight ? <Moon className="h-3.5 w-3.5" aria-hidden /> : <Sun className="h-3.5 w-3.5" aria-hidden />}
                 </button>
+
                 <button
                   type="button"
                   onClick={() => setLogoutOpen(true)}
                   aria-label="Log out"
-                  className="guest-chip-btn grid h-9 w-9 place-items-center rounded-full"
+                  className="guest-chip-btn grid h-8 w-8 place-items-center rounded-full hover:border-rose-400/40"
+                  title="Logout"
                 >
-                  <LogOut className="h-4 w-4" aria-hidden />
+                  <LogOut className="h-3.5 w-3.5 text-mist-400 hover:text-rose-400" aria-hidden />
                 </button>
               </div>
             </header>
 
+            {/* MAIN CONTENT AREA */}
             <div ref={scrollRef} className="guest-scroll">
-              <div className="px-4 py-4">
-                <TabPanel tab={tab} tabProps={tabProps} />
+              <div className="px-3.5 py-4 sm:px-6 lg:px-8">
+                <TabPanel tab={tab} subtab={subtab} tabProps={tabProps} />
               </div>
             </div>
 
+            {/* MOBILE BOTTOM NAVIGATION BAR (Hidden on md/lg screens) */}
             <nav
-              aria-label="Guest Portal sections"
-              className="guest-tabbar shrink-0"
+              aria-label="Guest Navigation"
+              className="guest-tabbar shrink-0 md:hidden"
               style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
             >
-              <div className="grid grid-cols-5 gap-0.5 px-1.5 py-1.5">
+              <div className="grid grid-cols-5 gap-0.5 px-1 py-1.5">
                 {NAV.map((t) => {
                   const Icon = t.icon;
                   const active = activeNav === t.id;
+                  const hasActivityBadge = t.id === 'activity' && activeActivityCount > 0;
+                  const hasNotifBadge = t.id === 'notifications' && unreadNotifCount > 0;
+                  const hasCriticalAlert = t.id === 'notifications' && criticalAlertsCount > 0;
+
                   return (
                     <button
                       key={t.id}
                       type="button"
                       aria-current={active ? 'page' : undefined}
-                      onClick={() => setTab(t.id)}
-                      className="guest-tab-btn flex flex-col items-center gap-1 rounded-xl px-1 py-1.5"
+                      onClick={() => handleNavigate(t.id)}
+                      className="guest-tab-btn flex flex-col items-center gap-1 rounded-xl px-1 py-1.5 relative transition-all"
                     >
-                      <Icon className={cn('h-5 w-5', active && 'scale-110')} aria-hidden />
-                      <span className="text-[10px] font-semibold leading-none">{t.label}</span>
+                      <div className="relative">
+                        <Icon className={cn('h-5 w-5 transition-transform', active && 'scale-110 text-amber-400')} aria-hidden />
+                        {hasActivityBadge && (
+                          <span className="absolute -top-1 -right-1.5 px-1 min-w-[14px] h-3.5 rounded-full bg-amber-400 text-ink-950 font-bold text-[9px] flex items-center justify-center ring-2 ring-ink-950">
+                            {activeActivityCount}
+                          </span>
+                        )}
+                        {hasNotifBadge && (
+                          <span className="absolute -top-1 -right-1.5 px-1 min-w-[14px] h-3.5 rounded-full bg-amber-400 text-ink-950 font-bold text-[9px] flex items-center justify-center ring-2 ring-ink-950">
+                            {unreadNotifCount}
+                          </span>
+                        )}
+                        {hasCriticalAlert && !hasNotifBadge && (
+                          <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-rose-500 ring-2 ring-ink-950 animate-pulse" />
+                        )}
+                      </div>
+                      <span className={cn('text-[10px] font-semibold leading-none truncate max-w-full', active && 'text-amber-400 font-bold')}>
+                        {t.label}
+                      </span>
                     </button>
                   );
                 })}
@@ -173,42 +338,93 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
           </>
         )}
 
+        {/* LOGOUT CONFIRMATION MODAL */}
         {logoutOpen && (
           <GuestConfirm
             title="Log out of the guest portal?"
-            body="You'll return to the demo home page. Your requests and orders stay saved."
+            body="You'll return to the demo home page. Your requests, messages and folio stay saved."
             confirmLabel="Log out"
             onCancel={() => setLogoutOpen(false)}
             onConfirm={() => router.push('/')}
           />
         )}
 
-        {/* Sheets and dialogs render here so they stay inside the phone frame. */}
+        {/* INTERACTIVE NAVIGATION ONBOARDING GUIDE */}
+        {valid && guest && (
+          <GuestInteractiveTour
+            room={room}
+            guestName={guest.name}
+            isOpen={tourOpen}
+            onClose={() => setTourOpen(false)}
+            onNavigate={handleNavigate}
+          />
+        )}
+
+        {/* Sheets and dialogs render here */}
         <div id="guest-overlay-root" />
       </div>
     </div>
   );
 }
 
-function TabPanel({ tab, tabProps }: { tab: GuestTabId; tabProps: { room: string; guestName: string; onNavigate: (t: GuestTabId) => void } }) {
+function TabPanel({
+  tab,
+  subtab,
+  tabProps,
+}: {
+  tab: GuestTabId;
+  subtab?: string;
+  tabProps: {
+    room: string;
+    guestName: string;
+    onNavigate: (t: GuestTabId, subtab?: string) => void;
+    initialSubtab?: string;
+  };
+}) {
   switch (tab) {
     case 'home':
-      return <HomeTab {...tabProps} />;
-    case 'housekeeping':
-      return <HousekeepingTab {...tabProps} />;
-    case 'room_service':
-      return <RoomServiceTab {...tabProps} />;
-    case 'maintenance':
-      return <MaintenanceTab {...tabProps} />;
-    case 'spa':
-      return <SpaConciergeTab {...tabProps} />;
-    case 'requests':
-      return <RequestsTab {...tabProps} />;
-    case 'folio':
-      return <FolioTab {...tabProps} />;
+      return <HomeDashboard {...tabProps} />;
+    case 'services':
+      return <AllServicesSection {...tabProps} initialSubtab={subtab as any} />;
+    case 'activity':
+      return <ActivitySection {...tabProps} />;
+    case 'notifications':
+      return <NotificationsHubSection {...tabProps} initialSubtab={subtab as any} />;
+    case 'profile':
+      return <ProfileSection {...tabProps} initialSubtab={subtab as any} />;
+
+    // Direct / backward-compatible links
+    case 'alerts':
+      return <NotificationsHubSection {...tabProps} initialSubtab="alerts" />;
+    case 'complaints':
+      return <AllServicesSection {...tabProps} initialSubtab="complaints" />;
     case 'lost_found':
-      return <LostFoundTab {...tabProps} />;
+      return <AllServicesSection {...tabProps} initialSubtab="lost_found" />;
+    case 'dining':
+      return <AllServicesSection {...tabProps} initialSubtab="dining" />;
+    case 'room_service':
+    case 'housekeeping':
+      return <AllServicesSection {...tabProps} initialSubtab="room_service" />;
+    case 'maintenance':
+      return <AllServicesSection {...tabProps} initialSubtab="maintenance" />;
+    case 'spa':
+      return <AllServicesSection {...tabProps} initialSubtab="spa" />;
+    case 'concierge':
+      return <AllServicesSection {...tabProps} initialSubtab="concierge" />;
+    case 'recreation':
+      return <AllServicesSection {...tabProps} initialSubtab="recreation" />;
+    case 'front_desk':
+      return <AllServicesSection {...tabProps} initialSubtab="front_desk" />;
+    case 'reminders':
+      return <AllServicesSection {...tabProps} initialSubtab="reminders" />;
+    case 'dnd':
+      return <AllServicesSection {...tabProps} initialSubtab="dnd" />;
+    case 'folio':
+      return <ProfileSection {...tabProps} initialSubtab="folio" />;
+    case 'requests':
+      return <ActivitySection {...tabProps} />;
+
     default:
-      return null;
+      return <HomeDashboard {...tabProps} />;
   }
 }

@@ -55,7 +55,7 @@ export function GeneralManagerVipTab({ onNavigateTab }: GeneralManagerVipTabProp
   );
 
   const complaints = (state.frontDesk?.complaints ?? []).filter(
-    (c) => activeSelected && (c.room === activeSelected.room || c.guestName.toLowerCase().includes(activeSelected.guest.toLowerCase().split(' ')[0])),
+    (c) => activeSelected && (c.room === activeSelected.room || (c.guestName || c.guest || '').toLowerCase().includes(activeSelected.guest.toLowerCase().split(' ')[0])),
   );
 
   const workItems = useMemoCombinedTasks(state, activeSelected?.room);

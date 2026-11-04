@@ -132,7 +132,7 @@ export function RoleDashboard({ roleId }: { roleId: RoleId }) {
   }
 
   const items = state.items[roleId] ?? [];
-  const openCount = items.filter((i) => (cfg?.transitions?.[i.status]?.length ?? 0) > 0).length;
+  const openCount = (items as WorkItem[]).filter((i) => (cfg?.transitions?.[i.status]?.length ?? 0) > 0).length;
   const BannerIcon = cfg?.banner ? TONE_ICONS[cfg.banner.tone] : null;
   // Hide a banner once nothing is left open, so it never contradicts the list.
   const showBanner = Boolean(cfg?.banner && openCount > 0);

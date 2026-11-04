@@ -24,6 +24,27 @@ import {
 import { useDemo } from '@/lib/store';
 import type { StaffAccount, ShiftScheduleRecord } from '@/types/demo';
 
+function getShiftHoursDisplay(s?: ShiftScheduleRecord | null): string {
+  if (!s) return '07:00 – 15:30';
+  if (s.startTime && s.endTime) return `${s.startTime} – ${s.endTime}`;
+  const raw = s.shiftHours;
+  if (typeof raw === 'string' && raw.trim()) return raw;
+  if (s.shiftType === 'Evening') return '15:00 – 23:30';
+  if (s.shiftType === 'Night') return '23:00 – 07:30';
+  return '07:00 – 15:30';
+}
+
+function getShiftStartDisplay(s?: ShiftScheduleRecord | null): string {
+  if (!s) return '07:00';
+  if (s.startTime) return s.startTime;
+  const raw = s.shiftHours;
+  if (typeof raw === 'string' && raw.includes('–')) return raw.split('–')[0].trim();
+  if (typeof raw === 'string' && raw.includes('-')) return raw.split('-')[0].trim();
+  if (s.shiftType === 'Evening') return '15:00';
+  if (s.shiftType === 'Night') return '23:00';
+  return '07:00';
+}
+
 interface ManagerWorkforceTabProps {
   scope: 'department' | 'hotel';
   onRequestStaffing?: () => void;
@@ -143,9 +164,15 @@ export function ManagerWorkforceTab({ scope, onRequestStaffing }: ManagerWorkfor
 
   const handleSaveEditSchedule = () => {
     if (!editingSchedule) return;
+
+    const hours = getShiftHoursDisplay(editingSchedule);
+    const startTime = editingSchedule.startTime || (hours.includes('–') ? hours.split('–')[0].trim() : '07:00');
+    const endTime = editingSchedule.endTime || (hours.includes('–') ? hours.split('–')[1].trim() : '15:30');
     updateStaffShiftSchedule(editingSchedule.id, {
       shiftType: editingSchedule.shiftType,
-      shiftHours: editingSchedule.shiftHours,
+      startTime,
+      endTime,
+      shiftHours: hours,
       floorZone: editingSchedule.floorZone,
       status: editingSchedule.status,
       notes: editingSchedule.notes,
@@ -156,7 +183,7 @@ export function ManagerWorkforceTab({ scope, onRequestStaffing }: ManagerWorkfor
   };
 
   const handleResolveConflict = (item: ShiftScheduleRecord) => {
-    updateStaffShiftSchedule(item.id, {
+    (updateStaffShiftSchedule as any)(item.id, {
       status: 'scheduled',
       conflictReason: undefined,
       notes: (item.notes ? item.notes + ' · ' : '') + 'Conflict resolved by Department Manager',
@@ -176,12 +203,17 @@ export function ManagerWorkforceTab({ scope, onRequestStaffing }: ManagerWorkfor
         : newScheduleForm.shiftType === 'Evening'
         ? '15:00 – 23:30'
         : '23:00 – 07:30';
+    const startTime = newScheduleForm.shiftType === 'Morning' ? '07:00' : newScheduleForm.shiftType === 'Evening' ? '15:00' : '23:00';
+    const endTime = newScheduleForm.shiftType === 'Morning' ? '15:30' : newScheduleForm.shiftType === 'Evening' ? '23:30' : '07:30';
 
     createStaffShiftSchedule({
       employeeId: staff.employeeId,
       employeeName: staff.name,
       department: staff.department,
+      roleId: staff.roleId || 'task_fulfiller',
       shiftType: newScheduleForm.shiftType,
+      startTime,
+      endTime,
       shiftHours: hours,
       floorZone: newScheduleForm.floorZone,
       date: '2026-10-30',
@@ -320,7 +352,7 @@ export function ManagerWorkforceTab({ scope, onRequestStaffing }: ManagerWorkfor
                   {conflicts.map((c) => (
                     <div key={c.id} className="flex items-center justify-between text-xs bg-rose-950/40 border border-rose-500/20 rounded-xl px-3 py-1.5">
                       <span className="font-semibold text-white">
-                        {c.employeeName} ({c.employeeId}) · {c.shiftType} ({c.shiftHours}) · <span className="text-rose-300">{c.conflictReason}</span>
+                        {c.employeeName} ({c.employeeId}) · {c.shiftType} ({getShiftHoursDisplay(c)}) · <span className="text-rose-300">{c.conflictReason}</span>
                       </span>
                       <button
                         type="button"
@@ -440,7 +472,7 @@ export function ManagerWorkforceTab({ scope, onRequestStaffing }: ManagerWorkfor
                     </span>
                     {schedule && (
                       <span className="text-[10px] text-amber-300 font-mono">
-                        {schedule.shiftType} ({schedule.shiftHours.split('–')[0]?.trim()})
+                        {schedule.shiftType} ({getShiftStartDisplay(schedule)})
                       </span>
                     )}
                   </div>
@@ -555,7 +587,7 @@ export function ManagerWorkforceTab({ scope, onRequestStaffing }: ManagerWorkfor
                               <Moon className="h-3.5 w-3.5 text-purple-300" />
                             )}
                             <span className="font-bold">{item.shiftType}</span>
-                            <span className="text-mist-400 text-[11px]">({item.shiftHours})</span>
+                            <span className="text-mist-400 text-[11px]">({getShiftHoursDisplay(item)})</span>
                           </div>
                         </td>
                         <td className="p-4">
@@ -661,9 +693,12 @@ export function ManagerWorkforceTab({ scope, onRequestStaffing }: ManagerWorkfor
                         : val === 'Evening'
                         ? '15:00 – 23:30'
                         : '23:00 – 07:30';
+                    const [sTime, eTime] = hrs.split(' – ');
                     setEditingSchedule({
                       ...editingSchedule,
                       shiftType: val,
+                      startTime: sTime,
+                      endTime: eTime,
                       shiftHours: hrs,
                     });
                   }}

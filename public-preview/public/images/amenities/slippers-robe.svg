@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <rect width="200" height="200" fill="#f7f5f0"/>
+  <!-- folded robe (background) -->
+  <rect x="90" y="25" width="90" height="130" rx="12" fill="white" stroke="#e4ddd4" stroke-width="1.5"/>
+  <!-- robe collar V-neck -->
+  <polyline points="135,25 115,70 135,95 155,70 135,25" fill="#f2ede8" stroke="#e4ddd4" stroke-width="1.2"/>
+  <!-- robe belt suggestion -->
+  <rect x="90" y="115" width="90" height="8" rx="4" fill="#e8e0d4"/>
+  <!-- robe waffle texture lines horizontal -->
+  <line x1="92" y1="100" x2="178" y2="100" stroke="#e8e4de" stroke-width="0.8"/>
+  <line x1="92" y1="108" x2="178" y2="108" stroke="#e8e4de" stroke-width="0.8"/>
+  <line x1="92" y1="126" x2="178" y2="126" stroke="#e8e4de" stroke-width="0.8"/>
+  <line x1="92" y1="134" x2="178" y2="134" stroke="#e8e4de" stroke-width="0.8"/>
+  <line x1="92" y1="142" x2="178" y2="142" stroke="#e8e4de" stroke-width="0.8"/>
+  <!-- robe waffle texture vertical -->
+  <line x1="110" y1="98" x2="110" y2="153" stroke="#e8e4de" stroke-width="0.8"/>
+  <line x1="128" y1="98" x2="128" y2="153" stroke="#e8e4de" stroke-width="0.8"/>
+  <line x1="146" y1="98" x2="146" y2="153" stroke="#e8e4de" stroke-width="0.8"/>
+  <line x1="164" y1="98" x2="164" y2="153" stroke="#e8e4de" stroke-width="0.8"/>
+  <!-- shadow under slippers -->
+  <ellipse cx="55" cy="174" rx="42" ry="6" fill="#d4cec8" opacity="0.4"/>
+  <!-- left slipper -->
+  <ellipse cx="40" cy="164" rx="30" ry="14" fill="white" stroke="#e0d8d0" stroke-width="1.5"/>
+  <ellipse cx="36" cy="158" rx="22" ry="10" fill="#f8f5f2"/>
+  <!-- slipper band -->
+  <path d="M20,155 Q36,148 52,155" fill="none" stroke="#e0d8d0" stroke-width="3" stroke-linecap="round"/>
+  <!-- right slipper (slightly behind) -->
+  <ellipse cx="72" cy="168" rx="28" ry="13" fill="#f2ede8" stroke="#e0d8d0" stroke-width="1.5"/>
+  <ellipse cx="68" cy="162" rx="20" ry="9" fill="#f8f5f2"/>
+  <path d="M52,159 Q68,152 84,159" fill="none" stroke="#ddd5cc" stroke-width="3" stroke-linecap="round"/>
+</svg>

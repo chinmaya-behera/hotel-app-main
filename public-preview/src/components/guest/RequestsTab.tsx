@@ -20,11 +20,11 @@ const DONE_STATUSES = ['Completed', 'Delivered', 'Cancelled', 'Closed'];
 const CANCELLABLE_STATUSES = ['Unassigned', 'Acknowledged', 'Received', 'Preparing', 'Pending approval', 'Open'];
 
 const CATEGORY_LABEL: Record<string, string> = {
-  housekeeping: 'Housekeeping',
+  housekeeping: 'Room Service',
   maintenance: 'Maintenance',
   spa: 'Spa & Wellness',
   concierge: 'Concierge',
-  room_service: 'Room Service',
+  room_service: 'Dining',
   folio: 'Folio',
   lost_found: 'Lost & Found',
 };

@@ -250,9 +250,9 @@ export const ROLE_AUTHORITY_PROFILES: Record<RoleId, RoleAuthorityProfile> = {
   },
 
   // Backward compatibility aliases
-  department_dispatcher: {} as any,
-  department_supervisor: {} as any,
-  executive_viewer: {} as any,
+  department_dispatcher: {} as unknown as RoleAuthorityProfile,
+  department_supervisor: {} as unknown as RoleAuthorityProfile,
+  executive_viewer: {} as unknown as RoleAuthorityProfile,
 };
 
 // Aliases

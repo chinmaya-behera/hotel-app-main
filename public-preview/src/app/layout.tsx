@@ -15,7 +15,14 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var s=localStorage.getItem('grand-azure-demo-v1');if(s){var d=JSON.parse(s);if(d&&d.theme){document.documentElement.dataset.theme=d.theme;if(d.theme==='light'){document.documentElement.classList.add('light');}else{document.documentElement.classList.add('dark');}}}}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body>
         <DemoProvider>{children}</DemoProvider>
       </body>
