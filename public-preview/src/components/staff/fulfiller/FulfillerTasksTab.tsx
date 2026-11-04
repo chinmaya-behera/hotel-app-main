@@ -718,7 +718,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                   })()
                 )}
 
-                {/* SLA, Photo Requirement & Details strip */}
+                {/* SLA & Details strip */}
                 <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-white/[0.06] pt-2.5 text-xs text-mist-400">
                   {task.slaDue && (
                     <span className="flex items-center gap-1 text-[11px]">
@@ -727,8 +727,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     </span>
                   )}
 
-                  {/* Photo Section: upload option in all departments */}
-                  {task.photoUrl ? (
+                  {task.photoUrl && (
                     <button
                       type="button"
                       onClick={() => setViewPhotoUrl(task.photoUrl!)}
@@ -736,15 +735,6 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     >
                       <ImageIcon className="h-3 w-3" />
                       <span>Photo attached</span>
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => openPhotoUpload(task)}
-                      className="flex items-center gap-1 text-[11px] text-mist-300 hover:text-emerald-300 transition-colors cursor-pointer"
-                    >
-                      <Camera className="h-3 w-3 text-emerald-400" />
-                      <span>Upload photo</span>
                     </button>
                   )}
 
@@ -834,6 +824,20 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                         >
                           <Play className="h-3.5 w-3.5 fill-current" />
                           Start Work
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openPhotoUpload(task)}
+                          className={cn(
+                            'rounded-xl border px-3 py-2 text-xs font-medium transition-colors flex items-center gap-1.5',
+                            task.photoUrl
+                              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                              : 'border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
+                          )}
+                          title="Upload or capture task photo"
+                        >
+                          <Camera className="h-3.5 w-3.5" />
+                          {task.photoUrl ? 'Photo ✓' : 'Upload Photo'}
                         </button>
                         <button
                           type="button"
