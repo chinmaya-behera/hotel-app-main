@@ -24,3 +24,10 @@ Thumbs.db
 .idea/
 
 .local-network.mjs
+
+# Private artifacts retained from the earlier local preview
+.demo-credentials.json
+CLIENT_DEMO_LOGINS.md
+.vercel/
+outputs/
+wireframe/
