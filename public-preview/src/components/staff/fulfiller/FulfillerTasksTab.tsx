@@ -1033,26 +1033,20 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                   );
                 })()}
 
-                {/* Photo Evidence Section */}
-                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-semibold text-mist-200 flex items-center gap-1.5">
-                      <Camera className="h-3.5 w-3.5 text-emerald-400" /> Completion Evidence Photo
-                    </h4>
-                    {selectedTask.evidenceRequired && (
-                      <span className="text-[10px] text-amber-300 font-bold">Mandatory</span>
-                    )}
-                  </div>
+                {/* Photo Evidence (Read-only if attached) */}
+                {selectedTask.photoUrl && (
+                  <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-semibold text-mist-200 flex items-center gap-1.5">
+                        <Camera className="h-3.5 w-3.5 text-emerald-400" /> Attached Photo Evidence
+                      </h4>
+                      <span className="text-[10px] text-emerald-300 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                        Verified
+                      </span>
+                    </div>
 
-                  {photoError && (
-                    <p className="mt-2 text-rose-400 text-xs bg-rose-500/10 p-2 rounded-lg border border-rose-500/20">
-                      {photoError}
-                    </p>
-                  )}
-
-                  {selectedTask.photoUrl ? (
                     <div
-                      className="mt-3 relative rounded-xl overflow-hidden border border-white/20 aspect-video bg-black/50 cursor-pointer group"
+                      className="mt-2.5 relative rounded-xl overflow-hidden border border-white/20 aspect-video bg-black/50 cursor-pointer group"
                       onClick={() => setViewPhotoUrl(selectedTask.photoUrl!)}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1065,34 +1059,10 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                         <span className="text-[10px] text-emerald-300 font-semibold flex items-center gap-1">
                           <Eye className="h-3 w-3" /> Tap to view full size
                         </span>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            fileInputRef.current?.click();
-                          }}
-                          className="rounded-lg bg-white/20 px-2 py-1 text-[10px] text-white hover:bg-white/30"
-                        >
-                          Retake
-                        </button>
                       </div>
                     </div>
-                  ) : (
-                    <div className="mt-3">
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-white/20 py-4 px-3 text-xs font-semibold text-mist-300 hover:border-emerald-400 hover:text-emerald-300 hover:bg-emerald-400/[0.04] transition-all"
-                      >
-                        <Camera className="h-4 w-4" />
-                        Take Photo / Attach Evidence
-                      </button>
-                      <p className="mt-1 text-center text-[10px] text-mist-500">
-                        Files are previewed in browser memory via data-URL and not uploaded to external servers.
-                      </p>
-                    </div>
-                  )}
-                </div>
+                  </div>
+                )}
 
                 {/* Chronological Task Work Timeline (Actual Shared State) */}
                 <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3.5 space-y-3">
@@ -1154,95 +1124,18 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                 </div>
               </div>
 
-              {/* Footer Modal Actions */}
-              <div className="mt-3 border-t border-white/10 pt-3 flex items-center justify-between gap-2 shrink-0">
+              {/* Footer: Dedicated Close Button */}
+              <div className="mt-3 border-t border-white/10 pt-3 flex items-center shrink-0">
                 <button
                   type="button"
                   onClick={() => {
                     setSelectedTask(null);
                     setPhotoError(null);
                   }}
-                  className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-semibold text-mist-200"
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.05] hover:bg-white/[0.08] active:scale-[0.99] py-2.5 text-xs font-semibold text-white transition-all text-center"
                 >
                   Close
                 </button>
-
-                {/* Contextual actions */}
-                {(selectedTask.status === 'Unassigned' || selectedTask.status === 'Received' || !selectedTask.assignee) && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      claimTask(selectedTask.id, activeProfile.employeeId, activeProfile.employeeName);
-                      setSelectedTask(null);
-                    }}
-                    className="rounded-xl bg-amber-400 px-5 py-2 text-xs font-bold text-ink-950 shadow-lg shadow-amber-400/25 active:scale-95 transition-transform"
-                  >
-                    Claim Task
-                  </button>
-                )}
-
-                {selectedTask.status !== 'Completed' &&
-                  isTaskAssignedToProfile(selectedTask, activeProfile) && (
-                    <div className="flex items-center gap-2">
-                      {selectedTask.status === 'Assigned' && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            advance('task_fulfiller', selectedTask.id, {
-                              label: 'Accept',
-                              next: 'Accepted',
-                              message: 'Task accepted',
-                            });
-                            setSelectedTask(null);
-                          }}
-                          className="rounded-xl bg-emerald-500 px-4 py-2 text-xs font-bold text-ink-950 shadow-lg shadow-emerald-500/25 active:scale-95 transition-transform"
-                        >
-                          Accept Task
-                        </button>
-                      )}
-                      {(selectedTask.status === 'Accepted' || selectedTask.status === 'Assigned') && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            advance('task_fulfiller', selectedTask.id, {
-                              label: 'Start work',
-                              next: 'In progress',
-                              message: 'Work commenced',
-                            });
-                            setSelectedTask(null);
-                          }}
-                          className="rounded-xl bg-sky-500 px-4 py-2 text-xs font-bold text-ink-950 shadow-lg shadow-sky-500/25 active:scale-95 transition-transform"
-                        >
-                          Start Work
-                        </button>
-                      )}
-                      {(selectedTask.status === 'In progress' || selectedTask.status === 'On the way') && (
-                        <button
-                          type="button"
-                          onClick={() => handleComplete(selectedTask)}
-                          className="rounded-xl bg-emerald-500 px-5 py-2 text-xs font-bold text-ink-950 shadow-lg shadow-emerald-500/25 active:scale-95 transition-transform"
-                        >
-                          Complete Task
-                        </button>
-                      )}
-                      {selectedTask.status === 'Blocked' && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            advance('task_fulfiller', selectedTask.id, {
-                              label: 'Resume',
-                              next: 'In progress',
-                              message: 'Blocker resolved, work resumed',
-                            });
-                            setSelectedTask(null);
-                          }}
-                          className="rounded-xl bg-sky-500 px-4 py-2 text-xs font-bold text-ink-950 shadow-lg shadow-sky-500/25 active:scale-95 transition-transform"
-                        >
-                          Resume Work
-                        </button>
-                      )}
-                    </div>
-                  )}
               </div>
             </div>
           </div>
