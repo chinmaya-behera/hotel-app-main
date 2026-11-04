@@ -276,7 +276,7 @@ export function HousekeepingCatalogueSection({ room, guestName, onNavigate }: Gu
   }
 
   return (
-    <div className="space-y-6 pb-24 max-w-5xl mx-auto">
+    <div className="space-y-6 sm:space-y-8 pb-32 max-w-7xl mx-auto w-full">
       {/* SUCCESS CONFIRMATION BANNER */}
       {confirmedRef && (
         <div className="guest-card p-4 border-emerald-400/50 bg-emerald-400/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg animate-in fade-in duration-300">
@@ -432,7 +432,7 @@ export function HousekeepingCatalogueSection({ room, guestName, onNavigate }: Gu
               No amenities match &quot;{searchQuery}&quot;. Please check the spelling or explore other categories.
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5 sm:gap-4.5">
               {filteredAmenities.map((item) => {
                 const qty = quantities[item.id] ?? 0;
                 const isSelected = qty > 0;
@@ -474,10 +474,10 @@ export function HousekeepingCatalogueSection({ room, guestName, onNavigate }: Gu
                     {/* Content & Descriptions */}
                     <div className="p-3 flex-1 flex flex-col justify-between space-y-2">
                       <div className="space-y-1">
-                        <h3 className="text-xs font-bold text-white leading-snug line-clamp-1">
+                        <h3 className="text-xs sm:text-sm font-bold text-white leading-snug line-clamp-1">
                           {item.name}
                         </h3>
-                        <p className="text-[10px] text-mist-400 line-clamp-2 leading-relaxed">
+                        <p className="text-[11px] sm:text-xs text-mist-300 line-clamp-2 leading-relaxed">
                           {item.description}
                         </p>
                       </div>
@@ -493,7 +493,7 @@ export function HousekeepingCatalogueSection({ room, guestName, onNavigate }: Gu
                             type="button"
                             disabled={qty === 0 || !item.available}
                             onClick={() => handleDecrease(item.id)}
-                            className="h-6 w-6 grid place-items-center rounded-lg bg-white/10 hover:bg-white/20 text-white disabled:opacity-30 disabled:hover:bg-white/10 transition-colors"
+                            className="h-7 w-7 grid place-items-center rounded-lg bg-white/10 hover:bg-white/20 text-white disabled:opacity-30 disabled:hover:bg-white/10 transition-colors"
                             title="Decrease quantity"
                           >
                             <Minus className="h-3 w-3" />
@@ -507,7 +507,7 @@ export function HousekeepingCatalogueSection({ room, guestName, onNavigate }: Gu
                             type="button"
                             disabled={qty >= item.maxQty || !item.available}
                             onClick={() => handleIncrease(item.id, item.maxQty)}
-                            className="h-6 w-6 grid place-items-center rounded-lg bg-amber-400 text-ink-950 font-bold hover:bg-amber-300 disabled:opacity-30 disabled:hover:bg-amber-400 transition-colors"
+                            className="h-7 w-7 grid place-items-center rounded-lg bg-amber-400 text-ink-950 font-bold hover:bg-amber-300 disabled:opacity-30 disabled:hover:bg-amber-400 transition-colors"
                             title="Increase quantity"
                           >
                             <Plus className="h-3 w-3" />
@@ -753,7 +753,7 @@ export function HousekeepingCatalogueSection({ room, guestName, onNavigate }: Gu
       {/* ========================================================================= */}
       {hasSelections && (
         <div className="fixed bottom-0 left-0 right-0 z-40 p-3 sm:p-4 bg-slate-950/90 backdrop-blur-md border-t border-white/10 shadow-2xl animate-in slide-in-from-bottom duration-200">
-          <div className="max-w-5xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <span className="grid h-10 w-10 place-items-center rounded-xl bg-amber-400 text-ink-950 font-bold shadow-md">
                 <ShoppingBag className="h-5 w-5" />

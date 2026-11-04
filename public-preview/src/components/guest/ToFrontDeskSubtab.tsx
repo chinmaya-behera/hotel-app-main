@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
 import { cn, statusTone } from '@/lib/utils';
+import { Radio, AlertTriangle, Trash2, Megaphone } from 'lucide-react';
+import { useEmergencyBroadcast, ALERT_PRESETS, type AlertSeverity } from '@/lib/emergencyBroadcast';
 import { GuestEmptyState, GuestPill, GuestSectionHeader } from '@/components/guest/guestUi';
 import type { GuestTabProps } from '@/components/guest/types';
 import type { GuestFrontDeskMessage } from '@/types/demo';
@@ -57,6 +59,64 @@ export function ToFrontDeskSubtab({ room, guestName }: GuestTabProps) {
   const [replyInput, setReplyInput] = useState('');
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
+  const {
+    alert: activeEmergencyAlert,
+    isBroadcastActive,
+    broadcast: broadcastEmergency,
+    clear: clearEmergency,
+  } = useEmergencyBroadcast();
+
+  // Emergency Broadcast Form States
+  const [alertTitle, setAlertTitle] = useState(
+    activeEmergencyAlert?.title || ALERT_PRESETS[0].title
+  );
+  const [alertSeverity, setAlertSeverity] = useState<AlertSeverity>(
+    activeEmergencyAlert?.severity || ALERT_PRESETS[0].severity
+  );
+  const [alertDescription, setAlertDescription] = useState(
+    activeEmergencyAlert?.description || ALERT_PRESETS[0].description
+  );
+  const [alertLocation, setAlertLocation] = useState(
+    activeEmergencyAlert?.location || ALERT_PRESETS[0].location
+  );
+  const [isAlertExpanded, setIsAlertExpanded] = useState(false);
+
+  useEffect(() => {
+    if (activeEmergencyAlert) {
+      setAlertTitle(activeEmergencyAlert.title);
+      setAlertSeverity(activeEmergencyAlert.severity);
+      setAlertDescription(activeEmergencyAlert.description);
+      setAlertLocation(activeEmergencyAlert.location || '');
+    }
+  }, [activeEmergencyAlert]);
+
+  function handleBroadcast(e?: React.FormEvent) {
+    if (e) e.preventDefault();
+    if (!alertTitle.trim() || !alertDescription.trim()) return;
+    broadcastEmergency({
+      title: alertTitle.trim(),
+      description: alertDescription.trim(),
+      severity: alertSeverity,
+      location: alertLocation.trim() || undefined,
+    });
+    setSuccessToast(`Emergency Broadcast published: "${alertTitle.trim()}"`);
+    setTimeout(() => setSuccessToast(null), 5000);
+  }
+
+  function handleClearAlert() {
+    clearEmergency();
+    setSuccessToast('Emergency Broadcast cleared & deactivated');
+    setTimeout(() => setSuccessToast(null), 5000);
+  }
+
+  function applyPreset(preset: (typeof ALERT_PRESETS)[0]) {
+    setAlertTitle(preset.title);
+    setAlertSeverity(preset.severity);
+    setAlertDescription(preset.description);
+    setAlertLocation(preset.location);
+    setIsAlertExpanded(true);
+  }
+
   // Messages for this room
   const messages = (state.frontDeskMessages ?? []).filter((m) => m.room === room);
 
@@ -88,7 +148,7 @@ export function ToFrontDeskSubtab({ room, guestName }: GuestTabProps) {
   }
 
   return (
-    <div className="space-y-5 pb-6">
+    <div className="space-y-6 sm:space-y-8 pb-12 max-w-7xl mx-auto w-full">
       {/* Toast Alert */}
       {successToast && (
         <div className="guest-card flex items-start gap-2.5 border-emerald-400/40 bg-emerald-400/10 px-4 py-3 text-sm text-white">
@@ -101,7 +161,7 @@ export function ToFrontDeskSubtab({ room, guestName }: GuestTabProps) {
       )}
 
       {/* Hero Header */}
-      <div className="guest-card p-4 space-y-2">
+      <div className="guest-card p-4 sm:p-5 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <span className="grid h-8 w-8 place-items-center rounded-xl bg-amber-400/15 text-amber-300">
@@ -127,6 +187,149 @@ export function ToFrontDeskSubtab({ room, guestName }: GuestTabProps) {
             <span>New Message</span>
           </button>
         </div>
+      </div>
+
+      {/* FRONT DESK EMERGENCY ALERT / URGENT BROADCAST CONSOLE */}
+      <div className="guest-card p-4 sm:p-5 border-rose-500/40 bg-gradient-to-br from-rose-950/40 via-ink-950 to-ink-900 space-y-4 shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-rose-500/20">
+          <div className="flex items-center gap-3">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30">
+              <Megaphone className="h-4.5 w-4.5" />
+            </span>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-white">Emergency Alert / Urgent Broadcast</h3>
+                {isBroadcastActive ? (
+                  <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-500/20 border border-rose-500/40 text-[10px] font-extrabold text-rose-300">
+                    <span className="h-1.5 w-1.5 rounded-full bg-rose-400 animate-pulse" />
+                    LIVE BROADCAST ACTIVE
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-[10px] font-bold text-emerald-300">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                    NORMAL OPERATIONS
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-mist-400 mt-0.5">
+                Front Desk broadcast simulator &mdash; triggers the top emergency alert banner on guest displays
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {isBroadcastActive && (
+              <button
+                type="button"
+                onClick={handleClearAlert}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-rose-500/40 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 text-xs font-bold transition-all shadow-sm"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>Clear / Deactivate Alert</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setIsAlertExpanded(!isAlertExpanded)}
+              className="text-xs font-semibold text-mist-300 hover:text-white px-2.5 py-1.5 rounded-lg border border-white/10"
+            >
+              {isAlertExpanded ? 'Collapse' : 'Configure Alert'}
+            </button>
+          </div>
+        </div>
+
+        {/* Quick Presets */}
+        <div className="space-y-1.5">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-mist-400">
+            One-Click Preset Advisories:
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {ALERT_PRESETS.map((preset) => (
+              <button
+                key={preset.title}
+                type="button"
+                onClick={() => applyPreset(preset)}
+                className="text-xs px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:border-rose-400/40 hover:bg-rose-500/10 text-mist-200 hover:text-white transition-all text-left"
+              >
+                <span className="font-semibold">{preset.title.split(' ')[0]} {preset.title.split(' ')[1]}</span>
+                <span className="text-[10px] text-mist-400 ml-1.5">({preset.severity})</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Configuration / Custom Alert Form */}
+        {isAlertExpanded && (
+          <form onSubmit={handleBroadcast} className="space-y-3 pt-2 border-t border-white/10 animate-in fade-in duration-200">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="sm:col-span-2 space-y-1">
+                <label className="text-xs font-bold text-mist-300">Alert Title</label>
+                <input
+                  type="text"
+                  value={alertTitle}
+                  onChange={(e) => setAlertTitle(e.target.value)}
+                  placeholder="e.g. Basement Utility Substation Thermal Fluctuation"
+                  className="w-full px-3 py-2 rounded-xl bg-ink-900 border border-white/15 text-white text-xs focus:border-rose-400 outline-none"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-mist-300">Severity</label>
+                <select
+                  value={alertSeverity}
+                  onChange={(e) => setAlertSeverity(e.target.value as AlertSeverity)}
+                  className="w-full px-3 py-2 rounded-xl bg-ink-900 border border-white/15 text-white text-xs focus:border-rose-400 outline-none"
+                >
+                  <option value="Critical">Critical (Immediate Action)</option>
+                  <option value="Warning">Warning (Advisory)</option>
+                  <option value="Urgent">Urgent (Maintenance Notice)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-mist-300">Advisory Details &amp; Guidance</label>
+              <textarea
+                value={alertDescription}
+                onChange={(e) => setAlertDescription(e.target.value)}
+                rows={2}
+                placeholder="Describe the incident, safety recommendations, or service notice..."
+                className="w-full px-3 py-2 rounded-xl bg-ink-900 border border-white/15 text-white text-xs focus:border-rose-400 outline-none"
+                required
+              />
+            </div>
+
+            <div className="flex items-center justify-between pt-1">
+              <input
+                type="text"
+                value={alertLocation || ''}
+                onChange={(e) => setAlertLocation(e.target.value)}
+                placeholder="Affected Location (optional)"
+                className="px-3 py-1.5 rounded-xl bg-ink-900 border border-white/10 text-white text-xs w-64 outline-none"
+              />
+
+              <div className="flex items-center gap-2">
+                {isBroadcastActive && (
+                  <button
+                    type="button"
+                    onClick={handleClearAlert}
+                    className="px-3 py-2 rounded-xl border border-white/10 text-xs font-semibold text-mist-300 hover:text-white"
+                  >
+                    Deactivate
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-lg flex items-center gap-1.5 transition-all"
+                >
+                  <Megaphone className="h-3.5 w-3.5" />
+                  <span>{isBroadcastActive ? 'Update Broadcast' : 'Broadcast Emergency Alert'}</span>
+                </button>
+              </div>
+            </div>
+          </form>
+        )}
       </div>
 
       {/* Fast Message Examples */}

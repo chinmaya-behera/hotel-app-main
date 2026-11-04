@@ -32,6 +32,8 @@ import {
   Check,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
+import { MANAGER_DEPARTMENTS, MANAGER_DEMO_PASSWORD, type ManagerDepartmentId } from '@/lib/manager-domain';
+import { DemoCredentialsDialog } from './DemoCredentialsDialog';
 import type { RoleId, DispatcherDepartment } from '@/types/demo';
 
 interface PresetRole {
@@ -44,6 +46,7 @@ interface PresetRole {
   color: string;
   path: string;
   personaId?: RoleId;
+  departmentId?: ManagerDepartmentId;
 }
 
 const PRESET_ROLES: PresetRole[] = [
@@ -89,6 +92,7 @@ const PRESET_ROLES: PresetRole[] = [
     color: 'from-purple-500 to-indigo-600',
     path: '/staff/department-manager',
     personaId: 'department_manager',
+    departmentId: 'housekeeping',
   },
   {
     id: 'frontdesk',
@@ -146,7 +150,6 @@ const PRESET_ROLES: PresetRole[] = [
     personaId: 'platform_admin',
   },
 ];
-
 
 export interface DispatcherDeptOption {
   id: DispatcherDepartment;
@@ -207,9 +210,14 @@ export const DISPATCHER_DEPARTMENTS: DispatcherDeptOption[] = [
   },
 ];
 
+const DEMO_ACCOUNTS: PresetRole[] = [
+  ...MANAGER_DEPARTMENTS.map((d, index) => ({ id: `manager-${d.id}`, num: `M${index + 1}`, name: `${d.name} Manager`, email: d.email, pass: MANAGER_DEMO_PASSWORD, icon: Gauge, color: 'from-purple-500 to-indigo-600', path: '/staff/department-manager', personaId: 'department_manager' as const, departmentId: d.id })),
+  ...PRESET_ROLES,
+];
+
 export function PortalLoginView() {
   const router = useRouter();
-  const { state, setTheme, setPersona, setActiveDispatcherDept } = useDemo();
+  const { state, setTheme, setPersona, setActiveDispatcherDept, setManagerDepartment } = useDemo();
   const [dispatcherDropdownOpen, setDispatcherDropdownOpen] = useState(false);
   const [selectedDept, setSelectedDept] = useState<DispatcherDepartment>(state.activeDispatcherDept || 'Housekeeping');
 
@@ -218,6 +226,7 @@ export function PortalLoginView() {
   const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
+  const [previewDepartment, setPreviewDepartment] = useState<ManagerDepartmentId>('housekeeping');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -247,7 +256,8 @@ export function PortalLoginView() {
     }
   }, [isLight, state.theme]);
 
-    const activeRole = PRESET_ROLES.find((r) => r.id === selectedRoleId);
+  const managerSelected = selectedRoleId === 'manager' || selectedRoleId?.startsWith('manager-');
+  const activeRole = DEMO_ACCOUNTS.find((r) => r.id === selectedRoleId) || PRESET_ROLES.find((r) => r.id === selectedRoleId);
 
   const handleSelectRole = (role: PresetRole) => {
     if (role.id === 'dispatcher') {
@@ -262,9 +272,11 @@ export function PortalLoginView() {
     }
 
     setDispatcherDropdownOpen(false);
-    setSelectedRoleId(role.id);
-    setEmail(role.email);
-    setPassword(role.pass);
+    const selected = role.id === 'manager' ? DEMO_ACCOUNTS.find(account => account.departmentId === previewDepartment && account.id !== 'manager')! : role;
+    if (selected.departmentId) setPreviewDepartment(selected.departmentId);
+    setSelectedRoleId(selected.id);
+    setEmail(selected.email);
+    setPassword(selected.pass);
     showToast(`${role.name} loaded`);
   };
 
@@ -293,7 +305,7 @@ export function PortalLoginView() {
 
   const handleForgotPassword = () => {
     if (email.trim()) {
-      showToast(`Password reset link sent to ${email}`);
+      showToast('Use View demo login credentials to autofill a public demo account.');
     } else {
       showToast('Enter your email address first');
     }
@@ -349,18 +361,23 @@ export function PortalLoginView() {
     }
 
     const matchedRole =
+      DEMO_ACCOUNTS.find((r) => r.email.toLowerCase() === cleanEmail) ||
       PRESET_ROLES.find((r) => r.email.toLowerCase() === cleanEmail) ||
-      (selectedRoleId ? PRESET_ROLES.find((r) => r.id === selectedRoleId) : null);
+      (selectedRoleId ? DEMO_ACCOUNTS.find((r) => r.id === selectedRoleId) : null);
+
+    if (!matchedRole) {
+      showToast('Email or password does not match a demo account. Open demo credentials to autofill.');
+      setIsSubmitting(false);
+      return;
+    }
 
     if (matchedRole) {
+      if (matchedRole.departmentId) setManagerDepartment(matchedRole.departmentId);
       if (matchedRole.personaId) {
         setPersona(matchedRole.personaId);
       }
       showToast(`Signing in as ${matchedRole.name}...`);
       router.push(matchedRole.path);
-    } else {
-      showToast('Signing in...');
-      router.push('/staff/department-manager');
     }
   };
 
@@ -622,6 +639,7 @@ export function PortalLoginView() {
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </form>
+              <DemoCredentialsDialog accounts={DEMO_ACCOUNTS.filter(account => account.id !== 'manager')} onSelect={handleSelectRole}/>
             </div>
           </section>
 
@@ -650,7 +668,7 @@ export function PortalLoginView() {
               {/* Minimal Role Buttons List */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-3.5">
                 {PRESET_ROLES.map((role) => {
-                  const isSelected = role.id === selectedRoleId;
+                  const isSelected = role.id === 'manager' ? !!managerSelected : role.id === selectedRoleId;
                   const Icon = role.icon;
                   const isDispatcher = role.id === 'dispatcher';
 
@@ -659,6 +677,9 @@ export function PortalLoginView() {
                       <button
                         type="button"
                         onClick={() => handleSelectRole(role)}
+                        aria-pressed={isSelected}
+                        aria-expanded={role.id === 'manager' ? !!managerSelected : undefined}
+                        aria-controls={role.id === 'manager' ? 'manager-preview-selector' : undefined}
                         className={`w-full text-left flex items-center justify-between p-3 sm:p-3.5 rounded-2xl border transition-all duration-150 cursor-pointer login-role-btn ${
                           isSelected ? 'active' : ''
                         } ${
@@ -785,6 +806,7 @@ export function PortalLoginView() {
                   );
                 })}
               </div>
+              {managerSelected && <div id="manager-preview-selector" className="manager-preview-selector"><label htmlFor="manager-preview-department">Department manager preview</label><select id="manager-preview-department" value={previewDepartment} onChange={event => { const department = event.target.value as ManagerDepartmentId; const account = DEMO_ACCOUNTS.find(role => role.departmentId === department && role.id !== 'manager'); if (account) handleSelectRole(account); }}>{MANAGER_DEPARTMENTS.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select><p>Select a department to autofill its preview login.</p></div>}
             </div>
           </section>
         </div>

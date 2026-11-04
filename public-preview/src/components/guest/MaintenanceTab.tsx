@@ -324,7 +324,7 @@ export function MaintenanceTab({ room, guestName, onNavigate }: GuestTabProps) {
   }
 
   return (
-    <div className="space-y-6 sm:space-y-7 pb-20 max-w-4xl lg:max-w-5xl mx-auto">
+    <div className="space-y-6 sm:space-y-8 pb-28 max-w-7xl mx-auto w-full">
       {/* SUCCESS CONFIRMATION BANNER */}
       {confirmedRef && (
         <div className="guest-card p-4 border-cyan-400/50 bg-cyan-400/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg animate-in fade-in duration-300">
@@ -381,7 +381,7 @@ export function MaintenanceTab({ room, guestName, onNavigate }: GuestTabProps) {
             hint="Select the category that best describes the issue"
           />
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3.5 md:gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
             {MAINTENANCE_CATEGORIES.map((c) => {
               const Icon = c.icon;
               const isSelected = selectedCatId === c.id;
@@ -402,7 +402,7 @@ export function MaintenanceTab({ room, guestName, onNavigate }: GuestTabProps) {
                   }`}
                 >
                   {/* Category Thumbnail Image with Overlay Badge */}
-                  <div className="relative h-20 sm:h-28 md:h-32 w-full rounded-xl overflow-hidden bg-ink-950 shrink-0">
+                  <div className="relative h-24 sm:h-28 md:h-32 lg:h-36 w-full rounded-xl overflow-hidden bg-ink-950 shrink-0">
                     <img
                       src={c.image}
                       alt={c.name}

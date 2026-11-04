@@ -145,7 +145,7 @@ export function RequestsTab({ room }: GuestTabProps) {
   }
 
   return (
-    <div className="space-y-6 pb-4">
+    <div className="space-y-6 sm:space-y-8 pb-12 max-w-7xl mx-auto w-full">
       <GuestSectionHeader title="Requests & history" hint="Reference numbers, live status and your feedback" />
 
       {entries.length === 0 ? (

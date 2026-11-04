@@ -133,3 +133,8 @@ Current Vercel owner is chinmayabehera946-8581, team chinmayabehera946-8581s-pro
 Destination public-preview (prj_dggJyh4N7sthA60FVzcvtjkjt76q; public-preview-kappa.vercel.app) had no environment variables. Configured the existing database and email settings and redeployed revision 269ec2a as dpl_DxEhVaRwCX5weUHEMWh3gaw6Yh3F. Its complete live integration smoke passed; canonical-domain role/data/task/inspection checks passed before a local network timeout, and read-only database review confirmed saved task inspection and Finance review. Do not blindly replay database-writing tests after uncertain network outcomes. No email or real payment was sent.
 
 Local .vercel/project.json now targets the destination team and canonical project. The Vercel plugin is authenticated to the destination; the CLI is still authenticated to the source identity, so use the plugin or deliberately sign in to the destination before future CLI deployment. GitHub remains chinmaya-behera/hotel-app-main. Both app projects use the same application revision; keep both releases aligned.
+
+
+## Repository migration — 2026-11-03
+
+Current source is chinmaya-behera/Grand-Atelier. Local origin points there; hotel-app-source retains the old hotel-app-main remote. The current on-disk main and history were migrated; do not automatically merge unrelated updates from the old source. The existing Vercel project serving devatelier.tech is now connected to Grand-Atelier; connector context confirms the link. Root Directory is public-preview, fixing NEXT_NO_VERSION. Deployment dpl_E3k2Pvpr7Q3G2u75PWPypPGDEuzX reached Ready from the new repo with apex/www aliases. Database, email, credentials and DNS retained. See DEPLOYMENT.md.

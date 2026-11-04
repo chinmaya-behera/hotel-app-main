@@ -115,7 +115,7 @@ export function MyFolioSubtab({ room, guestName }: GuestTabProps) {
   }
 
   return (
-    <div className="space-y-5 pb-8">
+    <div className="space-y-6 sm:space-y-8 pb-12 max-w-7xl mx-auto w-full">
       {/* Toast Alert */}
       {toastMessage && (
         <div className="guest-card flex items-start gap-2.5 border-emerald-400/40 bg-emerald-400/10 px-4 py-3 text-sm text-white">
@@ -125,7 +125,7 @@ export function MyFolioSubtab({ room, guestName }: GuestTabProps) {
       )}
 
       {/* Top Folio Header Card */}
-      <div className="guest-card p-5 space-y-4">
+      <div className="guest-card p-5 sm:p-6 lg:p-7 space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">

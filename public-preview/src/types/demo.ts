@@ -156,6 +156,7 @@ export interface WorkItem {
 }
 
 export interface InAppNotification {
+  department?: string;
   id: string;
   title: string;
   message?: string;
@@ -348,6 +349,11 @@ export interface InspectionCheckItem {
 }
 
 export interface SupervisorInspection {
+  department?: string;
+  createdAt?: string;
+  scheduledTime?: string;
+  completedChecklistCount?: number;
+  totalChecklistCount?: number;
   id: string;
   taskId?: string;
   roomNumber: string;
@@ -841,7 +847,44 @@ export interface DepartmentServicePolicy {
   isManagerLevel?: boolean;
 }
 
+export interface ManagerStockItem {
+  id: string;
+  department: string;
+  name: string;
+  unit: string;
+  onHand: number;
+  par: number;
+  lastCountedAt?: string;
+  requisitionId?: string;
+}
+
+export interface ManagerAppointment {
+  id: string;
+  guest: string;
+  treatment: string;
+  therapistId: string;
+  room: string;
+  start: string;
+  durationMinutes: number;
+  bufferMinutes: number;
+  status: 'booked' | 'completed' | 'cancelled';
+  taskRef: string;
+}
+
+export interface ManagerAsset {
+  id: string;
+  name: string;
+  location: string;
+  intervalDays: number;
+  nextDue: string;
+  lastServiced?: string;
+  workOrderRef?: string;
+}
+
 export interface DemoState {
+  managerOperations?: { stock: ManagerStockItem[]; appointments: ManagerAppointment[]; assets: ManagerAsset[] };
+  managerDepartment?: 'housekeeping' | 'wellness' | 'engineering' | 'food-beverages';
+  managerProfiles?: Record<string, { name: string; phone: string }>;
   persona: RoleId | null;
   items: Record<RoleId, WorkItem[]>;
   feed: FeedEntry[];

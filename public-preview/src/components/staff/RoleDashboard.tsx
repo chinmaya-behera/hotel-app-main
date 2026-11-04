@@ -14,7 +14,7 @@ import { AdminConsole } from '@/components/admin/AdminConsole';
 import { DispatcherSupervisorConsole } from '@/components/dispatcher-supervisor/DispatcherSupervisorConsole';
 import { DispatcherConsole } from '@/components/dispatcher/DispatcherConsole';
 import { FulfillerApp } from '@/components/staff/fulfiller/FulfillerApp';
-import { DutyManagerConsole } from '@/components/manager/DutyManagerConsole';
+import { DepartmentManagerConsole } from '@/components/manager/DepartmentManagerConsole';
 import { ExecutiveConsole } from '@/components/executive/ExecutiveConsole';
 import { SecurityApp } from '@/components/staff/security/SecurityApp';
 import { FinanceConsole } from '@/components/finance/FinanceConsole';
@@ -83,12 +83,12 @@ export function RoleDashboard({ roleId }: { roleId: RoleId }) {
     );
   }
 
-  // Front Desk Coordinator enterprise console (Full desktop width, polished)
+  // Front Desk Coordinator enterprise console (Fixed full-viewport application shell)
   if (roleId === 'front_desk_coordinator') {
     return (
-      <div style={accentVars(role)} className="min-h-screen">
+      <div style={accentVars(role)} className="h-screen w-full overflow-hidden flex flex-col bg-ink-950">
         <TopBar active={roleId} />
-        <main className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-20">
+        <main className="flex-1 min-h-0 w-full max-w-[1720px] mx-auto px-3 sm:px-5 lg:px-6 pt-3 pb-3 overflow-hidden flex flex-col">
           <FrontDeskConsole />
         </main>
       </div>
@@ -98,10 +98,9 @@ export function RoleDashboard({ roleId }: { roleId: RoleId }) {
   // Department Manager / Duty Manager enterprise operations console
   if (roleId === 'department_manager') {
     return (
-      <div style={accentVars(role)} className="min-h-screen">
-        <TopBar active={roleId} />
-        <main className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-20">
-          <DutyManagerConsole />
+      <div className="department-manager-page">
+        <main className="w-full max-w-[1600px] mx-auto">
+          <DepartmentManagerConsole />
         </main>
       </div>
     );

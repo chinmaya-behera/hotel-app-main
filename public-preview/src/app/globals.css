@@ -807,7 +807,7 @@ option {
     }
     .guest-frame {
       width: 100%;
-      max-width: 1400px;
+      max-width: 1540px;
       min-height: 100vh;
       flex: 1 1 auto;
       margin: 0 auto;
@@ -818,6 +818,9 @@ option {
     .guest-scroll {
       flex: 1 1 auto;
       overflow-y: visible;
+    }
+    .guest-shell {
+      font-size: 15.5px;
     }
   }
 

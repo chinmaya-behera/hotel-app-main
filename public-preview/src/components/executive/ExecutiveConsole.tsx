@@ -40,10 +40,12 @@ import { ExecutiveAuditTab } from '@/components/executive/ExecutiveAuditTab';
 import { ExecutiveProfileTab } from '@/components/executive/ExecutiveProfileTab';
 import { GeneralManagerVipTab } from '@/components/executive/GeneralManagerVipTab';
 import { GeneralManagerRoomsTab } from '@/components/executive/GeneralManagerRoomsTab';
+import { GeneralManagerInspectionsTab } from '@/components/executive/GeneralManagerInspectionsTab';
 import { useDemo } from '@/lib/store';
 import type { WorkItem } from '@/types/demo';
 
 export type ExecutiveTabId =
+  | 'inspections'
   | 'overview'
   | 'approvals'
   | 'approvals-pending'
@@ -100,6 +102,7 @@ export function ExecutiveConsole() {
   const unreadNotificationsCount = (state.notifications ?? []).filter((n) => !n.read).length;
 
   const navItems: NavItem[] = [
+    { id: 'inspections', label: 'Department Inspections', shortLabel: 'Inspections', icon: ShieldCheck, group: 'Operations' },
     // Group 1: Overview
     {
       id: 'overview',
@@ -414,6 +417,7 @@ export function ExecutiveConsole() {
 
         {/* Dynamic Tab Content Area */}
         <main className="flex-1 min-w-0 w-full">
+          {activeTab === 'inspections' && <GeneralManagerInspectionsTab />}
           {activeTab === 'overview' && (
             <ExecutiveOverviewTab
               permissionMode={permissionMode}
