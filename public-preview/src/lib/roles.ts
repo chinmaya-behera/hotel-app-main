@@ -53,7 +53,7 @@ export const roles: RoleMeta[] = [
     name: 'Department Manager',
     short: 'Department Manager',
     tagline: 'Own escalations, VIP cases, service catalog, inspection directives and recovery.',
-    scopes: ['Property-wide', 'Duty shift', 'Up to ₹16,000'],
+    scopes: ['Assigned department', 'Day shift', 'Escalate to General Manager'],
     keywords: ['escalation', 'vip', 'complaint', 'recovery', 'compensation', 'service catalog', 'directives'],
     icon: Gauge,
     accent: '167 139 250',

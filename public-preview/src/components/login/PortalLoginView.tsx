@@ -26,6 +26,8 @@ import {
   Info,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
+import { MANAGER_DEPARTMENTS, MANAGER_DEMO_PASSWORD, type ManagerDepartmentId } from '@/lib/manager-domain';
+import { DemoCredentialsDialog } from './DemoCredentialsDialog';
 import type { RoleId } from '@/types/demo';
 
 interface PresetRole {
@@ -38,6 +40,7 @@ interface PresetRole {
   color: string;
   path: string;
   personaId?: RoleId;
+  departmentId?: ManagerDepartmentId;
 }
 
 const PRESET_ROLES: PresetRole[] = [
@@ -76,13 +79,14 @@ const PRESET_ROLES: PresetRole[] = [
   {
     id: 'manager',
     num: '03',
-    name: 'Department Manager',
+    name: 'Housekeeping Manager (legacy login)',
     email: 'manager@thegrandadp.com',
     pass: 'manager123',
     icon: Gauge,
     color: 'from-purple-500 to-indigo-600',
     path: '/staff/department-manager',
     personaId: 'department_manager',
+    departmentId: 'housekeeping',
   },
   {
     id: 'frontdesk',
@@ -141,9 +145,14 @@ const PRESET_ROLES: PresetRole[] = [
   },
 ];
 
+const DEMO_ACCOUNTS: PresetRole[] = [
+  ...MANAGER_DEPARTMENTS.map((d, index) => ({ id: `manager-${d.id}`, num: `M${index + 1}`, name: `${d.name} Manager`, email: d.email, pass: MANAGER_DEMO_PASSWORD, icon: Gauge, color: 'from-purple-500 to-indigo-600', path: '/staff/department-manager', personaId: 'department_manager' as const, departmentId: d.id })),
+  ...PRESET_ROLES,
+];
+
 export function PortalLoginView() {
   const router = useRouter();
-  const { state, setTheme, setPersona } = useDemo();
+  const { state, setTheme, setPersona, setManagerDepartment } = useDemo();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -151,8 +160,6 @@ export function PortalLoginView() {
   const [showPassword, setShowPassword] = useState(false);
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const isLight = state.theme === 'light';
@@ -181,7 +188,7 @@ export function PortalLoginView() {
     }
   }, [isLight, state.theme]);
 
-  const activeRole = PRESET_ROLES.find((r) => r.id === selectedRoleId);
+  const activeRole = DEMO_ACCOUNTS.find((r) => r.id === selectedRoleId);
 
   const handleSelectRole = (role: PresetRole) => {
     setSelectedRoleId(role.id);
@@ -204,7 +211,7 @@ export function PortalLoginView() {
 
   const handleForgotPassword = () => {
     if (email.trim()) {
-      showToast(`Password reset link sent to ${email}`);
+      showToast('Use View demo login credentials to autofill a public demo account.');
     } else {
       showToast('Enter your email address first');
     }
@@ -215,39 +222,44 @@ export function PortalLoginView() {
     if (isSubmitting) return;
 
     const cleanEmail = email.trim().toLowerCase();
-    const matchedRole =
-      PRESET_ROLES.find((r) => r.email.toLowerCase() === cleanEmail) ||
-      (selectedRoleId ? PRESET_ROLES.find((r) => r.id === selectedRoleId) : null);
+    const matchedRole = DEMO_ACCOUNTS.find((r) => r.email.toLowerCase() === cleanEmail && r.pass === password);
+
+    if (!matchedRole) {
+      showToast('Email or password does not match a demo account. Open demo credentials to autofill.');
+      return;
+    }
 
     setIsSubmitting(true);
 
     if (matchedRole) {
+      if (matchedRole.departmentId) setManagerDepartment(matchedRole.departmentId);
       if (matchedRole.personaId) {
         setPersona(matchedRole.personaId);
       }
       showToast(`Signing in as ${matchedRole.name}...`);
       router.push(matchedRole.path);
-    } else {
-      showToast('Signing in...');
-      router.push('/staff/department-manager');
     }
   };
 
   return (
     <div
-      className={`min-h-screen flex flex-col font-sans selection:bg-amber-400 selection:text-slate-900 transition-colors duration-300 relative overflow-x-hidden ${
-        isLight ? 'bg-[#f9f3f6] text-slate-800' : 'bg-[#080d1a] text-slate-100'
+      className={`min-h-screen flex flex-col font-sans selection:bg-amber-400 selection:text-slate-900 transition-colors duration-300 relative overflow-x-hidden portal-page-wrap ${
+        isLight ? 'bg-slate-50 text-slate-900' : 'bg-[#080d1a] text-slate-100'
       }`}
     >
-      {/* Ambient background glow elements */}
-      <div className="glow-sphere-1" />
-      <div className="glow-sphere-2" />
+      {/* Ambient background glow elements (hidden in light mode via CSS & condition) */}
+      {!isLight && (
+        <>
+          <div className="glow-sphere-1" />
+          <div className="glow-sphere-2" />
+        </>
+      )}
 
       {/* Top Navigation Header */}
       <header
-        className={`relative z-20 border-b backdrop-blur-md px-4 sm:px-8 py-3.5 flex items-center justify-between transition-colors ${
+        className={`relative z-20 border-b backdrop-blur-md px-4 sm:px-8 py-3.5 flex items-center justify-between transition-colors login-header ${
           isLight
-            ? 'border-slate-200/80 bg-white/80 shadow-xs'
+            ? 'border-slate-200 bg-[#ffffff] shadow-sm'
             : 'border-white/10 bg-[#070c17]/80'
         }`}
       >
@@ -265,7 +277,7 @@ export function PortalLoginView() {
               The Grand ADP
             </span>
             <span
-              className={`text-[11px] block -mt-0.5 ${
+              className={`text-[11px] block -mt-0.5 font-medium ${
                 isLight ? 'text-slate-500' : 'text-slate-400'
               }`}
             >
@@ -278,10 +290,10 @@ export function PortalLoginView() {
         <div className="flex items-center gap-2.5">
           <Link
             href="/"
-            className={`hidden sm:inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-all ${
+            className={`hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl border transition-all ${
               isLight
-                ? 'text-slate-600 hover:text-slate-900 border-slate-300/80 hover:bg-slate-100/70'
-                : 'text-slate-400 hover:text-white border-white/10 hover:border-white/20'
+                ? 'text-slate-700 hover:text-slate-950 border-slate-300 bg-[#ffffff] hover:bg-slate-100 shadow-xs'
+                : 'text-slate-300 hover:text-white border-white/10 hover:border-white/20 bg-white/5'
             }`}
           >
             <Globe className="w-3.5 h-3.5 text-amber-500" />
@@ -292,10 +304,10 @@ export function PortalLoginView() {
             type="button"
             onClick={handleReset}
             title="Clear form"
-            className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-all ${
+            className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl border transition-all cursor-pointer ${
               isLight
-                ? 'text-slate-600 hover:text-slate-900 border-slate-300/80 hover:bg-slate-100/70'
-                : 'text-slate-400 hover:text-white border-white/10 hover:border-white/20'
+                ? 'text-slate-700 hover:text-slate-950 border-slate-300 bg-[#ffffff] hover:bg-slate-100 shadow-xs'
+                : 'text-slate-300 hover:text-white border-white/10 hover:border-white/20 bg-white/5'
             }`}
           >
             <RotateCcw className="w-3.5 h-3.5" />
@@ -307,10 +319,10 @@ export function PortalLoginView() {
             onClick={handleToggleTheme}
             aria-label={isLight ? 'Switch to dark theme' : 'Switch to light theme'}
             title={isLight ? 'Switch to dark theme' : 'Switch to light theme'}
-            className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-all ${
+            className={`w-9 h-9 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${
               isLight
-                ? 'text-slate-700 border-slate-300 hover:bg-slate-200/60'
-                : 'text-slate-300 border-white/10 hover:bg-white/5'
+                ? 'text-slate-800 border-slate-300 bg-[#ffffff] hover:bg-slate-100 shadow-xs'
+                : 'text-slate-300 border-white/10 hover:bg-white/10 bg-white/5'
             }`}
           >
             {isLight ? <Moon className="w-4 h-4 text-amber-600" /> : <Sun className="w-4 h-4 text-amber-300" />}
@@ -324,7 +336,7 @@ export function PortalLoginView() {
         <div className="mb-8">
           <h1
             className={`text-3xl sm:text-4xl lg:text-5xl font-serif font-bold tracking-tight ${
-              isLight ? 'text-slate-900' : 'text-white'
+              isLight ? 'text-slate-950' : 'text-white'
             }`}
           >
             Portal Login
@@ -336,10 +348,10 @@ export function PortalLoginView() {
           {/* LEFT: Clean Login Card */}
           <section className="lg:col-span-5 w-full">
             <div
-              className={`rounded-3xl backdrop-blur-2xl border p-6 sm:p-8 transition-colors ${
+              className={`rounded-3xl border p-6 sm:p-8 transition-colors login-card ${
                 isLight
-                  ? 'bg-white/95 border-slate-200 shadow-xl shadow-slate-200/60 text-slate-900'
-                  : 'bg-[#0c1424]/90 border-white/10 shadow-2xl shadow-black/60 text-white'
+                  ? 'bg-[#ffffff] border-slate-200/90 shadow-2xl shadow-slate-300/40 text-slate-900'
+                  : 'bg-[#0c1424]/90 backdrop-blur-2xl border-white/10 shadow-2xl shadow-black/60 text-white'
               }`}
             >
               <div
@@ -348,14 +360,14 @@ export function PortalLoginView() {
                 }`}
               >
                 <h2
-                  className={`text-sm font-bold tracking-wider uppercase ${
-                    isLight ? 'text-slate-600' : 'text-slate-400'
+                  className={`text-sm font-bold tracking-wider uppercase login-card-title ${
+                    isLight ? 'text-slate-800' : 'text-slate-400'
                   }`}
                 >
                   Sign In
                 </h2>
                 <div
-                  className={`flex items-center gap-2 px-2.5 py-1 rounded-lg text-xs font-medium border ${
+                  className={`flex items-center gap-2 px-2.5 py-1 rounded-lg text-xs font-semibold border login-card-badge ${
                     isLight
                       ? 'bg-slate-100 text-slate-800 border-slate-200'
                       : 'bg-white/5 text-slate-300 border-white/10'
@@ -366,7 +378,7 @@ export function PortalLoginView() {
                       activeRole ? `bg-gradient-to-r ${activeRole.color}` : 'bg-slate-400'
                     }`}
                   />
-                  <span className="font-semibold">{activeRole ? activeRole.name : 'Standard'}</span>
+                  <span>{activeRole ? activeRole.name : 'Standard'}</span>
                 </div>
               </div>
 
@@ -376,8 +388,8 @@ export function PortalLoginView() {
                 <div>
                   <label
                     htmlFor="emailInput"
-                    className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
-                      isLight ? 'text-slate-600' : 'text-slate-400'
+                    className={`block text-xs font-bold uppercase tracking-wider mb-2 login-card-label ${
+                      isLight ? 'text-slate-800' : 'text-slate-300'
                     }`}
                   >
                     Email Address
@@ -385,7 +397,7 @@ export function PortalLoginView() {
                   <div className="relative">
                     <span
                       className={`absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none ${
-                        isLight ? 'text-slate-400' : 'text-slate-400'
+                        isLight ? 'text-slate-500' : 'text-slate-400'
                       }`}
                     >
                       <Mail className="w-4 h-4" />
@@ -397,9 +409,9 @@ export function PortalLoginView() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="name@thegrandadp.com"
-                      className={`w-full pl-10 pr-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-xl border focus:outline-none focus:ring-2 focus:ring-amber-400/70 focus:border-amber-400 transition-all ${
+                      className={`w-full pl-10 pr-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-xl border focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition-all font-medium login-input ${
                         isLight
-                          ? 'bg-white text-slate-900 placeholder-slate-400 border-slate-300'
+                          ? 'bg-[#ffffff] text-slate-900 placeholder-slate-400 border-slate-300 shadow-xs'
                           : 'bg-[#070d18] text-white placeholder-slate-500 border-white/10'
                       }`}
                     />
@@ -411,8 +423,8 @@ export function PortalLoginView() {
                   <div className="flex items-center justify-between mb-2">
                     <label
                       htmlFor="passwordInput"
-                      className={`block text-xs font-semibold uppercase tracking-wider ${
-                        isLight ? 'text-slate-600' : 'text-slate-400'
+                      className={`block text-xs font-bold uppercase tracking-wider login-card-label ${
+                        isLight ? 'text-slate-800' : 'text-slate-300'
                       }`}
                     >
                       Password
@@ -420,13 +432,17 @@ export function PortalLoginView() {
                     <button
                       type="button"
                       onClick={handleForgotPassword}
-                      className="text-xs font-medium text-amber-600 dark:text-amber-400 hover:underline"
+                      className="text-xs font-bold text-amber-600 hover:text-amber-700 dark:text-amber-400 hover:underline cursor-pointer"
                     >
                       Forgot?
                     </button>
                   </div>
                   <div className="relative">
-                    <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <span
+                      className={`absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none ${
+                        isLight ? 'text-slate-500' : 'text-slate-400'
+                      }`}
+                    >
                       <Lock className="w-4 h-4" />
                     </span>
                     <input
@@ -436,9 +452,9 @@ export function PortalLoginView() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className={`w-full pl-10 pr-10 py-2.5 sm:py-3 text-sm sm:text-base rounded-xl border focus:outline-none focus:ring-2 focus:ring-amber-400/70 focus:border-amber-400 transition-all ${
+                      className={`w-full pl-10 pr-10 py-2.5 sm:py-3 text-sm sm:text-base rounded-xl border focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition-all font-medium login-input ${
                         isLight
-                          ? 'bg-white text-slate-900 placeholder-slate-400 border-slate-300'
+                          ? 'bg-[#ffffff] text-slate-900 placeholder-slate-400 border-slate-300 shadow-xs'
                           : 'bg-[#070d18] text-white placeholder-slate-500 border-white/10'
                       }`}
                     />
@@ -446,8 +462,8 @@ export function PortalLoginView() {
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       aria-label="Toggle password visibility"
-                      className={`absolute inset-y-0 right-0 pr-3.5 flex items-center transition-colors ${
-                        isLight ? 'text-slate-400 hover:text-slate-700' : 'text-slate-400 hover:text-white'
+                      className={`absolute inset-y-0 right-0 pr-3.5 flex items-center transition-colors cursor-pointer ${
+                        isLight ? 'text-slate-500 hover:text-slate-800' : 'text-slate-400 hover:text-white'
                       }`}
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -457,8 +473,8 @@ export function PortalLoginView() {
 
                 <div className="flex items-center justify-between text-xs sm:text-sm pt-0.5">
                   <label
-                    className={`flex items-center gap-2.5 cursor-pointer select-none ${
-                      isLight ? 'text-slate-600' : 'text-slate-400'
+                    className={`flex items-center gap-2.5 cursor-pointer select-none font-medium login-card-label ${
+                      isLight ? 'text-slate-700' : 'text-slate-300'
                     }`}
                   >
                     <input
@@ -466,7 +482,7 @@ export function PortalLoginView() {
                       id="rememberMe"
                       checked={rememberMe}
                       onChange={(e) => setRememberMe(e.target.checked)}
-                      className="w-4 h-4 rounded text-amber-500 bg-slate-100 dark:bg-slate-900 border-slate-300 dark:border-white/10 focus:ring-0"
+                      className="w-4 h-4 rounded text-amber-600 bg-slate-100 border-slate-300 focus:ring-0"
                     />
                     <span>Remember this workstation</span>
                   </label>
@@ -483,34 +499,35 @@ export function PortalLoginView() {
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </form>
+              <DemoCredentialsDialog accounts={DEMO_ACCOUNTS} onSelect={handleSelectRole}/>
             </div>
           </section>
 
           {/* RIGHT: Minimal Role Buttons Section */}
           <section className="lg:col-span-7 w-full">
             <div
-              className={`rounded-3xl backdrop-blur-2xl border p-6 sm:p-7 shadow-xl transition-colors ${
+              className={`rounded-3xl border p-6 sm:p-7 transition-colors login-card ${
                 isLight
-                  ? 'bg-white/90 border-slate-200 shadow-xl shadow-slate-200/50'
-                  : 'bg-[#0c1424]/75 border-white/10'
+                  ? 'bg-[#ffffff] border-slate-200/90 shadow-2xl shadow-slate-300/40 text-slate-900'
+                  : 'bg-[#0c1424]/75 backdrop-blur-2xl border-white/10 shadow-xl text-white'
               }`}
             >
               <div className="flex items-center justify-between mb-5">
                 <span
-                  className={`text-xs sm:text-sm font-bold uppercase tracking-wider ${
-                    isLight ? 'text-slate-600' : 'text-slate-400'
+                  className={`text-xs sm:text-sm font-bold uppercase tracking-wider login-card-title ${
+                    isLight ? 'text-slate-800' : 'text-slate-400'
                   }`}
                 >
                   Quick Role Fill
                 </span>
-                <span className={`text-xs font-mono ${isLight ? 'text-slate-400' : 'text-slate-400'}`}>
+                <span className={`text-xs font-mono font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                   Select to populate
                 </span>
               </div>
 
               {/* Minimal Role Buttons List */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-3.5">
-                {PRESET_ROLES.map((role) => {
+                {DEMO_ACCOUNTS.filter(role => role.id !== 'manager').map((role) => {
                   const isSelected = role.id === selectedRoleId;
                   const Icon = role.icon;
                   return (
@@ -518,13 +535,15 @@ export function PortalLoginView() {
                       key={role.id}
                       type="button"
                       onClick={() => handleSelectRole(role)}
-                      className={`w-full text-left flex items-center justify-between p-3 sm:p-3.5 rounded-2xl border transition-all duration-150 cursor-pointer ${
+                      className={`w-full text-left flex items-center justify-between p-3 sm:p-3.5 rounded-2xl border transition-all duration-150 cursor-pointer login-role-btn ${
+                        isSelected ? 'active' : ''
+                      } ${
                         isSelected
                           ? isLight
-                            ? 'bg-amber-100/70 border-amber-500/80 text-slate-900 ring-1 ring-amber-500/40 shadow-sm'
+                            ? 'bg-amber-50/90 border-2 border-amber-500 text-slate-950 ring-2 ring-amber-400/30 shadow-md'
                             : 'bg-amber-400/10 border-amber-400/70 text-white ring-1 ring-amber-400/40 shadow-sm'
                           : isLight
-                          ? 'bg-slate-50/80 border-slate-200/90 hover:bg-white hover:border-slate-300 text-slate-800'
+                          ? 'bg-slate-50/90 border-slate-200 hover:bg-[#ffffff] hover:border-slate-300 text-slate-800 shadow-xs hover:shadow-sm'
                           : 'bg-white/[0.03] border-white/5 hover:border-white/20 text-slate-300'
                       }`}
                     >
@@ -534,13 +553,17 @@ export function PortalLoginView() {
                         >
                           <Icon className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
                         </div>
-                        <span className="text-xs sm:text-sm font-semibold truncate">
+                        <span className={`text-xs sm:text-sm truncate ${isSelected && isLight ? 'font-bold text-slate-950' : 'font-semibold'}`}>
                           {role.name}
                         </span>
                       </div>
                       <span
-                        className={`text-[11px] font-mono ml-2 flex-shrink-0 px-2 py-0.5 rounded ${
-                          isLight ? 'bg-slate-200/80 text-slate-600' : 'bg-white/5 text-slate-400'
+                        className={`text-[11px] font-mono ml-2 flex-shrink-0 px-2 py-0.5 rounded font-medium login-role-num ${
+                          isSelected && isLight
+                            ? 'bg-amber-200 text-amber-950 font-bold'
+                            : isLight
+                            ? 'bg-slate-200/90 text-slate-700'
+                            : 'bg-white/5 text-slate-400'
                         }`}
                       >
                         {role.num}
@@ -560,12 +583,12 @@ export function PortalLoginView() {
           <div
             className={`text-xs sm:text-sm px-4 py-2.5 rounded-2xl shadow-2xl border flex items-center gap-2.5 ${
               isLight
-                ? 'bg-white text-slate-900 border-slate-200 shadow-slate-300/50'
+                ? 'bg-slate-900 text-white border-slate-800 shadow-slate-900/40'
                 : 'bg-slate-900 text-white border-white/10'
             }`}
           >
-            <Info className="w-4 h-4 text-cyan-500 shrink-0" />
-            <span className="font-medium">{toastMessage}</span>
+            <Info className="w-4 h-4 text-amber-400 shrink-0" />
+            <span className="font-semibold">{toastMessage}</span>
           </div>
         </div>
       )}

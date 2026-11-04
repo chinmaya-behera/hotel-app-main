@@ -42,7 +42,7 @@ export function SecurityHandoverTab() {
       incomingManager: incomingOfficer,
       shift: shiftType,
       department: 'Security & Safety',
-      scope: 'Property-Wide Security Patrol',
+      scope: 'Entire Hotel',
       outstandingTasksCount: activeSecurityItems.length,
       unresolvedComplaintsCount: 0,
       criticalIncidentsCount: activeIncidents.filter((i) => i.severity === 'critical' || i.severity === 'major').length,

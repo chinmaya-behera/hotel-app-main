@@ -308,7 +308,7 @@ export function StaffRosterTab() {
                 </tr>
               ) : (
                 filteredStaff.map((emp) => {
-                  const roleMeta = roleById[emp.roleId];
+                  const roleMeta = emp.roleId ? roleById[emp.roleId] : undefined;
                   const Icon = roleMeta?.icon ?? Users;
                   const isActive = emp.status === 'active';
 

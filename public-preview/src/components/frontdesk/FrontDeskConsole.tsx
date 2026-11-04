@@ -35,6 +35,7 @@ import { NeedActionPanel } from '@/components/frontdesk/NeedActionPanel';
 import { GuestRemindersPanel } from '@/components/frontdesk/GuestRemindersPanel';
 import { VipPreviewPanel } from '@/components/frontdesk/VipPreviewPanel';
 import { FrontDeskPoliciesPanel } from '@/components/frontdesk/FrontDeskPoliciesPanel';
+import { GestureGuideModal } from '@/components/shared/GestureGuideModal';
 import { CountUp, spotlight } from '@/lib/gestures';
 import { useDemo } from '@/lib/store';
 import { cn } from '@/lib/utils';
@@ -55,7 +56,7 @@ const TABS: Array<{ id: TabId; label: string; icon: LucideIcon }> = [
 ];
 
 export function FrontDeskConsole() {
-  const { state } = useDemo();
+  const { state, gestureGuideOpen, setGestureGuideOpen } = useDemo();
   const [tab, setTab] = useState<TabId>('stays');
   const [reqCategory, setReqCategory] = useState<RequestCategory>('all');
   const [pill, setPill] = useState({ left: 0, width: 0 });
@@ -74,12 +75,13 @@ export function FrontDeskConsole() {
   const claims = queue.filter((i) => i.category === 'lost_found' && !isDone(i));
   const vipCount = stays.filter((s) => s.vip).length;
   const pendingReminders = (state.guestReminders ?? []).filter((r) => r.status === 'pending');
+  const arrivalsNeedingId = arrivals.filter((a) => !a.idChecked);
   const safetyAlertsPending = (state.safetyAlerts ?? []).filter(
     (a) => a.status === 'draft_pending_validation' || a.status === 'approved_ready_broadcast',
   );
 
   const counts: Record<TabId, { n: number; alert: boolean }> = {
-    needaction: { n: actionable.length + safetyAlertsPending.length, alert: safetyAlertsPending.length > 0 },
+    needaction: { n: actionable.length + arrivalsNeedingId.length + safetyAlertsPending.length, alert: safetyAlertsPending.length > 0 || arrivalsNeedingId.length > 0 },
     stays: { n: arrivals.length, alert: arrivals.some((a) => !a.idChecked) },
     vip: { n: vipCount, alert: false },
     reminders: { n: pendingReminders.length, alert: false },
@@ -95,7 +97,7 @@ export function FrontDeskConsole() {
     { label: 'Arrivals expected', value: arrivals.length, note: `${arrivals.filter((a) => !a.idChecked).length} need ID check`, icon: LogIn },
     { label: 'In house', value: inHouse.length, note: 'Guests with an active QR session', icon: KeyRound },
     { label: 'Departing today', value: departing.length, note: 'Folio and checkout checks', icon: LogOut },
-    { label: 'Needs action', value: actionable.length, note: 'Portal requests and cases', icon: Inbox },
+    { label: 'Needs action', value: actionable.length + arrivalsNeedingId.length + safetyAlertsPending.length, note: 'Urgent requests and pending checks', icon: Inbox },
     { label: 'Rooms ready', value: readyRooms.length, note: 'Vacant and inspected', icon: BedDouble },
     { label: 'Sync issues', value: failedSync.length, note: 'Paid but not booked', icon: Landmark },
   ];
@@ -131,7 +133,7 @@ export function FrontDeskConsole() {
     refs.current[target.id]?.focus();
   }
 
-  const [showGestureModal, setShowGestureModal] = useState(false);
+
 
   return (
     <>
@@ -198,12 +200,12 @@ export function FrontDeskConsole() {
 
           <button
             type="button"
-            onClick={() => setShowGestureModal(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/10 bg-white/[0.04] text-xs font-semibold text-mist-200 hover:text-white hover:bg-white/[0.08] transition shadow-sm"
+            onClick={() => setGestureGuideOpen(true)}
+            className="grid h-8 w-8 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-sm hover:border-amber-400/40 hover:bg-white/[0.08] transition shadow-sm"
             aria-label="Open gesture guide and keyboard shortcut instructions"
           >
-            <Hand className="h-3.5 w-3.5 text-amber-300" aria-hidden />
-            <span>Gesture Guide</span>
+            🖐️
+
           </button>
         </div>
 
@@ -250,71 +252,7 @@ export function FrontDeskConsole() {
       </div>
 
       {/* Contextual Gesture Guide Modal */}
-      {showGestureModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink-950/80 backdrop-blur-md animate-fade-in"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="gesture-modal-title"
-        >
-          <div className="relative w-full max-w-lg rounded-3xl border border-white/10 bg-ink-900/95 p-6 shadow-2xl backdrop-blur-2xl text-white space-y-5">
-            <div className="flex items-start justify-between border-b border-white/[0.08] pb-3">
-              <div className="flex items-center gap-2.5">
-                <span className="grid h-8 w-8 place-items-center rounded-xl bg-amber-400/10 text-amber-300">
-                  <Hand className="h-4 w-4" />
-                </span>
-                <div>
-                  <h2 id="gesture-modal-title" className="text-base font-bold font-display text-white">
-                    Gesture & Keyboard Shortcuts
-                  </h2>
-                  <p className="text-xs text-mist-400">Contextual navigation and touch gestures</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowGestureModal(false)}
-                className="rounded-xl border border-white/10 p-1.5 text-mist-400 hover:text-white hover:bg-white/[0.06] transition"
-                aria-label="Close guide"
-              >
-                ✕
-              </button>
-            </div>
-
-            <ul className="space-y-3 text-xs text-mist-200">
-              <li className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-                <kbd className="kbd shrink-0 font-mono text-amber-300">Swipe →</kbd>
-                <span>Advance request to next lifecycle status (Review, Confirm, Complete)</span>
-              </li>
-              <li className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-                <kbd className="kbd shrink-0 font-mono text-amber-300">← Swipe</kbd>
-                <span>Instantly escalate complex guest cases to the Duty Manager</span>
-              </li>
-              <li className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-                <kbd className="kbd shrink-0 font-mono text-amber-300">Hold</kbd>
-                <span>Press and hold sensitive confirmation buttons (checkout, payment reconciliation)</span>
-              </li>
-              <li className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-                <kbd className="kbd shrink-0 font-mono text-amber-300">Tap Tile</kbd>
-                <span>Click any room tile to inspect occupancy, cleanliness, or issue an OOO block request</span>
-              </li>
-              <li className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-                <kbd className="kbd shrink-0 font-mono text-amber-300">← → Keys</kbd>
-                <span>Arrow keys move between operational sections (Stays, Requests, Rooms, Recovery)</span>
-              </li>
-            </ul>
-
-            <div className="flex justify-end pt-2">
-              <button
-                type="button"
-                onClick={() => setShowGestureModal(false)}
-                className="px-4 py-2 rounded-xl bg-amber-400 text-ink-950 text-xs font-bold hover:bg-amber-300 transition"
-              >
-                Got It
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <GestureGuideModal isOpen={gestureGuideOpen} onClose={() => setGestureGuideOpen(false)} />
     </>
   );
 }

@@ -362,7 +362,7 @@ export function GeneralManagerRoomsTab() {
                         displayStatus === 'ready' && 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300',
                         (displayStatus === 'dirty' || displayStatus === 'cleaning') &&
                           'bg-amber-500/15 text-amber-600 dark:text-amber-300',
-                        (displayStatus === 'out_of_order' || displayStatus === 'inspection_failed') &&
+                        displayStatus === 'out_of_order' &&
                           'bg-rose-500/15 text-rose-600 dark:text-rose-300',
                       )}
                     >

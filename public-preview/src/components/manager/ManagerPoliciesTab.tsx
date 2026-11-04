@@ -54,7 +54,7 @@ export function ManagerPoliciesTab() {
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         const matchTitle = policy.title.toLowerCase().includes(q);
-        const matchContent = policy.content.toLowerCase().includes(q);
+        const matchContent = policy.summary.toLowerCase().includes(q);
         const matchDept = policy.department.toLowerCase().includes(q);
         const matchOwner = policy.policyOwner.toLowerCase().includes(q);
         if (!matchTitle && !matchContent && !matchDept && !matchOwner) return false;
@@ -74,7 +74,7 @@ export function ManagerPoliciesTab() {
       department: policy.department,
       category: policy.category,
       scope: policy.scope,
-      content: policy.content,
+      content: policy.summary,
       authorityLimit: policy.authorityLimit || '',
       escalationTarget: policy.escalationTarget || '',
     });
@@ -256,7 +256,7 @@ export function ManagerPoliciesTab() {
 
                 {/* Content */}
                 <p className="text-xs text-mist-300 leading-relaxed bg-white/[0.02] p-3 rounded-2xl border border-white/[0.04]">
-                  {policy.content}
+                  {policy.summary}
                 </p>
 
                 {/* Scope & Authority Limits */}

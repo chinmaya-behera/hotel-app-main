@@ -34,10 +34,12 @@ import { WorkflowConfigTab } from '@/components/admin/WorkflowConfigTab';
 import { IntegrationsTab } from '@/components/admin/IntegrationsTab';
 import { AuditTrailTab } from '@/components/admin/AuditTrailTab';
 import { EnvironmentTab } from '@/components/admin/EnvironmentTab';
+import { AdminDiningTab } from '@/components/admin/AdminDiningTab';
+import { UtensilsCrossed } from 'lucide-react';
 import { useDemo } from '@/lib/store';
 import { roles } from '@/lib/roles';
 
-export type AdminTab = 'overview' | 'users' | 'rooms' | 'workflow' | 'integrations' | 'audit' | 'environment';
+export type AdminTab = 'overview' | 'users' | 'dining' | 'rooms' | 'workflow' | 'integrations' | 'audit' | 'environment';
 
 interface NavItem {
   id: AdminTab;
@@ -72,6 +74,14 @@ export function AdminConsole() {
       label: 'Staff & RBAC Accounts',
       shortLabel: 'Staff RBAC',
       icon: Users,
+    },
+    {
+      id: 'dining',
+      label: 'Dining & Kitchen Menu',
+      shortLabel: 'Dining Menu',
+      icon: UtensilsCrossed,
+      badge: (state.diningMenu ?? []).length || undefined,
+      badgeTone: 'neutral',
     },
     {
       id: 'rooms',
@@ -206,6 +216,7 @@ export function AdminConsole() {
             <AdminOverviewTab onNavigateTab={(tab) => setActiveTab(tab as AdminTab)} />
           )}
           {activeTab === 'users' && <StaffRosterTab />}
+          {activeTab === 'dining' && <AdminDiningTab />}
           {activeTab === 'rooms' && <RoomQrTab />}
           {activeTab === 'workflow' && <WorkflowConfigTab />}
           {activeTab === 'integrations' && <IntegrationsTab />}

@@ -3,7 +3,7 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-type Variant = 'brand' | 'accent' | 'ghost' | 'subtle' | 'danger';
+type Variant = 'brand' | 'accent' | 'ghost' | 'subtle' | 'danger' | 'outline';
 type Size = 'sm' | 'md' | 'lg';
 
 export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {

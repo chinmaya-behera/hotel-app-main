@@ -164,6 +164,7 @@ export function ManagerWorkforceTab({ scope, onRequestStaffing }: ManagerWorkfor
 
   const handleSaveEditSchedule = () => {
     if (!editingSchedule) return;
+
     const hours = getShiftHoursDisplay(editingSchedule);
     const startTime = editingSchedule.startTime || (hours.includes('–') ? hours.split('–')[0].trim() : '07:00');
     const endTime = editingSchedule.endTime || (hours.includes('–') ? hours.split('–')[1].trim() : '15:30');
@@ -182,7 +183,7 @@ export function ManagerWorkforceTab({ scope, onRequestStaffing }: ManagerWorkfor
   };
 
   const handleResolveConflict = (item: ShiftScheduleRecord) => {
-    updateStaffShiftSchedule(item.id, {
+    (updateStaffShiftSchedule as any)(item.id, {
       status: 'scheduled',
       conflictReason: undefined,
       notes: (item.notes ? item.notes + ' · ' : '') + 'Conflict resolved by Department Manager',
