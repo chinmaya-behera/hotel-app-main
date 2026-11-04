@@ -75,7 +75,7 @@ export function ManagerPoliciesTab() {
       category: policy.category,
       scope: policy.scope,
       content: policy.summary,
-      authorityLimit: policy.authorityLimit || '',
+      authorityLimit: String(policy.authorityLimit ?? ''),
       escalationTarget: policy.escalationTarget || '',
     });
   };
@@ -87,16 +87,17 @@ export function ManagerPoliciesTab() {
     }
 
     saveDepartmentServicePolicy({
-      id: editingPolicy ? editingPolicy.id : undefined,
+      id: editingPolicy ? editingPolicy.id : `POL-${Date.now()}`,
       title: formData.title.trim(),
       department: formData.department,
       category: formData.category,
       scope: formData.scope,
       policyOwner: 'Marcus Vance (Department Manager)',
-      content: formData.content.trim(),
+      summary: formData.content.trim(),
+      effectiveDate: '2026-11-01',
+      lastUpdated: 'Today',
       authorityLimit: formData.authorityLimit.trim(),
       escalationTarget: formData.escalationTarget.trim(),
-      isManagerLevel: true,
     });
 
     notify(

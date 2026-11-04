@@ -249,7 +249,7 @@ export function DispatcherSupervisorConsole() {
   const incidents = useMemo(
     () =>
       (state.incidents ?? []).filter((inc) => {
-        const d = (inc.department || inc.category || '').toLowerCase();
+        const d = (inc.department || inc.title || '').toLowerCase();
         if (currentDept === 'Housekeeping') return d.includes('house');
         if (currentDept === 'Wellness') return d.includes('spa') || d.includes('wellness');
         if (currentDept === 'Maintenance & Engineering') return d.includes('maint') || d.includes('eng') || d.includes('safety');
@@ -272,7 +272,7 @@ export function DispatcherSupervisorConsole() {
     }
     if (currentDept === 'Wellness') {
       return allRooms.filter(
-        (r) => r.floor === 2 || r.type?.toLowerCase().includes('suite') || ['202', '204', '210', '518'].includes(r.no),
+        (r) => r.floor === 2 || r.note?.toLowerCase().includes('suite') || ['202', '204', '210', '518'].includes(r.no),
       );
     }
     if (currentDept === 'Food & Beverages') {

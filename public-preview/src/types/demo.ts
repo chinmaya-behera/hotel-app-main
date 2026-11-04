@@ -377,6 +377,10 @@ export interface SupervisorInspection {
   assignedSupervisorId?: string;
   assignedSupervisorName?: string;
   department?: string;
+  completedChecklistCount?: number;
+  totalChecklistCount?: number;
+  scheduledTime?: string;
+  createdAt?: string;
 }
 
 export interface LostFoundItem {
@@ -944,6 +948,7 @@ export interface SafetyAlertAuditStep {
   role: string;
   action: string;
   notes?: string;
+  note?: string;
 }
 
 export interface SafetyAlertRecord {

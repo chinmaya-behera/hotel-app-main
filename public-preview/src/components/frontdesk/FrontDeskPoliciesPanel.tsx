@@ -108,8 +108,8 @@ export function FrontDeskPoliciesPanel() {
                   <div className="flex items-center gap-2">
                     <Badge tone="info">{pol.department}</Badge>
                     <Badge tone="neutral">{pol.category}</Badge>
-                    {pol.authorityLimit !== undefined && pol.authorityLimit > 0 && (
-                      <Badge tone="success">Limit: {money(pol.authorityLimit)}</Badge>
+                    {pol.authorityLimit !== undefined && Number(pol.authorityLimit) > 0 && (
+                      <Badge tone="success">Limit: {money(Number(pol.authorityLimit))}</Badge>
                     )}
                   </div>
                   <h3 className="mt-1.5 text-sm font-bold text-white">{pol.title}</h3>

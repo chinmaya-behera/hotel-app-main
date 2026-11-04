@@ -21,13 +21,14 @@ import type { WorkItem } from '@/types/demo';
 
 interface DispatcherBlockersTabProps {
   onOpenEscalate?: () => void;
+  tasks?: WorkItem[];
 }
 
-export function DispatcherBlockersTab({ onOpenEscalate, tasks }: DispatcherBlockersTabProps) {
+export function DispatcherBlockersTab({ onOpenEscalate, tasks: propTasks }: DispatcherBlockersTabProps) {
   const { state, resolveFulfillerBlocker, reviewFulfillerReassignment } = useDemo();
 
-  // All combined department tasks
-  const allTasks = [
+  // All combined department tasks (scoped to propTasks if provided)
+  const allTasks = propTasks ?? [
     ...(state.items.department_dispatcher_supervisor ?? []),
     ...(state.items.department_dispatcher ?? []),
   ].filter((t, i, arr) => arr.findIndex((x) => x.id === t.id) === i);

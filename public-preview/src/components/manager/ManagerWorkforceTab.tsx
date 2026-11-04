@@ -609,7 +609,7 @@ export function ManagerWorkforceTab({ scope, onRequestStaffing }: ManagerWorkfor
                               className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                                 item.status === 'on_duty'
                                   ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                                  : item.status === 'off_duty'
+                                  : (item.status as string) === 'off_duty'
                                   ? 'bg-white/10 text-mist-300 border border-white/10'
                                   : 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
                               }`}

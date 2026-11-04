@@ -54,6 +54,29 @@ const fulfillerFlow: Record<string, Transition[]> = {
 };
 
 export const dashboards: Record<RoleId, DashboardConfig> = {
+  department_dispatcher_supervisor: {
+    sub: 'Department Dispatcher & Supervisor Operations Console',
+    listTitle: 'Department Queue',
+    listHint: 'Active dispatch items',
+    listIcon: ListChecks,
+    kpis: [
+      { label: 'Pending Dispatch', value: '4', icon: ListChecks, live: 'open' },
+      { label: 'Active Tasks', value: '12', icon: CircleCheck },
+    ],
+    transitions: fulfillerFlow,
+    side: [],
+  },
+  general_manager: {
+    sub: 'General Manager Executive Dashboard',
+    listTitle: 'Executive Approvals',
+    listHint: 'Pending sign-offs and safety broadcasts',
+    listIcon: ListChecks,
+    kpis: [
+      { label: 'Executive Approvals', value: '3', icon: ListChecks, live: 'open' },
+    ],
+    transitions: fulfillerFlow,
+    side: [],
+  },
   task_fulfiller: {
     sub: 'Your assigned tasks for today. Move each one forward; blockers always need a reason.',
     listTitle: 'My tasks',

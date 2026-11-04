@@ -25,7 +25,7 @@ import { dashboards } from '@/lib/dashboards';
 import { roleById } from '@/lib/roles';
 import { useDemo } from '@/lib/store';
 import { accentVars, cn } from '@/lib/utils';
-import type { RoleId, Tone } from '@/types/demo';
+import type { RoleId, Tone, WorkItem } from '@/types/demo';
 
 const BANNER_TONE: Record<Tone, string> = {
   neutral: 'border-white/10 bg-white/5 text-mist-200',

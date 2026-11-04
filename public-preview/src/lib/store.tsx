@@ -4531,6 +4531,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         status: 'pending',
         priority: input.priority || 'normal',
         score: 0,
+        completedAt: timestamp,
         completedChecklistCount: 0,
         totalChecklistCount: 15,
         scheduledTime: timestamp,

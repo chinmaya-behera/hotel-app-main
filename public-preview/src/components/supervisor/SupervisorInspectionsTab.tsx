@@ -208,7 +208,7 @@ export function SupervisorInspectionsTab({
                   return (
                     <tr
                       key={insp.id}
-                      onClick={() => onSelectInspection(insp)}
+                      onClick={() => onSelectInspection?.(insp)}
                       className="group hover:bg-white/[0.03] transition cursor-pointer"
                     >
                       {/* Room & Type */}
@@ -312,7 +312,7 @@ export function SupervisorInspectionsTab({
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            onSelectInspection(insp);
+                            onSelectInspection?.(insp);
                           }}
                           className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
                             insp.status === 'pending'

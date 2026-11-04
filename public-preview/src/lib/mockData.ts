@@ -1542,7 +1542,7 @@ export const seedStaffAccounts: StaffAccount[] = [
     roleId: 'department_manager',
     department: 'Duty & Operations',
     floorZone: 'Property-wide',
-    shift: 'Duty',
+    shift: 'Day',
     status: 'active',
     financialLimit: 16000,
     createdAt: '2026-07-15',
@@ -2662,9 +2662,9 @@ export const seedInspections: SupervisorInspection[] = [
     completedAt: 'Today 09:35',
     department: 'Spa & Wellness',
     items: [
-      { id: 'w-chk-1', category: 'Aromatherapy & Oils', label: 'Organic lemongrass oil heated to 38°C', passed: true },
-      { id: 'w-chk-2', category: 'Linen & Ambience', label: 'Warmed organic cotton therapy towels placed', passed: true },
-      { id: 'w-chk-3', category: 'Hygiene & Sterilization', label: 'Hydrotherapy basin steam disinfected', passed: true },
+      { id: 'w-chk-1', category: 'Minibar & Amenities', label: 'Organic lemongrass oil heated to 38°C', passed: true },
+      { id: 'w-chk-2', category: 'Bedding & Linens', label: 'Warmed organic cotton therapy towels placed', passed: true },
+      { id: 'w-chk-3', category: 'Bathroom & Sanitization', label: 'Hydrotherapy basin steam disinfected', passed: true },
     ],
     notes: 'Pre-treatment VIP setup verification.'
   },
@@ -2676,7 +2676,7 @@ export const seedInspections: SupervisorInspection[] = [
     floor: 2,
     attendantName: 'T. Brandt',
     attendantId: 'EMP-0110',
-    type: 'safety',
+    type: 'vip_prep',
     status: 'passed',
     priority: 'urgent',
     completedAt: 'Today 09:10',
@@ -2685,8 +2685,8 @@ export const seedInspections: SupervisorInspection[] = [
     score: 100,
     department: 'Spa & Wellness',
     items: [
-      { id: 'w-chk-4', category: 'Water Chemistry', label: 'Bromine level at 3.2 ppm, pH balanced at 7.4', passed: true },
-      { id: 'w-chk-5', category: 'Safety & Sensors', label: 'Emergency drain suction cutoff tested', passed: true },
+      { id: 'w-chk-4', category: 'Bathroom & Sanitization', label: 'Bromine level at 3.2 ppm, pH balanced at 7.4', passed: true },
+      { id: 'w-chk-5', category: 'Safety & Keycard', label: 'Emergency drain suction cutoff tested', passed: true },
     ],
     notes: 'Water quality certification approved for guest access.'
   },
@@ -2704,8 +2704,8 @@ export const seedInspections: SupervisorInspection[] = [
     completedAt: 'Today 09:40',
     department: 'Food & Beverage',
     items: [
-      { id: 'fb-chk-1', category: 'Presentation & Silverware', label: 'Silver cloche polished, cutlery sanitized', passed: true },
-      { id: 'fb-chk-2', category: 'Food Temperature', label: 'Hot dishes in thermal dome at 65°C+, wine chilled', passed: true },
+      { id: 'fb-chk-1', category: 'Bathroom & Sanitization', label: 'Silver cloche polished, cutlery sanitized', passed: true },
+      { id: 'fb-chk-2', category: 'Minibar & Amenities', label: 'Hot dishes in thermal dome at 65°C+, wine chilled', passed: true },
     ],
     notes: 'Chef tasting platter room service delivery inspection.'
   },
@@ -2726,7 +2726,7 @@ export const seedInspections: SupervisorInspection[] = [
     score: 99,
     department: 'Food & Beverage',
     items: [
-      { id: 'fb-chk-3', category: 'VIP Amenities', label: 'Dom Pérignon on ice & fruit arrangement approved', passed: true },
+      { id: 'fb-chk-3', category: 'Minibar & Amenities', label: 'Dom Pérignon on ice & fruit arrangement approved', passed: true },
     ],
     notes: 'VIP dining setup verified.'
   },
@@ -2744,8 +2744,8 @@ export const seedInspections: SupervisorInspection[] = [
     completedAt: 'Today 09:30',
     department: 'Maintenance & Engineering',
     items: [
-      { id: 'mx-chk-1', category: 'HVAC Diagnostics', label: 'Fan coil airflow cfm measured, refrigerant pressure normal', passed: true },
-      { id: 'mx-chk-2', category: 'Thermostat Calibration', label: 'Digital sensor delta calibrated to ±0.2°C', passed: true },
+      { id: 'mx-chk-1', category: 'Electronics & Climate', label: 'Fan coil airflow cfm measured, refrigerant pressure normal', passed: true },
+      { id: 'mx-chk-2', category: 'Electronics & Climate', label: 'Digital sensor delta calibrated to ±0.2°C', passed: true },
     ],
     notes: 'Post-repair HVAC performance sign-off.'
   },
@@ -3497,8 +3497,7 @@ export const seedSafetyAlerts: SafetyAlertRecord[] = [
     id: 'alert-3',
     ref: 'SFT-003',
     title: 'West Wing Elevator B Routine Inspection',
-    priority: 'critical',
-    priority: 'warning',
+        priority: 'warning',
     location: 'West Wing Guest Elevators (Floors 1–5)',
     affectedFloors: ['B2'],
     incidentType: 'fire_sensor',
