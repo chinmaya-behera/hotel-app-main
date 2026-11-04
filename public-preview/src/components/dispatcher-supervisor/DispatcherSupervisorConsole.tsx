@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   LayoutDashboard,
   Layers,
@@ -21,7 +21,7 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
-import type { SupervisorInspection, RoleId } from '@/types/demo';
+import type { SupervisorInspection, RoleId, DispatcherDepartment, WorkItem, StaffAccount } from '@/types/demo';
 import { ROLE_AUTHORITY_PROFILES, SHARED_SERVICE_POLICIES } from '@/lib/policies';
 
 // Dispatcher Tabs
@@ -100,19 +100,182 @@ export function DispatcherSupervisorConsole() {
   const [isEscalateModalOpen, setIsEscalateModalOpen] = useState(false);
   const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
 
-  // Unified items
+  // Department state & URL query synchronization
+  const currentDept: DispatcherDepartment = state.activeDispatcherDept || 'Housekeeping';
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const deptParam = params.get('dept')?.toLowerCase();
+      if (deptParam === 'wellness' || deptParam === 'spa') {
+        setActiveDispatcherDept('Wellness');
+      } else if (deptParam === 'maintenance' || deptParam === 'engineering') {
+        setActiveDispatcherDept('Maintenance & Engineering');
+      } else if (deptParam === 'fnb' || deptParam === 'food' || deptParam === 'beverage') {
+        setActiveDispatcherDept('Food & Beverages');
+      } else if (deptParam === 'housekeeping' || deptParam === 'hk') {
+        setActiveDispatcherDept('Housekeeping');
+      }
+    }
+  }, [setActiveDispatcherDept]);
+
+  // Department-specific task filter
+  const isTaskInActiveDept = (t: WorkItem) => {
+    const deptStr = (t.department || '').toLowerCase();
+    const catStr = (t.category || '').toLowerCase();
+    if (currentDept === 'Housekeeping') {
+      return (
+        deptStr.includes('housekeeping') ||
+        ['housekeeping', 'lost_found', 'turnover', 'linen'].includes(catStr)
+      );
+    }
+    if (currentDept === 'Wellness') {
+      return (
+        deptStr.includes('spa') ||
+        deptStr.includes('wellness') ||
+        ['spa', 'wellness', 'massage', 'hydrotherapy'].includes(catStr)
+      );
+    }
+    if (currentDept === 'Maintenance & Engineering') {
+      return (
+        deptStr.includes('maintenance') ||
+        deptStr.includes('engineering') ||
+        ['maintenance', 'hvac', 'plumbing', 'electrical', 'repair'].includes(catStr)
+      );
+    }
+    if (currentDept === 'Food & Beverages') {
+      return (
+        deptStr.includes('food') ||
+        deptStr.includes('beverage') ||
+        deptStr.includes('f&b') ||
+        ['room_service', 'dining', 'fnb', 'kitchen', 'restaurant', 'bar'].includes(catStr)
+      );
+    }
+    return true;
+  };
+
+  // Department-specific staff filter
+  const isStaffInActiveDept = (s: StaffAccount) => {
+    const d = s.department.toLowerCase();
+    if (currentDept === 'Housekeeping') return d.includes('house');
+    if (currentDept === 'Wellness') return d.includes('spa') || d.includes('wellness');
+    if (currentDept === 'Maintenance & Engineering') return d.includes('maint') || d.includes('eng');
+    if (currentDept === 'Food & Beverages') return d.includes('food') || d.includes('bev');
+    return true;
+  };
+
+  // Department-specific inspection filter
+  const isInspectionInActiveDept = (i: SupervisorInspection) => {
+    if (i.department) {
+      const d = i.department.toLowerCase();
+      if (currentDept === 'Housekeeping') return d.includes('house');
+      if (currentDept === 'Wellness') return d.includes('spa') || d.includes('wellness');
+      if (currentDept === 'Maintenance & Engineering') return d.includes('maint') || d.includes('eng');
+      if (currentDept === 'Food & Beverages') return d.includes('food') || d.includes('bev');
+    }
+    const att = (i.attendantName || '').toLowerCase();
+    const rType = (i.roomType || '').toLowerCase();
+    const rNo = (i.roomNumber || '').toLowerCase();
+    if (currentDept === 'Housekeeping') {
+      return (
+        !att.includes('wayne') &&
+        !att.includes('rohan') &&
+        !att.includes('leila') &&
+        !att.includes('brandt') &&
+        !att.includes('malhotra') &&
+        !rType.includes('spa') &&
+        !rType.includes('engineering') &&
+        !rType.includes('f&b')
+      );
+    }
+    if (currentDept === 'Wellness') {
+      return (
+        att.includes('leila') ||
+        att.includes('brandt') ||
+        att.includes('ananya') ||
+        rType.includes('spa') ||
+        rType.includes('wellness') ||
+        rNo.includes('spa')
+      );
+    }
+    if (currentDept === 'Maintenance & Engineering') {
+      return (
+        att.includes('wayne') ||
+        att.includes('rohan') ||
+        att.includes('arjun') ||
+        rType.includes('engineering') ||
+        rType.includes('maint')
+      );
+    }
+    if (currentDept === 'Food & Beverages') {
+      return (
+        att.includes('kabir') ||
+        att.includes('dev') ||
+        att.includes('malhotra') ||
+        att.includes('rossi') ||
+        rType.includes('f&b') ||
+        rType.includes('dining')
+      );
+    }
+    return true;
+  };
+
+  // Unified department items
   const allTasks = useMemo(
-    () => [
-      ...(state.items.department_dispatcher_supervisor ?? []),
-      ...(state.items.department_dispatcher ?? []),
-    ].filter((t, i, arr) => arr.findIndex((x) => x.id === t.id) === i),
-    [state.items.department_dispatcher_supervisor, state.items.department_dispatcher],
+    () =>
+      [
+        ...(state.items.department_dispatcher_supervisor ?? []),
+        ...(state.items.department_dispatcher ?? []),
+      ]
+        .filter((t, i, arr) => arr.findIndex((x) => x.id === t.id) === i)
+        .filter(isTaskInActiveDept),
+    [state.items.department_dispatcher_supervisor, state.items.department_dispatcher, currentDept],
   );
 
-  const inspections = useMemo(() => state.inspections ?? [], [state.inspections]);
-  const rooms = useMemo(() => state.frontDesk?.rooms ?? [], [state.frontDesk?.rooms]);
-  const staffList = useMemo(() => state.staffAccounts ?? [], [state.staffAccounts]);
-  const incidents = useMemo(() => state.incidents ?? [], [state.incidents]);
+  const inspections = useMemo(
+    () => (state.inspections ?? []).filter(isInspectionInActiveDept),
+    [state.inspections, currentDept],
+  );
+
+  const staffList = useMemo(
+    () => (state.staffAccounts ?? []).filter(isStaffInActiveDept),
+    [state.staffAccounts, currentDept],
+  );
+
+  const incidents = useMemo(
+    () =>
+      (state.incidents ?? []).filter((inc) => {
+        const d = (inc.department || inc.category || '').toLowerCase();
+        if (currentDept === 'Housekeeping') return d.includes('house');
+        if (currentDept === 'Wellness') return d.includes('spa') || d.includes('wellness');
+        if (currentDept === 'Maintenance & Engineering') return d.includes('maint') || d.includes('eng') || d.includes('safety');
+        if (currentDept === 'Food & Beverages') return d.includes('food') || d.includes('bev') || d.includes('dining');
+        return true;
+      }),
+    [state.incidents, currentDept],
+  );
+
+  const departmentRooms = useMemo(() => {
+    const allRooms = state.frontDesk?.rooms ?? [];
+    if (currentDept === 'Housekeeping') return allRooms;
+    if (currentDept === 'Maintenance & Engineering') {
+      return allRooms.filter(
+        (r) =>
+          r.readiness === 'out_of_order' ||
+          r.readiness === 'inspection_failed' ||
+          ['305', '412', '502', '108'].includes(r.no),
+      );
+    }
+    if (currentDept === 'Wellness') {
+      return allRooms.filter(
+        (r) => r.floor === 2 || r.type?.toLowerCase().includes('suite') || ['202', '204', '210', '518'].includes(r.no),
+      );
+    }
+    if (currentDept === 'Food & Beverages') {
+      return allRooms.filter((r) => ['518', '402', '301', '305', '501'].includes(r.no));
+    }
+    return allRooms;
+  }, [state.frontDesk?.rooms, currentDept]);
 
   const unassignedCount = allTasks.filter((t) => t.status === 'Unassigned' || t.status === 'Received').length;
   const pendingInspections = inspections.filter((i) => i.status === 'pending').length;
@@ -308,8 +471,9 @@ export function DispatcherSupervisorConsole() {
         <div className="flex-1 min-w-0 w-full space-y-6">
           {activeTab === 'overview' && (
             <DispatcherSupervisorOverviewTab
+              activeDept={currentDept}
               inspections={inspections}
-              rooms={rooms}
+              rooms={departmentRooms}
               staffList={staffList}
               tasks={allTasks}
               incidents={incidents}
@@ -322,7 +486,7 @@ export function DispatcherSupervisorConsole() {
             />
           )}
 
-          {activeTab === 'queue' && <DispatcherQueueTab />}
+          {activeTab === 'queue' && <DispatcherQueueTab tasks={allTasks} activeDept={currentDept} />}
 
           {activeTab === 'inspections' && (
             <SupervisorInspectionsTab
@@ -336,7 +500,7 @@ export function DispatcherSupervisorConsole() {
 
           {activeTab === 'rooms' && (
             <SupervisorRoomsTab
-              rooms={rooms}
+              rooms={departmentRooms}
               inspections={inspections}
               onSelectInspectionByRoom={(roomNo) => {
                 const existing = (inspections ?? []).find((i) => i.roomNumber === roomNo);
@@ -353,15 +517,15 @@ export function DispatcherSupervisorConsole() {
             />
           )}
 
-          {activeTab === 'workload' && <DispatcherWorkloadTab />}
+          {activeTab === 'workload' && <DispatcherWorkloadTab staffList={staffList} department={currentDept} />}
 
           {activeTab === 'blockers' && (
-            <DispatcherBlockersTab onOpenEscalate={() => setIsEscalateModalOpen(true)} />
+            <DispatcherBlockersTab onOpenEscalate={() => setIsEscalateModalOpen(true)} tasks={allTasks} />
           )}
 
           {activeTab === 'routing' && <DispatcherRoutingTab />}
 
-          {activeTab === 'sla' && <DispatcherSlaTab />}
+          {activeTab === 'sla' && <DispatcherSlaTab tasks={allTasks} />}
 
           {activeTab === 'guest_messages' && <DispatcherGuestMessagesTab />}
 

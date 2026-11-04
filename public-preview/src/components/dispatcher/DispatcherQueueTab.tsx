@@ -27,9 +27,14 @@ import { LinkDuplicateModal } from '@/components/dispatcher/LinkDuplicateModal';
 import { EscalateTaskModal } from '@/components/dispatcher/EscalateTaskModal';
 import { TaskDetailsDrawer } from '@/components/dispatcher/TaskDetailsDrawer';
 import { CreateTaskModal } from '@/components/dispatcher/CreateTaskModal';
-import type { WorkItem } from '@/types/demo';
+import type { WorkItem, DispatcherDepartment } from '@/types/demo';
 
-export function DispatcherQueueTab() {
+interface DispatcherQueueTabProps {
+  tasks?: WorkItem[];
+  activeDept?: DispatcherDepartment;
+}
+
+export function DispatcherQueueTab({ tasks, activeDept }: DispatcherQueueTabProps = {}) {
   const { state, autoAssignTask, autoAssignAllPending } = useDemo();
 
   // Filters & Search

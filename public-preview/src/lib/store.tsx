@@ -88,9 +88,9 @@ import type {
   GuestNotification,
   HotelAlert,
   GuestFrontDeskReply,
-  ComplaintCase,
-  ComplaintCategory,
-  } from '@/types/demo';
+  ComplaintCase,  ComplaintCategory,
+  DispatcherDepartment,
+} from '@/types/demo';
 
 const STORAGE_KEY = 'grand-azure-demo-v1';
 
@@ -131,6 +131,7 @@ function seedState(): DemoState {
     safetyAlerts: seedSafetyAlerts,
     diningMenu: INITIAL_DINING_MENU,
     diningCategories: INITIAL_DINING_CATEGORIES,
+    activeDispatcherDept: 'Housekeeping' as DispatcherDepartment,
   }) as DemoState;
 }
 
@@ -173,6 +174,7 @@ interface DemoApi {
   reset: () => void;
   notify: (text: string) => void;
   setTheme: (theme: ThemeMode) => void;
+  setActiveDispatcherDept: (dept: DispatcherDepartment) => void;
   submitGuestRequest: (input: GuestRequestInput) => string;
   placeRoomServiceOrder: (room: string, lines: OrderLine[], note?: string) => string;
   placeDiningOrder: (room: string, lines: OrderLine[], note?: string) => string;
@@ -487,6 +489,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           safetyAlerts: saved.safetyAlerts ?? base.safetyAlerts,
           diningMenu: saved.diningMenu ?? base.diningMenu,
           diningCategories: saved.diningCategories ?? base.diningCategories,
+          activeDispatcherDept: saved.activeDispatcherDept ?? base.activeDispatcherDept ?? 'Housekeeping',
         });
       }
     } catch {
@@ -536,6 +539,10 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
   const setTheme = useCallback((theme: ThemeMode) => {
     setState((prev) => (prev.theme === theme ? prev : { ...prev, theme }));
+  }, []);
+
+  const setActiveDispatcherDept = useCallback((dept: DispatcherDepartment) => {
+    setState((prev) => (prev.activeDispatcherDept === dept ? prev : { ...prev, activeDispatcherDept: dept }));
   }, []);
 
   const advance = useCallback<DemoApi['advance']>(
@@ -6033,6 +6040,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       reset,
       notify,
       setTheme,
+      setActiveDispatcherDept,
       submitGuestRequest,
       placeRoomServiceOrder,
       placeDiningOrder,

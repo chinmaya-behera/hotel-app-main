@@ -23,7 +23,7 @@ interface DispatcherBlockersTabProps {
   onOpenEscalate?: () => void;
 }
 
-export function DispatcherBlockersTab({ onOpenEscalate }: DispatcherBlockersTabProps) {
+export function DispatcherBlockersTab({ onOpenEscalate, tasks }: DispatcherBlockersTabProps) {
   const { state, resolveFulfillerBlocker, reviewFulfillerReassignment } = useDemo();
 
   // All combined department tasks

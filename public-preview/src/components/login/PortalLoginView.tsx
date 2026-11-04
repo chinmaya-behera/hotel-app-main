@@ -24,9 +24,15 @@ import {
   Sliders,
   Globe,
   Info,
+  Sparkles,
+  HeartPulse,
+  Wrench,
+  UtensilsCrossed,
+  ChevronDown,
+  Check,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
-import type { RoleId } from '@/types/demo';
+import type { RoleId, DispatcherDepartment } from '@/types/demo';
 
 interface PresetRole {
   id: string;
@@ -141,9 +147,71 @@ const PRESET_ROLES: PresetRole[] = [
   },
 ];
 
+
+export interface DispatcherDeptOption {
+  id: DispatcherDepartment;
+  slug: string;
+  name: string;
+  email: string;
+  pass: string;
+  path: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
+}
+
+export const DISPATCHER_DEPARTMENTS: DispatcherDeptOption[] = [
+  {
+    id: 'Housekeeping',
+    slug: 'housekeeping',
+    name: 'Housekeeping',
+    email: 'dispatcher.housekeeping@thegrandadp.com',
+    pass: 'dispatch123',
+    path: '/staff/dispatcher-supervisor?dept=housekeeping',
+    description: 'Turnover, deep clean, linen logistics & quality inspections',
+    icon: Sparkles,
+    color: 'from-emerald-500 to-teal-600',
+  },
+  {
+    id: 'Wellness',
+    slug: 'wellness',
+    name: 'Wellness',
+    email: 'dispatcher.wellness@thegrandadp.com',
+    pass: 'dispatch123',
+    path: '/staff/dispatcher-supervisor?dept=wellness',
+    description: 'Spa treatments, hydrotherapy pools & wellness sessions',
+    icon: HeartPulse,
+    color: 'from-teal-500 to-cyan-600',
+  },
+  {
+    id: 'Maintenance & Engineering',
+    slug: 'maintenance',
+    name: 'Maintainance & Engineering',
+    email: 'dispatcher.engineering@thegrandadp.com',
+    pass: 'dispatch123',
+    path: '/staff/dispatcher-supervisor?dept=maintenance',
+    description: 'HVAC climate, plumbing, electrical & asset work orders',
+    icon: Wrench,
+    color: 'from-amber-500 to-orange-600',
+  },
+  {
+    id: 'Food & Beverages',
+    slug: 'fnb',
+    name: 'Food & Beverages',
+    email: 'dispatcher.fnb@thegrandadp.com',
+    pass: 'dispatch123',
+    path: '/staff/dispatcher-supervisor?dept=fnb',
+    description: 'In-room dining, bar services, pantry & meal delivery',
+    icon: UtensilsCrossed,
+    color: 'from-purple-500 to-pink-600',
+  },
+];
+
 export function PortalLoginView() {
   const router = useRouter();
-  const { state, setTheme, setPersona } = useDemo();
+  const { state, setTheme, setPersona, setActiveDispatcherDept } = useDemo();
+  const [dispatcherDropdownOpen, setDispatcherDropdownOpen] = useState(false);
+  const [selectedDept, setSelectedDept] = useState<DispatcherDepartment>(state.activeDispatcherDept || 'Housekeeping');
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -179,19 +247,42 @@ export function PortalLoginView() {
     }
   }, [isLight, state.theme]);
 
-  const activeRole = PRESET_ROLES.find((r) => r.id === selectedRoleId);
+    const activeRole = PRESET_ROLES.find((r) => r.id === selectedRoleId);
 
   const handleSelectRole = (role: PresetRole) => {
+    if (role.id === 'dispatcher') {
+      setDispatcherDropdownOpen(!dispatcherDropdownOpen);
+      setSelectedRoleId(role.id);
+      const activeDeptConfig = DISPATCHER_DEPARTMENTS.find((d) => d.id === selectedDept) || DISPATCHER_DEPARTMENTS[0];
+      setEmail(activeDeptConfig.email);
+      setPassword(activeDeptConfig.pass);
+      setActiveDispatcherDept(activeDeptConfig.id);
+      showToast(`Dispatcher / Supervisor (${activeDeptConfig.name}) loaded`);
+      return;
+    }
+
+    setDispatcherDropdownOpen(false);
     setSelectedRoleId(role.id);
     setEmail(role.email);
     setPassword(role.pass);
     showToast(`${role.name} loaded`);
   };
 
+  const handleSelectDepartment = (dept: DispatcherDeptOption) => {
+    setSelectedDept(dept.id);
+    setSelectedRoleId('dispatcher');
+    setEmail(dept.email);
+    setPassword(dept.pass);
+    setActiveDispatcherDept(dept.id);
+    setDispatcherDropdownOpen(false);
+    showToast(`Loaded ${dept.name} Dispatcher`);
+  };
+
   const handleReset = () => {
     setEmail('');
     setPassword('');
     setSelectedRoleId(null);
+    setDispatcherDropdownOpen(false);
     showToast('Cleared');
   };
 
@@ -208,16 +299,58 @@ export function PortalLoginView() {
     }
   };
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+    const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
 
     const cleanEmail = email.trim().toLowerCase();
+    const isDispatcher =
+      selectedRoleId === 'dispatcher' ||
+      cleanEmail.includes('dispatcher') ||
+      cleanEmail.includes('housekeeping') ||
+      cleanEmail.includes('wellness') ||
+      cleanEmail.includes('engineering') ||
+      cleanEmail.includes('maintenance') ||
+      cleanEmail.includes('fnb');
+
+    setIsSubmitting(true);
+
+    if (isDispatcher) {
+      let targetDept: DispatcherDepartment = selectedDept;
+      let deptSlug = 'housekeeping';
+
+      if (cleanEmail.includes('wellness') || (selectedRoleId === 'dispatcher' && selectedDept === 'Wellness')) {
+        targetDept = 'Wellness';
+        deptSlug = 'wellness';
+      } else if (
+        cleanEmail.includes('engineering') ||
+        cleanEmail.includes('maintenance') ||
+        (selectedRoleId === 'dispatcher' && selectedDept === 'Maintenance & Engineering')
+      ) {
+        targetDept = 'Maintenance & Engineering';
+        deptSlug = 'maintenance';
+      } else if (
+        cleanEmail.includes('fnb') ||
+        cleanEmail.includes('food') ||
+        (selectedRoleId === 'dispatcher' && selectedDept === 'Food & Beverages')
+      ) {
+        targetDept = 'Food & Beverages';
+        deptSlug = 'fnb';
+      } else {
+        targetDept = 'Housekeeping';
+        deptSlug = 'housekeeping';
+      }
+
+      setActiveDispatcherDept(targetDept);
+      setPersona('department_dispatcher_supervisor');
+      showToast(`Signing in as Dispatcher (${targetDept})...`);
+      router.push(`/staff/dispatcher-supervisor?dept=${deptSlug}`);
+      return;
+    }
+
     const matchedRole =
       PRESET_ROLES.find((r) => r.email.toLowerCase() === cleanEmail) ||
       (selectedRoleId ? PRESET_ROLES.find((r) => r.id === selectedRoleId) : null);
-
-    setIsSubmitting(true);
 
     if (matchedRole) {
       if (matchedRole.personaId) {
@@ -368,7 +501,7 @@ export function PortalLoginView() {
                       activeRole ? `bg-gradient-to-r ${activeRole.color}` : 'bg-slate-400'
                     }`}
                   />
-                  <span>{activeRole ? activeRole.name : 'Standard'}</span>
+                  <span>{activeRole ? (activeRole.id === 'dispatcher' ? `Dispatcher (${selectedDept})` : activeRole.name) : 'Standard'}</span>
                 </div>
               </div>
 
@@ -519,45 +652,136 @@ export function PortalLoginView() {
                 {PRESET_ROLES.map((role) => {
                   const isSelected = role.id === selectedRoleId;
                   const Icon = role.icon;
+                  const isDispatcher = role.id === 'dispatcher';
+
                   return (
-                    <button
-                      key={role.id}
-                      type="button"
-                      onClick={() => handleSelectRole(role)}
-                      className={`w-full text-left flex items-center justify-between p-3 sm:p-3.5 rounded-2xl border transition-all duration-150 cursor-pointer login-role-btn ${
-                        isSelected ? 'active' : ''
-                      } ${
-                        isSelected
-                          ? isLight
-                            ? 'bg-amber-50/90 border-2 border-amber-500 text-slate-950 ring-2 ring-amber-400/30 shadow-md'
-                            : 'bg-amber-400/10 border-amber-400/70 text-white ring-1 ring-amber-400/40 shadow-sm'
-                          : isLight
-                          ? 'bg-slate-50/90 border-slate-200 hover:bg-[#ffffff] hover:border-slate-300 text-slate-800 shadow-xs hover:shadow-sm'
-                          : 'bg-white/[0.03] border-white/5 hover:border-white/20 text-slate-300'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div
-                          className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br ${role.color} text-white flex items-center justify-center flex-shrink-0 shadow-sm`}
-                        >
-                          <Icon className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
-                        </div>
-                        <span className={`text-xs sm:text-sm truncate ${isSelected && isLight ? 'font-bold text-slate-950' : 'font-semibold'}`}>
-                          {role.name}
-                        </span>
-                      </div>
-                      <span
-                        className={`text-[11px] font-mono ml-2 flex-shrink-0 px-2 py-0.5 rounded font-medium login-role-num ${
-                          isSelected && isLight
-                            ? 'bg-amber-200 text-amber-950 font-bold'
+                    <React.Fragment key={role.id}>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectRole(role)}
+                        className={`w-full text-left flex items-center justify-between p-3 sm:p-3.5 rounded-2xl border transition-all duration-150 cursor-pointer login-role-btn ${
+                          isSelected ? 'active' : ''
+                        } ${
+                          isSelected
+                            ? isLight
+                              ? 'bg-amber-50/90 border-2 border-amber-500 text-slate-950 ring-2 ring-amber-400/30 shadow-md'
+                              : 'bg-amber-400/10 border-amber-400/70 text-white ring-1 ring-amber-400/40 shadow-sm'
                             : isLight
-                            ? 'bg-slate-200/90 text-slate-700'
-                            : 'bg-white/5 text-slate-400'
+                            ? 'bg-slate-50/90 border-slate-200 hover:bg-[#ffffff] hover:border-slate-300 text-slate-800 shadow-xs hover:shadow-sm'
+                            : 'bg-white/[0.03] border-white/5 hover:border-white/20 text-slate-300'
                         }`}
                       >
-                        {role.num}
-                      </span>
-                    </button>
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div
+                            className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br ${role.color} text-white flex items-center justify-center flex-shrink-0 shadow-sm`}
+                          >
+                            <Icon className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+                          </div>
+                          <div className="min-w-0">
+                            <span className={`text-xs sm:text-sm block truncate ${isSelected && isLight ? 'font-bold text-slate-950' : 'font-semibold'}`}>
+                              {role.name}
+                            </span>
+                            {isDispatcher && isSelected && (
+                              <span className="text-[10px] text-amber-500 dark:text-amber-300 font-bold block truncate">
+                                • {selectedDept}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {isDispatcher && (
+                            <ChevronDown
+                              className={`w-4 h-4 text-amber-500 transition-transform duration-200 ${
+                                dispatcherDropdownOpen ? 'rotate-180' : ''
+                              }`}
+                            />
+                          )}
+                          <span
+                            className={`text-[11px] font-mono px-2 py-0.5 rounded font-medium login-role-num ${
+                              isSelected && isLight
+                                ? 'bg-amber-200 text-amber-950 font-bold'
+                                : isLight
+                                ? 'bg-slate-200/90 text-slate-700'
+                                : 'bg-white/5 text-slate-400'
+                            }`}
+                          >
+                            {role.num}
+                          </span>
+                        </div>
+                      </button>
+
+                      {/* Department Dropdown Menu for Dispatcher / Supervisor */}
+                      {isDispatcher && dispatcherDropdownOpen && (
+                        <div
+                          className={`col-span-1 sm:col-span-2 p-3 sm:p-4 rounded-2xl border transition-all duration-200 ${
+                            isLight
+                              ? 'bg-amber-50/70 border-amber-300 shadow-lg text-slate-900'
+                              : 'bg-[#0a1120] border-amber-400/40 shadow-2xl text-white'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-amber-400/20">
+                            <div>
+                              <span className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-300 block">
+                                Choose Department Console
+                              </span>
+                              <span className="text-[11px] text-slate-600 dark:text-slate-400">
+                                Scopes all tasks, workload, inspections & SLA to this department
+                              </span>
+                            </div>
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-amber-400/20 text-amber-700 dark:text-amber-300">
+                              4 Depts
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            {DISPATCHER_DEPARTMENTS.map((dept) => {
+                              const isDeptActive = selectedDept === dept.id;
+                              const DeptIcon = dept.icon;
+
+                              return (
+                                <button
+                                  key={dept.id}
+                                  type="button"
+                                  onClick={() => handleSelectDepartment(dept)}
+                                  className={`p-2.5 sm:p-3 rounded-xl border text-left flex items-start gap-2.5 transition-all cursor-pointer ${
+                                    isDeptActive
+                                      ? isLight
+                                        ? 'bg-white border-2 border-amber-500 shadow-md ring-1 ring-amber-400/40 text-slate-950'
+                                        : 'bg-amber-400/15 border-2 border-amber-400 text-white shadow-md'
+                                      : isLight
+                                      ? 'bg-white/80 border-slate-200 hover:bg-white hover:border-amber-300 text-slate-800 shadow-xs'
+                                      : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.08] hover:border-amber-400/40 text-slate-200'
+                                  }`}
+                                >
+                                  <div
+                                    className={`w-8 h-8 rounded-lg bg-gradient-to-br ${dept.color} text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5`}
+                                  >
+                                    <DeptIcon className="w-4 h-4" />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center justify-between gap-1">
+                                      <span className="text-xs font-bold truncate">
+                                        {dept.name}
+                                      </span>
+                                      {isDeptActive && (
+                                        <Check className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                                      )}
+                                    </div>
+                                    <p className="text-[10px] leading-tight text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">
+                                      {dept.description}
+                                    </p>
+                                    <span className="text-[9px] font-mono text-amber-600 dark:text-amber-300/80 mt-1 block truncate">
+                                      {dept.email}
+                                    </span>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </React.Fragment>
                   );
                 })}
               </div>

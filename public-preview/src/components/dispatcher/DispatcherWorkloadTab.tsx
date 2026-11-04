@@ -22,16 +22,21 @@ import {
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
 import { AssignTaskModal } from '@/components/dispatcher/AssignTaskModal';
-import type { StaffAccount, WorkItem } from '@/types/demo';
+import type { StaffAccount, WorkItem, DispatcherDepartment } from '@/types/demo';
 
-export function DispatcherWorkloadTab() {
+interface DispatcherWorkloadTabProps {
+  staffList?: StaffAccount[];
+  department?: DispatcherDepartment;
+}
+
+export function DispatcherWorkloadTab({ staffList, department }: DispatcherWorkloadTabProps = {}) {
   const { state, updateStaffAvailability, redistributeUnstartedTasks, updateStaffCapacity } = useDemo();
   const [filterDept, setFilterDept] = useState<string>('all');
   const [reassignModalTask, setReassignModalTask] = useState<WorkItem | null>(null);
   const [editingCapacityStaff, setEditingCapacityStaff] = useState<StaffAccount | null>(null);
   const [capacityInput, setCapacityInput] = useState<number>(5);
 
-  const staffAccounts = state.staffAccounts ?? [];
+  const staffAccounts = staffList ?? (state.staffAccounts ?? []);
   const fulfillers = staffAccounts.filter((s) => s.roleId === 'task_fulfiller');
 
   // Filter fulfillers by department

@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
 import type {
+  DispatcherDepartment,
   SupervisorInspection,
   RoomRecord,
   StaffAccount,
@@ -33,6 +34,7 @@ import type {
 } from '@/types/demo';
 
 interface DispatcherSupervisorOverviewTabProps {
+  activeDept?: DispatcherDepartment;
   inspections?: SupervisorInspection[];
   rooms?: RoomRecord[];
   staffList?: StaffAccount[];
@@ -44,6 +46,7 @@ interface DispatcherSupervisorOverviewTabProps {
 }
 
 export function DispatcherSupervisorOverviewTab({
+  activeDept,
   inspections = [],
   rooms = [],
   staffList = [],
@@ -93,7 +96,7 @@ export function DispatcherSupervisorOverviewTab({
 
   // Staff & Roster metrics (Supervisor & Dispatcher)
   const fulfillers = (staffList.length > 0 ? staffList : state.staffAccounts ?? []).filter(
-    (s) => s.roleId === 'task_fulfiller' || s.department === 'Housekeeping',
+    (s) => s.roleId === 'task_fulfiller',
   );
   const onDutyCount = fulfillers.filter((f) => f.status === 'active' && (!f.availability || f.availability !== 'off_duty')).length;
 
@@ -250,7 +253,7 @@ export function DispatcherSupervisorOverviewTab({
             <span className="text-2xl sm:text-3xl font-extrabold font-display text-white">{onDutyCount}</span>
             <span className="text-xs text-mist-400 font-mono">/ {fulfillers.length}</span>
           </div>
-          <p className="text-[10px] text-mist-400 mt-1">HK, MX & FB Attendants</p>
+          <p className="text-[10px] text-mist-400 mt-1">{activeDept ? `${activeDept} Team` : 'Department Attendants'}</p>
         </div>
 
         {/* Metric 8: Auto-Assign & Escalations */}
@@ -481,68 +484,177 @@ export function DispatcherSupervisorOverviewTab({
             </div>
 
             <div className="space-y-4 pt-1">
-              {/* Housekeeping */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs font-semibold">
-                  <span className="flex items-center gap-2 text-white">
-                    <Bed className="h-4 w-4 text-emerald-400" />
-                    Housekeeping & Turnover Linens
-                  </span>
-                  <span className="font-mono text-mist-300">{hkTasks.length} tasks</span>
-                </div>
-                <div className="h-2.5 rounded-full bg-white/[0.06] overflow-hidden">
-                  <div
-                    className="h-full bg-emerald-400 rounded-full transition-all duration-500"
-                    style={{ width: `${Math.min(100, Math.max(15, (hkTasks.length / 10) * 100))}%` }}
-                  />
-                </div>
-                <div className="flex justify-between text-[10px] text-mist-500">
-                  <span>Floors 1–5 coverage</span>
-                  <span>Capacity: 60%</span>
-                </div>
-              </div>
+              {/* Housekeeping Specific Workload */}
+              {(!activeDept || activeDept === 'Housekeeping') && (
+                <>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs font-semibold">
+                      <span className="flex items-center gap-2 text-white">
+                        <Bed className="h-4 w-4 text-emerald-400" />
+                        Room Turnover & Linen Logistics
+                      </span>
+                      <span className="font-mono text-mist-300">
+                        {allTasks.filter((t) => (t.category === 'housekeeping' || (t.department || '').toLowerCase().includes('house')) && !t.title.toLowerCase().includes('deep clean')).length} tasks
+                      </span>
+                    </div>
+                    <div className="h-2.5 rounded-full bg-white/[0.06] overflow-hidden">
+                      <div className="h-full bg-emerald-400 rounded-full transition-all duration-500" style={{ width: '65%' }} />
+                    </div>
+                    <div className="flex justify-between text-[10px] text-mist-500">
+                      <span>Floors 1–5 Attendants</span>
+                      <span>Capacity: 65%</span>
+                    </div>
+                  </div>
 
-              {/* Maintenance & Engineering */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs font-semibold">
-                  <span className="flex items-center gap-2 text-white">
-                    <Wrench className="h-4 w-4 text-amber-400" />
-                    Maintenance & Engineering Repairs
-                  </span>
-                  <span className="font-mono text-mist-300">{mxTasks.length} tasks</span>
-                </div>
-                <div className="h-2.5 rounded-full bg-white/[0.06] overflow-hidden">
-                  <div
-                    className="h-full bg-amber-400 rounded-full transition-all duration-500"
-                    style={{ width: `${Math.min(100, Math.max(20, (mxTasks.length / 10) * 100))}%` }}
-                  />
-                </div>
-                <div className="flex justify-between text-[10px] text-mist-500">
-                  <span>HVAC, electrical & plumbing repairs</span>
-                  <span>Capacity: 75%</span>
-                </div>
-              </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs font-semibold">
+                      <span className="flex items-center gap-2 text-white">
+                        <Sparkles className="h-4 w-4 text-cyan-400" />
+                        Deep Cleaning & Sanitization Cycles
+                      </span>
+                      <span className="font-mono text-mist-300">
+                        {allTasks.filter((t) => t.title.toLowerCase().includes('deep clean') || t.title.toLowerCase().includes('sanitiz')).length} tasks
+                      </span>
+                    </div>
+                    <div className="h-2.5 rounded-full bg-white/[0.06] overflow-hidden">
+                      <div className="h-full bg-cyan-400 rounded-full transition-all duration-500" style={{ width: '40%' }} />
+                    </div>
+                    <div className="flex justify-between text-[10px] text-mist-500">
+                      <span>Scheduled periodic cycles</span>
+                      <span>Capacity: 40%</span>
+                    </div>
+                  </div>
+                </>
+              )}
 
-              {/* Food & Beverage */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs font-semibold">
-                  <span className="flex items-center gap-2 text-white">
-                    <UtensilsCrossed className="h-4 w-4 text-purple-400" />
-                    Food & Beverage (In-Room Dining)
-                  </span>
-                  <span className="font-mono text-mist-300">{fbTasks.length} tasks</span>
-                </div>
-                <div className="h-2.5 rounded-full bg-white/[0.06] overflow-hidden">
-                  <div
-                    className="h-full bg-purple-400 rounded-full transition-all duration-500"
-                    style={{ width: `${Math.min(100, Math.max(10, (fbTasks.length / 10) * 100))}%` }}
-                  />
-                </div>
-                <div className="flex justify-between text-[10px] text-mist-500">
-                  <span>Tray delivery & bar replenishment</span>
-                  <span>Capacity: 40%</span>
-                </div>
-              </div>
+              {/* Wellness Specific Workload */}
+              {activeDept === 'Wellness' && (
+                <>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs font-semibold">
+                      <span className="flex items-center gap-2 text-white">
+                        <Sparkles className="h-4 w-4 text-teal-400" />
+                        Ayurvedic & Aromatherapy Sessions
+                      </span>
+                      <span className="font-mono text-mist-300">
+                        {allTasks.filter((t) => t.title.toLowerCase().includes('ayurvedic') || t.title.toLowerCase().includes('massage')).length} bookings
+                      </span>
+                    </div>
+                    <div className="h-2.5 rounded-full bg-white/[0.06] overflow-hidden">
+                      <div className="h-full bg-teal-400 rounded-full transition-all duration-500" style={{ width: '70%' }} />
+                    </div>
+                    <div className="flex justify-between text-[10px] text-mist-500">
+                      <span>Level 2 Treatment Suites</span>
+                      <span>Capacity: 70%</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs font-semibold">
+                      <span className="flex items-center gap-2 text-white">
+                        <ShieldCheck className="h-4 w-4 text-cyan-400" />
+                        Hydrotherapy Pools & Sauna Sterilization
+                      </span>
+                      <span className="font-mono text-mist-300">
+                        {allTasks.filter((t) => t.title.toLowerCase().includes('hydro') || t.title.toLowerCase().includes('sauna')).length} protocols
+                      </span>
+                    </div>
+                    <div className="h-2.5 rounded-full bg-white/[0.06] overflow-hidden">
+                      <div className="h-full bg-cyan-400 rounded-full transition-all duration-500" style={{ width: '55%' }} />
+                    </div>
+                    <div className="flex justify-between text-[10px] text-mist-500">
+                      <span>Vitality Pool & Thermal Suite</span>
+                      <span>Capacity: 55%</span>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Maintenance Specific Workload */}
+              {activeDept === 'Maintenance & Engineering' && (
+                <>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs font-semibold">
+                      <span className="flex items-center gap-2 text-white">
+                        <Wrench className="h-4 w-4 text-amber-400" />
+                        HVAC Climate & Mechanical Systems
+                      </span>
+                      <span className="font-mono text-mist-300">
+                        {allTasks.filter((t) => t.title.toLowerCase().includes('ac') || t.title.toLowerCase().includes('hvac')).length} work orders
+                      </span>
+                    </div>
+                    <div className="h-2.5 rounded-full bg-white/[0.06] overflow-hidden">
+                      <div className="h-full bg-amber-400 rounded-full transition-all duration-500" style={{ width: '80%' }} />
+                    </div>
+                    <div className="flex justify-between text-[10px] text-mist-500">
+                      <span>Air handlers & chiller loops</span>
+                      <span>Capacity: 80%</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs font-semibold">
+                      <span className="flex items-center gap-2 text-white">
+                        <Activity className="h-4 w-4 text-rose-400" />
+                        Plumbing, Electrical & IoT Telemetry
+                      </span>
+                      <span className="font-mono text-mist-300">
+                        {allTasks.filter((t) => !t.title.toLowerCase().includes('ac') && !t.title.toLowerCase().includes('hvac')).length} alerts
+                      </span>
+                    </div>
+                    <div className="h-2.5 rounded-full bg-white/[0.06] overflow-hidden">
+                      <div className="h-full bg-rose-400 rounded-full transition-all duration-500" style={{ width: '60%' }} />
+                    </div>
+                    <div className="flex justify-between text-[10px] text-mist-500">
+                      <span>Sensor alerts & elevators</span>
+                      <span>Capacity: 60%</span>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Food & Beverage Specific Workload */}
+              {activeDept === 'Food & Beverages' && (
+                <>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs font-semibold">
+                      <span className="flex items-center gap-2 text-white">
+                        <UtensilsCrossed className="h-4 w-4 text-purple-400" />
+                        In-Room Dining & VIP Tray Delivery
+                      </span>
+                      <span className="font-mono text-mist-300">
+                        {allTasks.filter((t) => t.title.toLowerCase().includes('tray') || t.title.toLowerCase().includes('platter') || t.title.toLowerCase().includes('tea')).length} orders
+                      </span>
+                    </div>
+                    <div className="h-2.5 rounded-full bg-white/[0.06] overflow-hidden">
+                      <div className="h-full bg-purple-400 rounded-full transition-all duration-500" style={{ width: '75%' }} />
+                    </div>
+                    <div className="flex justify-between text-[10px] text-mist-500">
+                      <span>Pantry runners & expedite</span>
+                      <span>Capacity: 75%</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs font-semibold">
+                      <span className="flex items-center gap-2 text-white">
+                        <Clock className="h-4 w-4 text-pink-400" />
+                        Minibar Inventory & Beverage Service
+                      </span>
+                      <span className="font-mono text-mist-300">
+                        {allTasks.filter((t) => t.title.toLowerCase().includes('minibar') || t.title.toLowerCase().includes('wine') || t.title.toLowerCase().includes('champagne')).length} tasks
+                      </span>
+                    </div>
+                    <div className="h-2.5 rounded-full bg-white/[0.06] overflow-hidden">
+                      <div className="h-full bg-pink-400 rounded-full transition-all duration-500" style={{ width: '50%' }} />
+                    </div>
+                    <div className="flex justify-between text-[10px] text-mist-500">
+                      <span>Suite bars & replenishment</span>
+                      <span>Capacity: 50%</span>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

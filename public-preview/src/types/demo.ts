@@ -16,6 +16,12 @@ export type RoleId =
 
 export type ActiveId = RoleId | 'home' | 'guest' | 'site';
 
+export type DispatcherDepartment =
+  | 'Housekeeping'
+  | 'Wellness'
+  | 'Maintenance & Engineering'
+  | 'Food & Beverages';
+
 export type Tone = 'neutral' | 'info' | 'success' | 'warning' | 'danger' | 'accent';
 
 export interface RoleMeta {
@@ -370,6 +376,7 @@ export interface SupervisorInspection {
   followUpAction?: string;
   assignedSupervisorId?: string;
   assignedSupervisorName?: string;
+  department?: string;
 }
 
 export interface LostFoundItem {
@@ -896,6 +903,7 @@ export interface DemoState {
   hotelAlerts?: HotelAlert[];
   diningMenu?: DiningMenuItem[];
   diningCategories?: string[];
+  activeDispatcherDept?: DispatcherDepartment;
 }
 
 /* ---- Phase 4: Guest Reminders & Safety Alert Broadcast Engine ---- */

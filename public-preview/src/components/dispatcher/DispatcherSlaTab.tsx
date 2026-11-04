@@ -24,7 +24,11 @@ import { useDemo } from '@/lib/store';
 import { EscalateTaskModal } from '@/components/dispatcher/EscalateTaskModal';
 import type { WorkItem } from '@/types/demo';
 
-export function DispatcherSlaTab() {
+interface DispatcherSlaTabProps {
+  tasks?: WorkItem[];
+}
+
+export function DispatcherSlaTab({ tasks }: DispatcherSlaTabProps = {}) {
   const { state } = useDemo();
   const [escalateModalTask, setEscalateModalTask] = useState<WorkItem | null>(null);
 
@@ -36,11 +40,12 @@ export function DispatcherSlaTab() {
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
 
   const allTasks = useMemo(() => {
+    if (tasks) return tasks;
     return [
       ...(state.items.department_dispatcher_supervisor ?? []),
       ...(state.items.department_dispatcher ?? []),
     ].filter((t, i, arr) => arr.findIndex((x) => x.id === t.id) === i);
-  }, [state.items.department_dispatcher_supervisor, state.items.department_dispatcher]);
+  }, [tasks, state.items.department_dispatcher_supervisor, state.items.department_dispatcher]);
 
   const managerTasks = state.items.department_manager ?? [];
 

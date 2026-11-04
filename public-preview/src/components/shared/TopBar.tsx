@@ -53,21 +53,79 @@ export function TopBar({ active, showRail = true }: TopBarProps) {
 
   // Active employee record from shared staff roster
   const staff = roleId
-    ? (state.staffAccounts ?? []).find(
-        (s) =>
-          s.roleId === roleId ||
-          (roleId === 'department_dispatcher_supervisor' &&
-            (s.roleId === 'department_dispatcher' || s.roleId === 'department_supervisor')) ||
-          ((roleId === 'general_manager' || roleId === 'executive_viewer') &&
-            (s.roleId === 'general_manager' || s.roleId === 'executive_viewer')),
-      ) ?? {
+    ? (state.staffAccounts ?? []).find((s) => {
+        if (
+          roleId === 'department_dispatcher_supervisor' ||
+          roleId === 'department_dispatcher' ||
+          roleId === 'department_supervisor'
+        ) {
+          const isDispRole =
+            s.roleId === 'department_dispatcher_supervisor' ||
+            s.roleId === 'department_dispatcher' ||
+            s.roleId === 'department_supervisor';
+          if (!isDispRole) return false;
+
+          const activeDept = state.activeDispatcherDept || 'Housekeeping';
+          const d = s.department.toLowerCase();
+          if (activeDept === 'Housekeeping') return d.includes('house');
+          if (activeDept === 'Wellness') return d.includes('spa') || d.includes('wellness');
+          if (activeDept === 'Maintenance & Engineering') return d.includes('maint') || d.includes('eng');
+          if (activeDept === 'Food & Beverages') return d.includes('food') || d.includes('bev');
+          return true;
+        }
+
+        if (roleId === 'general_manager' || roleId === 'executive_viewer') {
+          return s.roleId === 'general_manager' || s.roleId === 'executive_viewer';
+        }
+
+        return s.roleId === roleId;
+      }) ?? {
         id: `staff-${roleId}`,
-        name: role?.name ?? 'Staff Member',
-        employeeId: 'EMP-0100',
-        email: `${(role?.name ?? 'staff').toLowerCase().replace(/\s+/g, '.')}@grandazure.com`,
-        department: role?.scopes[0] ?? 'Operations',
+        name:
+          roleId === 'department_dispatcher_supervisor'
+            ? state.activeDispatcherDept === 'Wellness'
+              ? 'Ananya Deshmukh'
+              : state.activeDispatcherDept === 'Maintenance & Engineering'
+              ? 'Arjun Mehta'
+              : state.activeDispatcherDept === 'Food & Beverages'
+              ? 'Marco Rossi'
+              : 'Meera Nambiar'
+            : role?.name ?? 'Staff Member',
+        employeeId:
+          roleId === 'department_dispatcher_supervisor'
+            ? state.activeDispatcherDept === 'Wellness'
+              ? 'EMP-0118'
+              : state.activeDispatcherDept === 'Maintenance & Engineering'
+              ? 'EMP-0104'
+              : state.activeDispatcherDept === 'Food & Beverages'
+              ? 'EMP-0116'
+              : 'EMP-0105'
+            : 'EMP-0100',
+        email:
+          roleId === 'department_dispatcher_supervisor'
+            ? state.activeDispatcherDept === 'Wellness'
+              ? 'a.deshmukh@thegrandadp.com'
+              : state.activeDispatcherDept === 'Maintenance & Engineering'
+              ? 'a.mehta@thegrandadp.com'
+              : state.activeDispatcherDept === 'Food & Beverages'
+              ? 'm.rossi@thegrandadp.com'
+              : 'm.nambiar@thegrandadp.com'
+            : `${(role?.name ?? 'staff').toLowerCase().replace(/\s+/g, '.')}@grandazure.com`,
+        department:
+          roleId === 'department_dispatcher_supervisor'
+            ? state.activeDispatcherDept || 'Housekeeping'
+            : role?.scopes[0] ?? 'Operations',
         shift: 'Day' as const,
-        floorZone: 'Property-Wide',
+        floorZone:
+          roleId === 'department_dispatcher_supervisor'
+            ? state.activeDispatcherDept === 'Wellness'
+              ? 'Level 2 & Wellness Pavilion'
+              : state.activeDispatcherDept === 'Maintenance & Engineering'
+              ? 'All Floors & Plant Rooms'
+              : state.activeDispatcherDept === 'Food & Beverages'
+              ? 'Kitchen & In-Room Dining'
+              : 'Floors 1–5'
+            : 'Property-Wide',
         financialLimit: 25000,
         roleId,
         status: 'active' as const,
