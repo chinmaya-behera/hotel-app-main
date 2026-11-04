@@ -98,9 +98,8 @@ export function RoleDashboard({ roleId }: { roleId: RoleId }) {
   // Department Manager / Duty Manager enterprise operations console
   if (roleId === 'department_manager') {
     return (
-      <div style={accentVars(role)} className="min-h-screen">
-        <TopBar active={roleId} />
-        <main className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-20">
+      <div className="department-manager-page">
+        <main className="w-full max-w-[1600px] mx-auto">
           <DepartmentManagerConsole />
         </main>
       </div>

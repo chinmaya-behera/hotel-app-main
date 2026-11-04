@@ -448,6 +448,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         setState(ensureManagerState({
           managerDepartment: saved.managerDepartment,
           managerProfiles: saved.managerProfiles,
+          managerOperations: saved.managerOperations,
           persona: saved.persona ?? null,
           items: {
             ...base.items,
