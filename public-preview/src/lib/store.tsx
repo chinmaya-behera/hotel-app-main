@@ -44,6 +44,7 @@ import {
 } from '@/lib/mockData';
 import { afterAdvance, markCheckedOut, type FdResult } from '@/lib/frontDesk';
 import { roleById } from '@/lib/roles';
+import { applyManagerCommand, ensureManagerState, reviewManagerEscalation, type ManagerCommand, type ManagerDepartmentId } from '@/lib/manager-domain';
 import type {
   AuditEvent,
   DemoState,
@@ -95,7 +96,7 @@ import type {
 const STORAGE_KEY = 'grand-azure-demo-v1';
 
 function seedState(): DemoState {
-  return structuredClone({
+  return ensureManagerState(structuredClone({
     persona: null,
     items: seedItems,
     feed: seedFeed,
@@ -131,7 +132,7 @@ function seedState(): DemoState {
     safetyAlerts: seedSafetyAlerts,
     diningMenu: INITIAL_DINING_MENU,
     diningCategories: INITIAL_DINING_CATEGORIES,
-  }) as DemoState;
+  }) as DemoState);
 }
 
 interface Toast {
@@ -165,6 +166,8 @@ export interface GuestRequestInput {
 }
 
 interface DemoApi {
+  setManagerDepartment: (department: ManagerDepartmentId) => void;
+  departmentManagerCommand: (command: ManagerCommand) => boolean;
   state: DemoState;
   hydrated: boolean;
   setPersona: (id: RoleId) => void;
@@ -254,7 +257,7 @@ interface DemoApi {
   approveInspection: (inspectionId: string, notes?: string) => void;
   reopenInspection: (inspectionId: string, reason: string, correctiveAction: string, reassignToStaffId?: string) => void;
   reviewFulfillerReassignment: (taskId: string, action: 'reassign' | 'reject', newAssigneeId?: string, notes?: string) => void;
-  escalateSupervisorIssue: (issue: { title: string; room?: string; priority: 'urgent' | 'critical'; reason: string; notes?: string }) => void;
+  escalateSupervisorIssue: (issue: { title: string; department?: string; room?: string; priority: 'urgent' | 'critical'; reason: string; notes?: string }) => void;
   /** Phase 2: Combined Dispatcher / Supervisor & Fulfiller Workflow Operations */
   createDispatcherTask: (task: {
     title: string;
@@ -281,6 +284,7 @@ interface DemoApi {
   updateGuestPreferences: (room: string, preferences: Partial<GuestPreferences>) => void;
   createHotelService: (service: Omit<HotelServiceItem, 'id'>) => void;
   initiateInspectionDirective: (input: {
+    department?: string;
     roomNumber: string;
     roomType?: string;
     floor?: number;
@@ -441,7 +445,9 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       if (raw) {
         const saved = JSON.parse(raw) as Partial<DemoState>;
         const base = seedState();
-        setState({
+        setState(ensureManagerState({
+          managerDepartment: saved.managerDepartment,
+          managerProfiles: saved.managerProfiles,
           persona: saved.persona ?? null,
           items: {
             ...base.items,
@@ -487,7 +493,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           safetyAlerts: saved.safetyAlerts ?? base.safetyAlerts,
           diningMenu: saved.diningMenu ?? base.diningMenu,
           diningCategories: saved.diningCategories ?? base.diningCategories,
-        });
+        }));
       }
     } catch {
       /* corrupted or unavailable storage: fall back to seed data */
@@ -533,6 +539,23 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const setPersona = useCallback((id: RoleId) => {
     setState((prev) => (prev.persona === id ? prev : { ...prev, persona: id }));
   }, []);
+
+  const setManagerDepartment = useCallback((department: ManagerDepartmentId) => {
+    setState(prev => ({ ...prev, managerDepartment: department, persona: 'department_manager' }));
+  }, []);
+
+  const departmentManagerCommand = useCallback((command: ManagerCommand) => {
+    try {
+      const next = applyManagerCommand(stateRef.current, command, crypto.randomUUID());
+      stateRef.current = next;
+      setState(next);
+      notify('Department workspace updated.');
+      return true;
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Could not save this change.');
+      return false;
+    }
+  }, [notify]);
 
   const setTheme = useCallback((theme: ThemeMode) => {
     setState((prev) => (prev.theme === theme ? prev : { ...prev, theme }));
@@ -1390,6 +1413,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
         const managerItem: WorkItem = {
           id: uid(),
+          department: task.department,
+          ref: task.ref,
           title: `DISPATCH ESCALATION: ${task.title}`,
           meta: `${task.department || 'Operations'} · Room ${task.room || 'General'} · Escalated by Dispatcher`,
           status: 'Escalated',
@@ -2426,6 +2451,15 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
   const reviewExecutiveItem = useCallback<DemoApi['reviewExecutiveItem']>(
     (itemId, action, reason, comments) => {
+      if (itemId.startsWith('gm-department-')) {
+        try {
+          const next = reviewManagerEscalation(stateRef.current, itemId, action, reason || comments || 'General Manager decision recorded.', crypto.randomUUID());
+          stateRef.current = next;
+          setState(next);
+          notify('Decision sent to the department manager.');
+        } catch (error) { notify(error instanceof Error ? error.message : 'Could not save decision.'); }
+        return;
+      }
       const timestamp = nowLabel();
       setState((prev) => {
         const list = prev.items.executive_viewer ?? [];
@@ -3996,7 +4030,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         title: issue.title,
         severity: issue.priority === 'critical' ? 'critical' : 'major',
         affectedArea: issue.room ? `Room ${issue.room}` : 'Housekeeping Dept',
-        department: 'Housekeeping',
+        department: issue.department || 'Housekeeping',
         coordinator: 'Duty Manager Marcus Vance',
         reportedAt: timestamp,
         status: 'investigating',
@@ -4008,6 +4042,10 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
       const newNotification: InAppNotification = {
         id: `notif-${uid()}`,
+        roleId: 'department_manager',
+        department: issue.department || 'Housekeeping',
+        itemId: escId,
+        message: issue.reason,
         title: `Supervisor Escalation: ${issue.title}`,
         summary: `${issue.room ? 'Room ' + issue.room + ' · ' : ''}${issue.reason}`,
         timestamp,
@@ -4020,6 +4058,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       setState((prev) => ({
         ...prev,
         incidents: [newIncident, ...(prev.incidents ?? seedIncidents)],
+        items: { ...prev.items, department_manager: [{ id: escId, ref: escRef, title: issue.title, room: issue.room, department: issue.department || 'Housekeeping', status: 'Escalated', priority: issue.priority, meta: 'Department supervisor · ' + issue.reason, description: issue.notes || issue.reason, createdAt: new Date().toISOString() }, ...(prev.items.department_manager ?? [])] },
         notifications: [newNotification, ...(prev.notifications ?? [])].slice(0, 50),
         feed: [
           {
@@ -4515,6 +4554,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
       const newInspection: SupervisorInspection = {
         id,
+        department: input.department || 'Housekeeping',
         roomNumber: input.roomNumber,
         floor: input.floor || parseInt(input.roomNumber[0], 10) || 1,
         roomType: input.roomType || 'Deluxe Room',
@@ -4528,12 +4568,13 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         totalChecklistCount: 15,
         scheduledTime: timestamp,
         createdAt: timestamp,
+        completedAt: '',
         instructions: input.instructions,
         initiatedBy: input.initiatedBy,
         initiatedRole: input.initiatedRole,
-        assignedSupervisorId: 'EMP-0105',
-        assignedSupervisorName: 'Meera Nambiar',
-        items: [
+        assignedSupervisorId: input.department ? undefined : 'EMP-0105',
+        assignedSupervisorName: input.department ? undefined : 'Meera Nambiar',
+        items: input.department ? [{ id: 'department-standard', category: 'Safety & Keycard', label: input.instructions, passed: false }] : [
           { id: 'chk-1', category: 'bedding', label: 'Linens crisp, taut, and stain-free', passed: true },
           { id: 'chk-2', category: 'bathroom', label: 'Shower glass & chrome polished', passed: false },
           { id: 'chk-3', category: 'amenities', label: 'Bathroom toiletries replenished to standard', passed: false },
@@ -4544,7 +4585,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
       const supervisorNotif: InAppNotification = {
         id: uid(),
-        roleId: 'department_dispatcher_supervisor',
+        department: input.department || 'Housekeeping',
+        roleId: input.initiatedRole === 'general_manager' ? 'department_manager' : 'department_dispatcher_supervisor',
         title: `Inspection Directive: Room ${input.roomNumber}`,
         message: `${input.initiatedBy} requested ${input.type} inspection. Instructions: ${input.instructions}`,
         timestamp,
@@ -6025,6 +6067,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
   const api = useMemo<DemoApi>(
     () => ({
+      setManagerDepartment,
+      departmentManagerCommand,
       state,
       hydrated,
       setPersona,
@@ -6141,6 +6185,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       resetActionableExamples,
     }),
     [
+      setManagerDepartment,
+      departmentManagerCommand,
       state,
       hydrated,
       setPersona,

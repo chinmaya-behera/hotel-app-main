@@ -14,7 +14,7 @@ import { AdminConsole } from '@/components/admin/AdminConsole';
 import { DispatcherSupervisorConsole } from '@/components/dispatcher-supervisor/DispatcherSupervisorConsole';
 import { DispatcherConsole } from '@/components/dispatcher/DispatcherConsole';
 import { FulfillerApp } from '@/components/staff/fulfiller/FulfillerApp';
-import { DutyManagerConsole } from '@/components/manager/DutyManagerConsole';
+import { DepartmentManagerConsole } from '@/components/manager/DepartmentManagerConsole';
 import { ExecutiveConsole } from '@/components/executive/ExecutiveConsole';
 import { SecurityApp } from '@/components/staff/security/SecurityApp';
 import { FinanceConsole } from '@/components/finance/FinanceConsole';
@@ -25,7 +25,7 @@ import { dashboards } from '@/lib/dashboards';
 import { roleById } from '@/lib/roles';
 import { useDemo } from '@/lib/store';
 import { accentVars, cn } from '@/lib/utils';
-import type { RoleId, Tone } from '@/types/demo';
+import type { RoleId, Tone, WorkItem } from '@/types/demo';
 
 const BANNER_TONE: Record<Tone, string> = {
   neutral: 'border-white/10 bg-white/5 text-mist-200',
@@ -101,7 +101,7 @@ export function RoleDashboard({ roleId }: { roleId: RoleId }) {
       <div style={accentVars(role)} className="min-h-screen">
         <TopBar active={roleId} />
         <main className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-20">
-          <DutyManagerConsole />
+          <DepartmentManagerConsole />
         </main>
       </div>
     );

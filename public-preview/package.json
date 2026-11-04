@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:manager": "node --test tests/manager.test.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.60.0",

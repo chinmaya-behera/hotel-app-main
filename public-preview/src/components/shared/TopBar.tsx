@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/Button';
 import { ServiceAuthorityModal } from '@/components/shared/ServiceAuthorityModal';
 import { GestureGuideModal } from '@/components/shared/GestureGuideModal';
 import { useDemo } from '@/lib/store';
+import { managerDepartment, managerNotifications } from '@/lib/manager-domain';
 import { HOME_ACCENT, quickLinks, roles, roleById } from '@/lib/roles';
 import { accentVars, cn } from '@/lib/utils';
 import type { ActiveId, RoleId } from '@/types/demo';
@@ -32,7 +33,7 @@ interface TopBarProps {
 
 export function TopBar({ active, showRail = true }: TopBarProps) {
   const router = useRouter();
-  const { state, reset, setTheme, markNotificationRead, clearAllNotifications, gestureGuideOpen, setGestureGuideOpen } = useDemo();
+  const { state, reset, setTheme, markNotificationRead, clearAllNotifications, departmentManagerCommand, gestureGuideOpen, setGestureGuideOpen } = useDemo();
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
   const [policiesModalOpen, setPoliciesModalOpen] = useState(false);
   const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
@@ -43,7 +44,9 @@ export function TopBar({ active, showRail = true }: TopBarProps) {
   const role = roleId ? roleById[roleId] : null;
 
   // Active employee record from shared staff roster
-  const staff = roleId
+  const department = managerDepartment(state.managerDepartment);
+  const managerStaff = roleId === 'department_manager' ? { name: state.managerProfiles?.[department.id]?.name || department.person, employeeId: `MGR-${department.id.toUpperCase()}`, department: department.name, shift: 'Day' as const } : null;
+  const staff = managerStaff ?? (roleId
     ? (state.staffAccounts ?? []).find(
         (s) =>
           s.roleId === roleId ||
@@ -57,10 +60,10 @@ export function TopBar({ active, showRail = true }: TopBarProps) {
         department: role?.scopes[0] ?? 'Operations',
         shift: 'Day' as const,
       }
-    : null;
+    : null);
 
   // Notifications for this specific active role
-  const roleNotifications = (state.notifications ?? []).filter((n) => !roleId || n.roleId === roleId);
+  const roleNotifications = roleId === 'department_manager' ? managerNotifications(state, department.id) : (state.notifications ?? []).filter((n) => !roleId || n.roleId === roleId);
   const unreadCount = roleNotifications.filter((n) => !n.read).length;
 
   // Close notification popover on outside click
@@ -168,7 +171,7 @@ export function TopBar({ active, showRail = true }: TopBarProps) {
                           {roleNotifications.length > 0 && (
                             <button
                               type="button"
-                              onClick={() => clearAllNotifications(roleId ?? undefined)}
+                    onClick={() => roleId === 'department_manager' ? roleNotifications.filter(n => !n.read).forEach(n => departmentManagerCommand({ type: 'read', notificationId: n.id })) : clearAllNotifications(roleId ?? undefined)}
                               className="text-[11px] text-mist-400 hover:text-white transition-colors"
                             >
                               Clear
@@ -303,7 +306,6 @@ export function TopBar({ active, showRail = true }: TopBarProps) {
                     href={r.path}
                     className="rail-chip"
                     style={accentVars(r)}
-                    aria-current={active === r.id ? 'page' : undefined}
                   >
                     <Icon className="h-3.5 w-3.5" aria-hidden />
                     {r.short}

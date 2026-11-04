@@ -26,6 +26,8 @@ import {
   Info,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
+import { MANAGER_DEPARTMENTS, MANAGER_DEMO_PASSWORD, type ManagerDepartmentId } from '@/lib/manager-domain';
+import { DemoCredentialsDialog } from './DemoCredentialsDialog';
 import type { RoleId } from '@/types/demo';
 
 interface PresetRole {
@@ -38,6 +40,7 @@ interface PresetRole {
   color: string;
   path: string;
   personaId?: RoleId;
+  departmentId?: ManagerDepartmentId;
 }
 
 const PRESET_ROLES: PresetRole[] = [
@@ -76,13 +79,14 @@ const PRESET_ROLES: PresetRole[] = [
   {
     id: 'manager',
     num: '03',
-    name: 'Department Manager',
+    name: 'Housekeeping Manager (legacy login)',
     email: 'manager@thegrandadp.com',
     pass: 'manager123',
     icon: Gauge,
     color: 'from-purple-500 to-indigo-600',
     path: '/staff/department-manager',
     personaId: 'department_manager',
+    departmentId: 'housekeeping',
   },
   {
     id: 'frontdesk',
@@ -141,9 +145,14 @@ const PRESET_ROLES: PresetRole[] = [
   },
 ];
 
+const DEMO_ACCOUNTS: PresetRole[] = [
+  ...MANAGER_DEPARTMENTS.map((d, index) => ({ id: `manager-${d.id}`, num: `M${index + 1}`, name: `${d.name} Manager`, email: d.email, pass: MANAGER_DEMO_PASSWORD, icon: Gauge, color: 'from-purple-500 to-indigo-600', path: '/staff/department-manager', personaId: 'department_manager' as const, departmentId: d.id })),
+  ...PRESET_ROLES,
+];
+
 export function PortalLoginView() {
   const router = useRouter();
-  const { state, setTheme, setPersona } = useDemo();
+  const { state, setTheme, setPersona, setManagerDepartment } = useDemo();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -179,7 +188,7 @@ export function PortalLoginView() {
     }
   }, [isLight, state.theme]);
 
-  const activeRole = PRESET_ROLES.find((r) => r.id === selectedRoleId);
+  const activeRole = DEMO_ACCOUNTS.find((r) => r.id === selectedRoleId);
 
   const handleSelectRole = (role: PresetRole) => {
     setSelectedRoleId(role.id);
@@ -202,7 +211,7 @@ export function PortalLoginView() {
 
   const handleForgotPassword = () => {
     if (email.trim()) {
-      showToast(`Password reset link sent to ${email}`);
+      showToast('Use View demo login credentials to autofill a public demo account.');
     } else {
       showToast('Enter your email address first');
     }
@@ -213,21 +222,22 @@ export function PortalLoginView() {
     if (isSubmitting) return;
 
     const cleanEmail = email.trim().toLowerCase();
-    const matchedRole =
-      PRESET_ROLES.find((r) => r.email.toLowerCase() === cleanEmail) ||
-      (selectedRoleId ? PRESET_ROLES.find((r) => r.id === selectedRoleId) : null);
+    const matchedRole = DEMO_ACCOUNTS.find((r) => r.email.toLowerCase() === cleanEmail && r.pass === password);
+
+    if (!matchedRole) {
+      showToast('Email or password does not match a demo account. Open demo credentials to autofill.');
+      return;
+    }
 
     setIsSubmitting(true);
 
     if (matchedRole) {
+      if (matchedRole.departmentId) setManagerDepartment(matchedRole.departmentId);
       if (matchedRole.personaId) {
         setPersona(matchedRole.personaId);
       }
       showToast(`Signing in as ${matchedRole.name}...`);
       router.push(matchedRole.path);
-    } else {
-      showToast('Signing in...');
-      router.push('/staff/department-manager');
     }
   };
 
@@ -489,6 +499,7 @@ export function PortalLoginView() {
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </form>
+              <DemoCredentialsDialog accounts={DEMO_ACCOUNTS} onSelect={handleSelectRole}/>
             </div>
           </section>
 
@@ -516,7 +527,7 @@ export function PortalLoginView() {
 
               {/* Minimal Role Buttons List */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-3.5">
-                {PRESET_ROLES.map((role) => {
+                {DEMO_ACCOUNTS.filter(role => role.id !== 'manager').map((role) => {
                   const isSelected = role.id === selectedRoleId;
                   const Icon = role.icon;
                   return (

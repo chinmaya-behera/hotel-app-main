@@ -150,6 +150,7 @@ export interface WorkItem {
 }
 
 export interface InAppNotification {
+  department?: string;
   id: string;
   title: string;
   message?: string;
@@ -342,6 +343,11 @@ export interface InspectionCheckItem {
 }
 
 export interface SupervisorInspection {
+  department?: string;
+  createdAt?: string;
+  scheduledTime?: string;
+  completedChecklistCount?: number;
+  totalChecklistCount?: number;
   id: string;
   taskId?: string;
   roomNumber: string;
@@ -831,6 +837,8 @@ export interface DepartmentServicePolicy {
 }
 
 export interface DemoState {
+  managerDepartment?: 'housekeeping' | 'wellness' | 'engineering' | 'food-beverages';
+  managerProfiles?: Record<string, { name: string; phone: string }>;
   persona: RoleId | null;
   items: Record<RoleId, WorkItem[]>;
   feed: FeedEntry[];
