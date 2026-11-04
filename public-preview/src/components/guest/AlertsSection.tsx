@@ -94,62 +94,7 @@ export function AlertsSection({ room, guestName }: GuestTabProps) {
   }
 
   return (
-    <div className="space-y-5 pb-6">
-      {/* Critical Emergency Banner (if any) */}
-      {criticalAlerts.length > 0 && (
-        <div className="relative overflow-hidden rounded-2xl border-2 border-rose-500 bg-gradient-to-br from-rose-950 via-ink-950 to-ink-900 p-4 text-white shadow-2xl animate-pulse">
-          <div className="flex items-start gap-3">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/40">
-              <Siren className="h-6 w-6 text-rose-500 animate-spin" style={{ animationDuration: '3s' }} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-500 text-white font-extrabold uppercase tracking-wider">
-                  Critical Emergency Alert
-                </span>
-                <span className="text-[11px] text-rose-300 font-mono">{criticalAlerts[0].timestamp}</span>
-              </div>
-              <h2 className="text-sm font-bold text-white mt-1">{criticalAlerts[0].title}</h2>
-              <p className="text-xs text-rose-100/90 mt-1 line-clamp-2">{criticalAlerts[0].description}</p>
-              <div className="mt-3 flex items-center justify-between">
-                <span className="text-[11px] text-rose-300 flex items-center gap-1 font-medium">
-                  <MapPin className="h-3 w-3" /> {criticalAlerts[0].location || 'Hotel Property'}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setSelectedAlert(criticalAlerts[0])}
-                  className="px-3 py-1 rounded-lg bg-rose-500 text-white font-bold text-xs hover:bg-rose-600 transition"
-                >
-                  View Details &amp; Guidance
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Header Info */}
-      <div className="guest-card p-4 space-y-1">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <span className="grid h-8 w-8 place-items-center rounded-xl bg-amber-400/15 text-amber-300">
-              <Radio className="h-4 w-4" />
-            </span>
-            <div>
-              <h2 className="text-sm font-bold text-white flex items-center gap-2">
-                <span>Active Hotel &amp; Safety Alerts</span>
-                {relevantAlerts.length > 0 && (
-                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-400 text-ink-950 font-bold">
-                    {relevantAlerts.length}
-                  </span>
-                )}
-              </h2>
-              <p className="text-[11px] text-mist-400">Live operational, weather, safety, and property updates for Room {room}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
+    <div className="space-y-4 pb-6">
       {/* Category Filter Pills */}
       <div>
         <GuestSectionHeader title="Alert Categories" />

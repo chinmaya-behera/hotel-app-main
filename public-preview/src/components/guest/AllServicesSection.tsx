@@ -53,14 +53,14 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
 
   const SERVICES = [
     {
-      id: 'housekeeping' as const,
-      name: 'Housekeeping',
+      id: 'room_service' as const,
+      name: 'Room Service',
       category: 'room',
       icon: Sparkles,
-      color: 'bg-amber-400/15 text-amber-300 border-amber-400/30',
+      color: 'bg-cyan-400/15 text-cyan-300 border-cyan-400/30',
       tagline: 'Towels, bed linen, room refresh & luxury toiletries',
       highlights: ['Extra towels & pillows', 'Turndown service', 'Hygiene refills', 'Full room refresh'],
-      actionText: 'Request Housekeeping',
+      actionText: 'Request Room Service',
     },
     {
       id: 'dining' as const,
@@ -176,18 +176,25 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
           <button
             type="button"
             onClick={() => setActiveSubView(null)}
-            className="flex items-center gap-1.5 text-xs font-bold text-amber-300 hover:text-white transition-colors"
+            className="flex items-center gap-1.5 text-xs font-bold text-cyan-400 hover:text-white transition-colors"
           >
             <span>&larr; Back to All Services</span>
           </button>
           <span className="text-[11px] font-semibold text-mist-400 capitalize">
-            {activeSubView.replace('_', ' ')}
+            {activeSubView === 'room_service' || activeSubView === 'housekeeping'
+              ? 'Room Service'
+              : activeSubView === 'dining'
+              ? 'Dining'
+              : activeSubView.replace('_', ' ')}
           </span>
         </div>
 
         {/* Render specific service component */}
-        {(activeSubView === 'dining' || activeSubView === 'room_service') && (
+        {activeSubView === 'dining' && (
           <DiningSection room={room} guestName={guestName} onNavigate={onNavigate} />
+        )}
+        {(activeSubView === 'room_service' || activeSubView === 'housekeeping') && (
+          <HousekeepingCatalogueSection room={room} guestName={guestName} onNavigate={onNavigate} />
         )}
         {activeSubView === 'complaints' && (
           <ComplaintsSection room={room} guestName={guestName} onNavigate={onNavigate} />
@@ -206,9 +213,6 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
         )}
         {activeSubView === 'folio' && (
           <MyFolioSubtab room={room} guestName={guestName} onNavigate={onNavigate} />
-        )}
-        {activeSubView === 'housekeeping' && (
-          <HousekeepingCatalogueSection room={room} guestName={guestName} onNavigate={onNavigate} />
         )}
         {activeSubView === 'maintenance' && (
           <MaintenanceTab

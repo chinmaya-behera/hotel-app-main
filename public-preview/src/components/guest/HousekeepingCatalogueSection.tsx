@@ -222,7 +222,7 @@ export function HousekeepingCatalogueSection({ room, guestName, onNavigate }: Gu
       });
       titleParts.push(cleaningTitles.join(' + '));
     }
-    const mainTitle = `Housekeeping · ${titleParts.join(' & ')}`;
+    const mainTitle = `Room Service · ${titleParts.join(' & ')}`;
 
     // Compile structured description
     const descSections: string[] = [];
@@ -259,7 +259,7 @@ export function HousekeepingCatalogueSection({ room, guestName, onNavigate }: Gu
     const ref = submitGuestRequest({
       room,
       title: mainTitle,
-      meta: `Housekeeping · Room ${room} · ${scheduleDisplayString}`,
+      meta: `Room Service · Room ${room} · ${scheduleDisplayString}`,
       category: 'housekeeping',
       description: fullDescription,
       priority: 'normal',
@@ -286,11 +286,11 @@ export function HousekeepingCatalogueSection({ room, guestName, onNavigate }: Gu
             </span>
             <div className="space-y-0.5">
               <p className="text-xs font-bold text-white flex items-center gap-1.5">
-                <span>Housekeeping Request Confirmed</span>
-                <span className="font-mono text-amber-300 font-black">[{confirmedRef}]</span>
+                <span>Room Service Request Confirmed</span>
+                <span className="font-mono text-cyan-300 font-black">[{confirmedRef}]</span>
               </p>
               <p className="text-[11px] text-emerald-200">
-                Dispatched to Housekeeping staff for Room {room}. Track progress live in your Pending Requests timeline.
+                Dispatched to Room Service staff for Room {room}. Track progress live in your Pending Requests timeline.
               </p>
             </div>
           </div>
@@ -299,7 +299,7 @@ export function HousekeepingCatalogueSection({ room, guestName, onNavigate }: Gu
             <button
               type="button"
               onClick={() => onNavigate('home')}
-              className="px-3 py-1.5 rounded-xl bg-emerald-400 text-ink-950 text-xs font-bold hover:bg-emerald-300 shadow-sm transition-colors"
+              className="px-3 py-1.5 rounded-xl bg-cyan-400 text-ink-950 text-xs font-bold hover:bg-cyan-300 shadow-sm transition-colors"
             >
               View on Home Timeline
             </button>
@@ -315,41 +315,16 @@ export function HousekeepingCatalogueSection({ room, guestName, onNavigate }: Gu
         </div>
       )}
 
-      {/* TOP HEADER & SECTION NAVIGATION */}
-      <div className="guest-card p-5 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="grid h-8 w-8 place-items-center rounded-xl bg-amber-400/20 text-amber-400">
-                <Sparkles className="h-4 w-4" />
-              </span>
-              <h1 className="text-base sm:text-lg font-bold text-white">
-                Housekeeping &amp; Room Amenities
-              </h1>
-            </div>
-            <p className="text-xs text-mist-300 mt-1">
-              Select complimentary luxury toiletries, towels, bedroom essentials, or schedule room cleaning.
-            </p>
-          </div>
-
-          {/* DND Status Indicator */}
-          {state.guestPreferences?.[room]?.dnd && (
-            <div className="px-3 py-1.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-semibold flex items-center gap-1.5 self-start sm:self-center">
-              <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
-              <span>DND Active (Will be observed)</span>
-            </div>
-          )}
-        </div>
-
-        {/* 2-Segment Switcher: Visual Amenities Catalogue vs Room Cleaning Services */}
-        <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-black/30 border border-white/5 text-xs">
+      {/* 2-SEGMENT SWITCHER AS TOP ELEMENT (HEADING CONTAINER COMPLETELY REMOVED) */}
+      <div className="space-y-2.5 pt-1">
+        <div className="grid grid-cols-2 gap-2 p-1.5 rounded-2xl bg-black/40 border border-white/10 text-xs shadow-md">
           <button
             type="button"
             onClick={() => setActiveTab('amenities')}
-            className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-bold transition-all ${
+            className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-black transition-all ${
               activeTab === 'amenities'
-                ? 'bg-amber-400 text-ink-950 shadow-md'
-                : 'text-mist-300 hover:text-white hover:bg-white/5'
+                ? 'bg-cyan-400 text-ink-950 shadow-md'
+                : 'text-mist-300 hover:text-white hover:bg-white/5 font-semibold'
             }`}
           >
             <Layers className="h-4 w-4" />
@@ -357,7 +332,7 @@ export function HousekeepingCatalogueSection({ room, guestName, onNavigate }: Gu
             {totalAmenityCount > 0 && (
               <span
                 className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                  activeTab === 'amenities' ? 'bg-ink-950 text-amber-400' : 'bg-amber-400 text-ink-950'
+                  activeTab === 'amenities' ? 'bg-ink-950 text-cyan-400' : 'bg-cyan-400 text-ink-950'
                 }`}
               >
                 {totalAmenityCount}
@@ -368,10 +343,10 @@ export function HousekeepingCatalogueSection({ room, guestName, onNavigate }: Gu
           <button
             type="button"
             onClick={() => setActiveTab('cleaning')}
-            className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-bold transition-all ${
+            className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-black transition-all ${
               activeTab === 'cleaning'
-                ? 'bg-amber-400 text-ink-950 shadow-md'
-                : 'text-mist-300 hover:text-white hover:bg-white/5'
+                ? 'bg-cyan-400 text-ink-950 shadow-md'
+                : 'text-mist-300 hover:text-white hover:bg-white/5 font-semibold'
             }`}
           >
             <BedDouble className="h-4 w-4" />
@@ -379,7 +354,7 @@ export function HousekeepingCatalogueSection({ room, guestName, onNavigate }: Gu
             {totalCleaningCount > 0 && (
               <span
                 className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                  activeTab === 'cleaning' ? 'bg-ink-950 text-amber-400' : 'bg-amber-400 text-ink-950'
+                  activeTab === 'cleaning' ? 'bg-ink-950 text-cyan-400' : 'bg-cyan-400 text-ink-950'
                 }`}
               >
                 {totalCleaningCount}
@@ -387,6 +362,14 @@ export function HousekeepingCatalogueSection({ room, guestName, onNavigate }: Gu
             )}
           </button>
         </div>
+
+        {/* Subtle DND Active Alert if enabled */}
+        {state.guestPreferences?.[room]?.dnd && (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-semibold">
+            <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+            <span>Do Not Disturb is Active · Room Service will respect your privacy preferences</span>
+          </div>
+        )}
       </div>
 
       {/* ========================================================================= */}
@@ -802,7 +785,7 @@ export function HousekeepingCatalogueSection({ room, guestName, onNavigate }: Gu
               <button
                 type="button"
                 onClick={() => setReviewModalOpen(true)}
-                className="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl bg-amber-400 text-ink-950 text-xs font-bold hover:bg-amber-300 shadow-md flex items-center justify-center gap-1.5 transition-all"
+                className="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl bg-cyan-400 text-ink-950 text-xs font-bold hover:bg-cyan-300 shadow-md flex items-center justify-center gap-1.5 transition-all"
               >
                 <span>Review &amp; Confirm Request</span>
                 <ArrowRight className="h-4 w-4" />
@@ -817,7 +800,7 @@ export function HousekeepingCatalogueSection({ room, guestName, onNavigate }: Gu
       {/* ========================================================================= */}
       {reviewModalOpen && (
         <GuestSheet
-          title="Review Housekeeping Request"
+          title="Review Room Service Request"
           onClose={() => setReviewModalOpen(false)}
           footer={
             <div className="flex items-center gap-2 w-full">
@@ -831,7 +814,7 @@ export function HousekeepingCatalogueSection({ room, guestName, onNavigate }: Gu
               <button
                 type="button"
                 onClick={handleConfirmSubmission}
-                className="flex-2 py-3 px-4 rounded-xl bg-amber-400 text-ink-950 text-xs font-bold hover:bg-amber-300 shadow-md flex items-center justify-center gap-2"
+                className="flex-2 py-3 px-4 rounded-xl bg-cyan-400 text-ink-950 text-xs font-bold hover:bg-cyan-300 shadow-md flex items-center justify-center gap-2"
               >
                 <Check className="h-4 w-4" />
                 <span>Confirm &amp; Send Request</span>
