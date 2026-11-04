@@ -28,7 +28,8 @@ import type { SupervisorInspection, RoleId } from '@/types/demo';
 import { ROLE_AUTHORITY_PROFILES, SHARED_SERVICE_POLICIES } from '@/lib/policies';
 
 // Dispatcher Tabs
-import { DispatcherOverviewTab } from '@/components/dispatcher/DispatcherOverviewTab';
+// Unified Operations Desktop
+import { UnifiedOperationsDesktop } from './UnifiedOperationsDesktop';
 import { DispatcherQueueTab } from '@/components/dispatcher/DispatcherQueueTab';
 import { DispatcherWorkloadTab } from '@/components/dispatcher/DispatcherWorkloadTab';
 import { DispatcherRoutingTab } from '@/components/dispatcher/DispatcherRoutingTab';
@@ -38,7 +39,6 @@ import { DispatcherBlockersTab } from '@/components/dispatcher/DispatcherBlocker
 import { DispatcherGuestMessagesTab } from '@/components/dispatcher/DispatcherGuestMessagesTab';
 
 // Supervisor Tabs
-import { SupervisorOverviewTab } from '@/components/supervisor/SupervisorOverviewTab';
 import { SupervisorInspectionsTab } from '@/components/supervisor/SupervisorInspectionsTab';
 import { SupervisorRoomsTab } from '@/components/supervisor/SupervisorRoomsTab';
 import { SupervisorHandoverTab } from '@/components/supervisor/SupervisorHandoverTab';
@@ -92,7 +92,6 @@ export function DispatcherSupervisorConsole() {
   } = useDemo();
 
   const [activeTab, setActiveTab] = useState<DispatcherSupervisorTab>('overview');
-  const [overviewSubView, setOverviewSubView] = useState<'dispatch' | 'supervision'>('dispatch');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Modals state
@@ -353,55 +352,16 @@ export function DispatcherSupervisorConsole() {
         {/* Dynamic Tab Content Area */}
         <div className="flex-1 min-w-0 w-full space-y-6">
           {activeTab === 'overview' && (
-            <div className="space-y-6">
-              {/* Overview Sub-switcher */}
-              <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setOverviewSubView('dispatch')}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
-                      overviewSubView === 'dispatch'
-                        ? 'bg-amber-400 text-ink-950 shadow-md shadow-amber-400/20'
-                        : 'border border-white/10 bg-white/[0.03] text-mist-300 hover:text-white'
-                    }`}
-                  >
-                    Dispatcher Operations Stream
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setOverviewSubView('supervision')}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
-                      overviewSubView === 'supervision'
-                        ? 'bg-amber-400 text-ink-950 shadow-md shadow-amber-400/20'
-                        : 'border border-white/10 bg-white/[0.03] text-mist-300 hover:text-white'
-                    }`}
-                  >
-                    Supervisor Quality & Readiness
-                  </button>
-                </div>
-              </div>
-
-              {overviewSubView === 'dispatch' ? (
-                <DispatcherOverviewTab onNavigateTab={(tab) => setActiveTab(tab as DispatcherSupervisorTab)} />
-              ) : (
-                <SupervisorOverviewTab
-                  inspections={inspections}
-                  rooms={rooms}
-                  staffList={staffList}
-                  tasks={allTasks}
-                  incidents={incidents}
-                  onSelectInspection={(insp) => {
-                    setSelectedInspection(insp);
-                    setIsInspectionModalOpen(true);
-                  }}
-                  onNavigateTab={(tab) => setActiveTab(tab as DispatcherSupervisorTab)}
-                  onOpenEscalate={() => setIsEscalateModalOpen(true)}
-                />
-              )}
-            </div>
+            <UnifiedOperationsDesktop
+              onNavigateTab={(tab) => setActiveTab(tab as DispatcherSupervisorTab)}
+              onSelectInspection={(insp) => {
+                setSelectedInspection(insp);
+                setIsInspectionModalOpen(true);
+              }}
+              onOpenCreateTask={() => setIsCreateTaskModalOpen(true)}
+              onOpenEscalate={() => setIsEscalateModalOpen(true)}
+            />
           )}
-
           {activeTab === 'queue' && <DispatcherQueueTab />}
 
           {activeTab === 'inspections' && (
