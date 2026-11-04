@@ -62,27 +62,7 @@ export function GuestRemindersPanel() {
 
   return (
     <div className="space-y-6">
-      {/* Header Panel */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-        <div>
-          <h2 className="text-base font-bold text-white flex items-center gap-2">
-            <Bell className="h-5 w-5 text-amber-400" />
-            <span>Guest Operational Reminders</span>
-          </h2>
-          <p className="text-xs text-mist-400 mt-0.5">
-            Internal front desk reminders for guest special requests, wake-up alerts, and VIP arrivals. (No automated external messages sent).
-          </p>
-        </div>
 
-        <Button
-          size="sm"
-          variant="accent"
-          iconLeft={Plus}
-          onClick={() => setShowAddForm(!showAddForm)}
-        >
-          {showAddForm ? 'Cancel Reminder' : 'Log New Reminder'}
-        </Button>
-      </div>
 
       {/* Creation Modal/Drawer */}
       {showAddForm && (
@@ -202,6 +182,16 @@ export function GuestRemindersPanel() {
         title={`Reminders Log (${pendingCount} Pending)`}
         hint="Track due items and mark completed when fulfilled"
         icon={Clock}
+        action={
+          <Button
+            size="sm"
+            variant="accent"
+            iconLeft={Plus}
+            onClick={() => setShowAddForm(!showAddForm)}
+          >
+            {showAddForm ? 'Cancel' : '+ Log New Reminder'}
+          </Button>
+        }
       >
         {reminders.length === 0 ? (
           <div className="p-8 text-center text-sm text-mist-400">
