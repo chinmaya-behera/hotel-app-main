@@ -4577,7 +4577,6 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         totalChecklistCount: 15,
         scheduledTime: timestamp,
         createdAt: timestamp,
-        completedAt: '',
         instructions: input.instructions,
         initiatedBy: input.initiatedBy,
         initiatedRole: input.initiatedRole,

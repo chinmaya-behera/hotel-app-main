@@ -349,11 +349,6 @@ export interface InspectionCheckItem {
 }
 
 export interface SupervisorInspection {
-  department?: string;
-  createdAt?: string;
-  scheduledTime?: string;
-  completedChecklistCount?: number;
-  totalChecklistCount?: number;
   id: string;
   taskId?: string;
   roomNumber: string;

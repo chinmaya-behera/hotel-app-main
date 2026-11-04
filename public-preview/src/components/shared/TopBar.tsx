@@ -54,7 +54,7 @@ export function TopBar({ active, showRail = true }: TopBarProps) {
 
   // Active employee record from shared staff roster
   const department = managerDepartment(state.managerDepartment);
-  const managerStaff = roleId === 'department_manager' ? { name: state.managerProfiles?.[department.id]?.name || department.person, employeeId: `MGR-${department.id.toUpperCase()}`, department: department.name, shift: 'Day' as const } : null;
+  const managerStaff = roleId === 'department_manager' ? { name: state.managerProfiles?.[department.id]?.name || department.person, employeeId: `MGR-${department.id.toUpperCase()}`, department: department.name, shift: 'Day' as const, floorZone: 'Property-Wide', email: `${department.id}@thegrandadp.com`, financialLimit: 15000 } : null;
   const staff = managerStaff ?? (roleId
     ? (state.staffAccounts ?? []).find((s) => {
         if (
