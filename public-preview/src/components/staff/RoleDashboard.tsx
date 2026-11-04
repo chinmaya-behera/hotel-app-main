@@ -98,7 +98,7 @@ export function RoleDashboard({ roleId }: { roleId: RoleId }) {
   // Department Manager / Duty Manager enterprise operations console
   if (roleId === 'department_manager') {
     return (
-      <div className="department-manager-page">
+      <div className="department-manager-page warm-theme" data-theme={state.theme}>
         <div className="dm-page-container">
           <DepartmentManagerConsole />
         </div>

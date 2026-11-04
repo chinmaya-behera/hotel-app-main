@@ -1,11 +1,12 @@
 'use client';
 
 import { Fragment, useEffect, useRef, useState, type FormEvent } from 'react';
-import { Activity, ArrowRight, ArrowUpRight, BarChart3, Bell, BookOpen, CalendarDays, CheckCheck, ChevronRight, ClipboardCheck, Download, Gauge, Handshake, LockKeyhole, LogOut, Menu, Search, Send, UserRound, Users, X, type LucideIcon } from 'lucide-react';
+import { Activity, ArrowRight, ArrowUpRight, BarChart3, Bell, BookOpen, CalendarDays, CheckCheck, ChevronRight, ClipboardCheck, Download, Gauge, Handshake, LockKeyhole, LogOut, Menu, Moon, Search, Sun, Send, UserRound, Users, X, type LucideIcon } from 'lucide-react';
 import { useDemo } from '@/lib/store';
 import { departmentId, isOpen, managerDepartment, managerInspections, managerNotifications, managerTasks } from '@/lib/manager-domain';
 import type { SupervisorInspection, WorkItem } from '@/types/demo';
 import { DepartmentDesk, DESK_LABELS } from './DepartmentDesk';
+import '../shared/warm-theme.css';
 import './department-manager.css';
 
 const NAV = [
@@ -22,7 +23,7 @@ const dateLabel = (value?: string) => { if (!value) return 'Not recorded'; const
 const statusClass = (status: string) => /resolved|completed|passed|acknowledged/i.test(status) ? 'dm-status good' : /escalat|blocked|reopened/i.test(status) ? 'dm-status urgent' : 'dm-status';
 
 export function DepartmentManagerConsole() {
-  const { state, hydrated, departmentManagerCommand } = useDemo();
+  const { state, hydrated, setTheme, departmentManagerCommand } = useDemo();
   const d = managerDepartment(state.managerDepartment), profile = state.managerProfiles?.[d.id];
   const person = profile?.name || d.person;
   const [tab, setTab] = useState<Tab>('overview');
@@ -105,7 +106,7 @@ export function DepartmentManagerConsole() {
     </aside>
 
     <main className="dm-main" inert={sidebarOpen}>
-      <header className="dm-topline"><div className="dm-breadcrumb"><button ref={navigationTrigger} className="dm-menu-toggle dm-icon-button" aria-label="Open navigation" aria-expanded={sidebarOpen} aria-controls="manager-navigation" onClick={() => setSidebarOpen(true)}><Menu size={20}/></button><span>{d.name}</span><ChevronRight size={14}/><strong>{title === 'Overview' ? 'Overview' : title}</strong></div><div className="dm-topline-tools"><span className="dm-live"><i/> Department access</span><button className="dm-icon-button" aria-label={`Notifications, ${unread} unread`} onClick={() => navigate('notifications')}><Bell size={19}/>{unread > 0 && <b>{unread}</b>}</button><button className="dm-avatar" aria-label="View your profile" onClick={() => navigate('profile')}>{person.split(' ').map(p => p[0]).slice(0, 2).join('')}</button></div></header>
+      <header className="dm-topline"><div className="dm-breadcrumb"><button ref={navigationTrigger} className="dm-menu-toggle dm-icon-button" aria-label="Open navigation" aria-expanded={sidebarOpen} aria-controls="manager-navigation" onClick={() => setSidebarOpen(true)}><Menu size={20}/></button><span>{d.name}</span><ChevronRight size={14}/><strong>{title === 'Overview' ? 'Overview' : title}</strong></div><div className="dm-topline-tools"><span className="dm-live"><i/> Department access</span><button className="dm-icon-button" aria-label={state.theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'} title={state.theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'} onClick={() => setTheme(state.theme === 'light' ? 'dark' : 'light')}>{state.theme === 'light' ? <Moon size={18}/> : <Sun size={18}/>}</button><button className="dm-icon-button" aria-label={`Notifications, ${unread} unread`} onClick={() => navigate('notifications')}><Bell size={19}/>{unread > 0 && <b>{unread}</b>}</button><button className="dm-avatar" aria-label="View your profile" onClick={() => navigate('profile')}>{person.split(' ').map(p => p[0]).slice(0, 2).join('')}</button></div></header>
 
       <div className="dm-page-heading"><div><p className="dm-eyebrow">DEPARTMENT OPERATIONS</p><h1>{title === 'Overview' ? `${d.name} overview` : title}</h1><p>{d.focus}</p></div><div className="dm-heading-actions">{tab === 'overview' ? <button className="dm-primary" onClick={() => openModal({kind:'inspection'})}><ClipboardCheck size={17}/> New inspection</button> : <span className="dm-date"><CalendarDays size={16}/>{new Date().toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'})}</span>}</div></div>
 

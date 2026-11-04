@@ -35,7 +35,7 @@ The previous `manager@thegrandadp.com` account remains an alias for the housekee
 
 ## Department tools and design
 
-The manager workspace has a dedicated theme independent of shared role colours: parchment `#EBE2CC` backgrounds, soft beige `#DED6C1` highlights, sand `#CFC6B1` dividers, taupe `#B7B09E` control borders, dark brown-charcoal `#353229` headings and primary buttons, and muted brown-grey `#686252` secondary text.
+The login and all four manager workspaces share warm theme tokens independent of role colours. Light mode uses a white canvas and white panels, with parchment `#EBE2CC`, soft beige `#DED6C1` and taupe `#B7B09E` accents; headings use `#353229` and secondary text uses `#686252`. Dark mode uses charcoal `#171715` backgrounds, raised `#1E1E1B` panels, muted warm highlights and cream text. The theme switch is available on sign-in and inside the manager header, persists in the browser and also styles department selectors, forms and native dialogs.
 
 The overview separates actionable escalations, inspection assignments, department tools and a live shift snapshot. KPI cards open their related screens. Navigation is grouped into Workspace, Management and Personal sections, becomes an icon rail on compact desktop screens, and uses a keyboard-accessible drawer on mobile. Tables, forms and dialogs share larger text, consistent spacing and visible focus states. The selected department loads before the dashboard renders, avoiding a flash of another department's default preview.
 
