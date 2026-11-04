@@ -125,13 +125,13 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
   const [viewPhotoUrl, setViewPhotoUrl] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const completeFileInputRef = useRef<HTMLInputElement>(null);
+  const galleryFileInputRef = useRef<HTMLInputElement>(null);
+  const cameraFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Completion modal with mandatory proof photo
-  const [completeModalTask, setCompleteModalTask] = useState<WorkItem | null>(null);
-  const [completePhotoPreview, setCompletePhotoPreview] = useState<string | null>(null);
-  const [completeNote, setCompleteNote] = useState('');
-  const [completePhotoError, setCompletePhotoError] = useState<string | null>(null);
+  // Photo Upload Modal (Optional upload across all departments)
+  const [photoModalTask, setPhotoModalTask] = useState<WorkItem | null>(null);
+  const [photoModalPreview, setPhotoModalPreview] = useState<string | null>(null);
+  const [photoModalError, setPhotoModalError] = useState<string | null>(null);
 
   // All combined department tasks across queues for the active department
   const allDepartmentTasks = useMemo(() => {
@@ -239,41 +239,31 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
   }
 
   function handleComplete(task: WorkItem) {
-    setCompleteModalTask(task);
-    setCompletePhotoPreview(task.photoUrl || null);
-    setCompleteNote('');
-    setCompletePhotoError(null);
-  }
+    advance('task_fulfiller', task.id, {
+      label: 'Complete',
+      next: 'Completed',
+      message: 'Task completed',
+    });
 
-  function handleConfirmCompleteWithProof() {
-    if (!completeModalTask) return;
-    if (!completePhotoPreview) {
-      setCompletePhotoError('A verification photo proof is required before marking this task as completed.');
-      return;
-    }
-
-    // Attach photo to task across queues
-    attachTaskPhoto('task_fulfiller', completeModalTask.id, completePhotoPreview);
-
-    // Complete task and notify supervisor
-    advance(
-      'task_fulfiller',
-      completeModalTask.id,
-      {
-        label: 'Complete',
-        next: 'Completed',
-        message: 'Task completed with photo evidence',
-      },
-      completeNote || 'Completed with verified photo proof',
-    );
-
-    if (selectedTask?.id === completeModalTask.id) {
+    if (selectedTask?.id === task.id) {
       setSelectedTask(null);
     }
-    setCompleteModalTask(null);
-    setCompletePhotoPreview(null);
-    setCompleteNote('');
-    setCompletePhotoError(null);
+  }
+
+  function openPhotoUpload(task: WorkItem) {
+    setPhotoModalTask(task);
+    setPhotoModalPreview(task.photoUrl || null);
+    setPhotoModalError(null);
+  }
+
+  function handleSaveUploadedPhoto() {
+    if (!photoModalTask) return;
+    if (photoModalPreview) {
+      attachTaskPhoto('task_fulfiller', photoModalTask.id, photoModalPreview);
+    }
+    setPhotoModalTask(null);
+    setPhotoModalPreview(null);
+    setPhotoModalError(null);
   }
 
   function handleBlockerSubmit() {
@@ -306,18 +296,33 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
 
   return (
     <div className="flex flex-col gap-3 pb-24">
-      {/* Hidden File Input for Mobile Camera / Gallery Picker */}
+      {/* Hidden File Inputs for Device Gallery / Mobile Camera */}
       <input
-        ref={fileInputRef}
+        ref={galleryFileInputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         className="hidden"
-        onChange={(e) => selectedTask && handlePhotoUpload(e, selectedTask)}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          if (file.size > 5 * 1024 * 1024) {
+            setPhotoModalError('Image size exceeds 5MB. Please choose a smaller photo.');
+            return;
+          }
+          setPhotoModalError(null);
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const dataUrl = event.target?.result as string;
+            if (dataUrl) {
+              setPhotoModalPreview(dataUrl);
+            }
+          };
+          reader.readAsDataURL(file);
+        }}
       />
 
       <input
-        ref={completeFileInputRef}
+        ref={cameraFileInputRef}
         type="file"
         accept="image/*"
         capture="environment"
@@ -326,15 +331,15 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
           const file = e.target.files?.[0];
           if (!file) return;
           if (file.size > 5 * 1024 * 1024) {
-            setCompletePhotoError('Image size exceeds 5MB. Please choose a smaller photo.');
+            setPhotoModalError('Image size exceeds 5MB. Please choose a smaller photo.');
             return;
           }
-          setCompletePhotoError(null);
+          setPhotoModalError(null);
           const reader = new FileReader();
           reader.onload = (event) => {
             const dataUrl = event.target?.result as string;
             if (dataUrl) {
-              setCompletePhotoPreview(dataUrl);
+              setPhotoModalPreview(dataUrl);
             }
           };
           reader.readAsDataURL(file);
@@ -722,25 +727,24 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     </span>
                   )}
 
-                  {task.evidenceRequired && (
-                    <span
-                      className={cn(
-                        'flex items-center gap-1 text-[11px] font-medium',
-                        task.photoUrl ? 'text-emerald-400' : 'text-amber-300',
-                      )}
-                    >
-                      <Camera className="h-3 w-3" />
-                      {task.photoUrl ? 'Photo attached' : 'Photo required'}
-                    </span>
-                  )}
-
-                  {task.photoUrl && (
+                  {/* Photo Section: upload option in all departments */}
+                  {task.photoUrl ? (
                     <button
                       type="button"
                       onClick={() => setViewPhotoUrl(task.photoUrl!)}
-                      className="flex items-center gap-1 text-[11px] text-emerald-300 underline hover:text-emerald-200 cursor-pointer"
+                      className="flex items-center gap-1 text-[11px] font-medium text-emerald-400 hover:text-emerald-300 cursor-pointer"
                     >
-                      <ImageIcon className="h-3 w-3" /> Preview
+                      <ImageIcon className="h-3 w-3" />
+                      <span>Photo attached</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => openPhotoUpload(task)}
+                      className="flex items-center gap-1 text-[11px] text-mist-300 hover:text-emerald-300 transition-colors cursor-pointer"
+                    >
+                      <Camera className="h-3 w-3 text-emerald-400" />
+                      <span>Upload photo</span>
                     </button>
                   )}
 
@@ -854,20 +858,17 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
 
                         <button
                           type="button"
-                          onClick={() => {
-                            setSelectedTask(task);
-                            fileInputRef.current?.click();
-                          }}
+                          onClick={() => openPhotoUpload(task)}
                           className={cn(
-                            'rounded-xl border px-3 py-2 text-xs font-medium transition-colors flex items-center gap-1',
+                            'rounded-xl border px-3 py-2 text-xs font-medium transition-colors flex items-center gap-1.5',
                             task.photoUrl
                               ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
                               : 'border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
                           )}
-                          title="Attach completion evidence photo"
+                          title="Upload or capture task photo"
                         >
                           <Camera className="h-3.5 w-3.5" />
-                          {task.photoUrl ? 'Photo ✓' : 'Photo'}
+                          {task.photoUrl ? 'Photo ✓' : 'Upload Photo'}
                         </button>
 
                         <button
@@ -1256,19 +1257,19 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
         </FulfillerModalPortal>
       )}
 
-      {/* Proof Photo Completion Modal (In-Mobile Dialog) */}
-      {completeModalTask && (
+      {/* Upload Task Photo Modal (In-Mobile Dialog) */}
+      {photoModalTask && (
         <FulfillerModalPortal>
           <div className="absolute inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-sm animate-in fade-in duration-150">
-            <div className="w-full max-w-sm rounded-3xl border border-emerald-500/40 bg-ink-950 p-4 text-white shadow-2xl">
+            <div className="w-full max-w-sm rounded-3xl border border-white/20 bg-ink-950 p-4 text-white shadow-2xl">
               <div className="flex items-center justify-between border-b border-white/10 pb-3">
                 <div className="flex items-center gap-2 text-emerald-400">
                   <Camera className="h-5 w-5" />
-                  <h3 className="font-bold text-sm text-white">Proof Photo Required</h3>
+                  <h3 className="font-bold text-sm text-white">Upload Task Photo</h3>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setCompleteModalTask(null)}
+                  onClick={() => setPhotoModalTask(null)}
                   className="grid h-7 w-7 place-items-center rounded-full bg-white/10 text-mist-300 hover:text-white"
                 >
                   <X className="h-4 w-4" />
@@ -1277,104 +1278,112 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
 
               <div className="mt-3">
                 <p className="text-xs text-mist-300">
-                  A verification photo proof is required before marking this task as completed for higher authority inspection.
+                  Upload an evidence or verification photo for this {activeProfile.departmentName} task.
                 </p>
                 <div className="mt-2 rounded-xl border border-white/10 bg-white/[0.03] p-2 text-xs">
-                  <div className="font-semibold text-white line-clamp-1">{completeModalTask.title}</div>
+                  <div className="font-semibold text-white line-clamp-1">{photoModalTask.title}</div>
                   <div className="text-[11px] text-mist-400 mt-0.5">
-                    {completeModalTask.room ? `Room ${completeModalTask.room}` : completeModalTask.location || 'Floor 4'} · Attendant: {activeProfile.employeeName}
+                    {photoModalTask.room ? `Room ${photoModalTask.room}` : photoModalTask.location || 'Floor 4'} · {activeProfile.employeeName}
                   </div>
                 </div>
               </div>
 
-              {/* Photo Upload / Preview Container */}
+              {/* Photo Preview / Upload Controls */}
               <div className="mt-3">
-                {completePhotoPreview ? (
+                {photoModalPreview ? (
                   <div className="relative rounded-2xl overflow-hidden border border-emerald-500/40 bg-black/40">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={completePhotoPreview}
-                      alt="Proof preview"
-                      className="w-full h-36 object-contain bg-black/60"
+                      src={photoModalPreview}
+                      alt="Uploaded task photo preview"
+                      className="w-full h-40 object-contain bg-black/60"
                     />
                     <div className="absolute top-2 left-2 flex items-center gap-1 rounded-full bg-emerald-500/90 px-2 py-0.5 text-[10px] font-bold text-ink-950 backdrop-blur-sm">
-                      <Check className="h-3 w-3" /> Photo Proof Attached
+                      <Check className="h-3 w-3" /> Photo Selected
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => completeFileInputRef.current?.click()}
-                      className="absolute bottom-2 right-2 rounded-lg bg-black/70 border border-white/20 px-2.5 py-1 text-[11px] font-medium text-white hover:bg-black/90"
-                    >
-                      Change Photo
-                    </button>
+                    <div className="absolute bottom-2 right-2 flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => galleryFileInputRef.current?.click()}
+                        className="rounded-lg bg-black/75 border border-white/20 px-2.5 py-1 text-[10px] font-medium text-white hover:bg-black/90"
+                      >
+                        Change
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPhotoModalPreview(null)}
+                        className="rounded-lg bg-rose-500/80 px-2.5 py-1 text-[10px] font-medium text-white hover:bg-rose-500"
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-emerald-500/30 bg-emerald-500/[0.03] p-4 text-center">
-                    <Camera className="h-8 w-8 text-emerald-400 mb-1" />
-                    <p className="text-xs font-semibold text-white">Attach Proof Photo</p>
-                    <p className="text-[10px] text-mist-400 mt-0.5">Capture with phone camera or upload snapshot</p>
+                  <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-white/15 bg-white/[0.02] p-4 text-center">
+                    <Camera className="h-7 w-7 text-emerald-400 mb-1" />
+                    <p className="text-xs font-semibold text-white">Choose Photo Source</p>
+                    <p className="text-[10px] text-mist-400 mt-0.5">Select image file or take with camera</p>
 
-                    <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                    <div className="mt-3 flex flex-col w-full gap-2">
                       <button
                         type="button"
-                        onClick={() => completeFileInputRef.current?.click()}
-                        className="flex items-center gap-1.5 rounded-xl bg-emerald-500 px-3 py-1.5 text-xs font-bold text-ink-950 shadow-md shadow-emerald-500/25 active:scale-95"
+                        onClick={() => galleryFileInputRef.current?.click()}
+                        className="flex items-center justify-center gap-2 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] border border-white/15 px-3 py-2 text-xs font-semibold text-white active:scale-98 transition-all"
                       >
-                        <Camera className="h-3.5 w-3.5" />
-                        Take / Upload Photo
+                        <ImageIcon className="h-4 w-4 text-emerald-400" />
+                        Upload from Device / Gallery
                       </button>
+
                       <button
                         type="button"
-                        onClick={() => setCompletePhotoPreview(SAMPLE_PROOF_PHOTOS[activeProfile.deptKey] || SAMPLE_PROOF_PHOTOS.housekeeping)}
-                        className="flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/[0.06] px-3 py-1.5 text-xs font-semibold text-mist-200 hover:text-white active:scale-95"
+                        onClick={() => cameraFileInputRef.current?.click()}
+                        className="flex items-center justify-center gap-2 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] border border-white/15 px-3 py-2 text-xs font-semibold text-white active:scale-98 transition-all"
+                      >
+                        <Camera className="h-4 w-4 text-sky-400" />
+                        Take Photo with Camera
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setPhotoModalPreview(SAMPLE_PROOF_PHOTOS[activeProfile.deptKey] || SAMPLE_PROOF_PHOTOS.housekeeping)}
+                        className="flex items-center justify-center gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 hover:bg-amber-400/15 px-3 py-1.5 text-xs font-semibold text-amber-200 active:scale-98 transition-all"
                       >
                         <Sparkles className="h-3.5 w-3.5 text-amber-300" />
-                        Use Sample Proof
+                        Use Sample Department Photo
                       </button>
                     </div>
                   </div>
                 )}
-                {completePhotoError && (
-                  <p className="mt-1 text-[11px] font-medium text-rose-400">{completePhotoError}</p>
+                {photoModalError && (
+                  <p className="mt-1 text-[11px] font-medium text-rose-400">{photoModalError}</p>
                 )}
-              </div>
-
-              {/* Optional Completion Notes */}
-              <div className="mt-3">
-                <label className="text-[11px] font-medium text-mist-300">
-                  Attendant Notes (Optional)
-                </label>
-                <input
-                  type="text"
-                  value={completeNote}
-                  onChange={(e) => setCompleteNote(e.target.value)}
-                  placeholder="e.g. Service delivered, linen replaced, area cleaned"
-                  className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white placeholder-mist-500 focus:border-emerald-500 focus:outline-none"
-                />
               </div>
 
               {/* Actions */}
               <div className="mt-4 flex items-center justify-end gap-2 border-t border-white/10 pt-3">
                 <button
                   type="button"
-                  onClick={() => setCompleteModalTask(null)}
+                  onClick={() => {
+                    setPhotoModalTask(null);
+                    setPhotoModalPreview(null);
+                  }}
                   className="rounded-xl border border-white/10 px-3 py-1.5 text-xs text-mist-300 hover:text-white"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
-                  onClick={handleConfirmCompleteWithProof}
-                  disabled={!completePhotoPreview}
+                  onClick={handleSaveUploadedPhoto}
+                  disabled={!photoModalPreview}
                   className={cn(
                     'flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition-all shadow-md',
-                    completePhotoPreview
+                    photoModalPreview
                       ? 'bg-emerald-500 text-ink-950 shadow-emerald-500/30 hover:bg-emerald-400 active:scale-95'
                       : 'bg-white/10 text-mist-500 cursor-not-allowed',
                   )}
                 >
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  Confirm &amp; Complete Task
+                  <Check className="h-3.5 w-3.5" />
+                  Save Photo
                 </button>
               </div>
             </div>
