@@ -79,7 +79,7 @@ const PRESET_ROLES: PresetRole[] = [
   {
     id: 'manager',
     num: '03',
-    name: 'Housekeeping Manager (legacy login)',
+    name: 'Department Manager',
     email: 'manager@thegrandadp.com',
     pass: 'manager123',
     icon: Gauge,
@@ -159,6 +159,7 @@ export function PortalLoginView() {
   const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
+  const [previewDepartment, setPreviewDepartment] = useState<ManagerDepartmentId>('housekeeping');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -188,12 +189,15 @@ export function PortalLoginView() {
     }
   }, [isLight, state.theme]);
 
+  const managerSelected = selectedRoleId === 'manager' || selectedRoleId?.startsWith('manager-');
   const activeRole = DEMO_ACCOUNTS.find((r) => r.id === selectedRoleId);
 
   const handleSelectRole = (role: PresetRole) => {
-    setSelectedRoleId(role.id);
-    setEmail(role.email);
-    setPassword(role.pass);
+    const selected = role.id === 'manager' ? DEMO_ACCOUNTS.find(account => account.departmentId === previewDepartment && account.id !== 'manager')! : role;
+    if (selected.departmentId) setPreviewDepartment(selected.departmentId);
+    setSelectedRoleId(selected.id);
+    setEmail(selected.email);
+    setPassword(selected.pass);
     showToast(`${role.name} loaded`);
   };
 
@@ -499,7 +503,7 @@ export function PortalLoginView() {
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </form>
-              <DemoCredentialsDialog accounts={DEMO_ACCOUNTS} onSelect={handleSelectRole}/>
+              <DemoCredentialsDialog accounts={DEMO_ACCOUNTS.filter(account => account.id !== 'manager')} onSelect={handleSelectRole}/>
             </div>
           </section>
 
@@ -527,14 +531,17 @@ export function PortalLoginView() {
 
               {/* Minimal Role Buttons List */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-3.5">
-                {DEMO_ACCOUNTS.filter(role => role.id !== 'manager').map((role) => {
-                  const isSelected = role.id === selectedRoleId;
+                {PRESET_ROLES.map((role) => {
+                  const isSelected = role.id === 'manager' ? !!managerSelected : role.id === selectedRoleId;
                   const Icon = role.icon;
                   return (
                     <button
                       key={role.id}
                       type="button"
                       onClick={() => handleSelectRole(role)}
+                      aria-pressed={isSelected}
+                      aria-expanded={role.id === 'manager' ? !!managerSelected : undefined}
+                      aria-controls={role.id === 'manager' ? 'manager-preview-selector' : undefined}
                       className={`w-full text-left flex items-center justify-between p-3 sm:p-3.5 rounded-2xl border transition-all duration-150 cursor-pointer login-role-btn ${
                         isSelected ? 'active' : ''
                       } ${
@@ -572,6 +579,7 @@ export function PortalLoginView() {
                   );
                 })}
               </div>
+              {managerSelected && <div id="manager-preview-selector" className="manager-preview-selector"><label htmlFor="manager-preview-department">Department manager preview</label><select id="manager-preview-department" value={previewDepartment} onChange={event => { const department = event.target.value as ManagerDepartmentId; const account = DEMO_ACCOUNTS.find(role => role.departmentId === department && role.id !== 'manager'); if (account) handleSelectRole(account); }}>{MANAGER_DEPARTMENTS.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select><p>Select a department to autofill its preview login.</p></div>}
             </div>
           </section>
         </div>

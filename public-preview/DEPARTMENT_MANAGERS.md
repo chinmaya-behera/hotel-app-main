@@ -1,6 +1,6 @@
 # Department manager demo
 
-Open `/login`, select **View demo login credentials**, then **Autofill** an account and **Sign In**.
+Open `/login`, select **Department Manager** in **Quick Role Fill**, then choose a department in the dropdown that appears. The selected department's email and password autofill immediately. The dropdown hides when another quick-login role is selected. The **View demo login credentials** popup remains available.
 
 | Department | Demo email | Public demo password |
 | --- | --- | --- |
@@ -33,7 +33,20 @@ The previous `manager@thegrandadp.com` account remains an alias for the housekee
 5. Add a policy and shift handover, update staff availability, refresh, and verify the changes remain in the same browser.
 6. Change to another department manager and verify its tasks, staff, inspections, policies, handovers and notifications are separate.
 
-## Verification and boundaries
+## Department tools and design
+
+All manager screens, forms and dialogs use the requested [Color Hunt palette](https://colorhunt.co/palette/ebe2ccded6c1cfc6b1b7b09e): `#EBE2CC`, `#DED6C1`, `#CFC6B1`, `#B7B09E`. Dark neutral text provides readable contrast. Shared layouts use thin separators, flat surfaces and concise actions.
+
+| Department desk | Implemented behavior | Research reference |
+| --- | --- | --- |
+| Room readiness | Filter attention, arrivals and DND; create deduplicated cleaning tasks; respect guest DND and engineering holds; count linen and request replenishment. | [Oracle housekeeping room status](https://docs.oracle.com/cd/F17749_01/doc.14/f17755/c_task_menu_housekeeping.htm), [guest service status](https://docs.oracle.com/cd/E98457_01/opera_5_6_core_help/guest_service_status_hskgss.htm) |
+| Appointments | Reserve an available therapist and treatment room, prevent overlapping bookings including a 15-minute reset, complete/cancel appointments, and count treatment supplies. | [Agilysys Book4Time scheduling and resources](https://www.agilysys.com/en/products/book4time/) |
+| Maintenance plan | See overdue/next service dates, generate linked work orders, prevent duplicates, and record service/advance due dates only after completed work; count spare parts. | [IBM preventive maintenance records](https://www.ibm.com/docs/en/mfnp/cd?topic=application-preventive-maintenance-pm-records) |
+| Kitchen & stock | Record kitchen counts, request shortfalls to target stock, search listed allergens and change the menu availability shared with guest dining. | [Oracle inventory management](https://docs.oracle.com/en/industries/food-beverage/inventory-management/invug/c_inventory.htm), [F&B operations](https://engage.oracle.com/52daf9/items/food-and-beverage-operations) |
+
+These are implementation choices informed by the references, rather than integrations with those products. Replenishment requests do not automatically receive inventory; scheduling creates a synthetic operational task and does not post a charge. Inactive staff remain unavailable.
+
+## Verification
 
 Run `npm run test:manager` on Node 22.18+ or Node 24+. Tests cover all four departments, migration idempotence, scoped mutations, inspection delegation, GM escalation/decision feedback, handovers and notification isolation. Run `node scripts/check-manager-types.mjs fb34e6d` to compare strict TypeScript diagnostics with the source pulled for this change. The repository's existing full-project type errors are not hidden by this comparison.
 
