@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   BedDouble,
   CheckCircle2,
@@ -270,6 +270,40 @@ export function RoomsPanel() {
 
   // Active drawer room
   const drawerRoom = allRooms.find((r) => r.no === drawerRoomNo);
+
+  // Synchronize browser history for the room details drawer to allow Back navigation
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handlePopState = (e: PopStateEvent) => {
+      const st = e.state;
+      if (st && st.staffRole === 'front-desk') {
+        if (!st.roomDrawer) {
+          setDrawerRoomNo(null);
+        } else {
+          setDrawerRoomNo(st.roomDrawer);
+        }
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const openRoomDrawer = (no: string) => {
+    setDrawerRoomNo(no);
+    if (typeof window !== 'undefined') {
+      window.history.pushState(
+        { staffRole: 'front-desk', tab: 'rooms', roomDrawer: no },
+        ''
+      );
+    }
+  };
+
+  const closeRoomDrawer = () => {
+    setDrawerRoomNo(null);
+    if (typeof window !== 'undefined' && window.history.state?.roomDrawer) {
+      window.history.back();
+    }
+  };
 
   const handleCopyPin = (pin: string) => {
     navigator.clipboard?.writeText(pin);
@@ -677,7 +711,7 @@ export function RoomsPanel() {
                           <button
                             key={room.no}
                             type="button"
-                            onClick={() => setDrawerRoomNo(room.no)}
+                            onClick={() => openRoomDrawer(room.no)}
                             className={cn(
                               'aspect-[1/0.92] p-2 sm:p-2.5 rounded-xl border flex flex-col justify-between text-left transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-cyan-400/50 relative overflow-hidden group cursor-pointer',
                               tileClasses,
@@ -727,7 +761,7 @@ export function RoomsPanel() {
           {/* Backdrop Blur */}
           <div
             className="fixed inset-0 bg-black/60 backdrop-blur-[4px] z-[999] transition-opacity animate-fade-in"
-            onClick={() => setDrawerRoomNo(null)}
+            onClick={closeRoomDrawer}
           />
 
           {/* Drawer Slide-Over Panel */}
@@ -753,7 +787,7 @@ export function RoomsPanel() {
 
                 <button
                   type="button"
-                  onClick={() => setDrawerRoomNo(null)}
+                  onClick={closeRoomDrawer}
                   className="h-8 w-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-mist-400 hover:text-white transition"
                 >
                   <X className="h-4 w-4" />

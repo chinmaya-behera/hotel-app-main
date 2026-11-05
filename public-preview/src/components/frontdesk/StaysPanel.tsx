@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Sparkles,
   ArrowRightLeft,
@@ -55,11 +55,15 @@ const MOVE_REASONS = ['AC or maintenance fault', 'Noise complaint', 'Guest-reque
 
 const ORDER: Record<StayRecord['status'], number> = { expected: 0, in_house: 1, checked_out: 2 };
 
-export function StaysPanel() {
+export function StaysPanel({ initialFilter = 'all' }: { initialFilter?: Filter }) {
   const { state, fdAction } = useDemo();
-  const [filter, setFilter] = useState<Filter>('all');
+  const [filter, setFilter] = useState<Filter>(initialFilter);
   const [query, setQuery] = useState('');
   const [dialog, setDialog] = useState<Dialog>(null);
+
+  useEffect(() => {
+    if (initialFilter) setFilter(initialFilter);
+  }, [initialFilter]);
 
   const stays = state.frontDesk?.stays ?? [];
   const term = query.trim().toLowerCase();

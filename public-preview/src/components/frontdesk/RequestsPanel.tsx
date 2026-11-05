@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type CSSProperties } from 'react';
+import { useState, useEffect, type CSSProperties } from 'react';
 import {
   ArrowUpRight,
   BadgeCheck,
@@ -83,12 +83,22 @@ const CATEGORY_LABEL: Record<RequestCategory, string> = {
   lost_found: 'Lost & found',
 };
 
-export function RequestsPanel({ initialCategory = 'all' }: { initialCategory?: RequestCategory }) {
+export function RequestsPanel({
+  initialCategory = 'all',
+  initialSourceTab = 'guest_services',
+}: {
+  initialCategory?: RequestCategory;
+  initialSourceTab?: RequestSourceTab;
+}) {
   const { state, fdAction } = useDemo();
-  const [sourceTab, setSourceTab] = useState<RequestSourceTab>('guest_services');
+  const [sourceTab, setSourceTab] = useState<RequestSourceTab>(initialSourceTab);
   const [view, setView] = useState<View>('action');
   const [query, setQuery] = useState('');
   const [dialog, setDialog] = useState<Dialog>(null);
+
+  useEffect(() => {
+    if (initialSourceTab) setSourceTab(initialSourceTab);
+  }, [initialSourceTab]);
 
   const all = state.items.front_desk_coordinator ?? [];
   const term = query.trim().toLowerCase();

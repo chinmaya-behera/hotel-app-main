@@ -25,7 +25,7 @@ export function Panel({ title, hint, icon: Icon, action, className, bodyClassNam
             )}
             <div>
               <h2 className="text-sm font-semibold text-white">{title}</h2>
-              {hint && <p className="mt-0.5 text-xs text-mist-400">{hint}</p>}
+              {hint && <p className="mt-0.5 text-xs text-mist-400 hidden sm:block">{hint}</p>}
             </div>
           </div>
           {action && <div className="w-full sm:w-auto shrink-0">{action}</div>}
