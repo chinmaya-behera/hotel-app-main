@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Sparkles,
   UtensilsCrossed,
@@ -19,11 +19,13 @@ import {
   ShieldCheck,
   ChevronRight,
   Layers,
+  PartyPopper,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
 import { money } from '@/lib/utils';
 import { GuestSectionHeader } from '@/components/guest/guestUi';
 import type { GuestTabProps, GuestTabId, GuestServicesSubtab } from '@/components/guest/types';
+import { DEFAULT_EVENTS_CARD_IMAGE } from './eventsData';
 
 // Specialized views for deep navigation when a service is opened
 import { DiningSection } from './DiningSection';
@@ -38,6 +40,7 @@ import { BookServiceSubtab } from './BookServiceSubtab';
 import { HousekeepingCatalogueSection } from './HousekeepingCatalogueSection';
 import { MaintenanceTab } from './MaintenanceTab';
 import { SpaConciergeTab } from './SpaConciergeTab';
+import { EventsCelebrationsSection } from './EventsCelebrationsSection';
 
 export function AllServicesSection({ room, guestName, onNavigate, initialSubtab }: GuestTabProps) {
   const { state, updateDndStatus } = useDemo();
@@ -51,7 +54,32 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
     (initialSubtab as GuestServicesSubtab) && initialSubtab !== 'all' ? (initialSubtab as GuestServicesSubtab) : null,
   );
 
+  useEffect(() => {
+    if (initialSubtab && initialSubtab !== 'all') {
+      setActiveSubView(initialSubtab as GuestServicesSubtab);
+    }
+  }, [initialSubtab]);
+
+  const isEventsEnabled = state.eventsConfig?.enabled !== false;
+  const eventsCardImage = state.eventsConfig?.cardImage || DEFAULT_EVENTS_CARD_IMAGE;
+  const eventsSubtitle = state.eventsConfig?.subtitle || 'Plan your special moments with us.';
+
   const SERVICES = [
+    ...(isEventsEnabled
+      ? [
+          {
+            id: 'events_celebrations' as const,
+            name: 'Events & Celebrations 🎉',
+            category: 'dining' as const,
+            icon: PartyPopper,
+            color: 'bg-amber-400/15 text-amber-300 border-amber-400/30',
+            tagline: eventsSubtitle,
+            highlights: ['Weddings & Galas', 'Birthday & Anniversaries', 'Theme Decor & Catering', 'Dedicated Event Butler'],
+            actionText: 'Plan an Event 🎉',
+            image: eventsCardImage,
+          },
+        ]
+      : []),
     {
       id: 'room_service' as const,
       name: 'Room Service',
@@ -169,6 +197,13 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
 
   // If a subview is currently open, render it with a back button
   if (activeSubView) {
+    // Events & Celebrations renders cleanly without duplicated back banner
+    if (activeSubView === 'events_celebrations') {
+      return (
+        <EventsCelebrationsSection room={room} guestName={guestName} onNavigate={onNavigate} />
+      );
+    }
+
     return (
       <div className="space-y-4">
         {/* Back to all services banner */}
@@ -300,7 +335,7 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
                 : 'bg-white/5 text-mist-300 hover:text-white hover:bg-white/10'
             }`}
           >
-            Room Comfort (3)
+            Room Comfort ({SERVICES.filter((s) => s.category === 'room').length})
           </button>
           <button
             type="button"
@@ -311,7 +346,7 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
                 : 'bg-white/5 text-mist-300 hover:text-white hover:bg-white/10'
             }`}
           >
-            Dining &amp; Spa (2)
+            Dining &amp; Celebrations ({SERVICES.filter((s) => s.category === 'dining').length})
           </button>
           <button
             type="button"
@@ -322,7 +357,7 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
                 : 'bg-white/5 text-mist-300 hover:text-white hover:bg-white/10'
             }`}
           >
-            Front Desk &amp; Care (4)
+            Front Desk &amp; Care ({SERVICES.filter((s) => s.category === 'desk').length})
           </button>
           <button
             type="button"
@@ -333,7 +368,7 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
                 : 'bg-white/5 text-mist-300 hover:text-white hover:bg-white/10'
             }`}
           >
-            Billing &amp; Folio (1)
+            Billing &amp; Folio ({SERVICES.filter((s) => s.category === 'finance').length})
           </button>
         </div>
       </div>
@@ -357,9 +392,28 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
               return (
                 <div
                   key={svc.id}
-                  className="guest-card p-4 flex flex-col justify-between space-y-3 hover:border-amber-400/40 transition-all border border-white/10"
+                  className="guest-card p-4 flex flex-col justify-between space-y-3 hover:border-amber-400/40 transition-all border border-white/10 group"
                 >
                   <div className="space-y-2">
+                    {/* Visual image if provided (e.g. Events & Celebrations) */}
+                    {'image' in svc && svc.image && (
+                      <div className="relative w-full h-36 rounded-xl overflow-hidden mb-3 border border-white/10">
+                        <img
+                          src={svc.image}
+                          alt={svc.name}
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-ink-950 via-ink-950/20 to-transparent" />
+                        <span className="absolute top-2.5 right-2.5 px-2.5 py-0.5 rounded-full bg-amber-400 text-ink-950 text-[10px] font-bold shadow-md flex items-center gap-1">
+                          <PartyPopper className="h-3 w-3" />
+                          <span>Celebration</span>
+                        </span>
+                        <span className="absolute bottom-2 left-2.5 px-2 py-0.5 rounded-md bg-ink-950/80 backdrop-blur-sm border border-white/10 text-[10px] font-medium text-amber-200">
+                          Banquets &amp; Occasions
+                        </span>
+                      </div>
+                    )}
+
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-2.5">
                         <span className={`grid h-9 w-9 place-items-center rounded-xl border ${svc.color}`}>

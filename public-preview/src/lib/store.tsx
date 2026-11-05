@@ -12,6 +12,8 @@ import {
 } from 'react';
 import { CircleCheck } from 'lucide-react';
 import { INITIAL_DINING_CATEGORIES, INITIAL_DINING_MENU } from '@/components/guest/diningData';
+import { seedEventsConfig } from '@/components/guest/eventsData';
+import type { EventsCelebrationsConfig } from '@/types/demo';
 import type { DiningMenuItem, DietaryType, AllergenType, PortionOption, MenuItemAddon } from '@/types/demo';
 import {
   folioSeed,
@@ -109,6 +111,7 @@ function seedState(): DemoState {
     staffAccounts: seedStaffAccounts,
     auditTrail: seedAuditTrail,
     workflowConfig: seedWorkflowConfig,
+    eventsConfig: seedEventsConfig,
     soundEnabled: true,
     fulfillerAvailability: 'on_duty',
     notifications: seedNotifications,
@@ -196,6 +199,7 @@ interface DemoApi {
   addStaffAccount: (account: Omit<StaffAccount, 'id' | 'createdAt'>) => void;
   /** Admin Workflow & SLA Configuration (Admin and IT workflow) */
   updateWorkflowConfig: (partial: Partial<WorkflowConfig>) => void;
+  updateEventsConfig: (partial: Partial<EventsCelebrationsConfig>) => void;
   /** Admin QR lifecycle management (SECURITY.md / ER_DIAGRAMS Domain 2) */
   revokeRoomSession: (room: string) => void;
   restoreRoomSession: (room: string) => void;
@@ -1923,6 +1927,29 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         details: `Parameters updated: ${Object.keys(partial).join(', ')}`,
       });
       notify('Workflow configuration saved');
+    },
+    [notify, recordAuditEvent],
+  );
+
+  const updateEventsConfig = useCallback<DemoApi['updateEventsConfig']>(
+    (partial) => {
+      setState((prev) => ({
+        ...prev,
+        eventsConfig: {
+          ...(prev.eventsConfig ?? seedEventsConfig),
+          ...partial,
+        },
+      }));
+      recordAuditEvent({
+        actor: 'Rajesh Sharma',
+        actorRole: 'Platform Administrator',
+        action: `Events & Celebrations configuration modified`,
+        category: 'Workflow',
+        resource: 'Events & Celebrations Service',
+        outcome: 'success',
+        details: `Parameters updated: ${Object.keys(partial).join(', ')}`,
+      });
+      notify('Events & Celebrations settings saved');
     },
     [notify, recordAuditEvent],
   );
@@ -6053,6 +6080,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       updateStaffRole,
       addStaffAccount,
       updateWorkflowConfig,
+      updateEventsConfig,
       revokeRoomSession,
       restoreRoomSession,
       setIntegrationState,
@@ -6169,6 +6197,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       updateStaffRole,
       addStaffAccount,
       updateWorkflowConfig,
+      updateEventsConfig,
       revokeRoomSession,
       restoreRoomSession,
       setIntegrationState,
