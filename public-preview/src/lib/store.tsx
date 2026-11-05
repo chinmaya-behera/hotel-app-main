@@ -4427,6 +4427,16 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
   const claimTask = useCallback<DemoApi['claimTask']>(
     (taskId, fulfillerId, fulfillerName) => {
+      const currentAvail = stateRef.current.fulfillerAvailability ?? 'on_duty';
+      if (currentAvail === 'break') {
+        notify('Cannot self-assign tasks while on break. Switch to On Duty status to claim tasks.');
+        return;
+      }
+      if (currentAvail === 'off_duty') {
+        notify('Cannot self-assign tasks while off duty. Switch to On Duty status to claim tasks.');
+        return;
+      }
+
       const timestamp = nowLabel();
       let conflictError = false;
 

@@ -10,6 +10,7 @@ import {
   Check,
   CheckCircle2,
   Clock,
+  Coffee,
   Crown,
   Eye,
   FileText,
@@ -20,6 +21,7 @@ import {
   Play,
   RotateCcw,
   ShieldAlert,
+  ShieldCheck,
   Sparkles,
   User,
   Users,
@@ -109,7 +111,11 @@ interface FulfillerTasksTabProps {
 
 export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
   const activeProfile = profile || FULFILLER_PROFILES.housekeeping;
-  const { state, advance, attachTaskPhoto, requestTaskReassignment, claimTask } = useDemo();
+  const { state, advance, attachTaskPhoto, requestTaskReassignment, claimTask, notify, setFulfillerAvailability } = useDemo();
+
+  const currentAvail = state.fulfillerAvailability ?? 'on_duty';
+  const isOnBreak = currentAvail === 'break';
+  const isOffDuty = currentAvail === 'off_duty';
 
   // Primary view: "my_tasks" vs "all_tasks"
   const [primaryView, setPrimaryView] = useState<PrimaryView>('my_tasks');
@@ -179,7 +185,8 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
           task.status === 'Accepted' ||
           task.status === 'In progress' ||
           task.status === 'On the way' ||
-          task.status === 'Blocked'
+          task.status === 'Blocked' ||
+          task.status === 'Awaiting inspection'
         );
       if (myFilter === 'blocked') return task.status === 'Blocked';
       if (myFilter === 'completed') return task.status === 'Completed';
@@ -205,7 +212,8 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
           task.status === 'Accepted' ||
           task.status === 'In progress' ||
           task.status === 'On the way' ||
-          task.status === 'Blocked'
+          task.status === 'Blocked' ||
+          task.status === 'Awaiting inspection'
         );
       if (allFilter === 'completed') return task.status === 'Completed';
       return true;
@@ -216,7 +224,12 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
   const activeMyTasksCount = myTasks.filter((t) => t.status !== 'Completed').length;
   const pendingCount = myTasks.filter((t) => t.status === 'Assigned').length;
   const inProgressCount = myTasks.filter(
-    (t) => t.status === 'Accepted' || t.status === 'In progress' || t.status === 'On the way' || t.status === 'Blocked',
+    (t) =>
+      t.status === 'Accepted' ||
+      t.status === 'In progress' ||
+      t.status === 'On the way' ||
+      t.status === 'Blocked' ||
+      t.status === 'Awaiting inspection',
   ).length;
   const blockedCount = myTasks.filter((t) => t.status === 'Blocked').length;
   const overdueCount = myTasks.filter(
@@ -247,14 +260,70 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
   }
 
   function handleComplete(task: WorkItem) {
-    advance('task_fulfiller', task.id, {
-      label: 'Complete',
-      next: 'Completed',
-      message: 'Task completed',
-    });
+    advance(
+      'task_fulfiller',
+      task.id,
+      {
+        label: 'Submit for inspection',
+        next: 'Awaiting inspection',
+        message: `Work finished by ${activeProfile.employeeName}. Submitted for supervisor inspection`,
+      },
+      `Work finished by ${activeProfile.employeeName}. Awaiting sign-off by Supervisor ${activeProfile.supervisorName}`,
+    );
 
     if (selectedTask?.id === task.id) {
-      setSelectedTask(null);
+      setSelectedTask((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: 'Awaiting inspection',
+              history: [
+                ...(prev.history ?? []),
+                {
+                  at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                  status: 'Awaiting inspection',
+                  note: `Work completed by ${activeProfile.employeeName}. Submitted for quality inspection by Supervisor ${activeProfile.supervisorName}`,
+                  actor: activeProfile.employeeName,
+                  role: 'Task Fulfiller',
+                },
+              ],
+            }
+          : null,
+      );
+    }
+  }
+
+  function handleSupervisorVerify(task: WorkItem) {
+    advance(
+      'department_supervisor',
+      task.id,
+      {
+        label: 'Verify & Approve',
+        next: 'Completed',
+        message: `Inspected & approved by Supervisor ${activeProfile.supervisorName}`,
+      },
+      `Quality standards verified by Supervisor ${activeProfile.supervisorName} (${activeProfile.supervisorCode})`,
+    );
+
+    if (selectedTask?.id === task.id) {
+      setSelectedTask((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: 'Completed',
+              history: [
+                ...(prev.history ?? []),
+                {
+                  at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                  status: 'Completed',
+                  note: `Inspected & approved by Supervisor ${activeProfile.supervisorName}`,
+                  actor: activeProfile.supervisorName,
+                  role: 'Department Supervisor',
+                },
+              ],
+            }
+          : null,
+      );
     }
   }
 
@@ -590,6 +659,23 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
         </div>
       )}
 
+      {/* On Break Notice Banner */}
+      {isOnBreak && (
+        <div className="flex items-center justify-between rounded-2xl border border-amber-400/30 bg-amber-400/10 p-3 text-xs text-amber-200 shadow-md">
+          <div className="flex items-center gap-2 min-w-0">
+            <Coffee className="h-4 w-4 text-amber-400 shrink-0" />
+            <span className="truncate">You are currently <strong>On Break</strong>. Self-assigning tasks is disabled.</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setFulfillerAvailability('on_duty')}
+            className="shrink-0 rounded-xl bg-amber-400 px-2.5 py-1 text-[11px] font-bold text-ink-950 hover:bg-amber-300 transition-colors"
+          >
+            Resume Duty
+          </button>
+        </div>
+      )}
+
       {/* Task List Rendering */}
       <div className="flex flex-col gap-3">
         {(primaryView === 'my_tasks' ? filteredMyTasks : filteredAllTasks).length === 0 ? (
@@ -611,6 +697,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
             const isInProgress = task.status === 'In progress' || task.status === 'On the way';
             const isBlocked = task.status === 'Blocked';
             const isCompleted = task.status === 'Completed';
+            const isAwaitingInspection = task.status === 'Awaiting inspection';
             const isReassignPending = task.status === 'Reassignment requested' || task.reassignPending;
             const isUnassigned = task.status === 'Unassigned' || task.status === 'Received' || !task.assignee;
             const isAssignedToMe = isTaskAssignedToProfile(task, activeProfile);
@@ -624,15 +711,17 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     ? 'border-amber-400/40 bg-amber-400/[0.04] shadow-md shadow-amber-400/5'
                     : isCompleted
                       ? 'border-emerald-500/20 bg-emerald-500/[0.03]'
-                      : isBlocked
-                        ? 'border-rose-500/30 bg-rose-500/[0.05]'
-                        : isReassignPending
-                          ? 'border-amber-400/30 bg-amber-400/[0.04]'
-                          : task.priority === 'vip'
-                            ? 'border-amber-400/30 bg-amber-400/[0.03]'
-                            : task.priority === 'urgent'
-                              ? 'border-orange-400/30 bg-orange-400/[0.03]'
-                              : 'border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]',
+                      : isAwaitingInspection
+                        ? 'border-purple-400/30 bg-purple-400/[0.04]'
+                        : isBlocked
+                          ? 'border-rose-500/30 bg-rose-500/[0.05]'
+                          : isReassignPending
+                            ? 'border-amber-400/30 bg-amber-400/[0.04]'
+                            : task.priority === 'vip'
+                              ? 'border-amber-400/30 bg-amber-400/[0.03]'
+                              : task.priority === 'urgent'
+                                ? 'border-orange-400/30 bg-orange-400/[0.03]'
+                                : 'border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]',
                 )}
               >
                 {/* Header row: Location, Priority & Badges */}
@@ -672,15 +761,17 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                       'rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider shrink-0',
                       isCompleted
                         ? 'bg-emerald-400/20 text-emerald-300'
-                        : isBlocked
-                          ? 'bg-rose-500/20 text-rose-300'
-                          : isReassignPending
-                            ? 'bg-amber-400/20 text-amber-200'
-                            : isInProgress
-                              ? 'bg-sky-400/20 text-sky-300'
-                              : isUnassigned
-                                ? 'bg-amber-400/20 text-amber-300'
-                                : 'bg-white/10 text-mist-300',
+                        : isAwaitingInspection
+                          ? 'bg-purple-400/20 text-purple-300 border border-purple-400/30'
+                          : isBlocked
+                            ? 'bg-rose-500/20 text-rose-300'
+                            : isReassignPending
+                              ? 'bg-amber-400/20 text-amber-200'
+                              : isInProgress
+                                ? 'bg-sky-400/20 text-sky-300'
+                                : isUnassigned
+                                  ? 'bg-amber-400/20 text-amber-300'
+                                  : 'bg-white/10 text-mist-300',
                     )}
                   >
                     {isUnassigned ? 'Unassigned' : task.status}
@@ -780,11 +871,34 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     {isUnassigned && (
                       <button
                         type="button"
-                        onClick={() => claimTask(task.id, activeProfile.employeeId, activeProfile.employeeName)}
-                        className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-amber-400 py-2.5 px-3 text-xs font-bold text-ink-950 shadow-md shadow-amber-400/20 active:scale-[0.98] transition-transform hover:bg-amber-300"
+                        disabled={isOnBreak || isOffDuty}
+                        onClick={() => {
+                          if (isOnBreak || isOffDuty) {
+                            notify('Cannot self-assign tasks while on break. Switch to On Duty to claim tasks.');
+                            return;
+                          }
+                          claimTask(task.id, activeProfile.employeeId, activeProfile.employeeName);
+                        }}
+                        className={cn(
+                          'flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 px-3 text-xs font-bold transition-all shadow-md',
+                          isOnBreak || isOffDuty
+                            ? 'bg-white/10 text-mist-400 cursor-not-allowed border border-white/10 opacity-70'
+                            : 'bg-amber-400 text-ink-950 shadow-amber-400/20 active:scale-[0.98] hover:bg-amber-300 cursor-pointer',
+                        )}
                       >
-                        <Sparkles className="h-3.5 w-3.5" />
-                        Claim Task (Self-Assign)
+                        {isOnBreak ? (
+                          <>
+                            <Coffee className="h-3.5 w-3.5 text-amber-400" />
+                            <span>On Break — Cannot Claim</span>
+                          </>
+                        ) : isOffDuty ? (
+                          <span>Off Duty — Cannot Claim</span>
+                        ) : (
+                          <>
+                            <Sparkles className="h-3.5 w-3.5" />
+                            <span>Claim Task (Self-Assign)</span>
+                          </>
+                        )}
                       </button>
                     )}
 
@@ -938,6 +1052,44 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                         </button>
                       </>
                     )}
+
+                    {!isUnassigned && isAssignedToMe && isAwaitingInspection && (
+                      <div className="flex flex-col gap-2 w-full">
+                        <div className="flex items-center justify-between rounded-xl border border-purple-400/30 bg-purple-500/10 px-3 py-2 text-xs">
+                          <div className="flex items-center gap-1.5 text-purple-300 font-semibold min-w-0">
+                            <ShieldCheck className="h-4 w-4 text-purple-400 shrink-0" />
+                            <span className="truncate">Submitted for Supervisor Sign-Off</span>
+                          </div>
+                          <span className="text-[10px] text-purple-200/90 font-medium shrink-0">
+                            {activeProfile.supervisorName}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleSupervisorVerify(task)}
+                            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-purple-500 hover:bg-purple-400 active:scale-[0.98] py-2 px-3 text-xs font-bold text-white shadow-md shadow-purple-500/20 transition-all"
+                          >
+                            <ShieldCheck className="h-3.5 w-3.5" />
+                            Supervisor Sign-Off & Approve
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openPhotoUpload(task)}
+                            className={cn(
+                              'rounded-xl border px-3 py-2 text-xs font-medium transition-colors flex items-center gap-1.5',
+                              task.photoUrl
+                                ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                                : 'border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
+                            )}
+                            title="Upload or capture task photo"
+                          >
+                            <Camera className="h-3.5 w-3.5" />
+                            {task.photoUrl ? 'Photo ✓' : 'Upload Photo'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1018,7 +1170,16 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     <span className="rounded-md bg-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-300">
                       {selectedTask.room ? `Room ${selectedTask.room}` : selectedTask.location || 'Location'}
                     </span>
-                    <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-[11px] font-semibold uppercase text-mist-300">
+                    <span
+                      className={cn(
+                        'rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase',
+                        selectedTask.status === 'Completed'
+                          ? 'bg-emerald-500/20 text-emerald-300'
+                          : selectedTask.status === 'Awaiting inspection'
+                            ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                            : 'bg-white/10 text-mist-300',
+                      )}
+                    >
                       {selectedTask.status}
                     </span>
                     {selectedTask.assignee && (
@@ -1141,11 +1302,13 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                                 'absolute -left-[5px] top-0.5 h-2 w-2 rounded-full ring-2 ring-ink-900',
                                 entry.status === 'Completed'
                                   ? 'bg-emerald-400'
-                                  : entry.status === 'Blocked'
-                                    ? 'bg-rose-400'
-                                    : entry.status === 'Reassignment requested'
-                                      ? 'bg-amber-400'
-                                      : 'bg-sky-400',
+                                  : entry.status === 'Awaiting inspection'
+                                    ? 'bg-purple-400'
+                                    : entry.status === 'Blocked'
+                                      ? 'bg-rose-400'
+                                      : entry.status === 'Reassignment requested'
+                                        ? 'bg-amber-400'
+                                        : 'bg-sky-400',
                               )}
                             />
                             <div className="flex items-center justify-between gap-2">
@@ -1192,14 +1355,25 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                   Close
                 </button>
                 {selectedTask.status !== 'Completed' && isTaskAssignedToProfile(selectedTask, activeProfile) && (
-                  <button
-                    type="button"
-                    onClick={() => handleComplete(selectedTask)}
-                    className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-[0.99] py-2.5 text-xs font-bold text-ink-950 transition-all shadow-md shadow-emerald-500/20 text-center"
-                  >
-                    <CheckCircle2 className="h-4 w-4" />
-                    Complete Task
-                  </button>
+                  selectedTask.status === 'Awaiting inspection' ? (
+                    <button
+                      type="button"
+                      onClick={() => handleSupervisorVerify(selectedTask)}
+                      className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-purple-500 hover:bg-purple-400 active:scale-[0.99] py-2.5 text-xs font-bold text-white transition-all shadow-md shadow-purple-500/20 text-center"
+                    >
+                      <ShieldCheck className="h-4 w-4" />
+                      Verify & Approve (Supervisor)
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleComplete(selectedTask)}
+                      className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-[0.99] py-2.5 text-xs font-bold text-ink-950 transition-all shadow-md shadow-emerald-500/20 text-center"
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                      Submit for Inspection
+                    </button>
+                  )
                 )}
               </div>
             </div>

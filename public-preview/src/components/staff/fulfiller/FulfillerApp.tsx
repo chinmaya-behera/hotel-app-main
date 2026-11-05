@@ -35,10 +35,12 @@ import { playChime } from './chime';
 type FulfillerTab = 'tasks' | 'notifications' | 'policies' | 'performance' | 'profile';
 
 function FulfillerAppContent() {
-  const { state, setPersona, setSoundEnabled, setTheme, setActiveDispatcherDept, toasts } = useDemo();
+  const { state, setPersona, setSoundEnabled, setTheme, setActiveDispatcherDept, toasts, setFulfillerAvailability } = useDemo();
   const [activeTab, setActiveTab] = useState<FulfillerTab>('tasks');
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevTaskCountRef = useRef<number | null>(null);
+
+  const currentAvail = state.fulfillerAvailability ?? 'on_duty';
 
   const searchParams = useSearchParams();
   const rawParam = (searchParams?.get('dept') || '').toLowerCase();
@@ -151,7 +153,33 @@ function FulfillerAppContent() {
                   <h1 className="text-xs font-bold text-white truncate">
                     {profile.employeeName}
                   </h1>
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 ring-2 ring-emerald-400/20 shrink-0" />
+                  <button
+                    type="button"
+                    onClick={() => setFulfillerAvailability(currentAvail === 'break' ? 'on_duty' : 'break')}
+                    className={cn(
+                      'flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold border transition-colors',
+                      currentAvail === 'break'
+                        ? 'bg-amber-400/20 text-amber-300 border-amber-400/40 hover:bg-amber-400/30'
+                        : currentAvail === 'off_duty'
+                          ? 'bg-rose-400/20 text-rose-300 border-rose-400/40 hover:bg-rose-400/30'
+                          : 'bg-emerald-400/20 text-emerald-300 border-emerald-400/40 hover:bg-emerald-400/30',
+                    )}
+                    title="Click to toggle On Duty / On Break"
+                  >
+                    <span
+                      className={cn(
+                        'h-1.5 w-1.5 rounded-full shrink-0',
+                        currentAvail === 'break'
+                          ? 'bg-amber-400 animate-pulse'
+                          : currentAvail === 'off_duty'
+                            ? 'bg-rose-400'
+                            : 'bg-emerald-400',
+                      )}
+                    />
+                    <span>
+                      {currentAvail === 'break' ? 'On Break' : currentAvail === 'off_duty' ? 'Off Duty' : 'On Duty'}
+                    </span>
+                  </button>
                 </div>
                 <p className="text-[10px] text-mist-300 truncate font-medium">
                   {profile.departmentName} · {profile.zone}
