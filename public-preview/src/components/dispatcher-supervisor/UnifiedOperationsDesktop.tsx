@@ -1,28 +1,9 @@
 'use client';
 
 import { useMemo } from 'react';
-import {
-  AlertTriangle,
-  Clock,
-  CheckCircle2,
-  Users,
-  Sparkles,
-  ArrowUpRight,
-  Flame,
-  Bed,
-  Wrench,
-  UtensilsCrossed,
-  ClipboardCheck,
-  ShieldCheck,
-  RotateCcw,
-  Plus,
-  Radio,
-} from 'lucide-react';
 import { useDemo } from '@/lib/store';
 import type {
   SupervisorInspection,
-  RoomRecord,
-  StaffAccount,
   WorkItem,
 } from '@/types/demo';
 
@@ -31,16 +12,20 @@ interface UnifiedOperationsDesktopProps {
   onSelectInspection: (inspection: SupervisorInspection) => void;
   onOpenCreateTask: () => void;
   onOpenEscalate: () => void;
+  activeDept?: string;
+  onSelectDept?: (dept: string) => void;
 }
 
 export function UnifiedOperationsDesktop({
   onNavigateTab,
-  onSelectInspection,
   onOpenCreateTask,
   onOpenEscalate,
+  activeDept = 'all',
+  onSelectDept,
 }: UnifiedOperationsDesktopProps) {
-  const { state, autoAssignTask, approveInspection } = useDemo();
+  const { state, autoAssignTask } = useDemo();
 
+  // Combine all dispatcher and supervisor tasks
   const allTasks = useMemo(() => {
     return [
       ...(state.items.department_dispatcher_supervisor ?? []),
@@ -48,292 +33,401 @@ export function UnifiedOperationsDesktop({
     ].filter((t, i, arr) => arr.findIndex((x) => x.id === t.id) === i);
   }, [state.items]);
 
-  const inspections = state.inspections ?? [];
-  const rooms: RoomRecord[] = state.frontDesk?.rooms ?? [];
   const staffList = state.staffAccounts ?? [];
 
-  // 1. Task Metrics
-  const totalTasks = allTasks.length;
-  const unassignedTasks = allTasks.filter(
+  // Filter tasks by active department
+  const filteredTasks = useMemo(() => {
+    if (!activeDept || activeDept === 'all') return allTasks;
+    const key = activeDept.toLowerCase();
+    return allTasks.filter((t) => {
+      const d = (t.department || '').toLowerCase();
+      const c = (t.category || '').toLowerCase();
+      const m = (t.meta || '').toLowerCase();
+      if (key === 'maintenance' || key === 'engineering') {
+        return d.includes('maintenance') || d.includes('engineering') || c.includes('maintenance') || m.includes('maintenance');
+      }
+      if (key === 'housekeeping') {
+        return d.includes('housekeeping') || c.includes('housekeeping') || m.includes('housekeeping');
+      }
+      if (key === 'f&b' || key === 'food_beverage' || key === 'dining') {
+        return d.includes('food') || d.includes('beverage') || c.includes('f&b') || c.includes('dining') || m.includes('f&b') || c.includes('room_service');
+      }
+      return true;
+    });
+  }, [allTasks, activeDept]);
+
+  // Filter staff by department
+  const filteredStaff = useMemo(() => {
+    const fulfillers = staffList.filter((s) => s.roleId === 'task_fulfiller');
+    if (!activeDept || activeDept === 'all') return fulfillers;
+    const key = activeDept.toLowerCase();
+    return fulfillers.filter((s) => {
+      const d = (s.department || '').toLowerCase();
+      if (key === 'maintenance' || key === 'engineering') {
+        return d.includes('maintenance') || d.includes('engineering');
+      }
+      if (key === 'housekeeping') {
+        return d.includes('housekeeping');
+      }
+      if (key === 'f&b' || key === 'food_beverage') {
+        return d.includes('food') || d.includes('beverage');
+      }
+      return true;
+    });
+  }, [staffList, activeDept]);
+
+  // Task KPI calculations
+  const unassignedTasks = filteredTasks.filter(
     (t) => t.status === 'Unassigned' || t.status === 'Received',
   );
-  const activeTasks = allTasks.filter(
+  const activeTasks = filteredTasks.filter(
     (t) => t.status === 'Assigned' || t.status === 'In progress' || t.status === 'Accepted',
   );
-  const overdueTasks = allTasks.filter(
+  const overdueOrBlockedTasks = filteredTasks.filter(
     (t) =>
+      t.status === 'Blocked' ||
+      t.status === 'Failed' ||
       t.ackStatus === 'overdue' ||
       t.chip?.toLowerCase().includes('overdue') ||
       t.slaDue?.toLowerCase().includes('overdue'),
   );
 
-  // 2. Inspection & Room Metrics
-  const pendingInspections = inspections.filter((i) => i.status === 'pending');
-  const readyRoomsCount = rooms.filter((r) => r.readiness === 'ready').length;
-  const inspectionPendingRooms = rooms.filter((r) => r.readiness === 'inspection_pending').length;
-  const cleaningRooms = rooms.filter((r) => r.readiness === 'cleaning').length;
-  const dirtyRooms = rooms.filter((r) => r.readiness === 'dirty').length;
+  // Department counts for switcher pills
+  const deptCounts = useMemo(() => {
+    const getCount = (k: string) => {
+      return allTasks.filter((t) => {
+        const d = (t.department || '').toLowerCase();
+        const c = (t.category || '').toLowerCase();
+        const m = (t.meta || '').toLowerCase();
+        if (k === 'maintenance') {
+          return d.includes('maintenance') || d.includes('engineering') || c.includes('maintenance') || m.includes('maintenance');
+        }
+        if (k === 'housekeeping') {
+          return d.includes('housekeeping') || c.includes('housekeeping') || m.includes('housekeeping');
+        }
+        if (k === 'f&b') {
+          return d.includes('food') || d.includes('beverage') || c.includes('f&b') || c.includes('dining') || m.includes('f&b') || c.includes('room_service');
+        }
+        return false;
+      }).length;
+    };
+    return {
+      all: allTasks.length,
+      maintenance: getCount('maintenance'),
+      housekeeping: getCount('housekeeping'),
+      fnb: getCount('f&b'),
+    };
+  }, [allTasks]);
 
-  // 3. Staff Metrics
-  const fulfillers = staffList.filter((s) => s.roleId === 'task_fulfiller');
-  const onDutyCount = fulfillers.filter(
-    (f) => f.status === 'active' && (!f.availability || f.availability === 'on_duty'),
-  ).length;
+  // Urgent pending queue items
+  const priorityQueue = unassignedTasks
+    .sort((a, b) => (b.priority === 'critical' ? 2 : b.priority === 'urgent' ? 1 : 0) - (a.priority === 'critical' ? 2 : a.priority === 'urgent' ? 1 : 0))
+    .slice(0, 5);
 
-  // 4. Urgent Items
-  const urgentTasks = allTasks.filter(
-    (t) =>
-      t.status === 'Unassigned' &&
-      (t.priority === 'critical' ||
-        t.priority === 'urgent' ||
-        t.priority === 'safety' ||
-        t.priority === 'vip' ||
-        t.ackStatus === 'overdue'),
-  );
+  // Active in-field tickets
+  const activeWorkOrders = activeTasks.slice(0, 5);
 
-  // Department distribution
-  const hkTasks = allTasks.filter((t) =>
-    (t.department || t.category || '').toLowerCase().includes('housekeeping'),
-  );
-  const mxTasks = allTasks.filter((t) =>
-    (t.department || t.category || '').toLowerCase().includes('maintenance'),
-  );
-  const fbTasks = allTasks.filter(
-    (t) =>
-      (t.department || t.category || '').toLowerCase().includes('food') ||
-      t.category === 'room_service',
-  );
+  const isMaintenance = activeDept.toLowerCase() === 'maintenance' || activeDept.toLowerCase() === 'engineering';
 
   return (
     <div className="space-y-6">
-      {/* SECTION 1: CORE UNIFIED 4-METRIC STRIP */}
+      {/* DEPARTMENT CONTEXT FILTER BAR (Clean text-first pills, no icons, no image boxes) */}
+      <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl border border-white/[0.08] bg-ink-900/80 backdrop-blur-md shadow-sm">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-mist-400 pl-1">
+            Department Stream:
+          </span>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => onSelectDept?.('all')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
+                activeDept === 'all'
+                  ? 'bg-amber-400 text-ink-950 font-bold shadow-sm'
+                  : 'bg-white/[0.04] text-mist-300 hover:text-white hover:bg-white/[0.08] border border-white/[0.06]'
+              }`}
+            >
+              All Operations ({deptCounts.all})
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onSelectDept?.('maintenance')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
+                isMaintenance
+                  ? 'bg-amber-400 text-ink-950 font-bold shadow-sm'
+                  : 'bg-white/[0.04] text-mist-300 hover:text-white hover:bg-white/[0.08] border border-white/[0.06]'
+              }`}
+            >
+              Maintenance & Engineering ({deptCounts.maintenance})
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onSelectDept?.('housekeeping')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
+                activeDept === 'housekeeping'
+                  ? 'bg-amber-400 text-ink-950 font-bold shadow-sm'
+                  : 'bg-white/[0.04] text-mist-300 hover:text-white hover:bg-white/[0.08] border border-white/[0.06]'
+              }`}
+            >
+              Housekeeping ({deptCounts.housekeeping})
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onSelectDept?.('food_beverage')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
+                activeDept === 'food_beverage'
+                  ? 'bg-amber-400 text-ink-950 font-bold shadow-sm'
+                  : 'bg-white/[0.04] text-mist-300 hover:text-white hover:bg-white/[0.08] border border-white/[0.06]'
+              }`}
+            >
+              F&B / In-Room Dining ({deptCounts.fnb})
+            </button>
+          </div>
+        </div>
+
+        {isMaintenance && (
+          <div className="px-3 py-1 rounded-lg bg-amber-400/10 border border-amber-400/20 text-amber-300 text-xs font-semibold">
+            Engineering Active Desk &bull; Lead: Arjun Mehta
+          </div>
+        )}
+      </div>
+
+      {/* SECTION 1: CORE 4-METRIC OPERATIONAL STRIP (Clean Text-First, No Icon Boxes) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Metric 1: Pending Queue */}
+        {/* Metric 1 */}
         <div
           onClick={() => onNavigateTab('queue')}
-          className="group cursor-pointer rounded-3xl border border-amber-400/20 bg-gradient-to-br from-amber-500/[0.08] to-ink-900/90 p-4 sm:p-5 backdrop-blur-xl shadow-xl hover:border-amber-400/40 transition"
+          className="group cursor-pointer rounded-xl border border-white/[0.08] bg-ink-900/60 p-4 backdrop-blur-xl hover:border-amber-400/40 hover:bg-ink-900/90 transition shadow-sm"
         >
-          <div className="flex items-center justify-between text-amber-300">
-            <span className="text-xs font-bold uppercase tracking-wider">Unassigned Queue</span>
-            <AlertTriangle className="h-4 w-4 group-hover:scale-110 transition" />
+          <div className="text-[11px] font-bold uppercase tracking-wider text-mist-400 mb-1.5">
+            Unassigned Queue
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold font-mono text-amber-300">
+          <div className="flex items-baseline gap-2">
+            <span className="text-3xl font-bold font-mono text-white tracking-tight">
               {unassignedTasks.length}
             </span>
-            <span className="text-xs text-mist-400 font-mono">/ {totalTasks} total</span>
+            <span className="text-xs text-amber-400 font-medium">Awaiting Dispatch</span>
           </div>
-          <p className="mt-1 text-[11px] text-amber-200/70">
-            {urgentTasks.length > 0 ? `${urgentTasks.length} urgent priority` : 'Awaiting dispatch'}
+          <p className="mt-2 text-[11px] text-mist-400">
+            {isMaintenance ? 'Engineering work orders' : 'Cross-department tickets'} &rarr;
           </p>
         </div>
 
-        {/* Metric 2: Active Field Work */}
+        {/* Metric 2 */}
         <div
           onClick={() => onNavigateTab('workload')}
-          className="group cursor-pointer rounded-3xl border border-emerald-400/20 bg-gradient-to-br from-emerald-500/[0.08] to-ink-900/90 p-4 sm:p-5 backdrop-blur-xl shadow-xl hover:border-emerald-400/40 transition"
+          className="group cursor-pointer rounded-xl border border-white/[0.08] bg-ink-900/60 p-4 backdrop-blur-xl hover:border-emerald-400/40 hover:bg-ink-900/90 transition shadow-sm"
         >
-          <div className="flex items-center justify-between text-emerald-300">
-            <span className="text-xs font-bold uppercase tracking-wider">Active in Field</span>
-            <Clock className="h-4 w-4 group-hover:text-emerald-200 transition" />
+          <div className="text-[11px] font-bold uppercase tracking-wider text-mist-400 mb-1.5">
+            Active Field Work
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold font-mono text-white">
+          <div className="flex items-baseline gap-2">
+            <span className="text-3xl font-bold font-mono text-white tracking-tight">
               {activeTasks.length}
             </span>
-            <span className="text-xs text-emerald-400 font-mono">in progress</span>
+            <span className="text-xs text-emerald-400 font-medium">In Progress</span>
           </div>
-          <p className="mt-1 text-[11px] text-mist-400">
-            {onDutyCount} attendants on duty
+          <p className="mt-2 text-[11px] text-mist-400">
+            {filteredStaff.length} technicians on duty &rarr;
           </p>
         </div>
 
-        {/* Metric 3: Overdue / Blockers */}
+        {/* Metric 3 */}
         <div
-          onClick={() => onNavigateTab(overdueTasks.length > 0 ? 'blockers' : 'sla')}
-          className="group cursor-pointer rounded-3xl border border-rose-500/20 bg-gradient-to-br from-rose-500/[0.08] to-ink-900/90 p-4 sm:p-5 backdrop-blur-xl shadow-xl hover:border-rose-500/40 transition"
+          onClick={() => onNavigateTab('blockers')}
+          className="group cursor-pointer rounded-xl border border-white/[0.08] bg-ink-900/60 p-4 backdrop-blur-xl hover:border-rose-400/40 hover:bg-ink-900/90 transition shadow-sm"
         >
-          <div className="flex items-center justify-between text-rose-300">
-            <span className="text-xs font-bold uppercase tracking-wider">Overdue / Blockers</span>
-            <Flame className="h-4 w-4 text-rose-400 group-hover:scale-110 transition" />
+          <div className="text-[11px] font-bold uppercase tracking-wider text-mist-400 mb-1.5">
+            Overdue & Blockers
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold font-mono text-rose-400">
-              {overdueTasks.length}
+          <div className="flex items-baseline gap-2">
+            <span className="text-3xl font-bold font-mono text-rose-300 tracking-tight">
+              {overdueOrBlockedTasks.length}
             </span>
-            <span className="text-xs text-rose-300/70 font-mono">SLA breaches</span>
+            <span className="text-xs text-rose-400 font-medium">Attention Needed</span>
           </div>
-          <p className="mt-1 text-[11px] text-mist-400">
-            Requires immediate supervisor action
+          <p className="mt-2 text-[11px] text-mist-400">
+            SLA breaches or dependencies &rarr;
           </p>
         </div>
 
-        {/* Metric 4: Room Quality & Readiness */}
+        {/* Metric 4 */}
         <div
-          onClick={() => onNavigateTab('rooms')}
-          className="group cursor-pointer rounded-3xl border border-sky-400/20 bg-gradient-to-br from-sky-500/[0.08] to-ink-900/90 p-4 sm:p-5 backdrop-blur-xl shadow-xl hover:border-sky-400/40 transition"
+          onClick={() => onNavigateTab('sla')}
+          className="group cursor-pointer rounded-xl border border-white/[0.08] bg-ink-900/60 p-4 backdrop-blur-xl hover:border-cyan-400/40 hover:bg-ink-900/90 transition shadow-sm"
         >
-          <div className="flex items-center justify-between text-sky-300">
-            <span className="text-xs font-bold uppercase tracking-wider">Room Readiness</span>
-            <ShieldCheck className="h-4 w-4 group-hover:scale-110 transition" />
+          <div className="text-[11px] font-bold uppercase tracking-wider text-mist-400 mb-1.5">
+            {isMaintenance ? 'Engineering SLA Health' : 'Service SLA Health'}
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold font-mono text-white">
-              {readyRoomsCount}
+          <div className="flex items-baseline gap-2">
+            <span className="text-3xl font-bold font-mono text-cyan-300 tracking-tight">
+              96.4%
             </span>
-            <span className="text-xs text-sky-300 font-mono">/ {rooms.length || 32} ready</span>
+            <span className="text-xs text-cyan-300 font-medium">On-Time Rate</span>
           </div>
-          <p className="mt-1 text-[11px] text-sky-200/80">
-            {pendingInspections.length} awaiting quality check
+          <p className="mt-2 text-[11px] text-mist-400">
+            Avg dispatch response: 3.8m &rarr;
           </p>
         </div>
       </div>
 
-      {/* SECTION 2: IMMEDIATE ATTENTION ACTION HUB (2-COLUMN SPLIT) */}
+      {/* SECTION 2: IMMEDIATE DISPATCH STREAM & ACTIVE WORK ORDERS (2-COLUMN GRID, NO ICON BOXES) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left Column: Urgent Dispatch Requests */}
-        <div className="rounded-3xl border border-white/10 bg-ink-900/90 p-5 backdrop-blur-xl shadow-xl space-y-4 flex flex-col justify-between">
+        {/* Left Column: Priority Dispatch Requests */}
+        <div className="rounded-2xl border border-white/10 bg-ink-900/80 p-5 backdrop-blur-xl shadow-lg flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
-              <div className="flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-full bg-amber-400 animate-pulse" />
+            <div className="flex items-center justify-between pb-3.5 border-b border-white/[0.08]">
+              <div>
                 <h2 className="text-base font-bold font-display text-white">
-                  Priority Dispatch Queue ({unassignedTasks.length})
+                  Priority Dispatch Stream
                 </h2>
+                <p className="text-xs text-mist-400">
+                  {priorityQueue.length} pending requests awaiting assignment
+                </p>
               </div>
               <button
                 type="button"
                 onClick={() => onNavigateTab('queue')}
-                className="text-xs text-amber-300 hover:text-white font-semibold transition flex items-center gap-1"
+                className="text-xs font-bold text-amber-400 hover:text-amber-300 transition"
               >
-                <span>Full Queue</span>
-                <ArrowUpRight className="h-3.5 w-3.5" />
+                View Full Queue &rarr;
               </button>
             </div>
 
             <div className="mt-4 space-y-2.5">
-              {unassignedTasks.length === 0 ? (
-                <div className="text-center py-8 text-mist-400">
-                  <CheckCircle2 className="h-8 w-8 text-emerald-400 mx-auto mb-2" />
-                  <p className="text-sm font-semibold">Queue is clear</p>
-                  <p className="text-xs">All incoming tickets have been assigned.</p>
+              {priorityQueue.length === 0 ? (
+                <div className="py-10 text-center text-mist-400 space-y-1">
+                  <p className="text-sm font-semibold text-white">All Requests Dispatched</p>
+                  <p className="text-xs">No pending requests in the unassigned queue.</p>
                 </div>
               ) : (
-                unassignedTasks.slice(0, 3).map((item) => (
+                priorityQueue.map((task) => (
                   <div
-                    key={item.id}
-                    className="p-3.5 rounded-2xl border border-white/[0.06] bg-ink-950/70 hover:bg-white/[0.02] transition flex items-center justify-between gap-3"
+                    key={task.id}
+                    className="p-3.5 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/20 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                   >
-                    <div className="space-y-1 min-w-0 flex-1">
-                      <div className="flex items-center gap-2 text-xs">
-                        <span className="font-mono font-bold text-amber-300">{item.ref}</span>
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                          {item.priority}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span
+                          className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${
+                            task.priority === 'critical'
+                              ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                              : task.priority === 'urgent'
+                              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                              : 'bg-white/10 text-mist-300 border border-white/10'
+                          }`}
+                        >
+                          {task.priority || 'Normal'}
                         </span>
-                        <span className="text-[11px] text-mist-400 truncate">
-                          {item.department || item.category}
+                        {task.room && (
+                          <span className="text-[11px] font-mono text-mist-300 bg-white/[0.06] px-1.5 py-0.5 rounded">
+                            Room {task.room}
+                          </span>
+                        )}
+                        <span className="text-xs text-mist-400 truncate">
+                          {task.department || 'Operations'}
                         </span>
                       </div>
-                      <h4 className="text-xs sm:text-sm font-bold text-white truncate">
-                        {item.title}
+                      <h4 className="text-sm font-semibold text-white truncate">
+                        {task.title}
                       </h4>
+                      <p className="text-xs text-mist-400 truncate mt-0.5">
+                        {task.meta || task.description || 'Standard response protocol'}
+                      </p>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => autoAssignTask(item.id)}
-                      className="shrink-0 px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-ink-950 text-xs font-bold transition flex items-center gap-1 shadow-sm"
-                    >
-                      <Sparkles className="h-3 w-3" />
-                      <span>Auto-Assign</span>
-                    </button>
+                    <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                      <button
+                        type="button"
+                        onClick={() => autoAssignTask(task.id)}
+                        className="px-3 py-1.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-ink-950 text-xs font-bold transition shadow-sm"
+                      >
+                        Auto-Assign
+                      </button>
+                    </div>
                   </div>
                 ))
               )}
             </div>
           </div>
 
-          <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-mist-400">
-            <span>Average response time: 2m 40s</span>
+          <div className="mt-4 pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-mist-400">
+            <span>Urgent SLA: 15-minute acknowledgment window</span>
             <button
               type="button"
               onClick={onOpenCreateTask}
-              className="text-amber-300 hover:text-white font-semibold flex items-center gap-1"
+              className="text-amber-400 hover:text-amber-300 font-bold"
             >
-              <Plus className="h-3 w-3" />
-              <span>Manual Task</span>
+              + New Work Order
             </button>
           </div>
         </div>
 
-        {/* Right Column: Rooms Awaiting Quality Inspection */}
-        <div className="rounded-3xl border border-white/10 bg-ink-900/90 p-5 backdrop-blur-xl shadow-xl space-y-4 flex flex-col justify-between">
+        {/* Right Column: Active In-Field Work Orders & Issues */}
+        <div className="rounded-2xl border border-white/10 bg-ink-900/80 p-5 backdrop-blur-xl shadow-lg flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
-              <div className="flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-full bg-sky-400 animate-pulse" />
+            <div className="flex items-center justify-between pb-3.5 border-b border-white/[0.08]">
+              <div>
                 <h2 className="text-base font-bold font-display text-white">
-                  Awaiting Quality Sign-Off ({pendingInspections.length})
+                  Active Field Work Orders
                 </h2>
+                <p className="text-xs text-mist-400">
+                  Jobs currently in progress by field technicians
+                </p>
               </div>
               <button
                 type="button"
-                onClick={() => onNavigateTab('inspections')}
-                className="text-xs text-sky-300 hover:text-white font-semibold transition flex items-center gap-1"
+                onClick={() => onNavigateTab('blockers')}
+                className="text-xs font-bold text-rose-400 hover:text-rose-300 transition"
               >
-                <span>Inspections Board</span>
-                <ArrowUpRight className="h-3.5 w-3.5" />
+                View Blockers &rarr;
               </button>
             </div>
 
             <div className="mt-4 space-y-2.5">
-              {pendingInspections.length === 0 ? (
-                <div className="text-center py-8 text-mist-400">
-                  <CheckCircle2 className="h-8 w-8 text-emerald-400 mx-auto mb-2" />
-                  <p className="text-sm font-semibold">No pending inspections</p>
-                  <p className="text-xs">All cleaned rooms have been certified.</p>
+              {activeWorkOrders.length === 0 ? (
+                <div className="py-10 text-center text-mist-400 space-y-1">
+                  <p className="text-sm font-semibold text-white">No Active Jobs In Flight</p>
+                  <p className="text-xs">Assign pending items from the queue to start work orders.</p>
                 </div>
               ) : (
-                pendingInspections.slice(0, 3).map((insp) => (
+                activeWorkOrders.map((task) => (
                   <div
-                    key={insp.id}
-                    className="p-3.5 rounded-2xl border border-white/[0.06] bg-ink-950/70 hover:bg-white/[0.02] transition flex items-center justify-between gap-3"
+                    key={task.id}
+                    className="p-3.5 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/20 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                   >
-                    <div className="space-y-1 min-w-0 flex-1">
-                      <div className="flex items-center gap-2 text-xs">
-                        <span className="font-bold text-white font-mono">
-                          Room {insp.roomNumber}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                          {task.status}
                         </span>
-                        <span className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30">
-                          {insp.roomType || 'Deluxe Room'}
-                        </span>
-                        {insp.priority === 'vip' && (
-                          <span className="text-[10px] uppercase font-bold px-1.5 py-0.2 rounded bg-amber-400 text-ink-950">
-                            VIP
+                        {task.room && (
+                          <span className="text-[11px] font-mono text-mist-300 bg-white/[0.06] px-1.5 py-0.5 rounded">
+                            Room {task.room}
                           </span>
                         )}
+                        <span className="text-xs text-mist-400 truncate">
+                          Assigned: {task.assignee || 'Wayne Chen'}
+                        </span>
                       </div>
-                      <p className="text-xs text-mist-400 truncate">
-                        Attendant: {insp.attendantName} · Completed at {insp.completedAt || 'Recently'}
+                      <h4 className="text-sm font-semibold text-white truncate">
+                        {task.title}
+                      </h4>
+                      <p className="text-xs text-mist-400 truncate mt-0.5">
+                        Due: {task.slaDue || '10:30'} &bull; Ref: {task.ref || task.id}
                       </p>
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
                       <button
                         type="button"
-                        onClick={() => onSelectInspection(insp)}
-                        className="px-3 py-1.5 rounded-xl border border-white/20 bg-white/[0.04] hover:bg-white/[0.1] text-xs font-semibold text-white transition"
+                        onClick={onOpenEscalate}
+                        className="px-2.5 py-1.5 rounded-lg border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-xs font-semibold text-rose-300 transition"
                       >
-                        Inspect
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => approveInspection(insp.id)}
-                        className="px-3 py-1.5 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-ink-950 text-xs font-bold transition flex items-center gap-1 shadow-sm"
-                        title="Quick approve and release to Front Desk"
-                      >
-                        <CheckCircle2 className="h-3 w-3" />
-                        <span>Pass</span>
+                        Escalate
                       </button>
                     </div>
                   </div>
@@ -342,156 +436,123 @@ export function UnifiedOperationsDesktop({
             </div>
           </div>
 
-          <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-mist-400">
-            <span>First-Pass Quality Target: 90%</span>
+          <div className="mt-4 pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-mist-400">
+            <span>Track live progress and communication</span>
             <button
               type="button"
-              onClick={onOpenEscalate}
-              className="text-rose-400 hover:text-white font-semibold flex items-center gap-1"
+              onClick={() => onNavigateTab('workload')}
+              className="text-amber-400 hover:text-amber-300 font-bold"
             >
-              <Flame className="h-3 w-3" />
-              <span>Escalate Discrepancy</span>
+              Manage Assignments &rarr;
             </button>
           </div>
         </div>
       </div>
 
-      {/* SECTION 3: ROOM READINESS PIPELINE & LIVE WORKLOAD (2-COLUMN SPLIT) */}
+      {/* SECTION 3: ON-DUTY PERSONNEL & SYSTEM SHORTCUTS (2-COLUMN GRID, NO IMAGE/AVATAR BOXES) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Room Readiness Pipeline */}
-        <div className="rounded-3xl border border-white/10 bg-ink-900/90 p-5 backdrop-blur-xl shadow-xl space-y-4">
+        {/* On-Duty Field Personnel (Clean text rows, NO avatar image boxes) */}
+        <div className="rounded-2xl border border-white/10 bg-ink-900/80 p-5 backdrop-blur-xl shadow-lg space-y-4">
           <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
             <div>
               <h3 className="text-base font-bold font-display text-white">
-                Property Room Readiness Pipeline
+                {isMaintenance ? 'On-Duty Engineering Crew' : 'On-Duty Field Crew'}
               </h3>
               <p className="text-xs text-mist-400">
-                Live synchronization with Front Desk check-in availability
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => onNavigateTab('rooms')}
-              className="text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1 transition"
-            >
-              <span>Room Board</span>
-              <ArrowUpRight className="h-3.5 w-3.5" />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
-            <div className="p-3.5 rounded-2xl bg-rose-500/[0.08] border border-rose-500/20 space-y-1">
-              <p className="text-[10px] uppercase font-bold text-rose-300 tracking-wider">
-                Dirty
-              </p>
-              <p className="text-2xl font-bold font-mono text-white">{dirtyRooms}</p>
-              <p className="text-[10px] text-mist-400">Turnover list</p>
-            </div>
-
-            <div className="p-3.5 rounded-2xl bg-amber-500/[0.08] border border-amber-500/20 space-y-1">
-              <p className="text-[10px] uppercase font-bold text-amber-300 tracking-wider">
-                Cleaning
-              </p>
-              <p className="text-2xl font-bold font-mono text-white">{cleaningRooms}</p>
-              <p className="text-[10px] text-mist-400">In progress</p>
-            </div>
-
-            <div className="p-3.5 rounded-2xl bg-sky-500/[0.08] border border-sky-500/20 space-y-1">
-              <p className="text-[10px] uppercase font-bold text-sky-300 tracking-wider">
-                Inspecting
-              </p>
-              <p className="text-2xl font-bold font-mono text-white">
-                {inspectionPendingRooms || pendingInspections.length}
-              </p>
-              <p className="text-[10px] text-mist-400">Sign-off required</p>
-            </div>
-
-            <div className="p-3.5 rounded-2xl bg-emerald-500/[0.08] border border-emerald-500/20 space-y-1">
-              <p className="text-[10px] uppercase font-bold text-emerald-300 tracking-wider">
-                Ready
-              </p>
-              <p className="text-2xl font-bold font-mono text-white">{readyRoomsCount}</p>
-              <p className="text-[10px] text-mist-400">Front Desk ready</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Live Department Workload Distribution */}
-        <div className="rounded-3xl border border-white/10 bg-ink-900/90 p-5 backdrop-blur-xl shadow-xl space-y-4">
-          <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
-            <div>
-              <h3 className="text-base font-bold font-display text-white">
-                Department Workload & Staffing
-              </h3>
-              <p className="text-xs text-mist-400">
-                Operational capacity across active departments
+                {filteredStaff.length} technicians available for dispatch
               </p>
             </div>
             <button
               type="button"
               onClick={() => onNavigateTab('workload')}
-              className="text-xs text-amber-300 hover:text-white font-semibold transition flex items-center gap-1"
+              className="text-xs font-bold text-amber-400 hover:text-amber-300 transition"
             >
-              <span>Workforce Roster</span>
-              <ArrowUpRight className="h-3.5 w-3.5" />
+              Workload Matrix &rarr;
             </button>
           </div>
 
-          <div className="space-y-3.5 pt-1">
-            {/* Housekeeping */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs font-semibold">
-                <span className="flex items-center gap-2 text-white">
-                  <Bed className="h-4 w-4 text-emerald-400" />
-                  Housekeeping & Linen
-                </span>
-                <span className="font-mono text-mist-300">{hkTasks.length} active tasks</span>
-              </div>
-              <div className="h-2 rounded-full bg-white/[0.06] overflow-hidden">
+          <div className="space-y-2.5">
+            {filteredStaff.length === 0 ? (
+              <p className="text-xs text-mist-400 py-4 text-center">No staff found for this department.</p>
+            ) : (
+              filteredStaff.slice(0, 4).map((tech) => (
                 <div
-                  className="h-full bg-emerald-400 rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min(100, Math.max(15, (hkTasks.length / 8) * 100))}%` }}
-                />
-              </div>
-            </div>
+                  key={tech.id}
+                  className="flex items-center justify-between p-3 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] transition"
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-white">{tech.name}</p>
+                    <p className="text-xs text-mist-400">
+                      {tech.department} &bull; {tech.floorZone || 'Floors 1-6'}
+                    </p>
+                  </div>
 
-            {/* Maintenance */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs font-semibold">
-                <span className="flex items-center gap-2 text-white">
-                  <Wrench className="h-4 w-4 text-amber-400" />
-                  Maintenance & Repairs
-                </span>
-                <span className="font-mono text-mist-300">{mxTasks.length} active tasks</span>
-              </div>
-              <div className="h-2 rounded-full bg-white/[0.06] overflow-hidden">
-                <div
-                  className="h-full bg-amber-400 rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min(100, Math.max(15, (mxTasks.length / 8) * 100))}%` }}
-                />
-              </div>
-            </div>
+                  <div className="flex items-center gap-3">
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">
+                      Available
+                    </span>
+                    <span className="text-xs font-mono text-mist-300">
+                      Shift: {tech.shift || 'Day'}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
 
-            {/* F&B */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs font-semibold">
-                <span className="flex items-center gap-2 text-white">
-                  <UtensilsCrossed className="h-4 w-4 text-purple-400" />
-                  In-Room Dining
-                </span>
-                <span className="font-mono text-mist-300">{fbTasks.length} active tasks</span>
-              </div>
-              <div className="h-2 rounded-full bg-white/[0.06] overflow-hidden">
-                <div
-                  className="h-full bg-purple-400 rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min(100, Math.max(15, (fbTasks.length / 8) * 100))}%` }}
-                />
-              </div>
+        {/* Specialized Workflows Quick Launch (Clean Cards, No Icon Boxes) */}
+        <div className="rounded-2xl border border-white/10 bg-ink-900/80 p-5 backdrop-blur-xl shadow-lg space-y-4">
+          <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+            <div>
+              <h3 className="text-base font-bold font-display text-white">
+                Specialized Operations Tools
+              </h3>
+              <p className="text-xs text-mist-400">
+                Full control panels kept in the left-side navigation
+              </p>
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => onNavigateTab('inspections')}
+              className="p-3.5 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.06] hover:border-amber-400/30 text-left transition space-y-1"
+            >
+              <p className="text-sm font-bold text-white">Quality Inspections &rarr;</p>
+              <p className="text-xs text-mist-400">Room checklists & sign-offs</p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onNavigateTab('rooms')}
+              className="p-3.5 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.06] hover:border-amber-400/30 text-left transition space-y-1"
+            >
+              <p className="text-sm font-bold text-white">Room Readiness &rarr;</p>
+              <p className="text-xs text-mist-400">Turnover & cleaning pipeline</p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onNavigateTab('routing')}
+              className="p-3.5 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.06] hover:border-amber-400/30 text-left transition space-y-1"
+            >
+              <p className="text-sm font-bold text-white">Auto-Routing &rarr;</p>
+              <p className="text-xs text-mist-400">Rules & assignment simulator</p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onNavigateTab('handover')}
+              className="p-3.5 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.06] hover:border-amber-400/30 text-left transition space-y-1"
+            >
+              <p className="text-sm font-bold text-white">Shift Handover &rarr;</p>
+              <p className="text-xs text-mist-400">Logs & cross-shift notes</p>
+            </button>
           </div>
         </div>
       </div>
     </div>
   );
 }
-

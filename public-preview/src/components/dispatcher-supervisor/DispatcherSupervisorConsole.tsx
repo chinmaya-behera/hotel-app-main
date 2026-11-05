@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   LayoutDashboard,
   Layers,
@@ -76,6 +76,8 @@ interface NavItem {
   badgeTone?: 'neutral' | 'danger' | 'warning' | 'success';
 }
 
+
+
 export function DispatcherSupervisorConsole() {
   const {
     state,
@@ -92,6 +94,30 @@ export function DispatcherSupervisorConsole() {
   } = useDemo();
 
   const [activeTab, setActiveTab] = useState<DispatcherSupervisorTab>('overview');
+  const [activeDept, setActiveDept] = useState<string>('all');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const d = params.get('dept');
+      if (d) setActiveDept(d.toLowerCase());
+      const t = params.get('tab');
+      if (t) setActiveTab(t as DispatcherSupervisorTab);
+    }
+  }, []);
+
+  const handleSelectDept = (dept: string) => {
+    setActiveDept(dept);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      if (dept === 'all') {
+        url.searchParams.delete('dept');
+      } else {
+        url.searchParams.set('dept', dept);
+      }
+      window.history.replaceState({}, '', url.toString());
+    }
+  };
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Modals state
@@ -231,23 +257,33 @@ export function DispatcherSupervisorConsole() {
 
   return (
     <div className="w-full pb-16">
+
       {/* Top Banner / Role Notification Bar */}
       <div className="mb-6 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 backdrop-blur-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <span className="grid h-10 w-10 place-items-center rounded-xl bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
-            DS
-          </span>
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-base font-bold text-white font-display">
-                Department Dispatcher / Supervisor Console
+                {activeDept === 'maintenance' || activeDept === 'engineering'
+                  ? 'Maintenance & Engineering Operations Desk'
+                  : activeDept === 'housekeeping'
+                  ? 'Housekeeping Operations Desk'
+                  : activeDept === 'food_beverage'
+                  ? 'Food & Beverage Operations Desk'
+                  : 'Department Dispatcher / Supervisor Console'}
               </h1>
               <span className="px-2 py-0.5 rounded-full bg-amber-400/20 border border-amber-400/30 text-[10px] font-bold text-amber-300 uppercase tracking-wider">
-                Phase 2 Combined Role
+                {activeDept === 'maintenance' || activeDept === 'engineering'
+                  ? 'Engineering Stream'
+                  : activeDept !== 'all'
+                  ? activeDept.toUpperCase()
+                  : 'Phase 2 Combined'}
               </span>
             </div>
             <p className="text-xs text-mist-300">
-              Unified field orchestration, request auto-routing, quality inspections, shift handovers & SLA monitor
+              {activeDept === 'maintenance' || activeDept === 'engineering'
+                ? 'Field technician dispatch, equipment & asset work orders, critical repairs & SLA tracking'
+                : 'Unified field orchestration, request auto-routing, quality inspections, shift handovers & SLA monitor'}
             </p>
           </div>
         </div>
@@ -256,10 +292,9 @@ export function DispatcherSupervisorConsole() {
           <button
             type="button"
             onClick={() => setIsCreateTaskModalOpen(true)}
-            className="px-3.5 py-1.5 rounded-xl bg-amber-400 text-ink-950 hover:bg-amber-300 text-xs font-bold transition shadow-md shadow-amber-400/20 flex items-center gap-1.5"
+            className="px-3.5 py-1.5 rounded-xl bg-amber-400 text-ink-950 hover:bg-amber-300 text-xs font-bold transition shadow-md shadow-amber-400/20"
           >
-            <Plus className="h-3.5 w-3.5" />
-            <span>Create Task</span>
+            + Create Task
           </button>
 
           <button
@@ -353,6 +388,8 @@ export function DispatcherSupervisorConsole() {
         <div className="flex-1 min-w-0 w-full space-y-6">
           {activeTab === 'overview' && (
             <UnifiedOperationsDesktop
+              activeDept={activeDept}
+              onSelectDept={handleSelectDept}
               onNavigateTab={(tab) => setActiveTab(tab as DispatcherSupervisorTab)}
               onSelectInspection={(insp) => {
                 setSelectedInspection(insp);
