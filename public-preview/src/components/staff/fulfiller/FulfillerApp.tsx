@@ -226,42 +226,6 @@ function FulfillerAppContent() {
               </Link>
             </div>
           </div>
-
-          {/* Department Attendant Profile Quick Switcher */}
-          <div className="mt-2.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 border-t border-white/[0.06] pt-2">
-            {[
-              { key: 'housekeeping', label: 'Housekeeping', name: 'Vikram Singh' },
-              { key: 'maintenance', label: 'Maintenance', name: 'Wei Chen' },
-              { key: 'fnb', label: 'Food & Beverage', name: 'Kavita Sen' },
-              { key: 'wellness', label: 'Spa & Wellness', name: 'Elena Brandt' },
-            ].map((d) => (
-              <button
-                key={d.key}
-                type="button"
-                onClick={() => {
-                  setActiveDeptKey(d.key as FulfillerDeptKey);
-                  setActiveDispatcherDept(
-                    d.key === 'housekeeping'
-                      ? 'Housekeeping'
-                      : d.key === 'maintenance'
-                        ? 'Maintenance & Engineering'
-                        : d.key === 'fnb'
-                          ? 'Food & Beverages'
-                          : 'Wellness',
-                  );
-                }}
-                className={cn(
-                  'flex shrink-0 items-center gap-1 rounded-xl px-2.5 py-1 text-[11px] font-semibold transition-all',
-                  activeDeptKey === d.key
-                    ? 'bg-white/15 text-white border border-white/20 shadow-sm font-bold'
-                    : 'text-mist-400 hover:text-white hover:bg-white/[0.04] border border-transparent',
-                )}
-              >
-                <span>{d.label}</span>
-                <span className="text-[10px] text-mist-400">({d.name.split(' ')[0]})</span>
-              </button>
-            ))}
-          </div>
         </header>
 
         {/* Scrollable Tab Content Container */}
