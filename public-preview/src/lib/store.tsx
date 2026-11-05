@@ -493,7 +493,14 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           theme: saved.theme ?? (saved as unknown as { guestTheme?: ThemeMode }).guestTheme ?? base.theme,
           soundEnabled: saved.soundEnabled ?? base.soundEnabled,
           fulfillerAvailability: saved.fulfillerAvailability ?? base.fulfillerAvailability,
-          notifications: saved.notifications ?? base.notifications,
+          notifications: (() => {
+            const savedNotifs = saved.notifications ?? [];
+            const baseNotifs = base.notifications ?? [];
+            const map = new Map<string, InAppNotification>();
+            baseNotifs.forEach((n) => map.set(n.id, n));
+            savedNotifs.forEach((n) => map.set(n.id, n));
+            return Array.from(map.values());
+          })(),
           shiftChangeRequest: saved.shiftChangeRequest ?? base.shiftChangeRequest,
           routingRules: saved.routingRules ?? base.routingRules,
           resourceRequests: saved.resourceRequests ?? base.resourceRequests,
@@ -654,9 +661,28 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           }
         }
 
+        const fulfillerNotifs =
+          roleId === 'task_fulfiller' && item
+            ? [
+                {
+                  id: uid(),
+                  roleId: 'task_fulfiller' as RoleId,
+                  department: item.department,
+                  title: t.label || `Task Status: ${t.next}`,
+                  message: `${item.title} → ${t.next} (${nowLabel()})`,
+                  timestamp: nowLabel(),
+                  read: false,
+                  type: (t.next === 'Awaiting inspection' ? 'alert' : 'task') as 'task' | 'alert',
+                  itemId: item.id,
+                },
+                ...(prev.notifications ?? []),
+              ]
+            : (prev.notifications ?? []);
+
         return {
           ...prev,
           items: nextItems,
+          notifications: fulfillerNotifs,
           feed: [{ id: uid(), at: nowLabel(), role: roleById[roleId]?.short ?? 'Staff', text }, ...prev.feed].slice(0, 30),
           revokedRooms:
             revokes && item!.room && !prev.revokedRooms.includes(item!.room)
@@ -4506,8 +4532,21 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         const notif: InAppNotification = {
           id: uid(),
           roleId: 'department_dispatcher_supervisor',
+          department: task.department,
           title: 'Task Self-Claimed',
           message: `${fulfillerName} self-claimed ${task.title} (Room ${task.room || 'General'})`,
+          timestamp,
+          read: false,
+          type: 'task',
+          itemId: task.id,
+        };
+
+        const fulfillerNotif: InAppNotification = {
+          id: uid(),
+          roleId: 'task_fulfiller',
+          department: task.department,
+          title: 'Task Claimed',
+          message: `You claimed "${task.title}" (Room ${task.room || 'General'}) into your active queue.`,
           timestamp,
           read: false,
           type: 'task',
@@ -4526,7 +4565,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
             ),
             task_fulfiller: nextFulfillerItems,
           },
-          notifications: [notif, ...(prev.notifications ?? [])],
+          notifications: [fulfillerNotif, notif, ...(prev.notifications ?? [])],
           feed: [
             {
               id: uid(),

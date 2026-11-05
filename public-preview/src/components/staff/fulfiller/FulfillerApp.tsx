@@ -95,7 +95,13 @@ function FulfillerAppContent() {
       isTaskAssignedToProfile(t, profile) &&
       (t.status === 'Assigned' || t.status === 'Accepted' || t.status === 'In progress'),
   ).length;
-  const notifications = (state.notifications ?? []).filter((n) => n.roleId === 'task_fulfiller');
+  const notifications = (state.notifications ?? []).filter(
+    (n) =>
+      n.roleId === 'task_fulfiller' &&
+      (n.department
+        ? taskMatchesFulfillerDept({ department: n.department } as any, activeDeptKey)
+        : true),
+  );
   const unreadNotifCount = notifications.filter((n) => !n.read).length;
 
   const isLight = state.theme === 'light';
@@ -225,7 +231,7 @@ function FulfillerAppContent() {
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 pt-3 sm:pt-6 pb-24 sm:pb-28 no-scrollbar overscroll-contain">
           {activeTab === 'tasks' && <FulfillerTasksTab profile={profile} />}
           {activeTab === 'notifications' && (
-            <FulfillerNotificationsTab onNavigateToTasks={() => setActiveTab('tasks')} />
+            <FulfillerNotificationsTab profile={profile} onNavigateToTasks={() => setActiveTab('tasks')} />
           )}
           {activeTab === 'policies' && <FulfillerPoliciesTab />}
           {activeTab === 'performance' && <FulfillerPerformanceTab profile={profile} />}
