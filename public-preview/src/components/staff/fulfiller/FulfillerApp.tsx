@@ -37,7 +37,6 @@ type FulfillerTab = 'tasks' | 'notifications' | 'policies' | 'performance' | 'pr
 function FulfillerAppContent() {
   const { state, setPersona, setSoundEnabled, setTheme, setActiveDispatcherDept, toasts, setFulfillerAvailability } = useDemo();
   const [activeTab, setActiveTab] = useState<FulfillerTab>('tasks');
-  const [isSupervisorMode, setIsSupervisorMode] = useState<boolean>(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevTaskCountRef = useRef<number | null>(null);
 
@@ -67,13 +66,6 @@ function FulfillerAppContent() {
 
   const profile: FulfillerProfile = FULFILLER_PROFILES[activeDeptKey] || FULFILLER_PROFILES.housekeeping;
 
-  const supervisorInitials = profile.supervisorName
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-
   // Set persona on mount
   useEffect(() => {
     setPersona('task_fulfiller');
@@ -97,16 +89,12 @@ function FulfillerAppContent() {
     scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }, [activeTab, activeDeptKey]);
 
-  const activeTaskCount = isSupervisorMode
-    ? tasks.filter(
-        (t) => taskMatchesFulfillerDept(t, activeDeptKey) && t.status === 'Awaiting inspection',
-      ).length
-    : tasks.filter(
-        (t) =>
-          taskMatchesFulfillerDept(t, activeDeptKey) &&
-          isTaskAssignedToProfile(t, profile) &&
-          (t.status === 'Assigned' || t.status === 'Accepted' || t.status === 'In progress'),
-      ).length;
+  const activeTaskCount = tasks.filter(
+    (t) =>
+      taskMatchesFulfillerDept(t, activeDeptKey) &&
+      isTaskAssignedToProfile(t, profile) &&
+      (t.status === 'Assigned' || t.status === 'Accepted' || t.status === 'In progress'),
+  ).length;
   const notifications = (state.notifications ?? []).filter((n) => n.roleId === 'task_fulfiller');
   const unreadNotifCount = notifications.filter((n) => !n.read).length;
 
@@ -146,83 +134,48 @@ function FulfillerAppContent() {
             <div className="flex items-center gap-3 min-w-0">
               <div
                 className={cn(
-                  'grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-xl sm:rounded-2xl bg-gradient-to-br text-xs sm:text-sm font-bold shadow-md shrink-0 transition-all',
-                  isSupervisorMode
-                    ? 'from-purple-500 to-indigo-600 text-white shadow-purple-500/20'
-                    : cn(profile.colorGradient, 'text-ink-950'),
+                  'grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-xl sm:rounded-2xl bg-gradient-to-br text-xs sm:text-sm font-bold shadow-md shrink-0 text-ink-950',
+                  profile.colorGradient,
                 )}
               >
-                {isSupervisorMode ? supervisorInitials : profile.avatarInitials}
+                {profile.avatarInitials}
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h1 className="text-xs sm:text-sm md:text-base font-bold text-white truncate max-w-[130px] sm:max-w-xs">
-                    {isSupervisorMode ? profile.supervisorName : profile.employeeName}
+                  <h1 className="text-xs sm:text-sm md:text-base font-bold text-white truncate max-w-[140px] sm:max-w-xs">
+                    {profile.employeeName}
                   </h1>
 
-                  {!isSupervisorMode ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => setFulfillerAvailability(currentAvail === 'break' ? 'on_duty' : 'break')}
-                        className={cn(
-                          'flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold border transition-colors',
-                          currentAvail === 'break'
-                            ? 'bg-amber-400/20 text-amber-300 border-amber-400/40 hover:bg-amber-400/30'
-                            : currentAvail === 'off_duty'
-                              ? 'bg-rose-400/20 text-rose-300 border-rose-400/40 hover:bg-rose-400/30'
-                              : 'bg-emerald-400/20 text-emerald-300 border-emerald-400/40 hover:bg-emerald-400/30',
-                        )}
-                        title="Click to toggle On Duty / On Break"
-                      >
-                        <span
-                          className={cn(
-                            'h-1.5 w-1.5 rounded-full shrink-0',
-                            currentAvail === 'break'
-                              ? 'bg-amber-400 animate-pulse'
-                              : currentAvail === 'off_duty'
-                                ? 'bg-rose-400'
-                                : 'bg-emerald-400',
-                          )}
-                        />
-                        <span>
-                          {currentAvail === 'break' ? 'On Break' : currentAvail === 'off_duty' ? 'Off Duty' : 'On Duty'}
-                        </span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setIsSupervisorMode(true)}
-                        className="flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold border border-purple-400/40 bg-purple-500/15 text-purple-300 hover:bg-purple-500/25 transition-all"
-                        title={`Switch to Supervisor view (${profile.supervisorName})`}
-                      >
-                        <ShieldCheck className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-purple-400" />
-                        <span>Supervisor</span>
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <span className="flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold border border-purple-400/40 bg-purple-500/20 text-purple-200">
-                        <ShieldCheck className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-purple-400" />
-                        <span>Supervisor QA</span>
-                      </span>
-
-                      <button
-                        type="button"
-                        onClick={() => setIsSupervisorMode(false)}
-                        className="flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold border border-emerald-400/40 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 transition-all"
-                        title={`Switch back to Attendant view (${profile.employeeName})`}
-                      >
-                        <User className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-emerald-400" />
-                        <span>Attendant</span>
-                      </button>
-                    </>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => setFulfillerAvailability(currentAvail === 'break' ? 'on_duty' : 'break')}
+                    className={cn(
+                      'flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold border transition-colors',
+                      currentAvail === 'break'
+                        ? 'bg-amber-400/20 text-amber-300 border-amber-400/40 hover:bg-amber-400/30'
+                        : currentAvail === 'off_duty'
+                          ? 'bg-rose-400/20 text-rose-300 border-rose-400/40 hover:bg-rose-400/30'
+                          : 'bg-emerald-400/20 text-emerald-300 border-emerald-400/40 hover:bg-emerald-400/30',
+                    )}
+                    title="Click to toggle On Duty / On Break"
+                  >
+                    <span
+                      className={cn(
+                        'h-1.5 w-1.5 rounded-full shrink-0',
+                        currentAvail === 'break'
+                          ? 'bg-amber-400 animate-pulse'
+                          : currentAvail === 'off_duty'
+                            ? 'bg-rose-400'
+                            : 'bg-emerald-400',
+                      )}
+                    />
+                    <span>
+                      {currentAvail === 'break' ? 'On Break' : currentAvail === 'off_duty' ? 'Off Duty' : 'On Duty'}
+                    </span>
+                  </button>
                 </div>
                 <p className="text-[10px] sm:text-xs text-mist-300 truncate font-medium mt-0.5">
-                  {isSupervisorMode
-                    ? `${profile.departmentName} · Quality Review & Sign-Off (${profile.supervisorCode})`
-                    : `${profile.departmentName} · ${profile.zone}`}
+                  {profile.departmentName} · {profile.zone}
                 </p>
               </div>
             </div>
@@ -270,13 +223,7 @@ function FulfillerAppContent() {
 
         {/* Scrollable Tab Content Container: Mobile, Tablet & Desktop responsive padding */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 pt-3 sm:pt-6 pb-24 sm:pb-28 no-scrollbar overscroll-contain">
-          {activeTab === 'tasks' && (
-            <FulfillerTasksTab
-              profile={profile}
-              isSupervisorMode={isSupervisorMode}
-              onToggleSupervisorMode={() => setIsSupervisorMode((prev) => !prev)}
-            />
-          )}
+          {activeTab === 'tasks' && <FulfillerTasksTab profile={profile} />}
           {activeTab === 'notifications' && (
             <FulfillerNotificationsTab onNavigateToTasks={() => setActiveTab('tasks')} />
           )}
