@@ -460,6 +460,18 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           items: {
             ...base.items,
             ...saved.items,
+            task_fulfiller: [
+              ...(base.items.task_fulfiller ?? []),
+              ...((saved.items?.task_fulfiller ?? []).filter(
+                (si) => !(base.items.task_fulfiller ?? []).some((bi) => bi.id === si.id),
+              )),
+            ],
+            department_dispatcher: [
+              ...(base.items.department_dispatcher ?? []),
+              ...((saved.items?.department_dispatcher ?? []).filter(
+                (si) => !(base.items.department_dispatcher ?? []).some((bi) => bi.id === si.id),
+              )),
+            ],
             department_dispatcher_supervisor:
               saved.items?.department_dispatcher_supervisor ?? base.items.department_dispatcher_supervisor,
             general_manager: saved.items?.general_manager ?? base.items.general_manager,
