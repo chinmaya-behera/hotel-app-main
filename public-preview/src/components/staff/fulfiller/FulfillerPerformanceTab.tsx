@@ -81,8 +81,8 @@ export function FulfillerPerformanceTab({ profile }: { profile?: FulfillerProfil
         </div>
       </div>
 
-      {/* KPI Cards Grid */}
-      <div className="grid grid-cols-2 gap-2.5">
+      {/* KPI Cards Grid: 2-col on Mobile, 4-col on Tablet & Desktop */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3.5">
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3.5">
           <div className="flex items-center justify-between text-mist-400">
             <span className="text-[11px] font-medium">On-Time SLA</span>

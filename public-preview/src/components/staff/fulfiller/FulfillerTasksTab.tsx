@@ -449,7 +449,7 @@ export function FulfillerTasksTab({ profile, isSupervisorMode = false, onToggleS
       />
 
       {/* Primary Section Switcher: My Tasks vs All Tasks */}
-      <div className="grid grid-cols-2 p-1 rounded-2xl bg-white/[0.06] border border-white/10">
+      <div className="grid grid-cols-2 p-1 rounded-2xl bg-white/[0.06] border border-white/10 max-w-md sm:max-w-lg mx-auto w-full">
         <button
           type="button"
           onClick={() => setPrimaryView('my_tasks')}
@@ -508,7 +508,7 @@ export function FulfillerTasksTab({ profile, isSupervisorMode = false, onToggleS
 
       {/* Sub-Filters: My Tasks */}
       {primaryView === 'my_tasks' && (
-        <div className="no-scrollbar -mx-4 flex items-center gap-1.5 overflow-x-auto px-4 pb-1">
+        <div className="no-scrollbar -mx-4 sm:mx-0 flex items-center gap-1.5 overflow-x-auto sm:flex-wrap sm:justify-center px-4 sm:px-0 pb-1">
           <button
             type="button"
             onClick={() => setMyFilter('all')}
@@ -617,7 +617,7 @@ export function FulfillerTasksTab({ profile, isSupervisorMode = false, onToggleS
 
       {/* Sub-Filters: All Tasks */}
       {primaryView === 'all_tasks' && (
-        <div className="no-scrollbar -mx-4 flex items-center gap-1.5 overflow-x-auto px-4 pb-1">
+        <div className="no-scrollbar -mx-4 sm:mx-0 flex items-center gap-1.5 overflow-x-auto sm:flex-wrap sm:justify-center px-4 sm:px-0 pb-1">
           <button
             type="button"
             onClick={() => setAllFilter('all_eligible')}
@@ -704,10 +704,10 @@ export function FulfillerTasksTab({ profile, isSupervisorMode = false, onToggleS
         </div>
       )}
 
-      {/* Task List Rendering */}
-      <div className="flex flex-col gap-3">
+      {/* Task List Rendering: Mobile 1-col, Tablet 2-col, Desktop 3-col */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5 sm:gap-4">
         {(primaryView === 'my_tasks' ? filteredMyTasks : filteredAllTasks).length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-3xl border border-white/10 bg-white/[0.02] py-12 px-4 text-center">
+          <div className="col-span-full flex flex-col items-center justify-center rounded-3xl border border-white/10 bg-white/[0.02] py-12 px-4 text-center">
             <span className="grid h-12 w-12 place-items-center rounded-2xl border border-white/10 bg-white/[0.04] text-mist-400">
               <CheckCircle2 className="h-6 w-6 text-emerald-400" />
             </span>
@@ -1224,11 +1224,11 @@ export function FulfillerTasksTab({ profile, isSupervisorMode = false, onToggleS
         </FulfillerModalPortal>
       )}
 
-      {/* Task Details & Chronological Timeline Modal (In-Mobile Sheet) */}
+      {/* Task Details & Chronological Timeline Modal (Mobile Sheet / Tablet & Desktop Centered Modal) */}
       {selectedTask && (
         <FulfillerModalPortal>
-          <div className="absolute inset-0 z-50 flex flex-col justify-end bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
-            <div className="w-full max-h-[92%] flex flex-col rounded-t-[2rem] border-t border-white/20 bg-ink-950 p-4 text-white shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-200">
+          <div className="absolute inset-0 z-50 flex flex-col justify-end sm:items-center sm:justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
+            <div className="w-full sm:max-w-xl max-h-[92%] sm:max-h-[85vh] flex flex-col rounded-t-[2rem] sm:rounded-3xl border-t sm:border border-white/20 bg-ink-950 p-4 sm:p-6 text-white shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-200">
               {/* Header */}
               <div className="flex items-start justify-between gap-3 border-b border-white/10 pb-3 shrink-0">
                 <div>

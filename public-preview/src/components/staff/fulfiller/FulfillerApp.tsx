@@ -113,27 +113,19 @@ function FulfillerAppContent() {
   const isLight = state.theme === 'light';
 
     return (
-    <div className="fixed inset-0 flex items-center justify-center overflow-hidden bg-gradient-to-b from-[#070e1c] via-[#091322] to-[#040810]">
-      {/* Centered Phone Shell Container on Desktop, Full Screen on Mobile */}
+    <div className="fixed inset-0 flex flex-col overflow-hidden bg-gradient-to-b from-[#070e1c] via-[#091322] to-[#040810]">
+      {/* Fluid Responsive Container: Mobile full-bleed, Tablet max-w-4xl, Desktop max-w-7xl */}
       <div
         id="fulfiller-phone-shell"
-        className="relative flex flex-col w-full h-full sm:h-[844px] sm:max-h-[calc(100dvh-2rem)] sm:w-[412px] sm:rounded-[2.8rem] sm:border-[8px] sm:border-[#0f172a] sm:shadow-[0_25px_80px_-15px_rgba(0,0,0,0.8),0_0_0_1px_rgba(255,255,255,0.08)] bg-ink-950 overflow-hidden text-white"
+        className="relative flex flex-col w-full h-full max-w-7xl mx-auto bg-ink-950 overflow-hidden text-white sm:border-x sm:border-white/[0.08] sm:shadow-[0_25px_80px_-15px_rgba(0,0,0,0.8)]"
       >
-        {/* Phone Speaker Notch (Desktop Shell Only) */}
-        <div className="hidden sm:flex absolute top-0 inset-x-0 z-50 justify-center pointer-events-none pt-2">
-          <div className="h-4 w-28 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center gap-2">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/80 animate-pulse" />
-            <span className="h-1 w-10 rounded-full bg-white/20" />
-          </div>
-        </div>
-
-        {/* In-Mobile Toast Notification Banner */}
+        {/* In-App Toast Notification Banner */}
         {toasts && toasts.length > 0 && (
-          <div className="absolute top-14 inset-x-3 z-[60] pointer-events-none flex flex-col items-center gap-2">
+          <div className="absolute top-16 inset-x-3 sm:inset-x-6 z-[60] pointer-events-none flex flex-col items-center gap-2">
             {toasts.map((t) => (
               <div
                 key={t.id}
-                className="toast-in pointer-events-auto w-full max-w-[380px] flex items-start gap-2.5 rounded-2xl border border-emerald-400/40 bg-ink-900/95 backdrop-blur-xl px-3.5 py-2.5 text-xs text-white shadow-2xl animate-in slide-in-from-top-3 duration-200"
+                className="toast-in pointer-events-auto w-full max-w-md flex items-start gap-2.5 rounded-2xl border border-emerald-400/40 bg-ink-900/95 backdrop-blur-xl px-3.5 py-2.5 text-xs text-white shadow-2xl animate-in slide-in-from-top-3 duration-200"
               >
                 <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
                 <div className="min-w-0 flex-1">
@@ -147,14 +139,14 @@ function FulfillerAppContent() {
           </div>
         )}
 
-        {/* Mobile Header Bar */}
-        <header className="shrink-0 border-b border-white/[0.08] bg-ink-950/90 backdrop-blur-xl px-4 pt-3 pb-3 sm:pt-6 z-40">
+        {/* Responsive Header Bar: Mobile, Tablet & Desktop */}
+        <header className="shrink-0 border-b border-white/[0.08] bg-ink-950/90 backdrop-blur-xl px-4 sm:px-6 lg:px-8 pt-3 pb-3 sm:py-4 z-40">
           <div className="flex items-center justify-between gap-3">
             {/* Identity */}
-            <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex items-center gap-3 min-w-0">
               <div
                 className={cn(
-                  'grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br text-xs font-bold shadow-md shrink-0 transition-all',
+                  'grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-xl sm:rounded-2xl bg-gradient-to-br text-xs sm:text-sm font-bold shadow-md shrink-0 transition-all',
                   isSupervisorMode
                     ? 'from-purple-500 to-indigo-600 text-white shadow-purple-500/20'
                     : cn(profile.colorGradient, 'text-ink-950'),
@@ -163,8 +155,8 @@ function FulfillerAppContent() {
                 {isSupervisorMode ? supervisorInitials : profile.avatarInitials}
               </div>
               <div className="min-w-0">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <h1 className="text-xs font-bold text-white truncate max-w-[125px]">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-xs sm:text-sm md:text-base font-bold text-white truncate max-w-[130px] sm:max-w-xs">
                     {isSupervisorMode ? profile.supervisorName : profile.employeeName}
                   </h1>
 
@@ -174,7 +166,7 @@ function FulfillerAppContent() {
                         type="button"
                         onClick={() => setFulfillerAvailability(currentAvail === 'break' ? 'on_duty' : 'break')}
                         className={cn(
-                          'flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold border transition-colors',
+                          'flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold border transition-colors',
                           currentAvail === 'break'
                             ? 'bg-amber-400/20 text-amber-300 border-amber-400/40 hover:bg-amber-400/30'
                             : currentAvail === 'off_duty'
@@ -201,33 +193,33 @@ function FulfillerAppContent() {
                       <button
                         type="button"
                         onClick={() => setIsSupervisorMode(true)}
-                        className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold border border-purple-400/40 bg-purple-500/15 text-purple-300 hover:bg-purple-500/25 transition-all"
+                        className="flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold border border-purple-400/40 bg-purple-500/15 text-purple-300 hover:bg-purple-500/25 transition-all"
                         title={`Switch to Supervisor view (${profile.supervisorName})`}
                       >
-                        <ShieldCheck className="h-2.5 w-2.5 text-purple-400" />
+                        <ShieldCheck className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-purple-400" />
                         <span>Supervisor</span>
                       </button>
                     </>
                   ) : (
                     <>
-                      <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold border border-purple-400/40 bg-purple-500/20 text-purple-200">
-                        <ShieldCheck className="h-2.5 w-2.5 text-purple-400" />
+                      <span className="flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold border border-purple-400/40 bg-purple-500/20 text-purple-200">
+                        <ShieldCheck className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-purple-400" />
                         <span>Supervisor QA</span>
                       </span>
 
                       <button
                         type="button"
                         onClick={() => setIsSupervisorMode(false)}
-                        className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold border border-emerald-400/40 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 transition-all"
+                        className="flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold border border-emerald-400/40 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 transition-all"
                         title={`Switch back to Attendant view (${profile.employeeName})`}
                       >
-                        <User className="h-2.5 w-2.5 text-emerald-400" />
+                        <User className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-emerald-400" />
                         <span>Attendant</span>
                       </button>
                     </>
                   )}
                 </div>
-                <p className="text-[10px] text-mist-300 truncate font-medium">
+                <p className="text-[10px] sm:text-xs text-mist-300 truncate font-medium mt-0.5">
                   {isSupervisorMode
                     ? `${profile.departmentName} · Quality Review & Sign-Off (${profile.supervisorCode})`
                     : `${profile.departmentName} · ${profile.zone}`}
@@ -276,8 +268,8 @@ function FulfillerAppContent() {
           </div>
         </header>
 
-        {/* Scrollable Tab Content Container */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 pt-3 no-scrollbar overscroll-contain">
+        {/* Scrollable Tab Content Container: Mobile, Tablet & Desktop responsive padding */}
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 pt-3 sm:pt-6 pb-24 sm:pb-28 no-scrollbar overscroll-contain">
           {activeTab === 'tasks' && (
             <FulfillerTasksTab
               profile={profile}
@@ -293,12 +285,12 @@ function FulfillerAppContent() {
           {activeTab === 'profile' && <FulfillerProfileTab profile={profile} />}
         </div>
 
-        {/* Mobile Bottom Navigation Bar */}
+        {/* Bottom Navigation Bar: Mobile, Tablet & Desktop responsive centering */}
         <nav
           aria-label="Fulfiller app navigation"
           className="absolute inset-x-0 bottom-0 z-40 border-t border-white/[0.08] bg-ink-950/95 backdrop-blur-2xl pb-safe"
         >
-          <div className="grid grid-cols-5 items-center px-1 py-1.5">
+          <div className="grid grid-cols-5 items-center px-2 py-1.5 max-w-md sm:max-w-xl md:max-w-2xl mx-auto">
             {/* My Tasks */}
             <button
               type="button"
