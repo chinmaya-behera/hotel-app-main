@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   PartyPopper,
   Calendar,
@@ -45,6 +45,7 @@ import type { GuestTabProps } from '@/components/guest/types';
 import {
   EVENT_CATEGORIES,
   EVENT_SPECIFIC_THEMES,
+  EVENT_HEADINGS_AND_INTROS,
   DECOR_THEMES,
   CATERING_STYLES,
   EVENT_ADDONS,
@@ -104,7 +105,7 @@ export function EventsCelebrationsSection({ room, guestName, onNavigate }: Guest
   const [specialInstructions, setSpecialInstructions] = useState<string>('');
 
   // -------------------------------------------------------------
-  // EVENT-SPECIFIC DRAFT CUSTOMIZATION FIELDS
+  // EVENT-SPECIFIC DRAFT CUSTOMIZATION FIELDS (Preserved on Back)
   // -------------------------------------------------------------
   const [customDrafts, setCustomDrafts] = useState<Record<string, any>>({
     birthday: {
@@ -205,6 +206,54 @@ export function EventsCelebrationsSection({ room, guestName, onNavigate }: Guest
   });
 
   // -------------------------------------------------------------
+  // RELIABLE BROWSER & MOBILE HISTORY NAVIGATION SYNC
+  // -------------------------------------------------------------
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // Check if initial window history already has an event sub-state
+    const currentState = window.history.state;
+    if (currentState && currentState.portal && currentState.subtab === 'events_celebrations') {
+      if (currentState.eventView === 'details' && currentState.eventId) {
+        setSelectedOccasionId(currentState.eventId);
+        setViewMode('details');
+      } else if (currentState.eventView === 'custom_builder') {
+        setViewMode('custom_builder');
+      } else if (currentState.eventView === 'review') {
+        setViewMode('review');
+      } else {
+        setViewMode('listing');
+      }
+    } else {
+      // Ensure the base listing has a known history state marker
+      window.history.replaceState(
+        { portal: true, tab: 'services', subtab: 'events_celebrations', eventView: 'listing' },
+        ''
+      );
+    }
+
+    const handlePopState = (e: PopStateEvent) => {
+      const st = e.state;
+      // If staying within events_celebrations subtab
+      if (st && st.tab === 'services' && st.subtab === 'events_celebrations') {
+        if (!st.eventView || st.eventView === 'listing') {
+          setViewMode('listing');
+        } else if (st.eventView === 'details' && st.eventId) {
+          setSelectedOccasionId(st.eventId);
+          setViewMode('details');
+        } else if (st.eventView === 'custom_builder') {
+          setViewMode('custom_builder');
+        } else if (st.eventView === 'review') {
+          setViewMode('review');
+        }
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // -------------------------------------------------------------
   // COMPUTED VALUES
   // -------------------------------------------------------------
   const activeOccasion = useMemo(() => {
@@ -213,6 +262,16 @@ export function EventsCelebrationsSection({ room, guestName, onNavigate }: Guest
       EVENT_CATEGORIES[0]
     );
   }, [selectedOccasionId]);
+
+  // Heading & intro dynamically matching the selected occasion
+  const headingInfo = useMemo(() => {
+    return (
+      EVENT_HEADINGS_AND_INTROS[selectedOccasionId] || {
+        heading: activeOccasion.name,
+        intro: activeOccasion.desc,
+      }
+    );
+  }, [selectedOccasionId, activeOccasion]);
 
   // Available themes for the selected occasion
   const availableThemes: DecorThemeOption[] = useMemo(() => {
@@ -251,6 +310,78 @@ export function EventsCelebrationsSection({ room, guestName, onNavigate }: Guest
     return baseOccasion + decorPrice + cateringTotal + addonsTotal;
   }, [viewMode, customEventData.guestCount, activeOccasion, activeTheme, activeCatering, guestCount, activeAddonsList]);
 
+  // -------------------------------------------------------------
+  // NAVIGATION HANDLERS (Mobile Back, Switching & History)
+  // -------------------------------------------------------------
+
+  // Open event details from card
+  function handleOpenEventDetails(occasionId: string) {
+    setSelectedOccasionId(occasionId);
+    setViewMode('details');
+    if (typeof window !== 'undefined') {
+      window.history.pushState(
+        { portal: true, tab: 'services', subtab: 'events_celebrations', eventView: 'details', eventId: occasionId },
+        ''
+      );
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // Back from details to event listing (reliably returning to listing, NEVER to home page)
+  function handleBackToListing() {
+    setViewMode('listing');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    if (typeof window !== 'undefined') {
+      if (window.history.state && window.history.state.eventView && window.history.state.eventView !== 'listing') {
+        window.history.back();
+      } else {
+        window.history.replaceState(
+          { portal: true, tab: 'services', subtab: 'events_celebrations', eventView: 'listing' },
+          ''
+        );
+      }
+    }
+  }
+
+  // Open Custom Event Builder
+  function handleOpenCustomBuilder() {
+    setViewMode('custom_builder');
+    setCustomStep(1);
+    if (typeof window !== 'undefined') {
+      window.history.pushState(
+        { portal: true, tab: 'services', subtab: 'events_celebrations', eventView: 'custom_builder' },
+        ''
+      );
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // Proceed to review screen
+  function handleProceedToReview() {
+    setViewMode('review');
+    if (typeof window !== 'undefined') {
+      window.history.pushState(
+        { portal: true, tab: 'services', subtab: 'events_celebrations', eventView: 'review' },
+        ''
+      );
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // Back from review screen to details / builder
+  function handleBackFromReview() {
+    const targetMode = selectedOccasionId === 'custom_builder' ? 'custom_builder' : 'details';
+    setViewMode(targetMode);
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(
+        { portal: true, tab: 'services', subtab: 'events_celebrations', eventView: targetMode, eventId: selectedOccasionId },
+        ''
+      );
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
   // Handler to toggle add-on
   function handleToggleAddon(id: string) {
     setSelectedAddons((prev) => ({
@@ -276,26 +407,6 @@ export function EventsCelebrationsSection({ room, guestName, onNavigate }: Guest
         [field]: value,
       },
     }));
-  }
-
-  // Open event details from card
-  function handleOpenEventDetails(occasionId: string) {
-    setSelectedOccasionId(occasionId);
-    setViewMode('details');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  // Open Custom Event Builder
-  function handleOpenCustomBuilder() {
-    setViewMode('custom_builder');
-    setCustomStep(1);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  // Proceed to review screen
-  function handleProceedToReview() {
-    setViewMode('review');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   // Final submission of event enquiry
@@ -334,9 +445,9 @@ export function EventsCelebrationsSection({ room, guestName, onNavigate }: Guest
           ? 'Afternoon (13:00 - 17:00)'
           : 'Full Day Grand Event';
 
-      title = `Events & Celebrations · ${activeOccasion.name}`;
+      title = `Events & Celebrations · ${headingInfo.heading}`;
       descLines.push(
-        `Occasion: ${activeOccasion.name}`,
+        `Occasion: ${headingInfo.heading}`,
         `Date & Time: ${eventDate} · Slot: ${slotLabel}`,
         `Expected Guests: ${guestCount} attendees`,
         `Preferred Venue: ${selectedVenue}`,
@@ -361,7 +472,7 @@ export function EventsCelebrationsSection({ room, guestName, onNavigate }: Guest
     const ref = submitGuestRequest({
       room,
       title,
-      category: 'events',
+      category: 'concierge',
       meta: `Events & Banqueting · Room ${room} · ${viewMode === 'custom_builder' ? customEventData.date : eventDate}`,
       description: descLines.filter(Boolean).join('\n'),
       priority: 'vip',
@@ -370,6 +481,12 @@ export function EventsCelebrationsSection({ room, guestName, onNavigate }: Guest
     setConfirmedRef(ref);
     setIsSubmitting(false);
     setViewMode('listing');
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(
+        { portal: true, tab: 'services', subtab: 'events_celebrations', eventView: 'listing' },
+        ''
+      );
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -379,7 +496,7 @@ export function EventsCelebrationsSection({ room, guestName, onNavigate }: Guest
   if (viewMode === 'listing') {
     return (
       <div className="space-y-6 pb-28 max-w-5xl mx-auto animate-in fade-in duration-300">
-        {/* SUCCESS CONFIRMATION BANNER (If an enquiry was recently submitted) */}
+        {/* SUCCESS CONFIRMATION BANNER */}
         {confirmedRef && (
           <div className="guest-card p-5 border-emerald-400/50 bg-emerald-400/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
             <div className="flex items-start gap-3.5">
@@ -549,7 +666,7 @@ export function EventsCelebrationsSection({ room, guestName, onNavigate }: Guest
                   <button
                     type="button"
                     onClick={() => handleOpenEventDetails(cat.id)}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-cyan-400/15 border border-cyan-400/40 text-cyan-300 text-xs font-bold hover:bg-cyan-400 hover:text-ink-950 transition-all group-hover:shadow-md"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-cyan-400/15 border border-cyan-400/40 text-cyan-300 text-xs font-bold hover:bg-cyan-400 hover:text-ink-950 transition-all group-hover:shadow-md active:scale-95"
                   >
                     <span>Customize</span>
                     <Plus className="h-3.5 w-3.5" />
@@ -565,65 +682,103 @@ export function EventsCelebrationsSection({ room, guestName, onNavigate }: Guest
 
   // =========================================================================
   // VIEW 2: DEDICATED EVENT DETAILS & CUSTOMISATION EXPERIENCE
+  // EXACT REQUIRED HIERARCHY:
+  // 1. Back to Events action
+  // 2. Event-specific heading
+  // 3. Short event-specific introduction
+  // 4. Large event-specific hero image or banner
+  // 5. Event-specific theme selection
+  // 6. Decoration and colour customisation
+  // 7. Event-specific requirements and arrangements
+  // 8. Food, beverages and additional services
+  // 9. Date, time, guest count and venue details
+  // 10. Booking/enquiry summary and Continue/Review action
   // =========================================================================
   if (viewMode === 'details') {
     const draft = customDrafts[selectedOccasionId] || {};
 
     return (
       <div className="space-y-6 pb-28 max-w-5xl mx-auto animate-in fade-in duration-300">
-        {/* Navigation Breadcrumb back to categories */}
-        <div className="flex items-center justify-between">
+        {/* 1. BACK TO EVENTS ACTION (Reliable return to listing, preserves all drafts) */}
+        <div className="flex items-center justify-between pb-1">
           <button
             type="button"
-            onClick={() => setViewMode('listing')}
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-cyan-400 hover:text-white transition-colors"
+            onClick={handleBackToListing}
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-cyan-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all shadow-sm group"
           >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            <span>&larr; Back to Event Collections</span>
+            <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
+            <span>Back to Event Collections</span>
           </button>
           <span className="text-[11px] font-semibold text-mist-400">
             Room {room} · {guestName}
           </span>
         </div>
 
-        {/* HERO HEADER FOR SELECTED EVENT */}
+        {/* 2. EVENT-SPECIFIC HEADING & 3. SHORT EVENT-SPECIFIC INTRODUCTION */}
+        <div className="space-y-1.5 pt-1">
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-0.5 rounded-md bg-cyan-400/20 text-cyan-300 text-[10px] font-black uppercase tracking-wider border border-cyan-400/30">
+              Occasion Customisation
+            </span>
+            <span className="text-[11px] font-mono text-amber-300 font-bold">
+              Starting from {money(activeOccasion.startingPrice)}
+            </span>
+          </div>
+
+          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-2">
+            <span>{headingInfo.heading}</span>
+            <span className="text-xl sm:text-2xl">🎉</span>
+          </h1>
+
+          <p className="text-xs sm:text-sm text-mist-200 max-w-2xl leading-relaxed">
+            {headingInfo.intro}
+          </p>
+        </div>
+
+        {/* 4. LARGE, ATTRACTIVE EVENT-SPECIFIC HERO BANNER */}
         <div className="relative rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-ink-900">
-          <div className="h-44 sm:h-56 w-full relative">
+          <div className="h-52 sm:h-72 w-full relative">
             <img
               src={activeOccasion.image}
-              alt={activeOccasion.name}
+              alt={headingInfo.heading}
               className="w-full h-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-ink-950 via-ink-950/65 to-transparent" />
-            <div className="absolute top-4 right-4 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md border border-cyan-400/30 text-cyan-300 text-xs font-bold flex items-center gap-1.5 shadow-lg">
-              <Sparkles className="h-3.5 w-3.5" />
+            <div className="absolute inset-0 bg-gradient-to-t from-ink-950 via-ink-950/30 to-transparent" />
+            <div className="absolute top-4 right-4 px-3 py-1 rounded-full bg-black/75 backdrop-blur-md border border-cyan-400/30 text-cyan-300 text-xs font-bold flex items-center gap-1.5 shadow-lg">
+              <Sparkles className="h-3.5 w-3.5 text-amber-400" />
               <span>Starting from {money(activeOccasion.startingPrice)}</span>
             </div>
 
-            <div className="absolute bottom-4 left-4 sm:left-6 sm:bottom-6 right-4 max-w-2xl space-y-1">
-              <span className="inline-block px-2 py-0.5 rounded-md bg-cyan-400/20 text-cyan-300 text-[10px] font-black uppercase tracking-wider border border-cyan-400/30">
-                Customise Occasion
+            <div className="absolute bottom-4 left-4 sm:left-6 right-4 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap gap-2">
+                {activeOccasion.suggestedVenues.map((v, i) => (
+                  <span
+                    key={i}
+                    className="px-2.5 py-1 rounded-lg bg-ink-950/85 backdrop-blur-md border border-white/15 text-[10px] font-medium text-amber-200 flex items-center gap-1"
+                  >
+                    <MapPin className="h-3 w-3 text-amber-400" />
+                    <span>{v}</span>
+                  </span>
+                ))}
+              </div>
+              <span className="px-3 py-1 rounded-full bg-cyan-400/90 text-ink-950 text-xs font-black shadow-md flex items-center gap-1">
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>{availableThemes.length} Bespoke Themes Available</span>
               </span>
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-white tracking-tight">
-                {activeOccasion.name}
-              </h1>
-              <p className="text-xs sm:text-sm text-mist-200">
-                {activeOccasion.desc}
-              </p>
             </div>
           </div>
         </div>
 
-        {/* SECTION 1: VISUAL THEME SELECTION WITH COLOR PALETTES */}
+        {/* 5. EVENT-SPECIFIC THEME SELECTION */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
                 <Palette className="h-4 w-4 text-cyan-400" />
-                <span>1. Select Decoration Theme &amp; Styling</span>
+                <span>5. Select Decoration Theme &amp; Styling</span>
               </h2>
               <p className="text-xs text-mist-400">
-                Curated visual styling themes specifically tailored for {activeOccasion.name}.
+                Curated visual styling themes specifically tailored for {headingInfo.heading}.
               </p>
             </div>
             <span className="text-xs text-cyan-300 font-mono font-semibold">
@@ -697,12 +852,45 @@ export function EventsCelebrationsSection({ room, guestName, onNavigate }: Guest
           </div>
         </div>
 
-        {/* SECTION 2: EVENT-SPECIFIC CUSTOMIZATION OPTIONS */}
+        {/* 6. DECORATION AND COLOUR CUSTOMISATION SUMMARY */}
+        <div className="guest-card p-4 rounded-2xl border border-white/10 bg-white/[0.02] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="grid h-10 w-10 place-items-center rounded-xl bg-cyan-400/15 border border-cyan-400/30 text-cyan-300 shrink-0">
+              <Palette className="h-5 w-5" />
+            </span>
+            <div>
+              <span className="text-xs font-bold text-white block">
+                Active Theme: {activeTheme.name}
+              </span>
+              <p className="text-[11px] text-mist-300">
+                {activeTheme.desc}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-xs text-mist-400 font-medium">Palette Swatches:</span>
+            <div className="flex items-center gap-1">
+              {activeTheme.palette?.map((c, i) => (
+                <span
+                  key={i}
+                  className="h-4 w-4 rounded-full border border-white/30 shadow-sm"
+                  style={{ backgroundColor: c }}
+                  title={c}
+                />
+              ))}
+            </div>
+            <span className="text-xs font-mono font-bold text-amber-300 ml-2">
+              +{money(activeTheme.addedPrice)}
+            </span>
+          </div>
+        </div>
+
+        {/* 7. EVENT-SPECIFIC REQUIREMENTS AND ARRANGEMENTS */}
         <div className="guest-card p-5 space-y-4 border border-white/10 rounded-2xl">
           <div className="border-b border-white/10 pb-3">
             <h2 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
               <Sliders className="h-4 w-4 text-amber-400" />
-              <span>2. {activeOccasion.name} Specifications</span>
+              <span>7. {headingInfo.heading} Requirements &amp; Arrangements</span>
             </h2>
             <p className="text-xs text-mist-400 mt-0.5">
               Customize arrangements specifically applicable to this celebration.
@@ -1159,12 +1347,117 @@ export function EventsCelebrationsSection({ room, guestName, onNavigate }: Guest
           )}
         </div>
 
-        {/* SECTION 3: DATE, TIME, GUEST CAPACITY & VENUE */}
+        {/* 8. FOOD, BEVERAGES AND ADDITIONAL SERVICES */}
+        <div className="space-y-4">
+          {/* Catering */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                  <UtensilsCrossed className="h-4 w-4 text-cyan-400" />
+                  <span>8. Catering &amp; Gastronomy Preference</span>
+                </h2>
+                <p className="text-xs text-mist-400">
+                  Crafted by our Executive Master Chefs with customizable regional menus.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {CATERING_STYLES.map((c) => {
+                const isSelected = selectedCateringId === c.id;
+
+                return (
+                  <div
+                    key={c.id}
+                    onClick={() => setSelectedCateringId(c.id)}
+                    className={cn(
+                      'guest-card p-3.5 rounded-xl cursor-pointer transition-all border flex flex-col justify-between',
+                      isSelected
+                        ? 'border-cyan-400 bg-cyan-950/20 shadow-md'
+                        : 'border-white/10 hover:border-cyan-400/40 hover:bg-white/[0.02]'
+                    )}
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-xs sm:text-sm font-bold text-white">{c.name}</h4>
+                        <span className="text-xs font-mono font-bold text-emerald-400">
+                          {money(c.pricePerPlate)}/plate
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-mist-300 leading-relaxed">{c.desc}</p>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between text-[10px]">
+                      <span className="text-mist-400">Total for {guestCount} guests:</span>
+                      <span className="font-mono font-bold text-cyan-300">
+                        {money(c.pricePerPlate * guestCount)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* VIP Addons */}
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-amber-400" />
+                  <span>Optional VIP Enhancements &amp; Services</span>
+                </h3>
+                <p className="text-[11px] text-mist-400">
+                  Elevate your celebration with signature audio, visual and concierge services.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {EVENT_ADDONS.map((addon) => {
+                const isChecked = Boolean(selectedAddons[addon.id]);
+
+                return (
+                  <div
+                    key={addon.id}
+                    onClick={() => handleToggleAddon(addon.id)}
+                    className={cn(
+                      'guest-card p-3 rounded-xl cursor-pointer transition-all border flex flex-col justify-between',
+                      isChecked
+                        ? 'border-amber-400/80 bg-amber-950/20'
+                        : 'border-white/10 hover:border-white/20 hover:bg-white/[0.02]'
+                    )}
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <h4 className="text-xs font-bold text-white">{addon.name}</h4>
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {}} // Handled by container
+                          className="rounded border-white/20 bg-ink-950 text-amber-400 focus:ring-0 mt-0.5"
+                        />
+                      </div>
+                      <p className="text-[10px] text-mist-300">{addon.desc}</p>
+                    </div>
+                    <div className="mt-2 pt-1.5 border-t border-white/5 text-right">
+                      <span className="text-xs font-mono font-bold text-amber-300">
+                        +{money(addon.price)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* 9. DATE, TIME, GUEST COUNT AND VENUE DETAILS */}
         <div className="guest-card p-5 space-y-4 border border-white/10 rounded-2xl">
           <div className="border-b border-white/10 pb-3">
             <h2 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
               <Calendar className="h-4 w-4 text-cyan-400" />
-              <span>3. Date, Time Slot &amp; Venue Selection</span>
+              <span>9. Date, Time Slot &amp; Venue Details</span>
             </h2>
             <p className="text-xs text-mist-400 mt-0.5">
               Select your expected schedule, attendee count and preferred hotel banquet venue.
@@ -1254,115 +1547,13 @@ export function EventsCelebrationsSection({ room, guestName, onNavigate }: Guest
           </div>
         </div>
 
-        {/* SECTION 4: CATERING & GASTRONOMY */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
-                <UtensilsCrossed className="h-4 w-4 text-cyan-400" />
-                <span>4. Catering &amp; Gastronomy Preference</span>
-              </h2>
-              <p className="text-xs text-mist-400">
-                Crafted by our Executive Master Chefs with customizable regional menus.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {CATERING_STYLES.map((c) => {
-              const isSelected = selectedCateringId === c.id;
-
-              return (
-                <div
-                  key={c.id}
-                  onClick={() => setSelectedCateringId(c.id)}
-                  className={cn(
-                    'guest-card p-3.5 rounded-xl cursor-pointer transition-all border flex flex-col justify-between',
-                    isSelected
-                      ? 'border-cyan-400 bg-cyan-950/20 shadow-md'
-                      : 'border-white/10 hover:border-cyan-400/40 hover:bg-white/[0.02]'
-                  )}
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-xs sm:text-sm font-bold text-white">{c.name}</h4>
-                      <span className="text-xs font-mono font-bold text-emerald-400">
-                        {money(c.pricePerPlate)}/plate
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-mist-300 leading-relaxed">{c.desc}</p>
-                  </div>
-                  <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between text-[10px]">
-                    <span className="text-mist-400">Total for {guestCount} guests:</span>
-                    <span className="font-mono font-bold text-cyan-300">
-                      {money(c.pricePerPlate * guestCount)}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* SECTION 5: VIP ADD-ONS & SERVICES */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-amber-400" />
-                <span>5. Optional VIP Event Enhancements</span>
-              </h2>
-              <p className="text-xs text-mist-400">
-                Elevate your celebration with signature audio, visual and concierge services.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {EVENT_ADDONS.map((addon) => {
-              const isChecked = Boolean(selectedAddons[addon.id]);
-
-              return (
-                <div
-                  key={addon.id}
-                  onClick={() => handleToggleAddon(addon.id)}
-                  className={cn(
-                    'guest-card p-3 rounded-xl cursor-pointer transition-all border flex flex-col justify-between',
-                    isChecked
-                      ? 'border-amber-400/80 bg-amber-950/20'
-                      : 'border-white/10 hover:border-white/20 hover:bg-white/[0.02]'
-                  )}
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <h4 className="text-xs font-bold text-white">{addon.name}</h4>
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => {}} // Handled by container
-                        className="rounded border-white/20 bg-ink-950 text-amber-400 focus:ring-0 mt-0.5"
-                      />
-                    </div>
-                    <p className="text-[10px] text-mist-300">{addon.desc}</p>
-                  </div>
-                  <div className="mt-2 pt-1.5 border-t border-white/5 text-right">
-                    <span className="text-xs font-mono font-bold text-amber-300">
-                      +{money(addon.price)}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* SECTION 6: ESTIMATION & SPECIAL INSTRUCTIONS */}
+        {/* 10. BOOKING/ENQUIRY SUMMARY & CONTINUE/REVIEW ACTION */}
         <div className="guest-card p-5 space-y-4 border border-white/10 rounded-2xl bg-ink-900/90">
           <div className="border-b border-white/10 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
               <h2 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
                 <ShieldCheck className="h-4 w-4 text-emerald-400" />
-                <span>Estimated Budget &amp; Special Requests</span>
+                <span>10. Estimated Budget &amp; Special Requests</span>
               </h2>
               <p className="text-xs text-mist-400">
                 Transparent itemized budget breakdown. Subject to final review and venue confirmation.
@@ -1438,11 +1629,11 @@ export function EventsCelebrationsSection({ room, guestName, onNavigate }: Guest
         <div className="flex items-center justify-between">
           <button
             type="button"
-            onClick={() => setViewMode('listing')}
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-cyan-400 hover:text-white transition-colors"
+            onClick={handleBackToListing}
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-cyan-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all shadow-sm group"
           >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            <span>&larr; Exit to Event Collections</span>
+            <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
+            <span>Back to Event Collections</span>
           </button>
           <span className="text-[11px] font-semibold text-amber-300 flex items-center gap-1">
             <Sparkles className="h-3.5 w-3.5" />
@@ -1803,11 +1994,11 @@ export function EventsCelebrationsSection({ room, guestName, onNavigate }: Guest
         <div className="flex items-center justify-between">
           <button
             type="button"
-            onClick={() => setViewMode(selectedOccasionId === 'custom_builder' ? 'custom_builder' : 'details')}
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-cyan-400 hover:text-white transition-colors"
+            onClick={handleBackFromReview}
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-cyan-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all shadow-sm group"
           >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            <span>&larr; Edit Selections</span>
+            <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
+            <span>Edit Selections</span>
           </button>
           <span className="text-[11px] font-semibold text-mist-400">
             Final Specification Review
@@ -1823,7 +2014,7 @@ export function EventsCelebrationsSection({ room, guestName, onNavigate }: Guest
               <h1 className="text-xl sm:text-2xl font-black text-white mt-1">
                 {viewMode === 'review' && selectedOccasionId === 'custom_builder'
                   ? customEventData.name || 'Custom Bespoke Celebration'
-                  : activeOccasion.name}
+                  : headingInfo.heading}
               </h1>
               <p className="text-xs text-mist-300 mt-0.5">
                 Room {room} · Guest: {guestName}
@@ -1939,7 +2130,7 @@ export function EventsCelebrationsSection({ room, guestName, onNavigate }: Guest
           <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <button
               type="button"
-              onClick={() => setViewMode(selectedOccasionId === 'custom_builder' ? 'custom_builder' : 'details')}
+              onClick={handleBackFromReview}
               className="px-5 py-2.5 rounded-xl bg-white/5 text-mist-300 hover:text-white hover:bg-white/10 text-xs font-bold transition-colors"
             >
               &larr; Make Changes

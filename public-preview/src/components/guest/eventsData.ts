@@ -124,6 +124,45 @@ export const EVENT_CATEGORIES: EventCategoryItem[] = [
   },
 ];
 
+export const EVENT_HEADINGS_AND_INTROS: Record<string, { heading: string; intro: string }> = {
+  birthday: {
+    heading: 'Birthday Celebration',
+    intro: 'Create a memorable birthday celebration with personalised themes, decorations and arrangements.',
+  },
+  wedding: {
+    heading: 'Wedding Celebration',
+    intro: 'Plan your special day with beautiful themes, elegant decorations and personalised arrangements.',
+  },
+  anniversary: {
+    heading: 'Anniversary Celebration',
+    intro: 'Celebrate your enduring journey of love with romantic candlelight dining, custom floral styling and unforgettable moments.',
+  },
+  engagement: {
+    heading: 'Engagement Celebration & Proposal',
+    intro: 'Design a magical proposal or sparkling engagement ceremony with bespoke backdrops, crystal rings and romantic ambiance.',
+  },
+  pooja: {
+    heading: 'Pooja & Religious Ceremonies',
+    intro: 'Conduct auspicious spiritual rituals and sacred ceremonies in serene harmony with traditional decor, samagri and satvik feasting.',
+  },
+  baby_shower: {
+    heading: 'Baby Shower Celebration',
+    intro: 'Shower warmth and joy on the expectant parents with delightful pastel decor, whimsical dessert tables and royal seating.',
+  },
+  corporate_events: {
+    heading: 'Corporate Events & Summits',
+    intro: 'Host world-class business conferences, keynote launches and executive galas equipped with high-tech 4K AV and executive catering.',
+  },
+  family_functions: {
+    heading: 'Family Functions & Reunions',
+    intro: 'Bring generations together in warm celebration with interactive live culinary stations, family memory displays and festive setups.',
+  },
+  social_events: {
+    heading: 'Social Events & Cocktail Soirée',
+    intro: 'Throw glamorous evening gatherings, chic cocktail parties and milestone celebrations with signature mixology and club sound.',
+  },
+};
+
 /** Event-Specific Visual Decoration Themes with Color Palettes */
 export const EVENT_SPECIFIC_THEMES: Record<string, DecorThemeOption[]> = {
   birthday: [
