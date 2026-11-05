@@ -139,40 +139,55 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
   const [photoModalPreview, setPhotoModalPreview] = useState<string | null>(null);
   const [photoModalError, setPhotoModalError] = useState<string | null>(null);
 
-  // All combined department tasks across queues for the active department (excluding colleagues' tasks)
+  // Helper to determine if a task is truly an unassigned queue item waiting to be claimed
+  const isQueueTaskUnassigned = (task: WorkItem): boolean => {
+    const isUnassignedStatus = task.status === 'Unassigned' || task.status === 'Received';
+    const hasNoAssignee = !task.assignee || task.assignee.trim() === '' || task.assignee.toLowerCase() === 'unassigned';
+    const notActiveOrDone =
+      task.status !== 'Accepted' &&
+      task.status !== 'In progress' &&
+      task.status !== 'On the way' &&
+      task.status !== 'Blocked' &&
+      task.status !== 'Awaiting inspection' &&
+      task.status !== 'Completed' &&
+      task.status !== 'Reassigned' &&
+      task.status !== 'Reassignment requested';
+    return isUnassignedStatus && hasNoAssignee && notActiveOrDone;
+  };
+
+  // All combined department tasks across queues for the active department (excluding colleagues' tasks and supervisor audits)
   const allDepartmentTasks = useMemo(() => {
     const rawFulfiller = state.items.task_fulfiller ?? [];
-    const ddsItems = state.items.department_dispatcher_supervisor ?? [];
     const ddItems = state.items.department_dispatcher ?? [];
-    const combined = [...rawFulfiller, ...ddsItems, ...ddItems].filter(
+    const combined = [...rawFulfiller, ...ddItems].filter(
       (t, i, arr) => arr.findIndex((x) => x.id === t.id) === i,
     );
 
     return combined
+      .filter((t) => !t.id.startsWith('sup-'))
       .filter((t) => taskMatchesFulfillerDept(t, activeProfile.deptKey))
       .filter((t) => {
-        // Exclude tasks assigned to other colleagues: only keep unassigned pool tasks and tasks assigned to this fulfiller
-        const isUnassigned = t.status === 'Unassigned' || t.status === 'Received' || !t.assignee;
+        // Only keep tasks assigned to this fulfiller OR unassigned queue tasks waiting to be claimed
+        const isUnassigned = isQueueTaskUnassigned(t);
         const isAssignedToMe = isTaskAssignedToProfile(t, activeProfile);
         return isUnassigned || isAssignedToMe;
       });
-  }, [state.items.task_fulfiller, state.items.department_dispatcher_supervisor, state.items.department_dispatcher, activeProfile]);
+  }, [state.items.task_fulfiller, state.items.department_dispatcher, activeProfile]);
 
-  // My Tasks: Assigned to or claimed by active department employee
+  // My Tasks: Assigned to or claimed by active department employee (never open pool tasks)
   const myTasks = useMemo(() => {
     return allDepartmentTasks.filter(
       (t) =>
+        !isQueueTaskUnassigned(t) &&
         t.status !== 'Reassigned' &&
         t.status !== 'Unassigned' &&
         taskMatchesFulfillerAssignee(t, activeProfile),
     );
   }, [allDepartmentTasks, activeProfile]);
 
-  // Unassigned Open Pool tasks that can be claimed
+  // Unassigned Open Pool tasks that can be claimed (strictly unassigned queue tasks only)
   const unassignedPool = useMemo(() => {
-    return allDepartmentTasks.filter(
-      (t) => (t.status === 'Unassigned' || t.status === 'Received' || !t.assignee) && t.status !== 'Completed',
-    );
+    return allDepartmentTasks.filter((t) => isQueueTaskUnassigned(t));
   }, [allDepartmentTasks]);
 
   // Filtered tasks for My Tasks view
@@ -205,15 +220,15 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
   const filteredAllTasks = useMemo(() => {
     return allDepartmentTasks.filter((task) => {
       if (allFilter === 'all_eligible') return task.status !== 'Completed';
-      if (allFilter === 'open_pool')
-        return (task.status === 'Unassigned' || task.status === 'Received' || !task.assignee) && task.status !== 'Completed';
+      if (allFilter === 'open_pool') return isQueueTaskUnassigned(task);
       if (allFilter === 'in_progress')
         return (
-          task.status === 'Accepted' ||
-          task.status === 'In progress' ||
-          task.status === 'On the way' ||
-          task.status === 'Blocked' ||
-          task.status === 'Awaiting inspection'
+          !isQueueTaskUnassigned(task) &&
+          (task.status === 'Accepted' ||
+            task.status === 'In progress' ||
+            task.status === 'On the way' ||
+            task.status === 'Blocked' ||
+            task.status === 'Awaiting inspection')
         );
       if (allFilter === 'completed') return task.status === 'Completed';
       return true;
@@ -298,9 +313,9 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
       'department_supervisor',
       task.id,
       {
-        label: 'Verify & Approve',
+        label: 'Supervisor Verification',
         next: 'Completed',
-        message: `Inspected & approved by Supervisor ${activeProfile.supervisorName}`,
+        message: `Inspected & verified by Supervisor ${activeProfile.supervisorName}`,
       },
       `Quality standards verified by Supervisor ${activeProfile.supervisorName} (${activeProfile.supervisorCode})`,
     );
@@ -639,6 +654,9 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
             )}
           >
             In Progress
+            <span className="rounded-full bg-black/20 px-1.5 py-0.2 text-[10px] font-bold">
+              {allDepartmentTasks.filter((t) => !isQueueTaskUnassigned(t) && (t.status === 'Accepted' || t.status === 'In progress' || t.status === 'On the way' || t.status === 'Blocked' || t.status === 'Awaiting inspection')).length}
+            </span>
           </button>
 
           <button
@@ -699,7 +717,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
             const isCompleted = task.status === 'Completed';
             const isAwaitingInspection = task.status === 'Awaiting inspection';
             const isReassignPending = task.status === 'Reassignment requested' || task.reassignPending;
-            const isUnassigned = task.status === 'Unassigned' || task.status === 'Received' || !task.assignee;
+            const isUnassigned = isQueueTaskUnassigned(task);
             const isAssignedToMe = isTaskAssignedToProfile(task, activeProfile);
 
             return (
@@ -1058,7 +1076,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                         <div className="flex items-center justify-between rounded-xl border border-purple-400/30 bg-purple-500/10 px-3 py-2 text-xs">
                           <div className="flex items-center gap-1.5 text-purple-300 font-semibold min-w-0">
                             <ShieldCheck className="h-4 w-4 text-purple-400 shrink-0" />
-                            <span className="truncate">Submitted for Supervisor Sign-Off</span>
+                            <span className="truncate">Awaiting Supervisor Verification</span>
                           </div>
                           <span className="text-[10px] text-purple-200/90 font-medium shrink-0">
                             {activeProfile.supervisorName}
@@ -1071,7 +1089,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                             className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-purple-500 hover:bg-purple-400 active:scale-[0.98] py-2 px-3 text-xs font-bold text-white shadow-md shadow-purple-500/20 transition-all"
                           >
                             <ShieldCheck className="h-3.5 w-3.5" />
-                            Supervisor Sign-Off & Approve
+                            Supervisor Verification
                           </button>
                           <button
                             type="button"
@@ -1362,7 +1380,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                       className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-purple-500 hover:bg-purple-400 active:scale-[0.99] py-2.5 text-xs font-bold text-white transition-all shadow-md shadow-purple-500/20 text-center"
                     >
                       <ShieldCheck className="h-4 w-4" />
-                      Verify & Approve (Supervisor)
+                      Supervisor Verification
                     </button>
                   ) : (
                     <button
