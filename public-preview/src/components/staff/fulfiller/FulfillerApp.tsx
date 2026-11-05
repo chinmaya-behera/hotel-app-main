@@ -106,12 +106,24 @@ function FulfillerAppContent() {
 
   const isLight = state.theme === 'light';
 
-    return (
-    <div className="fixed inset-0 flex flex-col overflow-hidden bg-gradient-to-b from-[#070e1c] via-[#091322] to-[#040810]">
+  return (
+    <div
+      className={cn(
+        'fixed inset-0 flex flex-col overflow-hidden transition-colors duration-300',
+        isLight
+          ? 'bg-slate-200/90'
+          : 'bg-gradient-to-b from-[#070e1c] via-[#091322] to-[#040810]',
+      )}
+    >
       {/* Fluid Responsive Container: Mobile full-bleed, Tablet max-w-4xl, Desktop max-w-7xl */}
       <div
         id="fulfiller-phone-shell"
-        className="relative flex flex-col w-full h-full max-w-7xl mx-auto bg-ink-950 overflow-hidden text-white sm:border-x sm:border-white/[0.08] sm:shadow-[0_25px_80px_-15px_rgba(0,0,0,0.8)]"
+        className={cn(
+          'relative flex flex-col w-full h-full max-w-7xl mx-auto overflow-hidden transition-colors duration-300 sm:border-x',
+          isLight
+            ? 'bg-ink-950 text-white sm:border-slate-300/80 sm:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.12)]'
+            : 'bg-ink-950 text-white sm:border-white/[0.08] sm:shadow-[0_25px_80px_-15px_rgba(0,0,0,0.8)]',
+        )}
       >
         {/* In-App Toast Notification Banner */}
         {toasts && toasts.length > 0 && (
@@ -134,34 +146,63 @@ function FulfillerAppContent() {
         )}
 
         {/* Responsive Header Bar: Mobile, Tablet & Desktop */}
-        <header className="shrink-0 border-b border-white/[0.08] bg-ink-950/90 backdrop-blur-xl px-4 sm:px-6 lg:px-8 pt-3 pb-3 sm:py-4 z-40">
+        <header
+          className={cn(
+            'shrink-0 border-b px-4 sm:px-6 lg:px-8 pt-3 pb-3 sm:py-4 z-40 transition-colors duration-300',
+            isLight
+              ? 'border-slate-300/70 bg-white/95 backdrop-blur-xl text-slate-900 shadow-xs'
+              : 'border-white/[0.08] bg-ink-950/90 text-white backdrop-blur-xl',
+          )}
+        >
           <div className="flex items-center justify-between gap-3">
             {/* Identity */}
             <div className="flex items-center gap-3 min-w-0">
-              <div
-                className={cn(
-                  'grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-xl sm:rounded-2xl bg-gradient-to-br text-xs sm:text-sm font-bold shadow-md shrink-0 text-ink-950',
-                  profile.colorGradient,
-                )}
+              <button
+                type="button"
+                onClick={() => setActiveTab('profile')}
+                className="grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-xl sm:rounded-2xl bg-gradient-to-br text-xs sm:text-sm font-bold shadow-md shrink-0 text-ink-950 transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-400/40 cursor-pointer"
+                title="View Fulfiller Profile"
               >
-                {profile.avatarInitials}
-              </div>
+                <div
+                  className={cn(
+                    'w-full h-full rounded-xl sm:rounded-2xl flex items-center justify-center bg-gradient-to-br text-ink-950',
+                    profile.colorGradient,
+                  )}
+                >
+                  {profile.avatarInitials}
+                </div>
+              </button>
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h1 className="text-xs sm:text-sm md:text-base font-bold text-white truncate max-w-[140px] sm:max-w-xs">
-                    {profile.employeeName}
-                  </h1>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('profile')}
+                    className="text-left focus:outline-none"
+                    title="View Fulfiller Profile"
+                  >
+                    <h1
+                      className={cn(
+                        'text-xs sm:text-sm md:text-base font-bold truncate max-w-[140px] sm:max-w-xs transition-colors hover:underline',
+                        isLight ? 'text-slate-900' : 'text-white',
+                      )}
+                    >
+                      {profile.employeeName}
+                    </h1>
+                  </button>
 
                   <button
                     type="button"
-                    onClick={() => setFulfillerAvailability(currentAvail === 'break' ? 'on_duty' : 'break')}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setFulfillerAvailability(currentAvail === 'break' ? 'on_duty' : 'break');
+                    }}
                     className={cn(
                       'flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold border transition-colors',
                       currentAvail === 'break'
-                        ? 'bg-amber-400/20 text-amber-300 border-amber-400/40 hover:bg-amber-400/30'
+                        ? 'bg-amber-400/20 text-amber-600 dark:text-amber-300 border-amber-400/40 hover:bg-amber-400/30'
                         : currentAvail === 'off_duty'
-                          ? 'bg-rose-400/20 text-rose-300 border-rose-400/40 hover:bg-rose-400/30'
-                          : 'bg-emerald-400/20 text-emerald-300 border-emerald-400/40 hover:bg-emerald-400/30',
+                          ? 'bg-rose-400/20 text-rose-600 dark:text-rose-300 border-rose-400/40 hover:bg-rose-400/30'
+                          : 'bg-emerald-400/20 text-emerald-600 dark:text-emerald-300 border-emerald-400/40 hover:bg-emerald-400/30',
                     )}
                     title="Click to toggle On Duty / On Break"
                   >
@@ -180,44 +221,109 @@ function FulfillerAppContent() {
                     </span>
                   </button>
                 </div>
-                <p className="text-[10px] sm:text-xs text-mist-300 truncate font-medium mt-0.5">
+                <p
+                  className={cn(
+                    'text-[10px] sm:text-xs truncate font-medium mt-0.5',
+                    isLight ? 'text-slate-500' : 'text-mist-300',
+                  )}
+                >
                   {profile.departmentName} · {profile.zone}
                 </p>
               </div>
             </div>
 
-            {/* Quick Header Actions */}
+            {/* Quick Header Actions: Sound, Theme, Notification Symbol, Profile, Exit */}
             <div className="flex items-center gap-1.5 shrink-0">
-              {/* Sound Toggle */}
+              {/* Sound / Chime Toggle */}
               <button
                 type="button"
                 onClick={() => setSoundEnabled(!isSoundOn)}
-                className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-mist-300 hover:text-white transition-colors"
+                className={cn(
+                  'grid h-8 w-8 place-items-center rounded-lg border transition-colors',
+                  isLight
+                    ? 'border-slate-200 bg-slate-100/90 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                    : 'border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
+                )}
                 title={isSoundOn ? 'Mute task chime' : 'Enable task chime'}
                 aria-label="Toggle task chime"
               >
                 {isSoundOn ? (
-                  <Volume2 className="h-3.5 w-3.5 text-emerald-400" />
+                  <Volume2 className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-400" />
                 ) : (
                   <VolumeX className="h-3.5 w-3.5 text-mist-500" />
                 )}
               </button>
 
-              {/* Theme Toggle */}
+              {/* Theme Change Toggle */}
               <button
                 type="button"
                 onClick={() => setTheme(isLight ? 'dark' : 'light')}
-                className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-mist-300 hover:text-white transition-colors"
-                title={isLight ? 'Dark mode' : 'Light mode'}
+                className={cn(
+                  'grid h-8 w-8 place-items-center rounded-lg border transition-colors',
+                  isLight
+                    ? 'border-amber-400/40 bg-amber-50 text-amber-600 hover:bg-amber-100'
+                    : 'border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
+                )}
+                title={isLight ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
                 aria-label="Toggle theme"
               >
-                {isLight ? <Moon className="h-3.5 w-3.5" /> : <Sun className="h-3.5 w-3.5" />}
+                {isLight ? <Moon className="h-3.5 w-3.5" /> : <Sun className="h-3.5 w-3.5 text-amber-300" />}
+              </button>
+
+              {/* Notification Symbol Button */}
+              <button
+                type="button"
+                onClick={() => setActiveTab('notifications')}
+                className={cn(
+                  'relative grid h-8 w-8 place-items-center rounded-lg border transition-colors',
+                  activeTab === 'notifications'
+                    ? isLight
+                      ? 'border-amber-500/50 bg-amber-100/90 text-amber-700 ring-2 ring-amber-400/20'
+                      : 'border-amber-400/50 bg-amber-400/20 text-amber-300 ring-2 ring-amber-400/20'
+                    : isLight
+                      ? 'border-slate-200 bg-slate-100/90 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                      : 'border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
+                )}
+                title={unreadNotifCount > 0 ? `${unreadNotifCount} unread notifications` : 'Notifications & Alerts'}
+                aria-label="View notifications"
+              >
+                <Bell className="h-3.5 w-3.5" />
+                {unreadNotifCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-amber-500 px-1 text-[8px] font-extrabold text-white shadow-sm animate-pulse">
+                    {unreadNotifCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Profile Shortcut Button ("side of the profile") */}
+              <button
+                type="button"
+                onClick={() => setActiveTab('profile')}
+                className={cn(
+                  'relative grid h-8 w-8 place-items-center rounded-lg border transition-colors',
+                  activeTab === 'profile'
+                    ? isLight
+                      ? 'border-emerald-500/50 bg-emerald-100/90 text-emerald-700 ring-2 ring-emerald-400/20'
+                      : 'border-emerald-400/50 bg-emerald-400/20 text-emerald-300 ring-2 ring-emerald-400/20'
+                    : isLight
+                      ? 'border-slate-200 bg-slate-100/90 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                      : 'border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
+                )}
+                title={`Profile (${profile.employeeName})`}
+                aria-label="View profile"
+              >
+                <User className="h-3.5 w-3.5" />
               </button>
 
               {/* Exit to Portals / Public */}
               <Link
                 href="/login"
-                className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-mist-300 hover:text-white transition-colors"
+                className={cn(
+                  'grid h-8 w-8 place-items-center rounded-lg border transition-colors',
+                  isLight
+                    ? 'border-slate-200 bg-slate-100/90 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                    : 'border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
+                )}
                 title="Exit to staff login"
                 aria-label="Exit to staff login"
               >
@@ -241,7 +347,12 @@ function FulfillerAppContent() {
         {/* Bottom Navigation Bar: Mobile, Tablet & Desktop responsive centering */}
         <nav
           aria-label="Fulfiller app navigation"
-          className="absolute inset-x-0 bottom-0 z-40 border-t border-white/[0.08] bg-ink-950/95 backdrop-blur-2xl pb-safe"
+          className={cn(
+            'absolute inset-x-0 bottom-0 z-40 border-t pb-safe transition-colors duration-300 backdrop-blur-2xl',
+            isLight
+              ? 'border-slate-300/70 bg-white/95 text-slate-700 shadow-[0_-4px_25px_rgba(0,0,0,0.06)]'
+              : 'border-white/[0.08] bg-ink-950/95 text-white',
+          )}
         >
           <div className="grid grid-cols-5 items-center px-2 py-1.5 max-w-md sm:max-w-xl md:max-w-2xl mx-auto">
             {/* My Tasks */}
@@ -250,13 +361,19 @@ function FulfillerAppContent() {
               onClick={() => setActiveTab('tasks')}
               className={cn(
                 'relative flex flex-col items-center gap-1 py-1 text-center transition-colors',
-                activeTab === 'tasks' ? 'text-emerald-400 font-bold' : 'text-mist-400 hover:text-mist-200',
+                activeTab === 'tasks'
+                  ? isLight
+                    ? 'text-emerald-600 font-bold'
+                    : 'text-emerald-400 font-bold'
+                  : isLight
+                    ? 'text-slate-500 hover:text-slate-800'
+                    : 'text-mist-400 hover:text-mist-200',
               )}
             >
               <span className="relative">
                 <ListChecks className="h-4 w-4" />
                 {activeTaskCount > 0 && (
-                  <span className="absolute -top-1 -right-2 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-emerald-500 px-0.5 text-[8px] font-bold text-ink-950">
+                  <span className="absolute -top-1 -right-2 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-emerald-500 px-0.5 text-[8px] font-bold text-white">
                     {activeTaskCount}
                   </span>
                 )}
@@ -270,13 +387,19 @@ function FulfillerAppContent() {
               onClick={() => setActiveTab('notifications')}
               className={cn(
                 'relative flex flex-col items-center gap-1 py-1 text-center transition-colors',
-                activeTab === 'notifications' ? 'text-emerald-400 font-bold' : 'text-mist-400 hover:text-mist-200',
+                activeTab === 'notifications'
+                  ? isLight
+                    ? 'text-emerald-600 font-bold'
+                    : 'text-emerald-400 font-bold'
+                  : isLight
+                    ? 'text-slate-500 hover:text-slate-800'
+                    : 'text-mist-400 hover:text-mist-200',
               )}
             >
               <span className="relative">
                 <Bell className="h-4 w-4" />
                 {unreadNotifCount > 0 && (
-                  <span className="absolute -top-1 -right-2 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-amber-400 px-0.5 text-[8px] font-bold text-ink-950 animate-pulse">
+                  <span className="absolute -top-1 -right-2 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-amber-500 px-0.5 text-[8px] font-bold text-white animate-pulse">
                     {unreadNotifCount}
                   </span>
                 )}
@@ -290,7 +413,13 @@ function FulfillerAppContent() {
               onClick={() => setActiveTab('policies')}
               className={cn(
                 'relative flex flex-col items-center gap-1 py-1 text-center transition-colors',
-                activeTab === 'policies' ? 'text-emerald-400 font-bold' : 'text-mist-400 hover:text-mist-200',
+                activeTab === 'policies'
+                  ? isLight
+                    ? 'text-emerald-600 font-bold'
+                    : 'text-emerald-400 font-bold'
+                  : isLight
+                    ? 'text-slate-500 hover:text-slate-800'
+                    : 'text-mist-400 hover:text-mist-200',
               )}
             >
               <ShieldCheck className="h-4 w-4" />
@@ -303,7 +432,13 @@ function FulfillerAppContent() {
               onClick={() => setActiveTab('performance')}
               className={cn(
                 'relative flex flex-col items-center gap-1 py-1 text-center transition-colors',
-                activeTab === 'performance' ? 'text-emerald-400 font-bold' : 'text-mist-400 hover:text-mist-200',
+                activeTab === 'performance'
+                  ? isLight
+                    ? 'text-emerald-600 font-bold'
+                    : 'text-emerald-400 font-bold'
+                  : isLight
+                    ? 'text-slate-500 hover:text-slate-800'
+                    : 'text-mist-400 hover:text-mist-200',
               )}
             >
               <Activity className="h-4 w-4" />
@@ -316,7 +451,13 @@ function FulfillerAppContent() {
               onClick={() => setActiveTab('profile')}
               className={cn(
                 'relative flex flex-col items-center gap-1 py-1 text-center transition-colors',
-                activeTab === 'profile' ? 'text-emerald-400 font-bold' : 'text-mist-400 hover:text-mist-200',
+                activeTab === 'profile'
+                  ? isLight
+                    ? 'text-emerald-600 font-bold'
+                    : 'text-emerald-400 font-bold'
+                  : isLight
+                    ? 'text-slate-500 hover:text-slate-800'
+                    : 'text-mist-400 hover:text-mist-200',
               )}
             >
               <User className="h-4 w-4" />
