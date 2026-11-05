@@ -51,6 +51,7 @@ const REASSIGN_REASONS = [
   'Missing cleaning equipment / chemical supplies',
   'Shift schedule ending / shift handover required',
   'Language / guest communication barrier',
+  'Others',
 ];
 
 const SAMPLE_PROOF_PHOTOS: Record<string, string> = {
@@ -127,6 +128,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
   const [reassignModalTask, setReassignModalTask] = useState<WorkItem | null>(null);
   const [blockerReason, setBlockerReason] = useState(BLOCKER_REASONS[0]);
   const [reassignReason, setReassignReason] = useState(REASSIGN_REASONS[0]);
+  const [customReassignReason, setCustomReassignReason] = useState('');
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [viewPhotoUrl, setViewPhotoUrl] = useState<string | null>(null);
 
@@ -384,8 +386,13 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
 
   function handleReassignSubmit() {
     if (!reassignModalTask) return;
-    requestTaskReassignment(reassignModalTask.id, reassignReason);
+    const finalReason =
+      reassignReason === 'Others'
+        ? (customReassignReason.trim() ? `Others: ${customReassignReason.trim()}` : 'Other reason')
+        : reassignReason;
+    requestTaskReassignment(reassignModalTask.id, finalReason);
     setReassignModalTask(null);
+    setCustomReassignReason('');
     if (selectedTask?.id === reassignModalTask.id) {
       setSelectedTask(null);
     }
@@ -1464,7 +1471,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                 This request will be routed to Supervisor <strong>{activeProfile.supervisorName}</strong> for decision. The task remains assigned to you until approved.
               </p>
 
-              <div className="mt-3 space-y-2 max-h-[45vh] overflow-y-auto no-scrollbar">
+              <div className="mt-3 space-y-2 max-h-[48vh] overflow-y-auto no-scrollbar">
                 {REASSIGN_REASONS.map((reason) => (
                   <label
                     key={reason}
@@ -1485,12 +1492,31 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     <span className="text-[11px]">{reason}</span>
                   </label>
                 ))}
+
+                {reassignReason === 'Others' && (
+                  <div className="pt-1.5 animate-in fade-in duration-150">
+                    <label className="block text-[11px] font-semibold text-mist-200 mb-1">
+                      Type Reason for Reassignment:
+                    </label>
+                    <textarea
+                      value={customReassignReason}
+                      onChange={(e) => setCustomReassignReason(e.target.value)}
+                      placeholder="Type the specific reason here..."
+                      rows={3}
+                      className="w-full rounded-xl border border-white/20 bg-white/[0.04] p-2.5 text-xs text-white placeholder:text-mist-400 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400/30 resize-none"
+                      autoFocus
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="mt-4 flex items-center justify-end gap-2 border-t border-white/10 pt-3">
                 <button
                   type="button"
-                  onClick={() => setReassignModalTask(null)}
+                  onClick={() => {
+                    setReassignModalTask(null);
+                    setCustomReassignReason('');
+                  }}
                   className="rounded-xl border border-white/10 px-3 py-1.5 text-xs text-mist-300 hover:text-white"
                 >
                   Cancel
