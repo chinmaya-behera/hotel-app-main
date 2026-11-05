@@ -110,7 +110,7 @@ export function RequestsPanel({
       i.title.toLowerCase().includes('complaint') ||
       i.title.toLowerCase().includes('noise') ||
       i.title.toLowerCase().includes('dispute') ||
-      i.category === 'case';
+      (i.category as string) === 'case';
 
     if (sourceTab === 'complaints') {
       return isComplaint;

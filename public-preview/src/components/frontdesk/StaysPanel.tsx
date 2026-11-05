@@ -287,6 +287,7 @@ function StayRow({ stay, onDialog }: { stay: StayRecord; onDialog: (kind: 'verif
                         r.readiness = 'cleaning';
                         r.note = 'Housekeeping turnover assigned by Front Desk';
                       }
+                      return { next: s, message: 'Cleaner assigned' };
                     });
                   }
                 }}

@@ -447,7 +447,7 @@ export function DisputesPanel() {
                         fdAction((s) => {
                           const item = s.frontDesk?.sync.find((x) => x.id === sync.id);
                           if (item) item.bookingState = 'Refund_Requested';
-                          return null;
+                          return { next: s, message: 'Refund requested' };
                         });
                       }
                     }}

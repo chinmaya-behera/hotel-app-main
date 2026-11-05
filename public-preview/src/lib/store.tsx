@@ -460,6 +460,18 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           items: {
             ...base.items,
             ...saved.items,
+            task_fulfiller: [
+              ...(base.items.task_fulfiller ?? []),
+              ...((saved.items?.task_fulfiller ?? []).filter(
+                (si) => !(base.items.task_fulfiller ?? []).some((bi) => bi.id === si.id),
+              )),
+            ],
+            department_dispatcher: [
+              ...(base.items.department_dispatcher ?? []),
+              ...((saved.items?.department_dispatcher ?? []).filter(
+                (si) => !(base.items.department_dispatcher ?? []).some((bi) => bi.id === si.id),
+              )),
+            ],
             department_dispatcher_supervisor:
               saved.items?.department_dispatcher_supervisor ?? base.items.department_dispatcher_supervisor,
             general_manager: saved.items?.general_manager ?? base.items.general_manager,
@@ -585,7 +597,18 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
   const advance = useCallback<DemoApi['advance']>(
     (roleId, itemId, t, reason) => {
-      const item = stateRef.current.items[roleId]?.find((i) => i.id === itemId);
+      let item = stateRef.current.items[roleId]?.find((i) => i.id === itemId);
+      let actualRoleId = roleId;
+      if (!item) {
+        for (const [r, list] of Object.entries(stateRef.current.items)) {
+          const found = list.find((i) => i.id === itemId);
+          if (found) {
+            item = found;
+            actualRoleId = r as RoleId;
+            break;
+          }
+        }
+      }
       if (!item) return;
       const text = `${t.message}: ${item.title}${reason ? ` · ${reason}` : ''}`;
       const revokes = Boolean(t.revokesQr && item.room);
@@ -593,49 +616,56 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
       setState((prev) => {
         const nextItems = { ...prev.items };
-        // Update the item in the active role
-        nextItems[roleId] = nextItems[roleId].map((i) =>
-          i.id === itemId
-            ? {
-              ...i,
-              status: t.next,
-              selfRequested: t.marksSelf ? true : i.selfRequested,
-              blockerReason: t.next === 'Blocked' ? (reason ?? i.blockerReason) : (t.next === 'In progress' ? undefined : i.blockerReason),
-              history: [...(i.history ?? []), historyEntry],
+        // Update matching items across all role queues
+        (Object.keys(nextItems) as RoleId[]).forEach((otherRoleId) => {
+          nextItems[otherRoleId] = nextItems[otherRoleId].map((other) => {
+            if (other.id === itemId || (item!.ref && other.ref === item!.ref)) {
+              return {
+                ...other,
+                status: t.next,
+                selfRequested: t.marksSelf ? true : other.selfRequested,
+                blockerReason:
+                  t.next === 'Blocked'
+                    ? (reason ?? other.blockerReason)
+                    : t.next === 'In progress' || t.next === 'Accepted' || t.next === 'Completed'
+                      ? undefined
+                      : other.blockerReason,
+                history: [...(other.history ?? []), historyEntry],
+              };
             }
-            : i,
-        );
-
-        // Connected cross-role update: If this is a fulfiller task or guest request, also update any mirrored item in other roles
-        if (item.ref) {
-          (Object.keys(nextItems) as RoleId[]).forEach((otherRoleId) => {
-            if (otherRoleId !== roleId) {
-              nextItems[otherRoleId] = nextItems[otherRoleId].map((other) => {
-                if (other.ref === item.ref || (other.room === item.room && other.title === item.title)) {
-                  return {
-                    ...other,
-                    status: t.next,
-                    history: [...(other.history ?? []), historyEntry],
-                  };
-                }
-                return other;
-              });
-            }
+            return other;
           });
+        });
+
+        // Ensure item exists in task_fulfiller queue when action is performed by fulfiller
+        if (roleId === 'task_fulfiller') {
+          const currentFulfiller = nextItems.task_fulfiller ?? [];
+          const exists = currentFulfiller.some((i) => i.id === itemId || (item!.ref && i.ref === item!.ref));
+          if (!exists) {
+            nextItems.task_fulfiller = [
+              {
+                ...item!,
+                status: t.next,
+                blockerReason: t.next === 'Blocked' ? (reason ?? item!.blockerReason) : undefined,
+                history: [...(item!.history ?? []), historyEntry],
+              },
+              ...currentFulfiller,
+            ];
+          }
         }
 
         return {
           ...prev,
           items: nextItems,
-          feed: [{ id: uid(), at: nowLabel(), role: roleById[roleId].short, text }, ...prev.feed].slice(0, 30),
+          feed: [{ id: uid(), at: nowLabel(), role: roleById[roleId]?.short ?? 'Staff', text }, ...prev.feed].slice(0, 30),
           revokedRooms:
-            revokes && item.room && !prev.revokedRooms.includes(item.room)
-              ? [...prev.revokedRooms, item.room]
+            revokes && item!.room && !prev.revokedRooms.includes(item!.room)
+              ? [...prev.revokedRooms, item!.room]
               : prev.revokedRooms,
         };
       });
-      setState((prev) => afterAdvance(prev, roleId, t.next, item.room));
-      notify(revokes ? `${text} · Room ${item.room} guest session revoked` : text);
+      setState((prev) => afterAdvance(prev, actualRoleId, t.next, item!.room));
+      notify(revokes ? `${text} · Room ${item!.room} guest session revoked` : text);
     },
     [notify],
   );
@@ -824,20 +854,30 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
   const attachTaskPhoto = useCallback((roleId: RoleId, itemId: string, dataUrl: string) => {
     setState((prev) => {
-      const item = prev.items[roleId]?.find((i) => i.id === itemId);
+      let item = prev.items[roleId]?.find((i) => i.id === itemId);
+      if (!item) {
+        for (const list of Object.values(prev.items)) {
+          const found = list.find((i) => i.id === itemId);
+          if (found) {
+            item = found;
+            break;
+          }
+        }
+      }
       if (!item) return prev;
       const historyEntry: GuestHistoryEntry = { at: nowLabel(), status: item.status, note: 'Photo evidence attached' };
+      const nextItems = { ...prev.items };
+      (Object.keys(nextItems) as RoleId[]).forEach((r) => {
+        nextItems[r] = nextItems[r].map((i) =>
+          i.id === itemId || (item!.ref && i.ref === item!.ref)
+            ? { ...i, photoUrl: dataUrl, photoAttached: true, history: [...(i.history ?? []), historyEntry] }
+            : i,
+        );
+      });
       return {
         ...prev,
-        items: {
-          ...prev.items,
-          [roleId]: prev.items[roleId].map((i) =>
-            i.id === itemId
-              ? { ...i, photoUrl: dataUrl, photoAttached: true, history: [...(i.history ?? []), historyEntry] }
-              : i,
-          ),
-        },
-        feed: [{ id: uid(), at: nowLabel(), role: roleById[roleId].short, text: `Photo attached for ${item.title}` }, ...prev.feed].slice(0, 30),
+        items: nextItems,
+        feed: [{ id: uid(), at: nowLabel(), role: roleById[roleId]?.short ?? 'Staff', text: `Photo attached for ${item.title}` }, ...prev.feed].slice(0, 30),
       };
     });
     notify('Photo attached successfully');
@@ -1019,7 +1059,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       setState((prev) => {
         const ddsItems = prev.items.department_dispatcher_supervisor ?? [];
         const ddItems = prev.items.department_dispatcher ?? [];
-        const task = ddsItems.find((i) => i.id === taskId) || ddItems.find((i) => i.id === taskId);
+        const fulItems = prev.items.task_fulfiller ?? [];
+        const task = ddsItems.find((i) => i.id === taskId) || ddItems.find((i) => i.id === taskId) || fulItems.find((i) => i.id === taskId);
         const staff = (prev.staffAccounts ?? []).find((s) => s.id === staffId || s.employeeId === staffId);
         if (!task || !staff) return prev;
 
@@ -4398,6 +4439,16 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
   const claimTask = useCallback<DemoApi['claimTask']>(
     (taskId, fulfillerId, fulfillerName) => {
+      const currentAvail = stateRef.current.fulfillerAvailability ?? 'on_duty';
+      if (currentAvail === 'break') {
+        notify('Cannot self-assign tasks while on break. Switch to On Duty status to claim tasks.');
+        return;
+      }
+      if (currentAvail === 'off_duty') {
+        notify('Cannot self-assign tasks while off duty. Switch to On Duty status to claim tasks.');
+        return;
+      }
+
       const timestamp = nowLabel();
       let conflictError = false;
 
