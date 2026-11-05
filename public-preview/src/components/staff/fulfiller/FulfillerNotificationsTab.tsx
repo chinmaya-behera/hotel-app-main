@@ -171,8 +171,8 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
           className={cn(
             'flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold transition-all',
             filter === 'alerts'
-              ? 'bg-purple-400 text-ink-950 font-bold shadow-md shadow-purple-400/20'
-              : 'border border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
+              ? 'bg-[#c8a96e] text-[#14120e] font-bold shadow-md'
+              : 'border border-[rgba(165,130,95,0.25)] bg-white/[0.04] text-[#ded6c9] hover:text-[#f7f4ed]',
           )}
         >
           Supervisor Notes

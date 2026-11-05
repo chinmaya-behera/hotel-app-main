@@ -115,7 +115,7 @@ export function FulfillerPerformanceTab({ profile }: { profile?: FulfillerProfil
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3.5">
           <div className="flex items-center justify-between text-mist-400">
             <span className="text-[11px] font-medium">Floor Zone Coverage</span>
-            <Layers className="h-4 w-4 text-purple-400" />
+            <Layers className="h-4 w-4 text-[#dfc187]" />
           </div>
           <p className="mt-2 text-xl font-bold text-white">Floors 1–5</p>
           <p className="text-[10px] text-mist-400 mt-0.5">Housekeeping Sector A</p>

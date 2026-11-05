@@ -627,14 +627,18 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         (Object.keys(nextItems) as RoleId[]).forEach((otherRoleId) => {
           nextItems[otherRoleId] = nextItems[otherRoleId].map((other) => {
             if (other.id === itemId || (item!.ref && other.ref === item!.ref)) {
+              const targetStatus =
+                (otherRoleId === 'task_fulfiller' && (t.next === 'Closed' || t.next === 'Completed'))
+                  ? 'Completed'
+                  : t.next;
               return {
                 ...other,
-                status: t.next,
+                status: targetStatus,
                 selfRequested: t.marksSelf ? true : other.selfRequested,
                 blockerReason:
-                  t.next === 'Blocked'
+                  targetStatus === 'Blocked'
                     ? (reason ?? other.blockerReason)
-                    : t.next === 'In progress' || t.next === 'Accepted' || t.next === 'Completed'
+                    : targetStatus === 'In progress' || targetStatus === 'Accepted' || targetStatus === 'Completed'
                       ? undefined
                       : other.blockerReason,
                 history: [...(other.history ?? []), historyEntry],
@@ -677,7 +681,24 @@ export function DemoProvider({ children }: { children: ReactNode }) {
                 },
                 ...(prev.notifications ?? []),
               ]
-            : (prev.notifications ?? []);
+            : (roleId === 'department_supervisor' || roleId === 'department_dispatcher_supervisor') &&
+                (t.next === 'Closed' || t.next === 'Completed') &&
+                item
+              ? [
+                  {
+                    id: uid(),
+                    roleId: 'task_fulfiller' as RoleId,
+                    department: item.department,
+                    title: 'Task Approved by Supervisor',
+                    message: `${item.title} verified & approved. Task Completed.`,
+                    timestamp: nowLabel(),
+                    read: false,
+                    type: 'task' as const,
+                    itemId: item.id,
+                  },
+                  ...(prev.notifications ?? []),
+                ]
+              : (prev.notifications ?? []);
 
         return {
           ...prev,

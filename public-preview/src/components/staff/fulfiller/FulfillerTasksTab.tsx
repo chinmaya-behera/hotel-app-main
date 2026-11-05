@@ -200,21 +200,27 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
   // Filtered tasks for My Tasks view
   const filteredMyTasks = useMemo(() => {
     return myTasks.filter((task) => {
-      if (myFilter === 'all') return task.status !== 'Completed';
-      if (myFilter === 'pending') return task.status === 'Assigned';
+      if (myFilter === 'all')
+        return (
+          task.status !== 'Completed' &&
+          task.status !== 'Closed' &&
+          task.status !== 'Awaiting inspection'
+        );
+      if (myFilter === 'pending')
+        return task.status === 'Assigned' || task.status === 'Awaiting inspection';
       if (myFilter === 'in_progress')
         return (
           task.status === 'Accepted' ||
           task.status === 'In progress' ||
           task.status === 'On the way' ||
-          task.status === 'Blocked' ||
-          task.status === 'Awaiting inspection'
+          task.status === 'Blocked'
         );
       if (myFilter === 'blocked') return task.status === 'Blocked';
-      if (myFilter === 'completed') return task.status === 'Completed';
+      if (myFilter === 'completed') return task.status === 'Completed' || task.status === 'Closed';
       if (myFilter === 'overdue')
         return (
           task.status !== 'Completed' &&
+          task.status !== 'Closed' &&
           (task.chip?.toLowerCase().includes('overdue') ||
             task.slaDue?.toLowerCase().includes('overdue') ||
             task.tone === 'danger')
@@ -226,7 +232,12 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
   // Filtered tasks for All Tasks view
   const filteredAllTasks = useMemo(() => {
     return allDepartmentTasks.filter((task) => {
-      if (allFilter === 'all_eligible') return task.status !== 'Completed';
+      if (allFilter === 'all_eligible')
+        return (
+          task.status !== 'Completed' &&
+          task.status !== 'Closed' &&
+          task.status !== 'Awaiting inspection'
+        );
       if (allFilter === 'open_pool') return isQueueTaskUnassigned(task);
       if (allFilter === 'in_progress')
         return (
@@ -234,28 +245,36 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
           (task.status === 'Accepted' ||
             task.status === 'In progress' ||
             task.status === 'On the way' ||
-            task.status === 'Blocked' ||
-            task.status === 'Awaiting inspection')
+            task.status === 'Blocked')
         );
-      if (allFilter === 'completed') return task.status === 'Completed';
+      if (allFilter === 'completed') return task.status === 'Completed' || task.status === 'Closed';
       return true;
     });
   }, [allDepartmentTasks, allFilter]);
 
   // Counts for Badges
-  const activeMyTasksCount = myTasks.filter((t) => t.status !== 'Completed').length;
-  const pendingCount = myTasks.filter((t) => t.status === 'Assigned').length;
+  const activeMyTasksCount = myTasks.filter(
+    (t) =>
+      t.status !== 'Completed' &&
+      t.status !== 'Closed' &&
+      t.status !== 'Awaiting inspection',
+  ).length;
+  const pendingCount = myTasks.filter(
+    (t) => t.status === 'Assigned' || t.status === 'Awaiting inspection',
+  ).length;
   const inProgressCount = myTasks.filter(
     (t) =>
       t.status === 'Accepted' ||
       t.status === 'In progress' ||
       t.status === 'On the way' ||
-      t.status === 'Blocked' ||
-      t.status === 'Awaiting inspection',
+      t.status === 'Blocked',
   ).length;
   const blockedCount = myTasks.filter((t) => t.status === 'Blocked').length;
   const overdueCount = myTasks.filter(
-    (t) => t.status !== 'Completed' && (t.chip?.toLowerCase().includes('overdue') || t.tone === 'danger'),
+    (t) =>
+      t.status !== 'Completed' &&
+      t.status !== 'Closed' &&
+      (t.chip?.toLowerCase().includes('overdue') || t.tone === 'danger'),
   ).length;
 
   function handlePhotoUpload(e: ChangeEvent<HTMLInputElement>, task: WorkItem) {
@@ -282,37 +301,10 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
   }
 
   function handleComplete(task: WorkItem) {
-    advance(
-      'task_fulfiller',
-      task.id,
-      {
-        label: 'Submit for inspection',
-        next: 'Awaiting inspection',
-        message: `Work finished by ${activeProfile.employeeName}. Submitted for supervisor inspection`,
-      },
-      `Work finished by ${activeProfile.employeeName}. Awaiting sign-off by Supervisor ${activeProfile.supervisorName}`,
-    );
-
-    if (selectedTask?.id === task.id) {
-      setSelectedTask((prev) =>
-        prev
-          ? {
-              ...prev,
-              status: 'Awaiting inspection',
-              history: [
-                ...(prev.history ?? []),
-                {
-                  at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                  status: 'Awaiting inspection',
-                  note: `Work completed by ${activeProfile.employeeName}. Submitted for quality inspection by Supervisor ${activeProfile.supervisorName}`,
-                  actor: activeProfile.employeeName,
-                  role: 'Task Fulfiller',
-                },
-              ],
-            }
-          : null,
-      );
-    }
+    // Open photo upload confirmation dialog to attach proof before submitting to supervisor
+    setPhotoModalTask(task);
+    setPhotoModalPreview(task.photoUrl || null);
+    setPhotoModalError(null);
   }
 
   function handleSupervisorVerify(task: WorkItem) {
@@ -350,16 +342,53 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
   }
 
   function openPhotoUpload(task: WorkItem) {
-    setPhotoModalTask(task);
-    setPhotoModalPreview(task.photoUrl || null);
-    setPhotoModalError(null);
+    handleComplete(task);
   }
 
-  function handleSaveUploadedPhoto() {
+  function handleSubmitCompletionWithPhoto() {
     if (!photoModalTask) return;
-    if (photoModalPreview) {
-      attachTaskPhoto('task_fulfiller', photoModalTask.id, photoModalPreview);
+    const finalPhoto =
+      photoModalPreview ||
+      SAMPLE_PROOF_PHOTOS[activeProfile.deptKey] ||
+      SAMPLE_PROOF_PHOTOS.housekeeping;
+
+    attachTaskPhoto('task_fulfiller', photoModalTask.id, finalPhoto);
+
+    advance(
+      'task_fulfiller',
+      photoModalTask.id,
+      {
+        label: 'Submit for inspection',
+        next: 'Awaiting inspection',
+        message: `Work completed by ${activeProfile.employeeName}. Submitted for supervisor inspection`,
+      },
+      `Work finished with photo evidence by ${activeProfile.employeeName}. Awaiting sign-off by Supervisor ${activeProfile.supervisorName}`,
+    );
+
+    if (selectedTask?.id === photoModalTask.id) {
+      setSelectedTask((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: 'Awaiting inspection',
+              photoUrl: finalPhoto,
+              photoAttached: true,
+              history: [
+                ...(prev.history ?? []),
+                {
+                  at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                  status: 'Awaiting inspection',
+                  note: `Work completed with photo proof by ${activeProfile.employeeName}. Submitted for quality inspection by Supervisor ${activeProfile.supervisorName}`,
+                  actor: activeProfile.employeeName,
+                  role: 'Task Fulfiller',
+                },
+              ],
+            }
+          : null,
+      );
     }
+
+    notify(`Work submitted with photo. Pending inspection by Supervisor ${activeProfile.supervisorName}.`);
     setPhotoModalTask(null);
     setPhotoModalPreview(null);
     setPhotoModalError(null);
@@ -533,13 +562,13 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
             className={cn(
               'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all',
               myFilter === 'pending'
-                ? 'bg-amber-400 text-ink-950 shadow-md shadow-amber-400/25'
-                : 'border border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
+                ? 'bg-[#c8a96e] text-[#14120e] shadow-md font-bold'
+                : 'border border-[rgba(165,130,95,0.25)] bg-white/[0.04] text-[#ded6c9] hover:text-[#f7f4ed]',
             )}
           >
-            Pending Ack
+            Pending
             {pendingCount > 0 && (
-              <span className="rounded-full bg-amber-500/30 px-1.5 py-0.2 text-[10px] font-bold text-amber-200">
+              <span className="rounded-full bg-black/25 px-1.5 py-0.2 text-[10px] font-bold text-[#14120e]">
                 {pendingCount}
               </span>
             )}
@@ -740,7 +769,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     : isCompleted
                       ? 'border-emerald-500/20 bg-emerald-500/[0.03]'
                       : isAwaitingInspection
-                        ? 'border-purple-400/30 bg-purple-400/[0.04]'
+                        ? 'border-[rgba(165,130,95,0.35)] bg-[rgba(200,169,110,0.05)]'
                         : isBlocked
                           ? 'border-rose-500/30 bg-rose-500/[0.05]'
                           : isReassignPending
@@ -786,7 +815,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                       isCompleted
                         ? 'bg-emerald-400/20 text-emerald-300'
                         : isAwaitingInspection
-                          ? 'bg-purple-400/20 text-purple-300 border border-purple-400/30'
+                          ? 'bg-[#c8a96e]/15 text-[#dfc187] border border-[rgba(165,130,95,0.3)]'
                           : isBlocked
                             ? 'bg-rose-500/20 text-rose-300'
                             : isReassignPending
@@ -798,7 +827,11 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                                   : 'bg-white/10 text-mist-300',
                     )}
                   >
-                    {isUnassigned ? 'Unassigned' : task.status}
+                    {isUnassigned
+                      ? 'Unassigned'
+                      : isAwaitingInspection
+                        ? 'Pending Inspection'
+                        : task.status}
                   </span>
                 </div>
 
@@ -978,7 +1011,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                               message: 'Work commenced',
                             })
                           }
-                          className="flex items-center justify-center gap-1.5 rounded-xl bg-sky-500 py-2 px-3 text-xs font-semibold text-ink-950 shadow-md shadow-sky-500/20 active:scale-[0.98] transition-transform"
+                          className="flex items-center justify-center gap-1.5 rounded-xl bg-[#c8a96e] hover:bg-[#dfc187] py-2 px-3 text-xs font-bold text-[#14120e] shadow-md active:scale-[0.98] transition-transform cursor-pointer"
                         >
                           <Play className="h-3.5 w-3.5 fill-current" />
                           Start
@@ -986,29 +1019,15 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                         <button
                           type="button"
                           onClick={() => handleComplete(task)}
-                          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-500 py-2 px-3 text-xs font-semibold text-ink-950 shadow-md shadow-emerald-500/20 active:scale-[0.98] transition-transform"
+                          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#c8a96e] hover:bg-[#dfc187] py-2 px-3 text-xs font-bold text-[#14120e] shadow-md shadow-amber-500/10 active:scale-[0.98] transition-transform cursor-pointer"
                         >
                           <CheckCircle2 className="h-3.5 w-3.5" />
                           Complete
                         </button>
                         <button
                           type="button"
-                          onClick={() => openPhotoUpload(task)}
-                          className={cn(
-                            'rounded-xl border px-3 py-2 text-xs font-medium transition-colors flex items-center gap-1.5',
-                            task.photoUrl
-                              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-                              : 'border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
-                          )}
-                          title="Upload or capture task photo"
-                        >
-                          <Camera className="h-3.5 w-3.5" />
-                          {task.photoUrl ? 'Photo ✓' : 'Upload Photo'}
-                        </button>
-                        <button
-                          type="button"
                           onClick={() => setReassignModalTask(task)}
-                          className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-medium text-mist-300 hover:text-white transition-colors"
+                          className="rounded-xl border border-[rgba(165,130,95,0.25)] bg-white/[0.04] px-3 py-2 text-xs font-medium text-[#ded6c9] hover:text-[#f7f4ed] transition-colors cursor-pointer"
                         >
                           Reassign
                         </button>
@@ -1020,7 +1039,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                         <button
                           type="button"
                           onClick={() => handleComplete(task)}
-                          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-500 py-2 px-3 text-xs font-semibold text-ink-950 shadow-md shadow-emerald-500/20 active:scale-[0.98] transition-transform"
+                          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#c8a96e] hover:bg-[#dfc187] py-2 px-3 text-xs font-bold text-[#14120e] shadow-md shadow-amber-500/10 active:scale-[0.98] transition-transform cursor-pointer"
                         >
                           <CheckCircle2 className="h-3.5 w-3.5" />
                           Mark Completed
@@ -1028,23 +1047,8 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
 
                         <button
                           type="button"
-                          onClick={() => openPhotoUpload(task)}
-                          className={cn(
-                            'rounded-xl border px-3 py-2 text-xs font-medium transition-colors flex items-center gap-1.5',
-                            task.photoUrl
-                              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-                              : 'border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
-                          )}
-                          title="Upload or capture task photo"
-                        >
-                          <Camera className="h-3.5 w-3.5" />
-                          {task.photoUrl ? 'Photo ✓' : 'Upload Photo'}
-                        </button>
-
-                        <button
-                          type="button"
                           onClick={() => setBlockerModalTask(task)}
-                          className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs font-medium text-rose-300 hover:bg-rose-500/20 transition-colors"
+                          className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs font-medium text-rose-300 hover:bg-rose-500/20 transition-colors cursor-pointer"
                         >
                           Blocker
                         </button>
@@ -1062,7 +1066,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                               message: 'Blocker cleared, work resumed',
                             })
                           }
-                          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-500 py-2 px-3 text-xs font-semibold text-ink-950 shadow-md active:scale-[0.98] transition-transform"
+                          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#c8a96e] hover:bg-[#dfc187] py-2 px-3 text-xs font-bold text-[#14120e] shadow-md active:scale-[0.98] transition-transform cursor-pointer"
                         >
                           <RotateCcw className="h-3.5 w-3.5" />
                           Resume Work
@@ -1070,7 +1074,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                         <button
                           type="button"
                           onClick={() => setReassignModalTask(task)}
-                          className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-medium text-mist-300 hover:text-white transition-colors"
+                          className="rounded-xl border border-[rgba(165,130,95,0.25)] bg-white/[0.04] px-3 py-2 text-xs font-medium text-[#ded6c9] hover:text-[#f7f4ed] transition-colors cursor-pointer"
                         >
                           Request Reassign
                         </button>
@@ -1079,37 +1083,18 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
 
                     {!isUnassigned && isAssignedToMe && isAwaitingInspection && (
                       <div className="flex flex-col gap-2 w-full">
-                        <div className="flex flex-wrap items-center justify-between gap-1.5 rounded-xl border border-purple-400/30 bg-purple-500/10 px-3 py-2 text-xs">
-                          <div className="flex items-center gap-1.5 text-purple-300 font-semibold">
-                            <Clock className="h-4 w-4 text-purple-400 shrink-0 animate-pulse" />
-                            <span>Supervisor Verification Pending</span>
+                        <div className="flex items-center justify-between rounded-xl border border-[rgba(165,130,95,0.3)] bg-[rgba(200,169,110,0.08)] px-3 py-2 text-xs">
+                          <div className="flex items-center gap-2 text-[#dfc187] font-semibold">
+                            <Clock className="h-4 w-4 text-[#dfc187] shrink-0 animate-pulse" />
+                            <span>Pending at Supervisor Inspection</span>
                           </div>
-                          <span className="inline-flex items-center rounded-md bg-purple-500/20 px-2 py-0.5 text-[10px] text-purple-200 font-mono font-bold shrink-0">
-                            Supervisor: {activeProfile.supervisorName} ({activeProfile.supervisorCode})
-                          </span>
-                        </div>
-
-                        <div className="rounded-xl border border-white/5 bg-white/[0.02] p-2 text-xs text-mist-300 flex items-start gap-2">
-                          <ShieldAlert className="h-3.5 w-3.5 text-purple-400 shrink-0 mt-0.5" />
-                          <p className="text-[10px] text-mist-400 leading-relaxed">
-                            Quality check pending. <strong>Supervisor {activeProfile.supervisorName}</strong> must inspect and certify this task. Attendants cannot self-verify.
-                          </p>
-                        </div>
-
-                        <div className="flex items-center gap-2">
                           <button
                             type="button"
-                            onClick={() => openPhotoUpload(task)}
-                            className={cn(
-                              'w-full rounded-xl border px-3 py-2 text-xs font-medium transition-colors flex items-center justify-center gap-1.5',
-                              task.photoUrl
-                                ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-                                : 'border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
-                            )}
-                            title="Upload or capture task photo"
+                            onClick={() => setSupervisorModalTask(task)}
+                            className="rounded-lg border border-[rgba(165,130,95,0.35)] bg-[rgba(200,169,110,0.14)] hover:bg-[rgba(200,169,110,0.24)] px-2.5 py-1 text-[10px] font-bold text-[#dfc187] transition-colors cursor-pointer"
+                            title="Supervisor inspection verification"
                           >
-                            <Camera className="h-3.5 w-3.5" />
-                            {task.photoUrl ? 'Photo Proof Attached ✓' : 'Upload Proof Photo'}
+                            Supervisor Sign-Off
                           </button>
                         </div>
                       </div>
@@ -1200,11 +1185,13 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                         selectedTask.status === 'Completed'
                           ? 'bg-emerald-500/20 text-emerald-300'
                           : selectedTask.status === 'Awaiting inspection'
-                            ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                            ? 'bg-[#c8a96e]/15 text-[#dfc187] border border-[rgba(165,130,95,0.3)]'
                             : 'bg-white/10 text-mist-300',
                       )}
                     >
-                      {selectedTask.status}
+                      {selectedTask.status === 'Awaiting inspection'
+                        ? 'Pending Inspection'
+                        : selectedTask.status}
                     </span>
                     {selectedTask.assignee && (
                       <span className="rounded-md bg-sky-500/10 border border-sky-500/20 px-2 py-0.5 text-[10px] text-sky-300">
@@ -1327,7 +1314,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                                 entry.status === 'Completed'
                                   ? 'bg-emerald-400'
                                   : entry.status === 'Awaiting inspection'
-                                    ? 'bg-purple-400'
+                                    ? 'bg-[#c8a96e]'
                                     : entry.status === 'Blocked'
                                       ? 'bg-rose-400'
                                       : entry.status === 'Reassignment requested'
@@ -1380,18 +1367,18 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                 </button>
                 {selectedTask.status !== 'Completed' && isTaskAssignedToProfile(selectedTask, activeProfile) && (
                   selectedTask.status === 'Awaiting inspection' ? (
-                    <div className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-purple-500/15 border border-purple-500/30 py-2.5 px-3 text-xs font-semibold text-purple-200 text-center">
-                      <Clock className="h-3.5 w-3.5 text-purple-400 animate-pulse" />
-                      <span>Awaiting Supervisor Verification</span>
+                    <div className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-[rgba(200,169,110,0.12)] border border-[rgba(165,130,95,0.3)] py-2.5 px-3 text-xs font-semibold text-[#dfc187] text-center">
+                      <Clock className="h-3.5 w-3.5 text-[#dfc187] animate-pulse" />
+                      <span>Pending at Supervisor Inspection</span>
                     </div>
                   ) : (
                     <button
                       type="button"
                       onClick={() => handleComplete(selectedTask)}
-                      className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-[0.99] py-2.5 text-xs font-bold text-ink-950 transition-all shadow-md shadow-emerald-500/20 text-center"
+                      className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-[#c8a96e] hover:bg-[#dfc187] active:scale-[0.99] py-2.5 text-xs font-bold text-[#14120e] transition-all shadow-md text-center cursor-pointer"
                     >
                       <CheckCircle2 className="h-4 w-4" />
-                      Submit for Inspection
+                      Mark Completed
                     </button>
                   )
                 )}
@@ -1534,33 +1521,38 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
         </FulfillerModalPortal>
       )}
 
-      {/* Upload Task Photo Modal (In-Mobile Dialog) */}
+      {/* Complete Task & Upload Photo Modal (In-Mobile Dialog) */}
       {photoModalTask && (
         <FulfillerModalPortal>
           <div className="absolute inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-sm animate-in fade-in duration-150">
-            <div className="w-full max-w-sm rounded-3xl border border-white/20 bg-ink-950 p-4 text-white shadow-2xl">
-              <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                <div className="flex items-center gap-2 text-emerald-400">
+            <div className="w-full max-w-sm rounded-3xl border border-[rgba(165,130,95,0.3)] bg-[#161513] p-4 text-[#f7f4ed] shadow-2xl">
+              <div className="flex items-center justify-between border-b border-[rgba(165,130,95,0.2)] pb-3">
+                <div className="flex items-center gap-2 text-[#dfc187]">
                   <Camera className="h-5 w-5" />
-                  <h3 className="font-bold text-sm text-white">Upload Task Photo</h3>
+                  <h3 className="font-bold text-sm text-[#f7f4ed]">Complete Task & Upload Photo</h3>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setPhotoModalTask(null)}
-                  className="grid h-7 w-7 place-items-center rounded-full bg-white/10 text-mist-300 hover:text-white"
+                  onClick={() => {
+                    setPhotoModalTask(null);
+                    setPhotoModalPreview(null);
+                    setPhotoModalError(null);
+                  }}
+                  className="grid h-7 w-7 place-items-center rounded-full bg-white/10 text-[#ded6c9] hover:text-[#f7f4ed] cursor-pointer"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
               <div className="mt-3">
-                <p className="text-xs text-mist-300">
-                  Upload an evidence or verification photo for this {activeProfile.departmentName} task.
+                <p className="text-xs text-[#ded6c9] leading-relaxed">
+                  Provide evidence photo of completed work. Once submitted, task moves to supervisor inspection.
                 </p>
-                <div className="mt-2 rounded-xl border border-white/10 bg-white/[0.03] p-2 text-xs">
-                  <div className="font-semibold text-white line-clamp-1">{photoModalTask.title}</div>
-                  <div className="text-[11px] text-mist-400 mt-0.5">
-                    {photoModalTask.room ? `Room ${photoModalTask.room}` : photoModalTask.location || 'Floor 4'} · {activeProfile.employeeName}
+                <div className="mt-2 rounded-xl border border-[rgba(165,130,95,0.25)] bg-[rgba(200,169,110,0.05)] p-2.5 text-xs">
+                  <div className="font-semibold text-[#f7f4ed] line-clamp-1">{photoModalTask.title}</div>
+                  <div className="text-[11px] text-[#d4b896] mt-0.5 flex items-center justify-between">
+                    <span>{photoModalTask.room ? `Room ${photoModalTask.room}` : photoModalTask.location || 'Floor 4'}</span>
+                    <span>Supervisor: {activeProfile.supervisorName}</span>
                   </div>
                 </div>
               </div>
@@ -1568,64 +1560,69 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
               {/* Photo Preview / Upload Controls */}
               <div className="mt-3">
                 {photoModalPreview ? (
-                  <div className="relative rounded-2xl overflow-hidden border border-emerald-500/40 bg-black/40">
+                  <div className="relative rounded-2xl overflow-hidden border border-[rgba(165,130,95,0.4)] bg-black/50">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={photoModalPreview}
                       alt="Uploaded task photo preview"
-                      className="w-full h-40 object-contain bg-black/60"
+                      className="w-full h-40 object-contain bg-black/70"
                     />
-                    <div className="absolute top-2 left-2 flex items-center gap-1 rounded-full bg-emerald-500/90 px-2 py-0.5 text-[10px] font-bold text-ink-950 backdrop-blur-sm">
-                      <Check className="h-3 w-3" /> Photo Selected
+                    <div className="absolute top-2 left-2 flex items-center gap-1 rounded-full bg-[#c8a96e] px-2 py-0.5 text-[10px] font-bold text-[#14120e] shadow-sm">
+                      <Check className="h-3 w-3" /> Photo Attached
                     </div>
                     <div className="absolute bottom-2 right-2 flex items-center gap-1.5">
                       <button
                         type="button"
                         onClick={() => galleryFileInputRef.current?.click()}
-                        className="rounded-lg bg-black/75 border border-white/20 px-2.5 py-1 text-[10px] font-medium text-white hover:bg-black/90"
+                        className="rounded-lg bg-black/80 border border-[rgba(165,130,95,0.3)] px-2.5 py-1 text-[10px] font-medium text-[#f7f4ed] hover:bg-black cursor-pointer"
                       >
                         Change
                       </button>
                       <button
                         type="button"
                         onClick={() => setPhotoModalPreview(null)}
-                        className="rounded-lg bg-rose-500/80 px-2.5 py-1 text-[10px] font-medium text-white hover:bg-rose-500"
+                        className="rounded-lg bg-rose-500/80 px-2.5 py-1 text-[10px] font-medium text-white hover:bg-rose-500 cursor-pointer"
                       >
                         Remove
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-white/15 bg-white/[0.02] p-4 text-center">
-                    <Camera className="h-7 w-7 text-emerald-400 mb-1" />
-                    <p className="text-xs font-semibold text-white">Choose Photo Source</p>
-                    <p className="text-[10px] text-mist-400 mt-0.5">Select image file or take with camera</p>
+                  <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[rgba(165,130,95,0.3)] bg-white/[0.02] p-4 text-center">
+                    <Camera className="h-7 w-7 text-[#dfc187] mb-1" />
+                    <p className="text-xs font-semibold text-[#f7f4ed]">Attach Evidence Photo</p>
+                    <p className="text-[10px] text-[#ded6c9] mt-0.5">Select image file or capture with device camera</p>
 
                     <div className="mt-3 flex flex-col w-full gap-2">
                       <button
                         type="button"
                         onClick={() => galleryFileInputRef.current?.click()}
-                        className="flex items-center justify-center gap-2 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] border border-white/15 px-3 py-2 text-xs font-semibold text-white active:scale-98 transition-all"
+                        className="flex items-center justify-center gap-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-[rgba(165,130,95,0.25)] px-3 py-2 text-xs font-semibold text-[#f7f4ed] active:scale-98 transition-all cursor-pointer"
                       >
-                        <ImageIcon className="h-4 w-4 text-emerald-400" />
+                        <ImageIcon className="h-4 w-4 text-[#dfc187]" />
                         Upload from Device / Gallery
                       </button>
 
                       <button
                         type="button"
                         onClick={() => cameraFileInputRef.current?.click()}
-                        className="flex items-center justify-center gap-2 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] border border-white/15 px-3 py-2 text-xs font-semibold text-white active:scale-98 transition-all"
+                        className="flex items-center justify-center gap-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-[rgba(165,130,95,0.25)] px-3 py-2 text-xs font-semibold text-[#f7f4ed] active:scale-98 transition-all cursor-pointer"
                       >
-                        <Camera className="h-4 w-4 text-sky-400" />
+                        <Camera className="h-4 w-4 text-[#dfc187]" />
                         Take Photo with Camera
                       </button>
 
                       <button
                         type="button"
-                        onClick={() => setPhotoModalPreview(SAMPLE_PROOF_PHOTOS[activeProfile.deptKey] || SAMPLE_PROOF_PHOTOS.housekeeping)}
-                        className="flex items-center justify-center gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 hover:bg-amber-400/15 px-3 py-1.5 text-xs font-semibold text-amber-200 active:scale-98 transition-all"
+                        onClick={() =>
+                          setPhotoModalPreview(
+                            SAMPLE_PROOF_PHOTOS[activeProfile.deptKey] ||
+                              SAMPLE_PROOF_PHOTOS.housekeeping,
+                          )
+                        }
+                        className="flex items-center justify-center gap-2 rounded-xl border border-[rgba(165,130,95,0.4)] bg-[rgba(200,169,110,0.12)] hover:bg-[rgba(200,169,110,0.18)] px-3 py-1.5 text-xs font-semibold text-[#dfc187] active:scale-98 transition-all cursor-pointer"
                       >
-                        <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+                        <Sparkles className="h-3.5 w-3.5 text-[#dfc187]" />
                         Use Sample Department Photo
                       </button>
                     </div>
@@ -1637,30 +1634,25 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
               </div>
 
               {/* Actions */}
-              <div className="mt-4 flex items-center justify-end gap-2 border-t border-white/10 pt-3">
+              <div className="mt-4 flex items-center justify-end gap-2 border-t border-[rgba(165,130,95,0.2)] pt-3">
                 <button
                   type="button"
                   onClick={() => {
                     setPhotoModalTask(null);
                     setPhotoModalPreview(null);
+                    setPhotoModalError(null);
                   }}
-                  className="rounded-xl border border-white/10 px-3 py-1.5 text-xs text-mist-300 hover:text-white"
+                  className="rounded-xl border border-[rgba(165,130,95,0.25)] px-3 py-1.5 text-xs text-[#ded6c9] hover:text-[#f7f4ed] cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
-                  onClick={handleSaveUploadedPhoto}
-                  disabled={!photoModalPreview}
-                  className={cn(
-                    'flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition-all shadow-md',
-                    photoModalPreview
-                      ? 'bg-emerald-500 text-ink-950 shadow-emerald-500/30 hover:bg-emerald-400 active:scale-95'
-                      : 'bg-white/10 text-mist-500 cursor-not-allowed',
-                  )}
+                  onClick={handleSubmitCompletionWithPhoto}
+                  className="flex items-center gap-1.5 rounded-xl bg-[#c8a96e] hover:bg-[#dfc187] px-4 py-2 text-xs font-bold text-[#14120e] transition-all shadow-md active:scale-95 cursor-pointer"
                 >
                   <Check className="h-3.5 w-3.5" />
-                  Save Photo
+                  Submit for Inspection
                 </button>
               </div>
             </div>
@@ -1672,13 +1664,13 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
       {supervisorModalTask && (
         <FulfillerModalPortal>
           <div className="absolute inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-sm animate-in fade-in duration-150">
-            <div className="w-full max-w-sm rounded-3xl border border-purple-500/40 bg-ink-950 p-5 text-white shadow-2xl space-y-3.5">
-              <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                <div className="flex items-center gap-2 text-purple-400">
+            <div className="w-full max-w-sm rounded-3xl border border-[rgba(165,130,95,0.3)] bg-[#161513] p-5 text-[#f7f4ed] shadow-2xl space-y-3.5">
+              <div className="flex items-center justify-between border-b border-[rgba(165,130,95,0.2)] pb-3">
+                <div className="flex items-center gap-2 text-[#dfc187]">
                   <ShieldCheck className="h-5 w-5" />
                   <div>
-                    <h3 className="font-bold text-sm text-white">Supervisor Quality Verification</h3>
-                    <p className="text-[10px] text-purple-300 font-medium">Department Quality Certification</p>
+                    <h3 className="font-bold text-sm text-[#f7f4ed]">Supervisor Quality Verification</h3>
+                    <p className="text-[10px] text-[#d4b896] font-medium">Department Quality Certification</p>
                   </div>
                 </div>
                 <button
@@ -1687,38 +1679,42 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     setSupervisorModalTask(null);
                     setSupervisorAuthError(null);
                   }}
-                  className="grid h-7 w-7 place-items-center rounded-full bg-white/10 text-mist-400 hover:text-white"
+                  className="grid h-7 w-7 place-items-center rounded-full bg-white/10 text-[#ded6c9] hover:text-[#f7f4ed] cursor-pointer"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
-              <div className="rounded-xl border border-purple-400/20 bg-purple-500/10 p-3 text-xs space-y-1">
-                <p className="font-bold text-white text-xs">{supervisorModalTask.title}</p>
-                <div className="flex items-center justify-between text-[11px] text-mist-300 pt-0.5">
-                  <span>Attendant: <strong>{activeProfile.employeeName}</strong></span>
-                  <span className="text-purple-300 font-mono">{activeProfile.employeeId}</span>
+              <div className="rounded-xl border border-[rgba(165,130,95,0.25)] bg-[rgba(200,169,110,0.06)] p-3 text-xs space-y-1">
+                <p className="font-bold text-[#f7f4ed] text-xs">{supervisorModalTask.title}</p>
+                <div className="flex items-center justify-between text-[11px] text-[#ded6c9] pt-0.5">
+                  <span>
+                    Attendant: <strong>{activeProfile.employeeName}</strong>
+                  </span>
+                  <span className="text-[#dfc187] font-mono">{activeProfile.employeeId}</span>
                 </div>
-                <div className="flex items-center justify-between text-[11px] text-purple-200">
-                  <span>Supervisor: <strong>{activeProfile.supervisorName}</strong></span>
+                <div className="flex items-center justify-between text-[11px] text-[#d4b896]">
+                  <span>
+                    Supervisor: <strong>{activeProfile.supervisorName}</strong>
+                  </span>
                   <span className="font-mono">{activeProfile.supervisorCode}</span>
                 </div>
               </div>
 
-              <p className="text-xs text-mist-300 leading-relaxed">
+              <p className="text-xs text-[#ded6c9] leading-relaxed">
                 Under Grand Azure SOP, <strong>task fulfillers cannot self-verify completed work</strong>. Supervisor <strong>{activeProfile.supervisorName}</strong> must authorize certification with their supervisor code.
               </p>
 
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between text-xs">
-                  <label className="font-semibold text-mist-200">Supervisor Authorization Code</label>
+                  <label className="font-semibold text-[#ded6c9]">Supervisor Authorization Code</label>
                   <button
                     type="button"
                     onClick={() => {
                       setSupervisorCodeInput(activeProfile.supervisorCode);
                       setSupervisorAuthError(null);
                     }}
-                    className="text-[10px] text-purple-400 hover:underline cursor-pointer"
+                    className="text-[10px] text-[#dfc187] hover:underline cursor-pointer"
                   >
                     Quick-Fill ({activeProfile.supervisorCode})
                   </button>
@@ -1731,21 +1727,21 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     setSupervisorCodeInput(e.target.value);
                     setSupervisorAuthError(null);
                   }}
-                  className="w-full rounded-xl border border-white/15 bg-white/[0.05] px-3 py-2 text-xs text-white placeholder-mist-500 outline-none focus:border-purple-400 font-mono"
+                  className="w-full rounded-xl border border-[rgba(165,130,95,0.35)] bg-[#1e1c1a] px-3 py-2 text-xs text-[#f7f4ed] placeholder:text-[#a89f91] outline-none focus:border-[#c8a96e] font-mono"
                 />
                 {supervisorAuthError && (
                   <p className="text-[11px] text-rose-400 font-medium">{supervisorAuthError}</p>
                 )}
               </div>
 
-              <div className="flex items-center gap-2 pt-2 border-t border-white/10">
+              <div className="flex items-center gap-2 pt-2 border-t border-[rgba(165,130,95,0.2)]">
                 <button
                   type="button"
                   onClick={() => {
                     setSupervisorModalTask(null);
                     setSupervisorAuthError(null);
                   }}
-                  className="flex-1 rounded-xl border border-white/10 bg-white/[0.05] py-2 text-xs text-mist-300 hover:text-white transition-colors"
+                  className="flex-1 rounded-xl border border-[rgba(165,130,95,0.25)] bg-white/[0.05] py-2 text-xs text-[#ded6c9] hover:text-[#f7f4ed] transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -1755,15 +1751,17 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     const entered = supervisorCodeInput.trim().toUpperCase();
                     const expected = activeProfile.supervisorCode.toUpperCase();
                     if (!entered || entered !== expected) {
-                      setSupervisorAuthError(`Authorization failed. Only Supervisor ${activeProfile.supervisorName} (${activeProfile.supervisorCode}) can certify.`);
+                      setSupervisorAuthError(
+                        `Authorization failed. Only Supervisor ${activeProfile.supervisorName} (${activeProfile.supervisorCode}) can certify.`,
+                      );
                       return;
                     }
                     handleSupervisorVerify(supervisorModalTask);
                     setSupervisorModalTask(null);
                     setSupervisorAuthError(null);
-                    notify(`Task quality certified & approved by Supervisor ${activeProfile.supervisorName}`);
+                    notify(`Task approved by Supervisor ${activeProfile.supervisorName}. Moved to Completed.`);
                   }}
-                  className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-purple-500 hover:bg-purple-400 py-2 text-xs font-bold text-white shadow-md shadow-purple-500/20 active:scale-[0.98] transition-all"
+                  className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-[#c8a96e] hover:bg-[#dfc187] py-2 text-xs font-bold text-[#14120e] shadow-md active:scale-[0.98] transition-all cursor-pointer"
                 >
                   <ShieldCheck className="h-3.5 w-3.5" />
                   Verify & Sign Off

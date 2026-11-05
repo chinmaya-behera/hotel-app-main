@@ -663,7 +663,7 @@ export function afterAdvance(s: DemoState, roleId: RoleId, next: string, room?: 
       readiness = 'cleaning';
       text = `Room ${room} cleaning started`;
     }
-    if (next === 'Completed') {
+    if (next === 'Completed' || next === 'Awaiting inspection') {
       readiness = 'inspection_pending';
       text = `Room ${room} cleaned, awaiting supervisor inspection`;
       const queued = items.department_supervisor.some((i) => i.room === room && i.status === 'Awaiting inspection');
@@ -680,7 +680,7 @@ export function afterAdvance(s: DemoState, roleId: RoleId, next: string, room?: 
     }
   }
   if (roleId === 'department_supervisor') {
-    if (next === 'Closed') {
+    if (next === 'Closed' || next === 'Completed') {
       readiness = 'ready';
       text = `Room ${room} inspected and Ready`;
     }
