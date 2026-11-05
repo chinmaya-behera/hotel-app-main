@@ -388,11 +388,8 @@ function FulfillerAppContent() {
           <div className="flex items-center justify-between gap-3">
             {/* Identity */}
             <div className="flex items-center gap-3 min-w-0">
-              <button
-                type="button"
-                onClick={() => setActiveTab('profile')}
-                className="grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-xl sm:rounded-2xl bg-gradient-to-br text-xs sm:text-sm font-bold shadow-md shrink-0 text-[#141417] transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-[#c8a96e]/40 cursor-pointer"
-                title="View Fulfiller Profile"
+              <div
+                className="grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-xl sm:rounded-2xl shadow-md shrink-0 text-[#141417]"
               >
                 <div
                   className={cn(
@@ -402,24 +399,17 @@ function FulfillerAppContent() {
                 >
                   {profile.avatarInitials}
                 </div>
-              </button>
+              </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('profile')}
-                    className="text-left focus:outline-none"
-                    title="View Fulfiller Profile"
+                  <h1
+                    className={cn(
+                      'text-xs sm:text-sm md:text-base font-bold truncate max-w-[140px] sm:max-w-xs transition-colors',
+                      isLight ? 'text-[#2b221a]' : 'text-[#f7f4ed]',
+                    )}
                   >
-                    <h1
-                      className={cn(
-                        'text-xs sm:text-sm md:text-base font-bold truncate max-w-[140px] sm:max-w-xs transition-colors hover:underline',
-                        isLight ? 'text-[#2b221a]' : 'text-[#f7f4ed]',
-                      )}
-                    >
-                      {profile.employeeName}
-                    </h1>
-                  </button>
+                    {profile.employeeName}
+                  </h1>
 
                   <button
                     type="button"
@@ -469,7 +459,7 @@ function FulfillerAppContent() {
               </div>
             </div>
 
-            {/* Quick Header Actions: Sound, Theme, Notification Symbol, Profile, Exit */}
+            {/* Quick Header Actions: Sound, Theme, Notification Symbol, Exit */}
             <div className="flex items-center gap-1.5 shrink-0">
               {/* Sound / Chime Toggle */}
               <button
@@ -530,26 +520,6 @@ function FulfillerAppContent() {
                     {unreadNotifCount}
                   </span>
                 )}
-              </button>
-
-              {/* Profile Shortcut Button ("side of the profile") */}
-              <button
-                type="button"
-                onClick={() => setActiveTab('profile')}
-                className={cn(
-                  'relative grid h-8 w-8 place-items-center rounded-lg border transition-colors',
-                  activeTab === 'profile'
-                    ? isLight
-                      ? 'border-[#b89656] bg-[#c8a96e]/15 text-[#9c7836] ring-2 ring-[#c8a96e]/30'
-                      : 'border-[#dfc187] bg-[#c8a96e]/20 text-[#dfc187] ring-2 ring-[#dfc187]/25'
-                    : isLight
-                      ? 'border-[rgba(180,150,120,0.3)] bg-[#faf8f4] text-[#685747] hover:bg-[#f0ebe1]'
-                      : 'border-[rgba(165,130,95,0.24)] bg-[#1f1f24] text-[#d9cebe] hover:text-[#f7f4ed] hover:border-[rgba(195,160,115,0.4)]',
-                )}
-                title={`Profile (${profile.employeeName})`}
-                aria-label="View profile"
-              >
-                <User className="h-3.5 w-3.5" />
               </button>
 
               {/* Exit to Portals / Public */}

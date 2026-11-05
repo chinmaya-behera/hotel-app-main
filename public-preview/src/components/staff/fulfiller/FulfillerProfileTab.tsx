@@ -198,30 +198,22 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
               <p className="text-[10px] text-mist-400">Play chime when new task is assigned</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={playChime}
-              className="rounded-lg border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] font-medium text-mist-300 hover:text-white"
-            >
-              Test
-            </button>
-            <button
-              type="button"
-              onClick={() => setSoundEnabled(!isSoundOn)}
+          <button
+            type="button"
+            onClick={() => setSoundEnabled(!isSoundOn)}
+            className={cn(
+              'relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out',
+              isSoundOn ? 'bg-emerald-500' : 'bg-white/20',
+            )}
+            title={isSoundOn ? 'Mute chime' : 'Enable chime'}
+          >
+            <span
               className={cn(
-                'relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out',
-                isSoundOn ? 'bg-emerald-500' : 'bg-white/20',
+                'pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out',
+                isSoundOn ? 'translate-x-4' : 'translate-x-0',
               )}
-            >
-              <span
-                className={cn(
-                  'pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out',
-                  isSoundOn ? 'translate-x-4' : 'translate-x-0',
-                )}
-              />
-            </button>
-          </div>
+            />
+          </button>
         </div>
 
         {/* Theme Toggle */}

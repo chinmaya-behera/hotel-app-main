@@ -37,13 +37,6 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
     return true;
   });
 
-  function handleTestSound() {
-    if (!isSoundOn) {
-      setSoundEnabled(true);
-    }
-    playChime();
-  }
-
   function handleAcknowledgeAll() {
     allFulfillerNotifications.filter((n) => !n.read).forEach((n) => markNotificationRead(n.id));
     if (isSoundOn) playChime();
@@ -63,39 +56,31 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
             {isSoundOn ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
           </div>
           <div>
-            <p className="text-xs font-semibold text-white">In-App Chime Audio</p>
+            <p className="text-xs font-semibold text-white">Audio Alerts</p>
             <p className="text-[11px] text-mist-400">
-              {isSoundOn ? 'Melodic chime plays on new task dispatches' : 'Sound alerts muted'}
+              {isSoundOn ? 'Task dispatch chime enabled' : 'Muted'}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleTestSound}
-            className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-medium text-mist-300 hover:text-white"
-          >
-            Test
-          </button>
-          <button
-            type="button"
-            onClick={() => setSoundEnabled(!isSoundOn)}
+        <button
+          type="button"
+          onClick={() => setSoundEnabled(!isSoundOn)}
+          className={cn(
+            'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out',
+            isSoundOn ? 'bg-emerald-500' : 'bg-white/20',
+          )}
+          role="switch"
+          aria-checked={isSoundOn}
+          title={isSoundOn ? 'Mute chime' : 'Enable chime'}
+        >
+          <span
             className={cn(
-              'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out',
-              isSoundOn ? 'bg-emerald-500' : 'bg-white/20',
+              'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out',
+              isSoundOn ? 'translate-x-5' : 'translate-x-0',
             )}
-            role="switch"
-            aria-checked={isSoundOn}
-          >
-            <span
-              className={cn(
-                'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out',
-                isSoundOn ? 'translate-x-5' : 'translate-x-0',
-              )}
-            />
-          </button>
-        </div>
+          />
+        </button>
       </div>
 
       {/* Header with Counters & Actions */}
@@ -111,7 +96,7 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
             )}
           </h2>
           <p className="text-[11px] text-mist-400 mt-0.5">
-            Supervisor instructions, quality sign-offs and room dispatch orders for {activeProfile.employeeName}
+            Supervisor updates and room dispatch notifications
           </p>
         </div>
 

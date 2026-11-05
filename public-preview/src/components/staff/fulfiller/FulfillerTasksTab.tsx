@@ -486,7 +486,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                 primaryView === 'all_tasks' ? 'bg-black/25 text-ink-950' : 'bg-amber-400/30 text-amber-200',
               )}
             >
-              {unassignedPool.length} to claim
+              {unassignedPool.length} open
             </span>
           ) : (
             <span
@@ -706,11 +706,9 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
             <span className="grid h-12 w-12 place-items-center rounded-2xl border border-white/10 bg-white/[0.04] text-mist-400">
               <CheckCircle2 className="h-6 w-6 text-emerald-400" />
             </span>
-            <p className="mt-3 text-sm font-semibold text-white">All clear in this view</p>
+            <p className="mt-3 text-sm font-semibold text-white">All clear</p>
             <p className="mt-1 text-xs text-mist-400 max-w-xs">
-              {primaryView === 'my_tasks'
-                ? `You have no active ${activeProfile.departmentName} tasks matching this filter. Switch to "All Tasks" to claim open work.`
-                : 'No department tasks currently available in this filter. Check back shortly.'}
+              No tasks currently in this view.
             </p>
           </div>
         ) : (
@@ -767,13 +765,9 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                       </span>
                     )}
 
-                    {isUnassigned ? (
+                    {isUnassigned && (
                       <span className="rounded-md bg-amber-400/20 px-2 py-0.5 text-[10px] font-bold text-amber-300 shrink-0 border border-amber-400/30">
                         Open Pool
-                      </span>
-                    ) : (
-                      <span className="rounded-md bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-300 shrink-0 border border-emerald-500/30">
-                        Assigned to You
                       </span>
                     )}
                   </div>
@@ -883,7 +877,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     onClick={() => setSelectedTask(task)}
                     className="ml-auto text-[11px] text-mist-400 hover:text-white flex items-center gap-1"
                   >
-                    <Eye className="h-3 w-3" /> Details & Timeline
+                    <Eye className="h-3 w-3" /> Details
                   </button>
                 </div>
 
@@ -897,7 +891,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                         disabled={isOnBreak || isOffDuty}
                         onClick={() => {
                           if (isOnBreak || isOffDuty) {
-                            notify('Cannot self-assign tasks while on break. Switch to On Duty to claim tasks.');
+                            notify('Cannot claim tasks while on break. Switch to On Duty first.');
                             return;
                           }
                           claimTask(task.id, activeProfile.employeeId, activeProfile.employeeName);
@@ -912,14 +906,14 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                         {isOnBreak ? (
                           <>
                             <Coffee className="h-3.5 w-3.5 text-amber-400" />
-                            <span>On Break — Cannot Claim</span>
+                            <span>On Break</span>
                           </>
                         ) : isOffDuty ? (
-                          <span>Off Duty — Cannot Claim</span>
+                          <span>Off Duty</span>
                         ) : (
                           <>
                             <Sparkles className="h-3.5 w-3.5" />
-                            <span>Claim Task (Self-Assign)</span>
+                            <span>Claim Task</span>
                           </>
                         )}
                       </button>
