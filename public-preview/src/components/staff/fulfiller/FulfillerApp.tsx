@@ -415,10 +415,17 @@ function FulfillerAppContent() {
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setFulfillerAvailability(currentAvail === 'break' ? 'on_duty' : 'break');
+                      // Cycle through: On Duty -> On Break -> Off Duty -> On Duty
+                      const next =
+                        currentAvail === 'on_duty'
+                          ? 'break'
+                          : currentAvail === 'break'
+                            ? 'off_duty'
+                            : 'on_duty';
+                      setFulfillerAvailability(next);
                     }}
                     className={cn(
-                      'flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold border transition-colors',
+                      'flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold border transition-colors cursor-pointer',
                       currentAvail === 'break'
                         ? isLight
                           ? 'bg-amber-500/15 text-amber-700 border-amber-500/30'
@@ -431,7 +438,7 @@ function FulfillerAppContent() {
                             ? 'bg-[#c8a96e]/15 text-[#8c6b2d] border-[#c8a96e]/40'
                             : 'bg-[#c8a96e]/20 text-[#dfc187] border-[#c8a96e]/40',
                     )}
-                    title="Click to toggle On Duty / On Break"
+                    title="Click to switch duty status (On Duty / On Break / Off Duty)"
                   >
                     <span
                       className={cn(

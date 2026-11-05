@@ -11,6 +11,7 @@ import {
   HeartPulse,
   LogOut,
   Moon,
+  Power,
   Shield,
   Sun,
   User,
@@ -137,50 +138,64 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
       </div>
 
       {/* Duty Availability Status Toggle */}
-      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+      <div className="rounded-2xl border border-[rgba(165,130,95,0.25)] bg-[#1a1918] p-4">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-xs font-semibold text-white">Duty Availability Status</h3>
+          <h3 className="text-xs font-semibold text-[#f7f4ed]">Duty Availability Status</h3>
           <span
             className={cn(
               'rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider',
               currentAvail === 'on_duty'
-                ? 'bg-emerald-400/20 text-emerald-300'
+                ? 'bg-[#c8a96e]/20 text-[#dfc187] border border-[rgba(165,130,95,0.3)]'
                 : currentAvail === 'break'
-                  ? 'bg-amber-400/20 text-amber-300'
-                  : 'bg-white/10 text-mist-400',
+                  ? 'bg-[#dfc187]/15 text-[#e2d2bd] border border-[rgba(165,130,95,0.3)]'
+                  : 'bg-rose-500/20 text-rose-300 border border-rose-500/30',
             )}
           >
             {currentAvail === 'on_duty' ? 'On Duty' : currentAvail === 'break' ? 'On Break' : 'Off Duty'}
           </span>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <button
             type="button"
             onClick={() => setFulfillerAvailability('on_duty')}
             className={cn(
-              'flex items-center justify-center gap-1.5 rounded-xl py-2 px-3 text-xs font-semibold transition-all',
+              'flex items-center justify-center gap-1.5 rounded-xl py-2 px-2 text-xs font-semibold transition-all cursor-pointer',
               currentAvail === 'on_duty'
-                ? 'bg-emerald-500 text-ink-950 shadow-md shadow-emerald-500/25 font-bold'
-                : 'border border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
+                ? 'bg-[#c8a96e] text-[#14120e] shadow-md font-bold'
+                : 'border border-[rgba(165,130,95,0.25)] bg-white/[0.04] text-[#ded6c9] hover:text-[#f7f4ed]',
             )}
           >
             <Shield className="h-3.5 w-3.5" />
-            On Duty
+            <span>On Duty</span>
           </button>
 
           <button
             type="button"
             onClick={() => setFulfillerAvailability('break')}
             className={cn(
-              'flex items-center justify-center gap-1.5 rounded-xl py-2 px-3 text-xs font-semibold transition-all',
+              'flex items-center justify-center gap-1.5 rounded-xl py-2 px-2 text-xs font-semibold transition-all cursor-pointer',
               currentAvail === 'break'
-                ? 'bg-amber-400 text-ink-950 shadow-md shadow-amber-400/25 font-bold'
-                : 'border border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
+                ? 'bg-[#c8a96e] text-[#14120e] shadow-md font-bold'
+                : 'border border-[rgba(165,130,95,0.25)] bg-white/[0.04] text-[#ded6c9] hover:text-[#f7f4ed]',
             )}
           >
             <Coffee className="h-3.5 w-3.5" />
-            On Break
+            <span>On Break</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setFulfillerAvailability('off_duty')}
+            className={cn(
+              'flex items-center justify-center gap-1.5 rounded-xl py-2 px-2 text-xs font-semibold transition-all cursor-pointer',
+              currentAvail === 'off_duty'
+                ? 'bg-rose-500 text-white shadow-md font-bold'
+                : 'border border-[rgba(165,130,95,0.25)] bg-white/[0.04] text-[#ded6c9] hover:text-[#f7f4ed]',
+            )}
+          >
+            <Power className="h-3.5 w-3.5" />
+            <span>Off Duty</span>
           </button>
         </div>
       </div>

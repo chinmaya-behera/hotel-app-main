@@ -19,6 +19,7 @@ import {
   Layers,
   MapPin,
   Play,
+  Power,
   RotateCcw,
   ShieldAlert,
   ShieldCheck,
@@ -201,19 +202,16 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
   const filteredMyTasks = useMemo(() => {
     return myTasks.filter((task) => {
       if (myFilter === 'all')
-        return (
-          task.status !== 'Completed' &&
-          task.status !== 'Closed' &&
-          task.status !== 'Awaiting inspection'
-        );
+        return task.status !== 'Completed' && task.status !== 'Closed';
       if (myFilter === 'pending')
-        return task.status === 'Assigned' || task.status === 'Awaiting inspection';
+        return task.status === 'Assigned';
       if (myFilter === 'in_progress')
         return (
           task.status === 'Accepted' ||
           task.status === 'In progress' ||
           task.status === 'On the way' ||
-          task.status === 'Blocked'
+          task.status === 'Blocked' ||
+          task.status === 'Awaiting inspection'
         );
       if (myFilter === 'blocked') return task.status === 'Blocked';
       if (myFilter === 'completed') return task.status === 'Completed' || task.status === 'Closed';
@@ -233,11 +231,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
   const filteredAllTasks = useMemo(() => {
     return allDepartmentTasks.filter((task) => {
       if (allFilter === 'all_eligible')
-        return (
-          task.status !== 'Completed' &&
-          task.status !== 'Closed' &&
-          task.status !== 'Awaiting inspection'
-        );
+        return task.status !== 'Completed' && task.status !== 'Closed';
       if (allFilter === 'open_pool') return isQueueTaskUnassigned(task);
       if (allFilter === 'in_progress')
         return (
@@ -245,7 +239,8 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
           (task.status === 'Accepted' ||
             task.status === 'In progress' ||
             task.status === 'On the way' ||
-            task.status === 'Blocked')
+            task.status === 'Blocked' ||
+            task.status === 'Awaiting inspection')
         );
       if (allFilter === 'completed') return task.status === 'Completed' || task.status === 'Closed';
       return true;
@@ -256,18 +251,18 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
   const activeMyTasksCount = myTasks.filter(
     (t) =>
       t.status !== 'Completed' &&
-      t.status !== 'Closed' &&
-      t.status !== 'Awaiting inspection',
+      t.status !== 'Closed',
   ).length;
   const pendingCount = myTasks.filter(
-    (t) => t.status === 'Assigned' || t.status === 'Awaiting inspection',
+    (t) => t.status === 'Assigned',
   ).length;
   const inProgressCount = myTasks.filter(
     (t) =>
       t.status === 'Accepted' ||
       t.status === 'In progress' ||
       t.status === 'On the way' ||
-      t.status === 'Blocked',
+      t.status === 'Blocked' ||
+      t.status === 'Awaiting inspection',
   ).length;
   const blockedCount = myTasks.filter((t) => t.status === 'Blocked').length;
   const overdueCount = myTasks.filter(
@@ -720,17 +715,38 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
 
       {/* On Break Notice Banner */}
       {isOnBreak && (
-        <div className="flex items-center justify-between rounded-2xl border border-amber-400/30 bg-amber-400/10 p-3 text-xs text-amber-200 shadow-md">
+        <div className="flex items-center justify-between rounded-2xl border border-[rgba(165,130,95,0.35)] bg-[rgba(200,169,110,0.08)] p-3 text-xs text-[#ded6c9] shadow-md">
           <div className="flex items-center gap-2 min-w-0">
-            <Coffee className="h-4 w-4 text-amber-400 shrink-0" />
-            <span className="truncate">You are currently <strong>On Break</strong>. Self-assigning tasks is disabled.</span>
+            <Coffee className="h-4 w-4 text-[#dfc187] shrink-0" />
+            <span className="truncate">
+              You are currently <strong>On Break</strong>. Claiming tasks is paused.
+            </span>
           </div>
           <button
             type="button"
             onClick={() => setFulfillerAvailability('on_duty')}
-            className="shrink-0 rounded-xl bg-amber-400 px-2.5 py-1 text-[11px] font-bold text-ink-950 hover:bg-amber-300 transition-colors"
+            className="shrink-0 rounded-xl bg-[#c8a96e] px-2.5 py-1 text-[11px] font-bold text-[#14120e] hover:bg-[#dfc187] transition-colors cursor-pointer"
           >
             Resume Duty
+          </button>
+        </div>
+      )}
+
+      {/* Off Duty Notice Banner */}
+      {isOffDuty && (
+        <div className="flex items-center justify-between rounded-2xl border border-[rgba(165,130,95,0.35)] bg-[rgba(200,169,110,0.08)] p-3 text-xs text-[#ded6c9] shadow-md">
+          <div className="flex items-center gap-2 min-w-0">
+            <Power className="h-4 w-4 text-rose-400 shrink-0" />
+            <span className="truncate">
+              You are currently <strong>Off Duty</strong>. Switch to On Duty to receive or claim tasks.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setFulfillerAvailability('on_duty')}
+            className="shrink-0 rounded-xl bg-[#c8a96e] px-2.5 py-1 text-[11px] font-bold text-[#14120e] hover:bg-[#dfc187] transition-colors cursor-pointer"
+          >
+            Start Shift
           </button>
         </div>
       )}
