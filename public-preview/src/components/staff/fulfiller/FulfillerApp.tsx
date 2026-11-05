@@ -27,6 +27,8 @@ import {
   FULFILLER_PROFILES,
   type FulfillerDeptKey,
   type FulfillerProfile,
+  taskMatchesFulfillerDept,
+  isTaskAssignedToProfile,
 } from './fulfillerProfiles';
 import { playChime } from './chime';
 
@@ -86,7 +88,10 @@ function FulfillerAppContent() {
   }, [activeTab, activeDeptKey]);
 
   const activeTaskCount = tasks.filter(
-    (t) => t.status === 'Assigned' || t.status === 'Accepted' || t.status === 'In progress',
+    (t) =>
+      taskMatchesFulfillerDept(t, activeDeptKey) &&
+      isTaskAssignedToProfile(t, profile) &&
+      (t.status === 'Assigned' || t.status === 'Accepted' || t.status === 'In progress'),
   ).length;
   const notifications = (state.notifications ?? []).filter((n) => n.roleId === 'task_fulfiller');
   const unreadNotifCount = notifications.filter((n) => !n.read).length;
@@ -202,7 +207,7 @@ function FulfillerAppContent() {
             <FulfillerNotificationsTab onNavigateToTasks={() => setActiveTab('tasks')} />
           )}
           {activeTab === 'policies' && <FulfillerPoliciesTab />}
-          {activeTab === 'performance' && <FulfillerPerformanceTab />}
+          {activeTab === 'performance' && <FulfillerPerformanceTab profile={profile} />}
           {activeTab === 'profile' && <FulfillerProfileTab profile={profile} />}
         </div>
 

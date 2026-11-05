@@ -133,7 +133,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
   const [photoModalPreview, setPhotoModalPreview] = useState<string | null>(null);
   const [photoModalError, setPhotoModalError] = useState<string | null>(null);
 
-  // All combined department tasks across queues for the active department
+  // All combined department tasks across queues for the active department (excluding colleagues' tasks)
   const allDepartmentTasks = useMemo(() => {
     const rawFulfiller = state.items.task_fulfiller ?? [];
     const ddsItems = state.items.department_dispatcher_supervisor ?? [];
@@ -142,8 +142,15 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
       (t, i, arr) => arr.findIndex((x) => x.id === t.id) === i,
     );
 
-    return combined.filter((t) => taskMatchesFulfillerDept(t, activeProfile.deptKey));
-  }, [state.items.task_fulfiller, state.items.department_dispatcher_supervisor, state.items.department_dispatcher, activeProfile.deptKey]);
+    return combined
+      .filter((t) => taskMatchesFulfillerDept(t, activeProfile.deptKey))
+      .filter((t) => {
+        // Exclude tasks assigned to other colleagues: only keep unassigned pool tasks and tasks assigned to this fulfiller
+        const isUnassigned = t.status === 'Unassigned' || t.status === 'Received' || !t.assignee;
+        const isAssignedToMe = isTaskAssignedToProfile(t, activeProfile);
+        return isUnassigned || isAssignedToMe;
+      });
+  }, [state.items.task_fulfiller, state.items.department_dispatcher_supervisor, state.items.department_dispatcher, activeProfile]);
 
   // My Tasks: Assigned to or claimed by active department employee
   const myTasks = useMemo(() => {
@@ -652,13 +659,9 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                       <span className="rounded-md bg-amber-400/20 px-2 py-0.5 text-[10px] font-bold text-amber-300 shrink-0 border border-amber-400/30">
                         Open Pool
                       </span>
-                    ) : isAssignedToMe ? (
+                    ) : (
                       <span className="rounded-md bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-300 shrink-0 border border-emerald-500/30">
                         Assigned to You
-                      </span>
-                    ) : (
-                      <span className="rounded-md bg-white/10 px-2 py-0.5 text-[10px] font-medium text-mist-300 shrink-0">
-                        {task.assignee ? `Attendant: ${task.assignee}` : 'Assigned'}
                       </span>
                     )}
                   </div>
