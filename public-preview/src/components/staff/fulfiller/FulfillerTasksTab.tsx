@@ -22,7 +22,6 @@ import {
   Power,
   RotateCcw,
   ShieldAlert,
-  ShieldCheck,
   Sparkles,
   User,
   Users,
@@ -44,6 +43,7 @@ const BLOCKER_REASONS = [
   'Awaiting fresh linen or minibar stock',
   'Technical / plumbing issue requires Engineering',
   'Physical safety hazard inside room',
+  'Others',
 ];
 
 const REASSIGN_REASONS = [
@@ -128,6 +128,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
   const [blockerModalTask, setBlockerModalTask] = useState<WorkItem | null>(null);
   const [reassignModalTask, setReassignModalTask] = useState<WorkItem | null>(null);
   const [blockerReason, setBlockerReason] = useState(BLOCKER_REASONS[0]);
+  const [customBlockerReason, setCustomBlockerReason] = useState('');
   const [reassignReason, setReassignReason] = useState(REASSIGN_REASONS[0]);
   const [customReassignReason, setCustomReassignReason] = useState('');
   const [photoError, setPhotoError] = useState<string | null>(null);
@@ -141,11 +142,6 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
   const [photoModalTask, setPhotoModalTask] = useState<WorkItem | null>(null);
   const [photoModalPreview, setPhotoModalPreview] = useState<string | null>(null);
   const [photoModalError, setPhotoModalError] = useState<string | null>(null);
-
-  // Supervisor Quality Sign-Off Modal (Supervisor verification is restricted to the supervisor)
-  const [supervisorModalTask, setSupervisorModalTask] = useState<WorkItem | null>(null);
-  const [supervisorCodeInput, setSupervisorCodeInput] = useState('');
-  const [supervisorAuthError, setSupervisorAuthError] = useState<string | null>(null);
 
   // Helper to determine if a task is truly an unassigned queue item waiting to be claimed
   const isQueueTaskUnassigned = (task: WorkItem): boolean => {
@@ -302,40 +298,6 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
     setPhotoModalError(null);
   }
 
-  function handleSupervisorVerify(task: WorkItem) {
-    advance(
-      'department_supervisor',
-      task.id,
-      {
-        label: 'Supervisor Verification',
-        next: 'Completed',
-        message: `Inspected & verified by Supervisor ${activeProfile.supervisorName}`,
-      },
-      `Quality standards verified by Supervisor ${activeProfile.supervisorName} (${activeProfile.supervisorCode})`,
-    );
-
-    if (selectedTask?.id === task.id) {
-      setSelectedTask((prev) =>
-        prev
-          ? {
-              ...prev,
-              status: 'Completed',
-              history: [
-                ...(prev.history ?? []),
-                {
-                  at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                  status: 'Completed',
-                  note: `Inspected & approved by Supervisor ${activeProfile.supervisorName}`,
-                  actor: activeProfile.supervisorName,
-                  role: 'Department Supervisor',
-                },
-              ],
-            }
-          : null,
-      );
-    }
-  }
-
   function openPhotoUpload(task: WorkItem) {
     handleComplete(task);
   }
@@ -391,6 +353,10 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
 
   function handleBlockerSubmit() {
     if (!blockerModalTask) return;
+    const finalReason =
+      blockerReason === 'Others'
+        ? (customBlockerReason.trim() ? `Others: ${customBlockerReason.trim()}` : 'Other reason')
+        : blockerReason;
     advance(
       'task_fulfiller',
       blockerModalTask.id,
@@ -400,9 +366,10 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
         message: 'Blocker recorded',
         variant: 'danger',
       },
-      blockerReason,
+      finalReason,
     );
     setBlockerModalTask(null);
+    setCustomBlockerReason('');
     if (selectedTask?.id === blockerModalTask.id) {
       setSelectedTask(null);
     }
@@ -1098,20 +1065,15 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     )}
 
                     {!isUnassigned && isAssignedToMe && isAwaitingInspection && (
-                      <div className="flex flex-col gap-2 w-full">
+                      <div className="w-full">
                         <div className="flex items-center justify-between rounded-xl border border-[rgba(165,130,95,0.3)] bg-[rgba(200,169,110,0.08)] px-3 py-2 text-xs">
                           <div className="flex items-center gap-2 text-[#dfc187] font-semibold">
                             <Clock className="h-4 w-4 text-[#dfc187] shrink-0 animate-pulse" />
                             <span>Pending at Supervisor Inspection</span>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => setSupervisorModalTask(task)}
-                            className="rounded-lg border border-[rgba(165,130,95,0.35)] bg-[rgba(200,169,110,0.14)] hover:bg-[rgba(200,169,110,0.24)] px-2.5 py-1 text-[10px] font-bold text-[#dfc187] transition-colors cursor-pointer"
-                            title="Supervisor inspection verification"
-                          >
-                            Supervisor Sign-Off
-                          </button>
+                          <span className="text-[11px] text-[#ded6c9]/80 italic">
+                            Supervisor: {activeProfile.supervisorName}
+                          </span>
                         </div>
                       </div>
                     )}
@@ -1438,12 +1400,31 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     <span className="text-[11px]">{reason}</span>
                   </label>
                 ))}
+
+                {blockerReason === 'Others' && (
+                  <div className="pt-1.5 animate-in fade-in duration-150">
+                    <label className="block text-[11px] font-semibold text-mist-200 mb-1">
+                      Type Custom Blocker Reason:
+                    </label>
+                    <textarea
+                      value={customBlockerReason}
+                      onChange={(e) => setCustomBlockerReason(e.target.value)}
+                      placeholder="Type the specific reason for blocking..."
+                      rows={3}
+                      className="w-full rounded-xl border border-white/20 bg-white/[0.04] p-2.5 text-xs text-white placeholder:text-mist-400 focus:border-rose-400 focus:outline-none focus:ring-1 focus:ring-rose-400/30 resize-none"
+                      autoFocus
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="mt-4 flex items-center justify-end gap-2 border-t border-white/10 pt-3">
                 <button
                   type="button"
-                  onClick={() => setBlockerModalTask(null)}
+                  onClick={() => {
+                    setBlockerModalTask(null);
+                    setCustomBlockerReason('');
+                  }}
                   className="rounded-xl border border-white/10 px-3 py-1.5 text-xs text-mist-300 hover:text-white"
                 >
                   Cancel
@@ -1669,118 +1650,6 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                 >
                   <Check className="h-3.5 w-3.5" />
                   Submit for Inspection
-                </button>
-              </div>
-            </div>
-          </div>
-        </FulfillerModalPortal>
-      )}
-
-      {/* Supervisor Authorization Modal (Enforcing verification by supervisor, not attendant) */}
-      {supervisorModalTask && (
-        <FulfillerModalPortal>
-          <div className="absolute inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-sm animate-in fade-in duration-150">
-            <div className="w-full max-w-sm rounded-3xl border border-[rgba(165,130,95,0.3)] bg-[#161513] p-5 text-[#f7f4ed] shadow-2xl space-y-3.5">
-              <div className="flex items-center justify-between border-b border-[rgba(165,130,95,0.2)] pb-3">
-                <div className="flex items-center gap-2 text-[#dfc187]">
-                  <ShieldCheck className="h-5 w-5" />
-                  <div>
-                    <h3 className="font-bold text-sm text-[#f7f4ed]">Supervisor Quality Verification</h3>
-                    <p className="text-[10px] text-[#d4b896] font-medium">Department Quality Certification</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSupervisorModalTask(null);
-                    setSupervisorAuthError(null);
-                  }}
-                  className="grid h-7 w-7 place-items-center rounded-full bg-white/10 text-[#ded6c9] hover:text-[#f7f4ed] cursor-pointer"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-
-              <div className="rounded-xl border border-[rgba(165,130,95,0.25)] bg-[rgba(200,169,110,0.06)] p-3 text-xs space-y-1">
-                <p className="font-bold text-[#f7f4ed] text-xs">{supervisorModalTask.title}</p>
-                <div className="flex items-center justify-between text-[11px] text-[#ded6c9] pt-0.5">
-                  <span>
-                    Attendant: <strong>{activeProfile.employeeName}</strong>
-                  </span>
-                  <span className="text-[#dfc187] font-mono">{activeProfile.employeeId}</span>
-                </div>
-                <div className="flex items-center justify-between text-[11px] text-[#d4b896]">
-                  <span>
-                    Supervisor: <strong>{activeProfile.supervisorName}</strong>
-                  </span>
-                  <span className="font-mono">{activeProfile.supervisorCode}</span>
-                </div>
-              </div>
-
-              <p className="text-xs text-[#ded6c9] leading-relaxed">
-                Under Grand Azure SOP, <strong>task fulfillers cannot self-verify completed work</strong>. Supervisor <strong>{activeProfile.supervisorName}</strong> must authorize certification with their supervisor code.
-              </p>
-
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs">
-                  <label className="font-semibold text-[#ded6c9]">Supervisor Authorization Code</label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSupervisorCodeInput(activeProfile.supervisorCode);
-                      setSupervisorAuthError(null);
-                    }}
-                    className="text-[10px] text-[#dfc187] hover:underline cursor-pointer"
-                  >
-                    Quick-Fill ({activeProfile.supervisorCode})
-                  </button>
-                </div>
-                <input
-                  type="text"
-                  placeholder={`Enter ${activeProfile.supervisorCode}`}
-                  value={supervisorCodeInput}
-                  onChange={(e) => {
-                    setSupervisorCodeInput(e.target.value);
-                    setSupervisorAuthError(null);
-                  }}
-                  className="w-full rounded-xl border border-[rgba(165,130,95,0.35)] bg-[#1e1c1a] px-3 py-2 text-xs text-[#f7f4ed] placeholder:text-[#a89f91] outline-none focus:border-[#c8a96e] font-mono"
-                />
-                {supervisorAuthError && (
-                  <p className="text-[11px] text-rose-400 font-medium">{supervisorAuthError}</p>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2 pt-2 border-t border-[rgba(165,130,95,0.2)]">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSupervisorModalTask(null);
-                    setSupervisorAuthError(null);
-                  }}
-                  className="flex-1 rounded-xl border border-[rgba(165,130,95,0.25)] bg-white/[0.05] py-2 text-xs text-[#ded6c9] hover:text-[#f7f4ed] transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const entered = supervisorCodeInput.trim().toUpperCase();
-                    const expected = activeProfile.supervisorCode.toUpperCase();
-                    if (!entered || entered !== expected) {
-                      setSupervisorAuthError(
-                        `Authorization failed. Only Supervisor ${activeProfile.supervisorName} (${activeProfile.supervisorCode}) can certify.`,
-                      );
-                      return;
-                    }
-                    handleSupervisorVerify(supervisorModalTask);
-                    setSupervisorModalTask(null);
-                    setSupervisorAuthError(null);
-                    notify(`Task approved by Supervisor ${activeProfile.supervisorName}. Moved to Completed.`);
-                  }}
-                  className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-[#c8a96e] hover:bg-[#dfc187] py-2 text-xs font-bold text-[#14120e] shadow-md active:scale-[0.98] transition-all cursor-pointer"
-                >
-                  <ShieldCheck className="h-3.5 w-3.5" />
-                  Verify & Sign Off
                 </button>
               </div>
             </div>
