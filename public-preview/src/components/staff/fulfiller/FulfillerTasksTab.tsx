@@ -139,6 +139,11 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
   const [photoModalPreview, setPhotoModalPreview] = useState<string | null>(null);
   const [photoModalError, setPhotoModalError] = useState<string | null>(null);
 
+  // Supervisor Quality Sign-Off Modal (Supervisor verification is restricted to the supervisor)
+  const [supervisorModalTask, setSupervisorModalTask] = useState<WorkItem | null>(null);
+  const [supervisorCodeInput, setSupervisorCodeInput] = useState('');
+  const [supervisorAuthError, setSupervisorAuthError] = useState<string | null>(null);
+
   // Helper to determine if a task is truly an unassigned queue item waiting to be claimed
   const isQueueTaskUnassigned = (task: WorkItem): boolean => {
     const isUnassignedStatus = task.status === 'Unassigned' || task.status === 'Received';
@@ -1075,27 +1080,27 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                       <div className="flex flex-col gap-2 w-full">
                         <div className="flex items-center justify-between rounded-xl border border-purple-400/30 bg-purple-500/10 px-3 py-2 text-xs">
                           <div className="flex items-center gap-1.5 text-purple-300 font-semibold min-w-0">
-                            <ShieldCheck className="h-4 w-4 text-purple-400 shrink-0" />
+                            <Clock className="h-4 w-4 text-purple-400 shrink-0 animate-pulse" />
                             <span className="truncate">Awaiting Supervisor Verification</span>
                           </div>
-                          <span className="text-[10px] text-purple-200/90 font-medium shrink-0">
-                            {activeProfile.supervisorName}
+                          <span className="text-[10px] text-purple-200/90 font-mono font-bold shrink-0">
+                            {activeProfile.supervisorName} ({activeProfile.supervisorCode})
                           </span>
                         </div>
+
+                        <div className="rounded-xl border border-white/5 bg-white/[0.02] p-2 text-xs text-mist-300 flex items-start gap-2">
+                          <ShieldAlert className="h-3.5 w-3.5 text-purple-400 shrink-0 mt-0.5" />
+                          <p className="text-[10px] text-mist-400 leading-relaxed">
+                            Quality check pending. <strong>Supervisor {activeProfile.supervisorName}</strong> must inspect and certify this task. Attendants cannot self-verify.
+                          </p>
+                        </div>
+
                         <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleSupervisorVerify(task)}
-                            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-purple-500 hover:bg-purple-400 active:scale-[0.98] py-2 px-3 text-xs font-bold text-white shadow-md shadow-purple-500/20 transition-all"
-                          >
-                            <ShieldCheck className="h-3.5 w-3.5" />
-                            Supervisor Verification
-                          </button>
                           <button
                             type="button"
                             onClick={() => openPhotoUpload(task)}
                             className={cn(
-                              'rounded-xl border px-3 py-2 text-xs font-medium transition-colors flex items-center gap-1.5',
+                              'flex-1 rounded-xl border px-3 py-2 text-xs font-medium transition-colors flex items-center justify-center gap-1.5',
                               task.photoUrl
                                 ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
                                 : 'border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
@@ -1103,7 +1108,20 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                             title="Upload or capture task photo"
                           >
                             <Camera className="h-3.5 w-3.5" />
-                            {task.photoUrl ? 'Photo ✓' : 'Upload Photo'}
+                            {task.photoUrl ? 'Photo Proof Attached ✓' : 'Upload Proof Photo'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSupervisorModalTask(task);
+                              setSupervisorCodeInput('');
+                              setSupervisorAuthError(null);
+                            }}
+                            className="flex items-center justify-center gap-1.5 rounded-xl border border-purple-400/40 bg-purple-500/20 px-3 py-2 text-xs font-bold text-purple-200 hover:bg-purple-500/30 hover:text-white transition-colors active:scale-[0.98]"
+                            title="Supervisor on-site authorization"
+                          >
+                            <ShieldCheck className="h-3.5 w-3.5 text-purple-400" />
+                            <span>Supervisor Verification</span>
                           </button>
                         </div>
                       </div>
@@ -1376,7 +1394,11 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                   selectedTask.status === 'Awaiting inspection' ? (
                     <button
                       type="button"
-                      onClick={() => handleSupervisorVerify(selectedTask)}
+                      onClick={() => {
+                        setSupervisorModalTask(selectedTask);
+                        setSupervisorCodeInput('');
+                        setSupervisorAuthError(null);
+                      }}
                       className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-purple-500 hover:bg-purple-400 active:scale-[0.99] py-2.5 text-xs font-bold text-white transition-all shadow-md shadow-purple-500/20 text-center"
                     >
                       <ShieldCheck className="h-4 w-4" />
@@ -1640,6 +1662,112 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                 >
                   <Check className="h-3.5 w-3.5" />
                   Save Photo
+                </button>
+              </div>
+            </div>
+          </div>
+        </FulfillerModalPortal>
+      )}
+
+      {/* Supervisor Authorization Modal (Enforcing verification by supervisor, not attendant) */}
+      {supervisorModalTask && (
+        <FulfillerModalPortal>
+          <div className="absolute inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-sm animate-in fade-in duration-150">
+            <div className="w-full max-w-sm rounded-3xl border border-purple-500/40 bg-ink-950 p-5 text-white shadow-2xl space-y-3.5">
+              <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                <div className="flex items-center gap-2 text-purple-400">
+                  <ShieldCheck className="h-5 w-5" />
+                  <div>
+                    <h3 className="font-bold text-sm text-white">Supervisor Quality Verification</h3>
+                    <p className="text-[10px] text-purple-300 font-medium">Department Quality Certification</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSupervisorModalTask(null);
+                    setSupervisorAuthError(null);
+                  }}
+                  className="grid h-7 w-7 place-items-center rounded-full bg-white/10 text-mist-400 hover:text-white"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="rounded-xl border border-purple-400/20 bg-purple-500/10 p-3 text-xs space-y-1">
+                <p className="font-bold text-white text-xs">{supervisorModalTask.title}</p>
+                <div className="flex items-center justify-between text-[11px] text-mist-300 pt-0.5">
+                  <span>Attendant: <strong>{activeProfile.employeeName}</strong></span>
+                  <span className="text-purple-300 font-mono">{activeProfile.employeeId}</span>
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-purple-200">
+                  <span>Supervisor: <strong>{activeProfile.supervisorName}</strong></span>
+                  <span className="font-mono">{activeProfile.supervisorCode}</span>
+                </div>
+              </div>
+
+              <p className="text-xs text-mist-300 leading-relaxed">
+                Under Grand Azure SOP, <strong>task fulfillers cannot self-verify completed work</strong>. Supervisor <strong>{activeProfile.supervisorName}</strong> must authorize certification with their supervisor code.
+              </p>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <label className="font-semibold text-mist-200">Supervisor Authorization Code</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSupervisorCodeInput(activeProfile.supervisorCode);
+                      setSupervisorAuthError(null);
+                    }}
+                    className="text-[10px] text-purple-400 hover:underline cursor-pointer"
+                  >
+                    Quick-Fill ({activeProfile.supervisorCode})
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  placeholder={`Enter ${activeProfile.supervisorCode}`}
+                  value={supervisorCodeInput}
+                  onChange={(e) => {
+                    setSupervisorCodeInput(e.target.value);
+                    setSupervisorAuthError(null);
+                  }}
+                  className="w-full rounded-xl border border-white/15 bg-white/[0.05] px-3 py-2 text-xs text-white placeholder-mist-500 outline-none focus:border-purple-400 font-mono"
+                />
+                {supervisorAuthError && (
+                  <p className="text-[11px] text-rose-400 font-medium">{supervisorAuthError}</p>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 pt-2 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSupervisorModalTask(null);
+                    setSupervisorAuthError(null);
+                  }}
+                  className="flex-1 rounded-xl border border-white/10 bg-white/[0.05] py-2 text-xs text-mist-300 hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const entered = supervisorCodeInput.trim().toUpperCase();
+                    const expected = activeProfile.supervisorCode.toUpperCase();
+                    if (!entered || entered !== expected) {
+                      setSupervisorAuthError(`Authorization failed. Only Supervisor ${activeProfile.supervisorName} (${activeProfile.supervisorCode}) can certify.`);
+                      return;
+                    }
+                    handleSupervisorVerify(supervisorModalTask);
+                    setSupervisorModalTask(null);
+                    setSupervisorAuthError(null);
+                    notify(`Task quality certified & approved by Supervisor ${activeProfile.supervisorName}`);
+                  }}
+                  className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-purple-500 hover:bg-purple-400 py-2 text-xs font-bold text-white shadow-md shadow-purple-500/20 active:scale-[0.98] transition-all"
+                >
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  Verify & Sign Off
                 </button>
               </div>
             </div>
