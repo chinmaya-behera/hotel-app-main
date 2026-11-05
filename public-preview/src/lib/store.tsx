@@ -519,9 +519,18 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     }
   }, [state, hydrated]);
 
-  // Keep the whole site on one theme: mirror it onto <html data-theme>.
+  // Keep the whole site on one theme: mirror it onto <html data-theme> and class.
   useEffect(() => {
-    if (hydrated) document.documentElement.dataset.theme = state.theme;
+    if (hydrated) {
+      document.documentElement.dataset.theme = state.theme;
+      if (state.theme === 'light') {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.classList.add('light');
+      } else {
+        document.documentElement.classList.remove('light');
+        document.documentElement.classList.add('dark');
+      }
+    }
   }, [state.theme, hydrated]);
 
   // Clear any pending simulated-lifecycle timers on unmount.
