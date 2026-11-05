@@ -33,7 +33,7 @@ import type { WorkItem } from '@/types/demo';
 
 type PrimaryView = 'my_tasks' | 'all_tasks';
 type MyTasksFilter = 'all' | 'pending' | 'in_progress' | 'blocked' | 'overdue' | 'completed';
-type AllTasksFilter = 'all_eligible' | 'open_pool' | 'in_progress';
+type AllTasksFilter = 'all_eligible' | 'open_pool' | 'in_progress' | 'completed';
 
 const BLOCKER_REASONS = [
   'Guest requested privacy (Do Not Disturb)',
@@ -200,6 +200,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
           task.status === 'On the way' ||
           task.status === 'Blocked'
         );
+      if (allFilter === 'completed') return task.status === 'Completed';
       return true;
     });
   }, [allDepartmentTasks, allFilter]);
@@ -459,23 +460,21 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
             )}
           </button>
 
-          {blockedCount > 0 && (
-            <button
-              type="button"
-              onClick={() => setMyFilter('blocked')}
-              className={cn(
-                'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all',
-                myFilter === 'blocked'
-                  ? 'bg-rose-500 text-white shadow-md shadow-rose-500/25'
-                  : 'border border-rose-400/30 bg-rose-500/10 text-rose-300 hover:text-white',
-              )}
-            >
-              Blocked
-              <span className="rounded-full bg-rose-600 px-1.5 py-0.2 text-[10px] font-bold text-white">
-                {blockedCount}
-              </span>
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setMyFilter('completed')}
+            className={cn(
+              'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all',
+              myFilter === 'completed'
+                ? 'bg-emerald-400 text-ink-950 shadow-md shadow-emerald-400/25 font-bold'
+                : 'border border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
+            )}
+          >
+            Completed
+            <span className="rounded-full bg-black/20 px-1.5 py-0.2 text-[10px] font-bold">
+              {myTasks.filter((t) => t.status === 'Completed').length}
+            </span>
+          </button>
 
           <button
             type="button"
@@ -495,21 +494,23 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
             )}
           </button>
 
-          <button
-            type="button"
-            onClick={() => setMyFilter('completed')}
-            className={cn(
-              'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all',
-              myFilter === 'completed'
-                ? 'bg-emerald-400 text-ink-950 shadow-md shadow-emerald-400/25'
-                : 'border border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
-            )}
-          >
-            Completed
-            <span className="rounded-full bg-black/20 px-1.5 py-0.2 text-[10px] font-bold">
-              {myTasks.filter((t) => t.status === 'Completed').length}
-            </span>
-          </button>
+          {blockedCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setMyFilter('blocked')}
+              className={cn(
+                'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all',
+                myFilter === 'blocked'
+                  ? 'bg-rose-500 text-white shadow-md shadow-rose-500/25'
+                  : 'border border-rose-400/30 bg-rose-500/10 text-rose-300 hover:text-white',
+              )}
+            >
+              Blocked
+              <span className="rounded-full bg-rose-600 px-1.5 py-0.2 text-[10px] font-bold text-white">
+                {blockedCount}
+              </span>
+            </button>
+          )}
         </div>
       )}
 
@@ -562,6 +563,22 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
             )}
           >
             In Progress
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setAllFilter('completed')}
+            className={cn(
+              'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all',
+              allFilter === 'completed'
+                ? 'bg-emerald-400 text-ink-950 shadow-md shadow-emerald-400/25 font-bold'
+                : 'border border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
+            )}
+          >
+            Completed
+            <span className="rounded-full bg-black/20 px-1.5 py-0.2 text-[10px] font-bold">
+              {allDepartmentTasks.filter((t) => t.status === 'Completed').length}
+            </span>
           </button>
         </div>
       )}
@@ -820,10 +837,18 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                               message: 'Work commenced',
                             })
                           }
-                          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-sky-500 py-2 px-3 text-xs font-semibold text-ink-950 shadow-md shadow-sky-500/20 active:scale-[0.98] transition-transform"
+                          className="flex items-center justify-center gap-1.5 rounded-xl bg-sky-500 py-2 px-3 text-xs font-semibold text-ink-950 shadow-md shadow-sky-500/20 active:scale-[0.98] transition-transform"
                         >
                           <Play className="h-3.5 w-3.5 fill-current" />
-                          Start Work
+                          Start
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleComplete(task)}
+                          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-500 py-2 px-3 text-xs font-semibold text-ink-950 shadow-md shadow-emerald-500/20 active:scale-[0.98] transition-transform"
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          Complete
                         </button>
                         <button
                           type="button"
@@ -910,6 +935,28 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                         </button>
                       </>
                     )}
+                  </div>
+                )}
+
+                {/* Completed State Banner */}
+                {isCompleted && (
+                  <div className="mt-3 flex items-center justify-between rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 text-xs">
+                    <div className="flex items-center gap-2 text-emerald-400 font-bold">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                      <span>Task Completed</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {task.photoUrl && (
+                        <span className="text-[11px] text-emerald-300/80 font-medium flex items-center gap-1">
+                          <Camera className="h-3 w-3" /> Photo proof
+                        </span>
+                      )}
+                      <span className="text-[11px] text-mist-400 font-mono">
+                        {task.history?.filter((h) => h.status === 'Completed').slice(-1)[0]?.at
+                          ? `Finished at ${task.history.filter((h) => h.status === 'Completed').slice(-1)[0].at}`
+                          : 'Completed'}
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1129,18 +1176,28 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                 </div>
               </div>
 
-              {/* Footer: Dedicated Close Button */}
-              <div className="mt-3 border-t border-white/10 pt-3 flex items-center shrink-0">
+              {/* Footer: Dedicated Close and Complete Actions */}
+              <div className="mt-3 border-t border-white/10 pt-3 flex items-center gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => {
                     setSelectedTask(null);
                     setPhotoError(null);
                   }}
-                  className="w-full rounded-xl border border-white/10 bg-white/[0.05] hover:bg-white/[0.08] active:scale-[0.99] py-2.5 text-xs font-semibold text-white transition-all text-center"
+                  className="flex-1 rounded-xl border border-white/10 bg-white/[0.05] hover:bg-white/[0.08] active:scale-[0.99] py-2.5 text-xs font-semibold text-white transition-all text-center"
                 >
                   Close
                 </button>
+                {selectedTask.status !== 'Completed' && isTaskAssignedToProfile(selectedTask, activeProfile) && (
+                  <button
+                    type="button"
+                    onClick={() => handleComplete(selectedTask)}
+                    className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-[0.99] py-2.5 text-xs font-bold text-ink-950 transition-all shadow-md shadow-emerald-500/20 text-center"
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    Complete Task
+                  </button>
+                )}
               </div>
             </div>
           </div>
