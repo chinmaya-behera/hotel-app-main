@@ -107,9 +107,11 @@ function isFoodAndBeverageTask(task: WorkItem): boolean {
 
 interface FulfillerTasksTabProps {
   profile?: FulfillerProfile;
+  isSupervisorMode?: boolean;
+  onToggleSupervisorMode?: () => void;
 }
 
-export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
+export function FulfillerTasksTab({ profile, isSupervisorMode = false, onToggleSupervisorMode }: FulfillerTasksTabProps) {
   const activeProfile = profile || FULFILLER_PROFILES.housekeeping;
   const { state, advance, attachTaskPhoto, requestTaskReassignment, claimTask, notify, setFulfillerAvailability } = useDemo();
 
@@ -172,23 +174,26 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
       .filter((t) => !t.id.startsWith('sup-'))
       .filter((t) => taskMatchesFulfillerDept(t, activeProfile.deptKey))
       .filter((t) => {
+        if (isSupervisorMode) return true; // Supervisor oversees all department tasks
         // Only keep tasks assigned to this fulfiller OR unassigned queue tasks waiting to be claimed
         const isUnassigned = isQueueTaskUnassigned(t);
         const isAssignedToMe = isTaskAssignedToProfile(t, activeProfile);
         return isUnassigned || isAssignedToMe;
       });
-  }, [state.items.task_fulfiller, state.items.department_dispatcher, activeProfile]);
+  }, [state.items.task_fulfiller, state.items.department_dispatcher, activeProfile, isSupervisorMode]);
 
   // My Tasks: Assigned to or claimed by active department employee (never open pool tasks)
   const myTasks = useMemo(() => {
-    return allDepartmentTasks.filter(
-      (t) =>
-        !isQueueTaskUnassigned(t) &&
-        t.status !== 'Reassigned' &&
-        t.status !== 'Unassigned' &&
-        taskMatchesFulfillerAssignee(t, activeProfile),
-    );
-  }, [allDepartmentTasks, activeProfile]);
+    return allDepartmentTasks.filter((t) => {
+      if (isQueueTaskUnassigned(t) || t.status === 'Reassigned' || t.status === 'Unassigned') {
+        return false;
+      }
+      if (isSupervisorMode) {
+        return true; // In supervisor QA mode, supervisor views all active department tasks
+      }
+      return taskMatchesFulfillerAssignee(t, activeProfile);
+    });
+  }, [allDepartmentTasks, activeProfile, isSupervisorMode]);
 
   // Unassigned Open Pool tasks that can be claimed (strictly unassigned queue tasks only)
   const unassignedPool = useMemo(() => {
@@ -1076,12 +1081,16 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                       </>
                     )}
 
-                    {!isUnassigned && isAssignedToMe && isAwaitingInspection && (
+                    {!isUnassigned && (isAssignedToMe || isSupervisorMode) && isAwaitingInspection && (
                       <div className="flex flex-col gap-2 w-full">
                         <div className="flex flex-wrap items-center justify-between gap-1.5 rounded-xl border border-purple-400/30 bg-purple-500/10 px-3 py-2 text-xs">
                           <div className="flex items-center gap-1.5 text-purple-300 font-semibold">
                             <Clock className="h-4 w-4 text-purple-400 shrink-0 animate-pulse" />
-                            <span>Supervisor Verification Pending</span>
+                            <span>
+                              {isSupervisorMode
+                                ? 'Supervisor QA Inspection Required'
+                                : 'Supervisor Verification Pending'}
+                            </span>
                           </div>
                           <span className="inline-flex items-center rounded-md bg-purple-500/20 px-2 py-0.5 text-[10px] text-purple-200 font-mono font-bold shrink-0">
                             {activeProfile.supervisorName} ({activeProfile.supervisorCode})
@@ -1091,7 +1100,15 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                         <div className="rounded-xl border border-white/5 bg-white/[0.02] p-2 text-xs text-mist-300 flex items-start gap-2">
                           <ShieldAlert className="h-3.5 w-3.5 text-purple-400 shrink-0 mt-0.5" />
                           <p className="text-[10px] text-mist-400 leading-relaxed">
-                            Quality check pending. <strong>Supervisor {activeProfile.supervisorName}</strong> must inspect and certify this task. Attendants cannot self-verify.
+                            {isSupervisorMode ? (
+                              <span>
+                                You are inspecting as <strong>Supervisor {activeProfile.supervisorName}</strong>. Review quality evidence and certify completion.
+                              </span>
+                            ) : (
+                              <span>
+                                Quality check pending. <strong>Supervisor {activeProfile.supervisorName}</strong> must inspect and certify this task. Attendants cannot self-verify.
+                              </span>
+                            )}
                           </p>
                         </div>
 
@@ -1110,19 +1127,32 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                             <Camera className="h-3.5 w-3.5" />
                             {task.photoUrl ? 'Photo Proof Attached ✓' : 'Upload Proof Photo'}
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSupervisorModalTask(task);
-                              setSupervisorCodeInput('');
-                              setSupervisorAuthError(null);
-                            }}
-                            className="flex items-center justify-center gap-1.5 rounded-xl border border-purple-400/40 bg-purple-500/20 px-3 py-2 text-xs font-bold text-purple-200 hover:bg-purple-500/30 hover:text-white transition-colors active:scale-[0.98]"
-                            title="Supervisor on-site authorization"
-                          >
-                            <ShieldCheck className="h-3.5 w-3.5 text-purple-400" />
-                            <span>Supervisor Verification</span>
-                          </button>
+
+                          {isSupervisorMode ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSupervisorModalTask(task);
+                                setSupervisorCodeInput(activeProfile.supervisorCode);
+                                setSupervisorAuthError(null);
+                              }}
+                              className="flex items-center justify-center gap-1.5 rounded-xl border border-purple-400/40 bg-purple-500/25 px-3 py-2 text-xs font-bold text-white hover:bg-purple-500/35 transition-colors active:scale-[0.98] shadow-md shadow-purple-500/20"
+                              title="Supervisor quality sign-off"
+                            >
+                              <ShieldCheck className="h-3.5 w-3.5 text-purple-300" />
+                              <span>Supervisor Verification</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={onToggleSupervisorMode}
+                              className="flex items-center justify-center gap-1 rounded-xl border border-purple-400/30 bg-purple-500/10 px-2.5 py-2 text-[11px] font-semibold text-purple-300 hover:bg-purple-500/20 transition-colors"
+                              title={`Switch to Supervisor ${activeProfile.supervisorName} to inspect`}
+                            >
+                              <ShieldCheck className="h-3.5 w-3.5 text-purple-400" />
+                              <span>Supervisor Sign-Off ➔</span>
+                            </button>
+                          )}
                         </div>
                       </div>
                     )}
@@ -1390,20 +1420,35 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                 >
                   Close
                 </button>
-                {selectedTask.status !== 'Completed' && isTaskAssignedToProfile(selectedTask, activeProfile) && (
+                {selectedTask.status !== 'Completed' && (isTaskAssignedToProfile(selectedTask, activeProfile) || isSupervisorMode) && (
                   selectedTask.status === 'Awaiting inspection' ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSupervisorModalTask(selectedTask);
-                        setSupervisorCodeInput('');
-                        setSupervisorAuthError(null);
-                      }}
-                      className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-purple-500 hover:bg-purple-400 active:scale-[0.99] py-2.5 text-xs font-bold text-white transition-all shadow-md shadow-purple-500/20 text-center"
-                    >
-                      <ShieldCheck className="h-4 w-4" />
-                      Supervisor Verification
-                    </button>
+                    isSupervisorMode ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSupervisorModalTask(selectedTask);
+                          setSupervisorCodeInput(activeProfile.supervisorCode);
+                          setSupervisorAuthError(null);
+                        }}
+                        className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-purple-500 hover:bg-purple-400 active:scale-[0.99] py-2.5 text-xs font-bold text-white transition-all shadow-md shadow-purple-500/20 text-center"
+                      >
+                        <ShieldCheck className="h-4 w-4" />
+                        Supervisor Verification
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedTask(null);
+                          onToggleSupervisorMode?.();
+                        }}
+                        className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/40 py-2.5 px-3 text-xs font-semibold text-purple-200 text-center transition-colors"
+                        title={`Switch to Supervisor ${activeProfile.supervisorName} to inspect`}
+                      >
+                        <Clock className="h-3.5 w-3.5 text-purple-400 animate-pulse" />
+                        <span>Awaiting Supervisor Sign-Off ➔</span>
+                      </button>
+                    )
                   ) : (
                     <button
                       type="button"
