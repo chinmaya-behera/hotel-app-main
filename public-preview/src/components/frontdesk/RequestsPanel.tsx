@@ -193,14 +193,14 @@ export function RequestsPanel({ initialCategory = 'all' }: { initialCategory?: R
       </div>
 
       {/* Status sub-pills row */}
-      <div role="group" aria-label="Filter by status" className="flex rounded-xl border border-white/10 bg-black/20 p-0.5 w-fit">
+      <div role="group" aria-label="Filter by status" className="flex rounded-xl border border-white/10 bg-black/20 p-0.5 w-fit max-w-full overflow-x-auto no-scrollbar">
         {VIEWS.map((v) => (
           <button
             key={v.id}
             type="button"
             aria-pressed={view === v.id}
             onClick={() => setView(v.id)}
-            className={cn('rounded-lg px-3 py-1 text-xs font-semibold transition', view === v.id ? 'accent-soft' : 'text-mist-400 hover:text-white')}
+            className={cn('rounded-lg px-2.5 sm:px-3 py-1 text-xs font-semibold shrink-0 transition', view === v.id ? 'accent-soft' : 'text-mist-400 hover:text-white')}
           >
             {v.label} <span className="tabular-nums opacity-70">{counts[v.id]}</span>
           </button>
@@ -505,7 +505,7 @@ function DetailDialog({ item, onClose }: { item: WorkItem; onClose: () => void }
   const history = item.history ?? [];
   return (
     <Modal title={item.title} description={item.meta} onClose={onClose} footer={<Button variant="subtle" onClick={onClose}>Close</Button>}>
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+      <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-xs">
         {[
           ['Reference', item.ref ?? 'Not assigned'],
           ['Status', item.status],

@@ -16,10 +16,10 @@ export function Panel({ title, hint, icon: Icon, action, className, bodyClassNam
   return (
     <section className={cn('panel', className)}>
       {(title || action) && (
-        <header className="flex items-start justify-between gap-3 border-b border-white/[0.06] px-5 py-4">
+        <header className="flex flex-col sm:flex-row sm:items-center items-start justify-between gap-3 border-b border-white/[0.06] px-4 sm:px-5 py-3.5 sm:py-4">
           <div className="flex items-center gap-3">
             {Icon && (
-              <span className="accent-soft grid h-9 w-9 place-items-center rounded-xl">
+              <span className="accent-soft grid h-9 w-9 place-items-center rounded-xl shrink-0">
                 <Icon className="h-4 w-4" aria-hidden />
               </span>
             )}
@@ -28,10 +28,10 @@ export function Panel({ title, hint, icon: Icon, action, className, bodyClassNam
               {hint && <p className="mt-0.5 text-xs text-mist-400">{hint}</p>}
             </div>
           </div>
-          {action}
+          {action && <div className="w-full sm:w-auto shrink-0">{action}</div>}
         </header>
       )}
-      <div className={cn('p-5', bodyClassName)}>{children}</div>
+      <div className={cn('p-3.5 sm:p-5', bodyClassName)}>{children}</div>
     </section>
   );
 }

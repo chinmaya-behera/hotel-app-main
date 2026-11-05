@@ -188,13 +188,13 @@ export function DisputesPanel() {
       prev.map((r) =>
         r.id === id
           ? {
-              ...r,
-              status: nextStatus,
-              resolutionNote:
-                nextStatus === 'Refunded'
-                  ? 'Processed via payment terminal · Settled to guest card'
-                  : 'Approved by Finance desk',
-            }
+            ...r,
+            status: nextStatus,
+            resolutionNote:
+              nextStatus === 'Refunded'
+                ? 'Processed via payment terminal · Settled to guest card'
+                : 'Approved by Finance desk',
+          }
           : r,
       ),
     );
@@ -204,15 +204,14 @@ export function DisputesPanel() {
     <div className="space-y-4">
       {/* Sub-Navigation: Compensation | Refunds | PMS Sync Issues */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex p-1 rounded-xl bg-white/[0.04] border border-white/10 text-xs">
+        <div className="flex flex-wrap items-center gap-1 p-1 rounded-xl bg-white/[0.04] border border-white/10 text-xs max-w-full">
           <button
             type="button"
             onClick={() => setActiveTab('compensation')}
-            className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${
-              activeTab === 'compensation'
+            className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${activeTab === 'compensation'
                 ? 'bg-amber-400 text-ink-950 shadow-sm'
                 : 'text-mist-300 hover:text-white'
-            }`}
+              }`}
           >
             <DollarSign className="h-3.5 w-3.5" />
             <span>Compensation &amp; Service Recovery ({compensations.length})</span>
@@ -220,11 +219,10 @@ export function DisputesPanel() {
           <button
             type="button"
             onClick={() => setActiveTab('refunds')}
-            className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${
-              activeTab === 'refunds'
+            className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${activeTab === 'refunds'
                 ? 'bg-amber-400 text-ink-950 shadow-sm'
                 : 'text-mist-300 hover:text-white'
-            }`}
+              }`}
           >
             <Receipt className="h-3.5 w-3.5" />
             <span>Refunds &amp; Disputes ({refunds.length})</span>
@@ -232,11 +230,10 @@ export function DisputesPanel() {
           <button
             type="button"
             onClick={() => setActiveTab('sync')}
-            className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${
-              activeTab === 'sync'
+            className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${activeTab === 'sync'
                 ? 'bg-amber-400 text-ink-950 shadow-sm'
                 : 'text-mist-300 hover:text-white'
-            }`}
+              }`}
           >
             <Landmark className="h-3.5 w-3.5" />
             <span>PMS Sync Issues ({syncIssues.filter((s) => s.bookingState === 'PMS_Sync_Failed').length})</span>
@@ -450,6 +447,7 @@ export function DisputesPanel() {
                         fdAction((s) => {
                           const item = s.frontDesk?.sync.find((x) => x.id === sync.id);
                           if (item) item.bookingState = 'Refund_Requested';
+                          return null;
                         });
                       }
                     }}

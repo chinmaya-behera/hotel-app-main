@@ -160,7 +160,7 @@ export function IncidentsPanel() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto shrink-0">
           <Button
             size="sm"
             variant="subtle"
@@ -252,7 +252,7 @@ export function IncidentsPanel() {
               </div>
 
               {/* Action Buttons: Dispatch to Security Op | Mark Resolved */}
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto shrink-0">
                 {inc.status === 'active' && (
                   <Button
                     size="sm"

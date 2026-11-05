@@ -263,7 +263,7 @@ export function FrontDeskPoliciesPanel() {
   return (
     <div className="space-y-4">
       {/* 1. Quick Operating Parameters Reference Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
         {/* Check-In / Check-Out Hours */}
         <div className="p-3 rounded-xl border border-sky-500/25 bg-sky-500/[0.04] space-y-1">
           <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-sky-400">
