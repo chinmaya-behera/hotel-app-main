@@ -1078,12 +1078,12 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
 
                     {!isUnassigned && isAssignedToMe && isAwaitingInspection && (
                       <div className="flex flex-col gap-2 w-full">
-                        <div className="flex items-center justify-between rounded-xl border border-purple-400/30 bg-purple-500/10 px-3 py-2 text-xs">
-                          <div className="flex items-center gap-1.5 text-purple-300 font-semibold min-w-0">
+                        <div className="flex flex-wrap items-center justify-between gap-1.5 rounded-xl border border-purple-400/30 bg-purple-500/10 px-3 py-2 text-xs">
+                          <div className="flex items-center gap-1.5 text-purple-300 font-semibold">
                             <Clock className="h-4 w-4 text-purple-400 shrink-0 animate-pulse" />
-                            <span className="truncate">Awaiting Supervisor Verification</span>
+                            <span>Supervisor Verification Pending</span>
                           </div>
-                          <span className="text-[10px] text-purple-200/90 font-mono font-bold shrink-0">
+                          <span className="inline-flex items-center rounded-md bg-purple-500/20 px-2 py-0.5 text-[10px] text-purple-200 font-mono font-bold shrink-0">
                             {activeProfile.supervisorName} ({activeProfile.supervisorCode})
                           </span>
                         </div>
