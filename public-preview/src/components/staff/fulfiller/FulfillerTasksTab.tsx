@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useRef, useMemo, type ChangeEvent } from 'react';
+import { useState, useRef, useMemo, useEffect, type ChangeEvent } from 'react';
+import { createPortal } from 'react-dom';
 import {
   AlertCircle,
   AlertTriangle,
@@ -26,6 +27,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
+import { FULFILLER_PROFILES, type FulfillerProfile, taskMatchesFulfillerDept, taskMatchesFulfillerAssignee } from './fulfillerProfiles';
 import { cn, statusTone } from '@/lib/utils';
 import type { WorkItem } from '@/types/demo';
 
@@ -49,7 +51,57 @@ const REASSIGN_REASONS = [
   'Language / guest communication barrier',
 ];
 
-export function FulfillerTasksTab() {
+
+function FulfillerModalPortal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  const [target, setTarget] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+    setTarget(document.getElementById('fulfiller-phone-shell') || (typeof document !== 'undefined' ? document.body : null));
+  }, []);
+
+  if (!mounted || !target) return null;
+  return createPortal(children, target);
+}
+
+function isFoodAndBeverageTask(task: WorkItem): boolean {
+  const dept = (task.department || '').toLowerCase();
+  const cat = (task.category || '').toLowerCase();
+  const title = (task.title || '').toLowerCase();
+  const meta = (task.meta || '').toLowerCase();
+
+  return (
+    dept.includes('food') ||
+    dept.includes('beverage') ||
+    dept.includes('dining') ||
+    dept.includes('f&b') ||
+    cat.includes('food') ||
+    cat.includes('dining') ||
+    cat.includes('fnb') ||
+    cat.includes('room_service') ||
+    title.includes('dining') ||
+    title.includes('breakfast') ||
+    title.includes('dinner') ||
+    title.includes('lunch') ||
+    title.includes('tea') ||
+    title.includes('meal') ||
+    title.includes('platter') ||
+    title.includes('coffee') ||
+    title.includes('dessert') ||
+    title.includes('beverage') ||
+    meta.includes('dining') ||
+    meta.includes('in-room dining') ||
+    meta.includes('food')
+  );
+}
+
+interface FulfillerTasksTabProps {
+  profile?: FulfillerProfile;
+}
+
+export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
+  const activeProfile = profile || FULFILLER_PROFILES.housekeeping;
   const { state, advance, attachTaskPhoto, requestTaskReassignment, claimTask } = useDemo();
 
   // Primary view: "my_tasks" vs "all_tasks"
@@ -63,49 +115,31 @@ export function FulfillerTasksTab() {
   const [blockerReason, setBlockerReason] = useState(BLOCKER_REASONS[0]);
   const [reassignReason, setReassignReason] = useState(REASSIGN_REASONS[0]);
   const [photoError, setPhotoError] = useState<string | null>(null);
+  const [viewPhotoUrl, setViewPhotoUrl] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const rawTasks = state.items.task_fulfiller ?? [];
-
-  // My Tasks: Assigned to or claimed by Vikram Singh (EMP-0103)
-  const myTasks = useMemo(() => {
-    return rawTasks.filter(
-      (t) =>
-        t.status !== 'Reassigned' &&
-        t.status !== 'Unassigned' &&
-        (t.assigneeId === 'EMP-0103' || t.assignee === 'Vikram Singh' || !t.assignee),
-    );
-  }, [rawTasks]);
-
-  // All combined department tasks across Housekeeping, Maintenance, and F&B/Runner
+  // All combined department tasks across queues for the active department
   const allDepartmentTasks = useMemo(() => {
+    const rawFulfiller = state.items.task_fulfiller ?? [];
     const ddsItems = state.items.department_dispatcher_supervisor ?? [];
     const ddItems = state.items.department_dispatcher ?? [];
-    const combined = [...ddsItems, ...ddItems].filter(
+    const combined = [...rawFulfiller, ...ddsItems, ...ddItems].filter(
       (t, i, arr) => arr.findIndex((x) => x.id === t.id) === i,
     );
 
-    // Eligible departments: Housekeeping, Maintenance & Engineering, Food & Beverage / Runner
-    // Eligible floors: Floors 1 to 5 (Vikram's documented scope)
-    return combined.filter((t) => {
-      const dept = (t.department || '').toLowerCase();
-      const cat = (t.category || '').toLowerCase();
-      const isEligibleDept =
-        dept.includes('housekeeping') ||
-        dept.includes('maintenance') ||
-        dept.includes('room service') ||
-        dept.includes('food') ||
-        cat === 'housekeeping' ||
-        cat === 'maintenance' ||
-        cat === 'room_service';
+    return combined.filter((t) => taskMatchesFulfillerDept(t, activeProfile.deptKey));
+  }, [state.items.task_fulfiller, state.items.department_dispatcher_supervisor, state.items.department_dispatcher, activeProfile.deptKey]);
 
-      const floor = t.floor || (t.room ? parseInt(t.room[0], 10) : 1);
-      const isEligibleFloor = floor >= 1 && floor <= 5;
-
-      return isEligibleDept && isEligibleFloor;
-    });
-  }, [state.items.department_dispatcher_supervisor, state.items.department_dispatcher]);
+  // My Tasks: Assigned to or claimed by active department employee
+  const myTasks = useMemo(() => {
+    return allDepartmentTasks.filter(
+      (t) =>
+        t.status !== 'Reassigned' &&
+        t.status !== 'Unassigned' &&
+        taskMatchesFulfillerAssignee(t, activeProfile),
+    );
+  }, [allDepartmentTasks, activeProfile]);
 
   // Unassigned Open Pool tasks that can be claimed
   const unassignedPool = useMemo(() => {
@@ -489,14 +523,6 @@ export function FulfillerTasksTab() {
         </div>
       )}
 
-      {/* Scope disclaimer for All Tasks */}
-      {primaryView === 'all_tasks' && (
-        <div className="flex items-center justify-between px-2 py-1 rounded-xl bg-white/[0.02] border border-white/5 text-[10px] text-mist-400">
-          <span>Scope: Housekeeping, Maintenance & Runner · Floors 1–5</span>
-          <span className="text-emerald-400 font-medium">Eligible Zone</span>
-        </div>
-      )}
-
       {/* Task List Rendering */}
       <div className="flex flex-col gap-3">
         {(primaryView === 'my_tasks' ? filteredMyTasks : filteredAllTasks).length === 0 ? (
@@ -507,7 +533,7 @@ export function FulfillerTasksTab() {
             <p className="mt-3 text-sm font-semibold text-white">All clear in this view</p>
             <p className="mt-1 text-xs text-mist-400 max-w-xs">
               {primaryView === 'my_tasks'
-                ? 'You have no active tasks matching this filter. Switch to "All Tasks" to claim open work.'
+                ? `You have no active ${activeProfile.departmentName} tasks matching this filter. Switch to "All Tasks" to claim open work.`
                 : 'No department tasks currently available in this filter. Check back shortly.'}
             </p>
           </div>
@@ -610,7 +636,8 @@ export function FulfillerTasksTab() {
                 {task.room && state.guestPreferences?.[task.room] && (
                   (() => {
                     const prefs = state.guestPreferences[task.room];
-                    const hasAllergies = prefs.allergies && prefs.allergies.length > 0;
+                    const isFoodTask = isFoodAndBeverageTask(task);
+                    const hasAllergies = isFoodTask && prefs.allergies && prefs.allergies.length > 0;
                     const hasInstructions = !!prefs.personalInstructions;
                     const isDnd = !!prefs.dnd;
                     if (!hasAllergies && !hasInstructions && !isDnd) return null;
@@ -628,7 +655,7 @@ export function FulfillerTasksTab() {
                         )}
                         {hasAllergies && (
                           <p className="text-mist-200 text-[11px]">
-                            <strong className="text-amber-200">Allergies:</strong> {prefs.allergies.join(', ')}
+                            <strong className="text-amber-200">Food Allergies (F&B Alert):</strong> {prefs.allergies.join(', ')}
                           </p>
                         )}
                         {hasInstructions && (
@@ -665,8 +692,8 @@ export function FulfillerTasksTab() {
                   {task.photoUrl && (
                     <button
                       type="button"
-                      onClick={() => setSelectedTask(task)}
-                      className="flex items-center gap-1 text-[11px] text-emerald-300 underline hover:text-emerald-200"
+                      onClick={() => setViewPhotoUrl(task.photoUrl!)}
+                      className="flex items-center gap-1 text-[11px] text-emerald-300 underline hover:text-emerald-200 cursor-pointer"
                     >
                       <ImageIcon className="h-3 w-3" /> Preview
                     </button>
@@ -694,7 +721,7 @@ export function FulfillerTasksTab() {
                     {isUnassigned && (
                       <button
                         type="button"
-                        onClick={() => claimTask(task.id, 'EMP-0103', 'Vikram Singh')}
+                        onClick={() => claimTask(task.id, activeProfile.employeeId, activeProfile.employeeName)}
                         className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-amber-400 py-2.5 px-3 text-xs font-bold text-ink-950 shadow-md shadow-amber-400/20 active:scale-[0.98] transition-transform hover:bg-amber-300"
                       >
                         <Sparkles className="h-3.5 w-3.5" />
@@ -835,317 +862,402 @@ export function FulfillerTasksTab() {
         )}
       </div>
 
-      {/* Task Details & Chronological Timeline Modal */}
-      {selectedTask && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-150">
-          <div className="w-full max-w-lg rounded-t-3xl sm:rounded-3xl border border-white/15 bg-ink-900 p-5 text-white shadow-2xl max-h-[90vh] overflow-y-auto no-scrollbar">
-            {/* Header */}
-            <div className="flex items-start justify-between gap-3 border-b border-white/10 pb-4">
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="rounded-md bg-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-300">
-                    {selectedTask.room ? `Room ${selectedTask.room}` : selectedTask.location || 'Location'}
-                  </span>
-                  <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-[11px] font-semibold uppercase text-mist-300">
-                    {selectedTask.status}
-                  </span>
-                  {selectedTask.assignee && (
-                    <span className="rounded-md bg-sky-500/10 border border-sky-500/20 px-2 py-0.5 text-[10px] text-sky-300">
-                      Assignee: {selectedTask.assignee}
-                    </span>
-                  )}
-                </div>
-                <h3 className="mt-2 text-lg font-bold text-white">{selectedTask.title}</h3>
-                <p className="text-xs text-mist-300 mt-0.5">{selectedTask.meta}</p>
+      {/* Evidence Photo Lightbox Modal (In-Mobile Shell) */}
+      {viewPhotoUrl && (
+        <FulfillerModalPortal>
+          <div className="absolute inset-0 z-[65] flex flex-col justify-between bg-black/95 backdrop-blur-xl p-4 animate-in fade-in duration-150">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3 pt-2">
+              <div className="flex items-center gap-2">
+                <Camera className="h-4 w-4 text-emerald-400" />
+                <span className="text-xs font-bold text-white">Completion Evidence Photo</span>
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  setSelectedTask(null);
-                  setPhotoError(null);
-                }}
+                onClick={() => setViewPhotoUrl(null)}
                 className="grid h-8 w-8 place-items-center rounded-full bg-white/10 text-mist-300 hover:text-white"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
-
-            {/* Content Body */}
-            <div className="mt-4 space-y-4 text-xs">
-              {/* Description */}
-              {selectedTask.description && (
-                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                  <h4 className="font-semibold text-mist-200 mb-1 flex items-center gap-1.5">
-                    <FileText className="h-3.5 w-3.5 text-emerald-400" /> Instructions & Notes
-                  </h4>
-                  <p className="text-mist-300 leading-relaxed">{selectedTask.description}</p>
-                </div>
-              )}
-
-              {/* Photo Evidence Section */}
-              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-semibold text-mist-200 flex items-center gap-1.5">
-                    <Camera className="h-3.5 w-3.5 text-emerald-400" /> Completion Evidence Photo
-                  </h4>
-                  {selectedTask.evidenceRequired && (
-                    <span className="text-[10px] text-amber-300 font-bold">Mandatory</span>
-                  )}
-                </div>
-
-                {photoError && (
-                  <p className="mt-2 text-rose-400 text-xs bg-rose-500/10 p-2 rounded-lg border border-rose-500/20">
-                    {photoError}
-                  </p>
-                )}
-
-                {selectedTask.photoUrl ? (
-                  <div className="mt-3 relative rounded-xl overflow-hidden border border-white/20 aspect-video bg-black/50">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={selectedTask.photoUrl}
-                      alt="Task completion evidence preview"
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 flex justify-between items-center">
-                      <span className="text-[10px] text-emerald-300 font-semibold">Evidence attached (local demo preview)</span>
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="rounded-lg bg-white/20 px-2 py-1 text-[10px] text-white hover:bg-white/30"
-                      >
-                        Retake
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="mt-3">
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-white/20 py-4 px-3 text-xs font-semibold text-mist-300 hover:border-emerald-400 hover:text-emerald-300 hover:bg-emerald-400/[0.04] transition-all"
-                    >
-                      <Camera className="h-4 w-4" />
-                      Take Photo / Attach Evidence
-                    </button>
-                    <p className="mt-1 text-center text-[10px] text-mist-500">
-                      Files are previewed in browser memory via data-URL and not uploaded to external servers.
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Chronological Task Work Timeline (Actual Shared State) */}
-              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3.5 space-y-3">
-                <div className="flex items-center justify-between border-b border-white/[0.06] pb-2">
-                  <h4 className="font-semibold text-mist-200 flex items-center gap-1.5">
-                    <Clock className="h-3.5 w-3.5 text-emerald-400" />
-                    Task Work Timeline
-                  </h4>
-                  <span className="text-[10px] text-mist-500 font-mono">
-                    {selectedTask.history?.length ?? 1} events logged
-                  </span>
-                </div>
-
-                <div className="space-y-3 pl-1">
-                  {selectedTask.history && selectedTask.history.length > 0 ? (
-                    selectedTask.history.map((entry, idx) => {
-                      const isLast = idx === selectedTask.history!.length - 1;
-                      return (
-                        <div key={idx} className="relative pl-5 border-l-2 border-white/10 pb-2 last:border-l-0 last:pb-0">
-                          <span
-                            className={cn(
-                              'absolute -left-[5px] top-0.5 h-2 w-2 rounded-full ring-2 ring-ink-900',
-                              entry.status === 'Completed'
-                                ? 'bg-emerald-400'
-                                : entry.status === 'Blocked'
-                                  ? 'bg-rose-400'
-                                  : entry.status === 'Reassignment requested'
-                                    ? 'bg-amber-400'
-                                    : 'bg-sky-400',
-                            )}
-                          />
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="font-bold text-white text-xs">{entry.status}</span>
-                            <span className="text-[10px] text-mist-400 font-mono">{entry.at}</span>
-                          </div>
-                          {(entry.actor || entry.role) && (
-                            <span className="text-[10px] text-emerald-400 font-medium block">
-                              By: {entry.actor ?? 'Attendant'} {entry.role ? `(${entry.role})` : ''}
-                            </span>
-                          )}
-                          {entry.note && (
-                            <p className="text-mist-300 text-[11px] mt-0.5 leading-relaxed bg-white/[0.02] p-1.5 rounded-lg border border-white/5">
-                              {entry.note}
-                            </p>
-                          )}
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="relative pl-5 border-l-2 border-white/10">
-                      <span className="absolute -left-[5px] top-0.5 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-ink-900" />
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-bold text-white text-xs">Task Created</span>
-                        <span className="text-[10px] text-mist-400 font-mono">{selectedTask.createdAt || 'Today'}</span>
-                      </div>
-                      <p className="text-mist-400 text-[11px] mt-0.5">Task registered in Grand Azure central dispatch.</p>
-                    </div>
-                  )}
-                </div>
-              </div>
+            <div className="flex-1 flex items-center justify-center py-4 overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={viewPhotoUrl}
+                alt="Task completion evidence preview"
+                className="max-w-full max-h-[60vh] object-contain rounded-2xl border border-white/20 shadow-2xl"
+              />
             </div>
-
-            {/* Footer Modal Actions */}
-            <div className="mt-5 border-t border-white/10 pt-4 flex items-center justify-between gap-3">
+            <div className="border-t border-white/10 pt-3">
               <button
                 type="button"
-                onClick={() => {
-                  setSelectedTask(null);
-                  setPhotoError(null);
-                }}
-                className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-semibold text-mist-200"
+                onClick={() => setViewPhotoUrl(null)}
+                className="w-full rounded-xl bg-white/10 py-2.5 text-xs font-bold text-white hover:bg-white/20"
               >
-                Close
+                Close Photo
               </button>
+            </div>
+          </div>
+        </FulfillerModalPortal>
+      )}
 
-              {/* Contextual actions */}
-              {(selectedTask.status === 'Unassigned' || selectedTask.status === 'Received' || !selectedTask.assignee) && (
+      {/* Task Details & Chronological Timeline Modal (In-Mobile Sheet) */}
+      {selectedTask && (
+        <FulfillerModalPortal>
+          <div className="absolute inset-0 z-50 flex flex-col justify-end bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
+            <div className="w-full max-h-[92%] flex flex-col rounded-t-[2rem] border-t border-white/20 bg-ink-950 p-4 text-white shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-200">
+              {/* Header */}
+              <div className="flex items-start justify-between gap-3 border-b border-white/10 pb-3 shrink-0">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="rounded-md bg-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-300">
+                      {selectedTask.room ? `Room ${selectedTask.room}` : selectedTask.location || 'Location'}
+                    </span>
+                    <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-[11px] font-semibold uppercase text-mist-300">
+                      {selectedTask.status}
+                    </span>
+                    {selectedTask.assignee && (
+                      <span className="rounded-md bg-sky-500/10 border border-sky-500/20 px-2 py-0.5 text-[10px] text-sky-300">
+                        Assignee: {selectedTask.assignee}
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="mt-2 text-base font-bold text-white leading-snug">{selectedTask.title}</h3>
+                  <p className="text-xs text-mist-300 mt-0.5">{selectedTask.meta}</p>
+                </div>
                 <button
                   type="button"
                   onClick={() => {
-                    claimTask(selectedTask.id, 'EMP-0103', 'Vikram Singh');
                     setSelectedTask(null);
+                    setPhotoError(null);
                   }}
-                  className="rounded-xl bg-amber-400 px-5 py-2 text-xs font-bold text-ink-950 shadow-lg shadow-amber-400/25 active:scale-95 transition-transform"
+                  className="grid h-8 w-8 place-items-center rounded-full bg-white/10 text-mist-300 hover:text-white shrink-0"
                 >
-                  Claim Task
+                  <X className="h-4 w-4" />
                 </button>
-              )}
+              </div>
 
-              {selectedTask.status !== 'Completed' &&
-                (selectedTask.assignee === 'Vikram Singh' || selectedTask.assigneeId === 'EMP-0103') && (
+              {/* Content Body (Scrollable inside sheet) */}
+              <div className="mt-3 flex-1 overflow-y-auto pr-1 space-y-3.5 no-scrollbar text-xs">
+                {/* Description */}
+                {selectedTask.description && (
+                  <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                    <h4 className="font-semibold text-mist-200 mb-1 flex items-center gap-1.5">
+                      <FileText className="h-3.5 w-3.5 text-emerald-400" /> Instructions & Notes
+                    </h4>
+                    <p className="text-mist-300 leading-relaxed">{selectedTask.description}</p>
+                  </div>
+                )}
+
+                {/* Guest Personal Preferences / Food Allergies */}
+                {selectedTask.room && state.guestPreferences?.[selectedTask.room] && (() => {
+                  const prefs = state.guestPreferences[selectedTask.room];
+                  const isFoodTask = isFoodAndBeverageTask(selectedTask);
+                  const hasAllergies = isFoodTask && prefs.allergies && prefs.allergies.length > 0;
+                  const hasInstructions = !!prefs.personalInstructions;
+                  const isDnd = !!prefs.dnd;
+                  if (!hasAllergies && !hasInstructions && !isDnd) return null;
+
+                  return (
+                    <div className="rounded-xl border border-amber-400/20 bg-amber-400/[0.04] p-3 text-xs space-y-1">
+                      <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-300 uppercase tracking-wider">
+                        <ShieldAlert className="h-3.5 w-3.5" />
+                        <span>Guest Room Profile</span>
+                      </div>
+                      {isDnd && (
+                        <p className="text-rose-300 font-bold text-[11px]">
+                          ⛔ Do Not Disturb active on room
+                        </p>
+                      )}
+                      {hasAllergies && (
+                        <p className="text-mist-200 text-[11px]">
+                          <strong className="text-amber-200">Food Allergies (F&B Alert):</strong> {prefs.allergies.join(', ')}
+                        </p>
+                      )}
+                      {hasInstructions && (
+                        <p className="text-mist-300 text-[11px] italic">
+                          &ldquo;{prefs.personalInstructions}&rdquo;
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* Photo Evidence Section */}
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-mist-200 flex items-center gap-1.5">
+                      <Camera className="h-3.5 w-3.5 text-emerald-400" /> Completion Evidence Photo
+                    </h4>
+                    {selectedTask.evidenceRequired && (
+                      <span className="text-[10px] text-amber-300 font-bold">Mandatory</span>
+                    )}
+                  </div>
+
+                  {photoError && (
+                    <p className="mt-2 text-rose-400 text-xs bg-rose-500/10 p-2 rounded-lg border border-rose-500/20">
+                      {photoError}
+                    </p>
+                  )}
+
+                  {selectedTask.photoUrl ? (
+                    <div
+                      className="mt-3 relative rounded-xl overflow-hidden border border-white/20 aspect-video bg-black/50 cursor-pointer group"
+                      onClick={() => setViewPhotoUrl(selectedTask.photoUrl!)}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={selectedTask.photoUrl}
+                        alt="Task completion evidence preview"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                      />
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 flex justify-between items-center">
+                        <span className="text-[10px] text-emerald-300 font-semibold flex items-center gap-1">
+                          <Eye className="h-3 w-3" /> Tap to view full size
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            fileInputRef.current?.click();
+                          }}
+                          className="rounded-lg bg-white/20 px-2 py-1 text-[10px] text-white hover:bg-white/30"
+                        >
+                          Retake
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-3">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-white/20 py-4 px-3 text-xs font-semibold text-mist-300 hover:border-emerald-400 hover:text-emerald-300 hover:bg-emerald-400/[0.04] transition-all"
+                      >
+                        <Camera className="h-4 w-4" />
+                        Take Photo / Attach Evidence
+                      </button>
+                      <p className="mt-1 text-center text-[10px] text-mist-500">
+                        Files are previewed in browser memory via data-URL and not uploaded to external servers.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Chronological Task Work Timeline (Actual Shared State) */}
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3.5 space-y-3">
+                  <div className="flex items-center justify-between border-b border-white/[0.06] pb-2">
+                    <h4 className="font-semibold text-mist-200 flex items-center gap-1.5">
+                      <Clock className="h-3.5 w-3.5 text-emerald-400" />
+                      Task Work Timeline
+                    </h4>
+                    <span className="text-[10px] text-mist-500 font-mono">
+                      {selectedTask.history?.length ?? 1} events logged
+                    </span>
+                  </div>
+
+                  <div className="space-y-3 pl-1">
+                    {selectedTask.history && selectedTask.history.length > 0 ? (
+                      selectedTask.history.map((entry, idx) => {
+                        return (
+                          <div key={idx} className="relative pl-5 border-l-2 border-white/10 pb-2 last:border-l-0 last:pb-0">
+                            <span
+                              className={cn(
+                                'absolute -left-[5px] top-0.5 h-2 w-2 rounded-full ring-2 ring-ink-900',
+                                entry.status === 'Completed'
+                                  ? 'bg-emerald-400'
+                                  : entry.status === 'Blocked'
+                                    ? 'bg-rose-400'
+                                    : entry.status === 'Reassignment requested'
+                                      ? 'bg-amber-400'
+                                      : 'bg-sky-400',
+                              )}
+                            />
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-bold text-white text-xs">{entry.status}</span>
+                              <span className="text-[10px] text-mist-400 font-mono">{entry.at}</span>
+                            </div>
+                            {(entry.actor || entry.role) && (
+                              <span className="text-[10px] text-emerald-400 font-medium block">
+                                By: {entry.actor ?? 'Attendant'} {entry.role ? `(${entry.role})` : ''}
+                              </span>
+                            )}
+                            {entry.note && (
+                              <p className="text-mist-300 text-[11px] mt-0.5 leading-relaxed bg-white/[0.02] p-1.5 rounded-lg border border-white/5">
+                                {entry.note}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="relative pl-5 border-l-2 border-white/10">
+                        <span className="absolute -left-[5px] top-0.5 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-ink-900" />
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold text-white text-xs">Task Created</span>
+                          <span className="text-[10px] text-mist-400 font-mono">{selectedTask.createdAt || 'Today'}</span>
+                        </div>
+                        <p className="text-mist-400 text-[11px] mt-0.5">Task registered in Grand Azure central dispatch.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer Modal Actions */}
+              <div className="mt-3 border-t border-white/10 pt-3 flex items-center justify-between gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedTask(null);
+                    setPhotoError(null);
+                  }}
+                  className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-semibold text-mist-200"
+                >
+                  Close
+                </button>
+
+                {/* Contextual actions */}
+                {(selectedTask.status === 'Unassigned' || selectedTask.status === 'Received' || !selectedTask.assignee) && (
                   <button
                     type="button"
-                    onClick={() => handleComplete(selectedTask)}
-                    className="rounded-xl bg-emerald-500 px-5 py-2 text-xs font-bold text-ink-950 shadow-lg shadow-emerald-500/25 active:scale-95 transition-transform"
+                    onClick={() => {
+                      claimTask(selectedTask.id, activeProfile.employeeId, activeProfile.employeeName);
+                      setSelectedTask(null);
+                    }}
+                    className="rounded-xl bg-amber-400 px-5 py-2 text-xs font-bold text-ink-950 shadow-lg shadow-amber-400/25 active:scale-95 transition-transform"
                   >
-                    Complete Task
+                    Claim Task
                   </button>
                 )}
+
+                {selectedTask.status !== 'Completed' &&
+                  (selectedTask.assignee === 'Vikram Singh' || selectedTask.assigneeId === 'EMP-0103') && (
+                    <button
+                      type="button"
+                      onClick={() => handleComplete(selectedTask)}
+                      className="rounded-xl bg-emerald-500 px-5 py-2 text-xs font-bold text-ink-950 shadow-lg shadow-emerald-500/25 active:scale-95 transition-transform"
+                    >
+                      Complete Task
+                    </button>
+                  )}
+              </div>
             </div>
           </div>
-        </div>
+        </FulfillerModalPortal>
       )}
 
-      {/* Report Blocker Modal */}
+      {/* Report Blocker Modal (In-Mobile Dialog) */}
       {blockerModalTask && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-150">
-          <div className="w-full max-w-md rounded-3xl border border-rose-500/30 bg-ink-900 p-5 text-white shadow-2xl">
-            <div className="flex items-center gap-3 text-rose-400">
-              <AlertTriangle className="h-5 w-5" />
-              <h3 className="font-bold text-base text-white">Report Task Blocker</h3>
-            </div>
-            <p className="mt-1 text-xs text-mist-300">
-              Select reason for holding work on <strong>{blockerModalTask.title}</strong>:
-            </p>
+        <FulfillerModalPortal>
+          <div className="absolute inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-sm animate-in fade-in duration-150">
+            <div className="w-full max-w-sm rounded-3xl border border-rose-500/40 bg-ink-950 p-4 text-white shadow-2xl">
+              <div className="flex items-center gap-2.5 text-rose-400">
+                <AlertTriangle className="h-5 w-5" />
+                <h3 className="font-bold text-sm text-white">Report Task Blocker</h3>
+              </div>
+              <p className="mt-1 text-xs text-mist-300">
+                Select reason for holding work on <strong>{blockerModalTask.title}</strong>:
+              </p>
 
-            <div className="mt-3 space-y-2">
-              {BLOCKER_REASONS.map((reason) => (
-                <label
-                  key={reason}
-                  className={cn(
-                    'flex items-center gap-2.5 rounded-xl border p-2.5 text-xs cursor-pointer transition-colors',
-                    blockerReason === reason
-                      ? 'border-rose-400/50 bg-rose-500/10 text-white'
-                      : 'border-white/10 bg-white/[0.03] text-mist-300 hover:text-white',
-                  )}
+              <div className="mt-3 space-y-2 max-h-[45vh] overflow-y-auto no-scrollbar">
+                {BLOCKER_REASONS.map((reason) => (
+                  <label
+                    key={reason}
+                    className={cn(
+                      'flex items-center gap-2.5 rounded-xl border p-2.5 text-xs cursor-pointer transition-colors',
+                      blockerReason === reason
+                        ? 'border-rose-400/50 bg-rose-500/10 text-white'
+                        : 'border-white/10 bg-white/[0.03] text-mist-300 hover:text-white',
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="blocker"
+                      checked={blockerReason === reason}
+                      onChange={() => setBlockerReason(reason)}
+                      className="accent-rose-500"
+                    />
+                    <span className="text-[11px]">{reason}</span>
+                  </label>
+                ))}
+              </div>
+
+              <div className="mt-4 flex items-center justify-end gap-2 border-t border-white/10 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setBlockerModalTask(null)}
+                  className="rounded-xl border border-white/10 px-3 py-1.5 text-xs text-mist-300 hover:text-white"
                 >
-                  <input
-                    type="radio"
-                    name="blocker"
-                    checked={blockerReason === reason}
-                    onChange={() => setBlockerReason(reason)}
-                    className="accent-rose-500"
-                  />
-                  <span>{reason}</span>
-                </label>
-              ))}
-            </div>
-
-            <div className="mt-5 flex items-center justify-end gap-2 border-t border-white/10 pt-3">
-              <button
-                type="button"
-                onClick={() => setBlockerModalTask(null)}
-                className="rounded-xl border border-white/10 px-3 py-1.5 text-xs text-mist-300 hover:text-white"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleBlockerSubmit}
-                className="rounded-xl bg-rose-500 px-4 py-1.5 text-xs font-bold text-white shadow-md shadow-rose-500/30 hover:bg-rose-600"
-              >
-                Submit Blocker
-              </button>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBlockerSubmit}
+                  className="rounded-xl bg-rose-500 px-4 py-1.5 text-xs font-bold text-white shadow-md shadow-rose-500/30 hover:bg-rose-600"
+                >
+                  Submit Blocker
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </FulfillerModalPortal>
       )}
 
-      {/* Request Reassignment Modal (Required Supervisor Approval Workflow) */}
+      {/* Request Reassignment Modal (In-Mobile Dialog) */}
       {reassignModalTask && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-150">
-          <div className="w-full max-w-md rounded-3xl border border-amber-400/30 bg-ink-900 p-5 text-white shadow-2xl">
-            <div className="flex items-center gap-3 text-amber-400">
-              <RotateCcw className="h-5 w-5" />
-              <h3 className="font-bold text-base text-white">Request Task Reassignment</h3>
-            </div>
-            <p className="mt-1 text-xs text-mist-300">
-              This request will be routed to Supervisor <strong>Meera Nambiar</strong> for decision. The task remains assigned to you until approved.
-            </p>
+        <FulfillerModalPortal>
+          <div className="absolute inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-sm animate-in fade-in duration-150">
+            <div className="w-full max-w-sm rounded-3xl border border-amber-400/40 bg-ink-950 p-4 text-white shadow-2xl">
+              <div className="flex items-center gap-2.5 text-amber-400">
+                <RotateCcw className="h-5 w-5" />
+                <h3 className="font-bold text-sm text-white">Request Task Reassignment</h3>
+              </div>
+              <p className="mt-1 text-xs text-mist-300">
+                This request will be routed to Supervisor <strong>{activeProfile.supervisorName}</strong> for decision. The task remains assigned to you until approved.
+              </p>
 
-            <div className="mt-3 space-y-2">
-              {REASSIGN_REASONS.map((reason) => (
-                <label
-                  key={reason}
-                  className={cn(
-                    'flex items-center gap-2.5 rounded-xl border p-2.5 text-xs cursor-pointer transition-colors',
-                    reassignReason === reason
-                      ? 'border-amber-400/50 bg-amber-400/10 text-white'
-                      : 'border-white/10 bg-white/[0.03] text-mist-300 hover:text-white',
-                  )}
+              <div className="mt-3 space-y-2 max-h-[45vh] overflow-y-auto no-scrollbar">
+                {REASSIGN_REASONS.map((reason) => (
+                  <label
+                    key={reason}
+                    className={cn(
+                      'flex items-center gap-2.5 rounded-xl border p-2.5 text-xs cursor-pointer transition-colors',
+                      reassignReason === reason
+                        ? 'border-amber-400/50 bg-amber-400/10 text-white'
+                        : 'border-white/10 bg-white/[0.03] text-mist-300 hover:text-white',
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="reassign"
+                      checked={reassignReason === reason}
+                      onChange={() => setReassignReason(reason)}
+                      className="accent-amber-400"
+                    />
+                    <span className="text-[11px]">{reason}</span>
+                  </label>
+                ))}
+              </div>
+
+              <div className="mt-4 flex items-center justify-end gap-2 border-t border-white/10 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setReassignModalTask(null)}
+                  className="rounded-xl border border-white/10 px-3 py-1.5 text-xs text-mist-300 hover:text-white"
                 >
-                  <input
-                    type="radio"
-                    name="reassign"
-                    checked={reassignReason === reason}
-                    onChange={() => setReassignReason(reason)}
-                    className="accent-amber-400"
-                  />
-                  <span>{reason}</span>
-                </label>
-              ))}
-            </div>
-
-            <div className="mt-5 flex items-center justify-end gap-2 border-t border-white/10 pt-3">
-              <button
-                type="button"
-                onClick={() => setReassignModalTask(null)}
-                className="rounded-xl border border-white/10 px-3 py-1.5 text-xs text-mist-300 hover:text-white"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleReassignSubmit}
-                className="rounded-xl bg-amber-400 px-4 py-1.5 text-xs font-bold text-ink-950 shadow-md shadow-amber-400/30 hover:bg-amber-300"
-              >
-                Send Request to Supervisor
-              </button>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleReassignSubmit}
+                  className="rounded-xl bg-amber-400 px-4 py-1.5 text-xs font-bold text-ink-950 shadow-md shadow-amber-400/30 hover:bg-amber-300"
+                >
+                  Send Request
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </FulfillerModalPortal>
       )}
     </div>
   );

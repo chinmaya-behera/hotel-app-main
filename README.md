@@ -68,6 +68,8 @@ hotel-app-main (branch: frontend-only-replacement)
 
 ## Local Development
 
+The four department manager workspaces and demo credential autofill are documented in [Department manager demo](public-preview/DEPARTMENT_MANAGERS.md).
+
 To run the application locally:
 
 ```bash

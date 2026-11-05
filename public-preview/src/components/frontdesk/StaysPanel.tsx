@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import {
+  Sparkles,
   ArrowRightLeft,
   BedDouble,
   CircleAlert,
@@ -43,11 +44,11 @@ type Filter = 'all' | 'arrivals' | 'inhouse' | 'departures' | 'checkedout';
 type Dialog = { kind: 'verify' | 'checkout' | 'move' | 'livepass'; stayId: string } | null;
 
 const FILTERS: Array<{ id: Filter; label: string }> = [
-  { id: 'all', label: 'All' },
-  { id: 'arrivals', label: 'Arrivals' },
-  { id: 'inhouse', label: 'In house' },
-  { id: 'departures', label: 'Departures' },
-  { id: 'checkedout', label: 'Checked out' },
+  { id: 'all', label: 'All (Booked)' },
+  { id: 'arrivals', label: 'Arrivals (Check In)' },
+  { id: 'inhouse', label: 'In House' },
+  { id: 'departures', label: 'Departures (Check Out)' },
+  { id: 'checkedout', label: 'Post Departure' },
 ];
 
 const MOVE_REASONS = ['AC or maintenance fault', 'Noise complaint', 'Guest-requested upgrade', 'Room not as booked', 'Safety concern'];
@@ -165,6 +166,7 @@ export function StaysPanel() {
 
 function StayRow({ stay, onDialog }: { stay: StayRecord; onDialog: (kind: 'verify' | 'checkout' | 'move' | 'livepass') => void }) {
   const { state, fdAction } = useDemo();
+  const [cleanerAssigned, setCleanerAssigned] = useState(false);
   const room = (state.frontDesk?.rooms ?? []).find((r) => r.no === stay.room);
   const blocker = stay.status === 'expected' ? checkInBlocker(state, stay) : null;
   const roomReady = Boolean(room && room.readiness === 'ready' && !room.occupied);
@@ -210,7 +212,16 @@ function StayRow({ stay, onDialog }: { stay: StayRecord; onDialog: (kind: 'verif
                 {room?.dnd && <Badge tone="warning">Do not disturb</Badge>}
               </>
             )}
-            {stay.status === 'checked_out' && <Badge tone="neutral">Checked out</Badge>}
+            {stay.status === 'checked_out' && (
+              <>
+                <Badge tone="neutral">Checked out</Badge>
+                {cleanerAssigned ? (
+                  <Badge tone="success">Turnover assigned · Vikram S.</Badge>
+                ) : (
+                  <Badge tone="warning">Turnover pending · Needs HK</Badge>
+                )}
+              </>
+            )}
           </div>
         </div>
 
@@ -250,6 +261,33 @@ function StayRow({ stay, onDialog }: { stay: StayRecord; onDialog: (kind: 'verif
               </Button>
               <Button size="sm" variant="accent" iconLeft={LogOut} onClick={() => onDialog('checkout')}>
                 Folio & checkout
+              </Button>
+            </>
+          )}
+          {stay.status === 'checked_out' && (
+            <>
+              <Button size="sm" variant="subtle" iconLeft={Smartphone} onClick={() => onDialog('livepass')}>
+                Live Pass
+              </Button>
+              <Button
+                size="sm"
+                variant={cleanerAssigned ? 'ghost' : 'accent'}
+                iconLeft={Sparkles}
+                disabled={cleanerAssigned}
+                onClick={() => {
+                  setCleanerAssigned(true);
+                  if (fdAction) {
+                    fdAction((s) => {
+                      const r = s.frontDesk?.rooms.find((rm) => rm.no === stay.room);
+                      if (r) {
+                        r.readiness = 'cleaning';
+                        r.note = 'Housekeeping turnover assigned by Front Desk';
+                      }
+                    });
+                  }
+                }}
+              >
+                {cleanerAssigned ? 'Cleaner Assigned' : 'Assign Cleaner (Housekeeping)'}
               </Button>
             </>
           )}

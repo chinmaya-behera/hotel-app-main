@@ -290,7 +290,7 @@ export function SpaConciergeTab({
   }
 
   return (
-    <div className="space-y-6 pb-24 max-w-5xl mx-auto">
+    <div className="space-y-6 sm:space-y-8 pb-32 max-w-7xl mx-auto w-full">
       {/* CONFIRMATION BANNER */}
       {confirmedRef && (
         <div className="guest-card p-4 border-purple-400/50 bg-purple-400/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg animate-in fade-in duration-300">
@@ -441,7 +441,7 @@ export function SpaConciergeTab({
           </div>
 
           {/* Treatments Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5.5">
             {filteredSpa.map((treatment) => (
               <div
                 key={treatment.id}
@@ -547,7 +547,7 @@ export function SpaConciergeTab({
           </div>
 
           {/* Concierge Service Cards Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5.5">
             {filteredConcierge.map((service) => (
               <div
                 key={service.id}
@@ -634,7 +634,7 @@ export function SpaConciergeTab({
           </div>
 
           {/* Activities Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5.5">
             {filteredRecreation.map((activity) => (
               <div
                 key={activity.id}

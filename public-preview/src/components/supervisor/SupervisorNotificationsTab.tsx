@@ -115,7 +115,7 @@ export function SupervisorNotificationsTab({
                 {!n.read && (
                   <button
                     type="button"
-                    onClick={() => onMarkRead(n.id)}
+                    onClick={() => onMarkRead?.(n.id)}
                     className="p-1.5 rounded-lg border border-white/10 text-mist-400 hover:text-white transition"
                     title="Mark as read"
                   >

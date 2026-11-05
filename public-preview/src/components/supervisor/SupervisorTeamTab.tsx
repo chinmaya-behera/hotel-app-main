@@ -134,7 +134,7 @@ export function SupervisorTeamTab({
                 <select
                   value={att.availability || 'on_duty'}
                   onChange={(e) =>
-                    onUpdateAvailability(
+                    onUpdateAvailability?.(
                       att.id,
                       e.target.value as 'on_duty' | 'break' | 'off_duty',
                     )
@@ -202,7 +202,7 @@ export function SupervisorTeamTab({
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
-                    onClick={() => onUpdateCapacity(att.id, Math.max(1, maxCapacity - 1))}
+                    onClick={() => onUpdateCapacity?.(att.id, Math.max(1, maxCapacity - 1))}
                     className="h-6 w-6 rounded-lg border border-white/10 bg-white/[0.04] text-mist-300 hover:text-white flex items-center justify-center font-bold"
                   >
                     -
@@ -212,7 +212,7 @@ export function SupervisorTeamTab({
                   </span>
                   <button
                     type="button"
-                    onClick={() => onUpdateCapacity(att.id, maxCapacity + 1)}
+                    onClick={() => onUpdateCapacity?.(att.id, maxCapacity + 1)}
                     className="h-6 w-6 rounded-lg border border-white/10 bg-white/[0.04] text-mist-300 hover:text-white flex items-center justify-center font-bold"
                   >
                     +

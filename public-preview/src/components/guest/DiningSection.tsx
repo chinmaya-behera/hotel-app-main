@@ -393,7 +393,7 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
   };
 
   return (
-    <div className="space-y-5 pb-28 max-w-5xl mx-auto">
+    <div className="space-y-6 sm:space-y-8 pb-32 max-w-7xl mx-auto w-full">
       {/* 1. SEARCH BAR - PROMINENT FIRST ELEMENT */}
       <div className="relative w-full pt-1">
         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-mist-400" />
@@ -576,7 +576,7 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
           {filteredDishes.map((dish) => {
             const qty = getDishQuantityInCart(dish.id);
             const isCustomizable =
@@ -588,7 +588,7 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
             return (
               <div
                 key={dish.id}
-                className="guest-card p-3.5 sm:p-4 flex gap-3.5 items-start justify-between hover:border-amber-400/30 transition-all group"
+                className="guest-card p-4 sm:p-5 flex gap-4 items-start justify-between hover:border-amber-400/30 transition-all group"
               >
                 {/* Left: Info, Price, Description, Rating */}
                 <div className="flex-1 min-w-0 space-y-1.5">
@@ -607,16 +607,16 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
                     )}
                   </div>
 
-                  <h3 className="text-sm font-bold text-white tracking-tight leading-snug group-hover:text-amber-300 transition-colors">
+                  <h3 className="text-sm sm:text-base font-bold text-white tracking-tight leading-snug group-hover:text-amber-300 transition-colors">
                     {dish.name}
                   </h3>
 
-                  <p className="text-xs font-mono font-bold text-amber-300">
+                  <p className="text-sm sm:text-base font-mono font-bold text-amber-300">
                     ₹{dish.price}
                   </p>
 
                   {dish.desc && (
-                    <p className="text-[11px] text-mist-400 line-clamp-2 leading-relaxed">
+                    <p className="text-xs sm:text-sm text-mist-300 line-clamp-2 leading-relaxed">
                       {dish.desc}
                     </p>
                   )}
@@ -642,7 +642,7 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
 
                 {/* Right: High-Quality Food Photography with Swiggy/Zomato ADD Button */}
                 <div className="relative shrink-0 flex flex-col items-center">
-                  <div className="relative h-24 w-24 sm:h-28 sm:w-28 rounded-2xl overflow-hidden bg-ink-950/60 border border-white/10 shadow-md">
+                  <div className="relative h-28 w-28 sm:h-32 sm:w-32 lg:h-36 lg:w-36 rounded-2xl overflow-hidden bg-ink-950/60 border border-white/10 shadow-md">
                     <img
                       src={dish.image}
                       alt={dish.name}
@@ -661,7 +661,7 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
                       <button
                         type="button"
                         onClick={() => handleAddClick(dish)}
-                        className="px-4 py-1 rounded-xl bg-ink-950/95 border border-emerald-500/50 text-emerald-400 font-extrabold text-[11px] hover:bg-emerald-500 hover:text-ink-950 shadow-lg active:scale-95 transition-all flex flex-col items-center leading-tight"
+                        className="px-5 py-1.5 rounded-xl bg-ink-950/95 border border-emerald-500/50 text-emerald-400 font-extrabold text-xs hover:bg-emerald-500 hover:text-ink-950 shadow-lg active:scale-95 transition-all flex flex-col items-center leading-tight"
                       >
                         <span>ADD</span>
                         {isCustomizable && (
@@ -703,7 +703,7 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
 
       {/* 5. STICKY BOTTOM CART SUMMARY (Swiggy / Zomato Pattern) */}
       {totalCartCount > 0 && (
-        <div className="fixed bottom-16 sm:bottom-4 left-0 right-0 z-40 px-4 max-w-xl mx-auto animate-in slide-in-from-bottom duration-300">
+        <div className="fixed bottom-16 sm:bottom-4 left-0 right-0 z-40 px-4 max-w-2xl xl:max-w-3xl mx-auto animate-in slide-in-from-bottom duration-300">
           <button
             type="button"
             onClick={() => setCartSheetOpen(true)}

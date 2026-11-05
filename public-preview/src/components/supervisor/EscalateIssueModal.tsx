@@ -2,12 +2,14 @@
 
 import { useState } from 'react';
 import { X, Flame, AlertCircle, ShieldAlert, ArrowUpRight } from 'lucide-react';
+import { MANAGER_DEPARTMENTS } from '@/lib/manager-domain';
 
 interface EscalateIssueModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialRoom?: string;
   onSubmit?: (issue: {
+    department?: string;
     title: string;
     room?: string;
     priority: 'urgent' | 'critical';
@@ -15,6 +17,7 @@ interface EscalateIssueModalProps {
     notes?: string;
   }) => void;
   onEscalate?: (issue: {
+    department?: string;
     title: string;
     room?: string;
     priority: 'urgent' | 'critical';
@@ -40,6 +43,7 @@ export function EscalateIssueModal({
   onEscalate,
 }: EscalateIssueModalProps) {
   const [title, setTitle] = useState('');
+  const [department, setDepartment] = useState('Housekeeping');
   const [room, setRoom] = useState(initialRoom);
   const [priority, setPriority] = useState<'urgent' | 'critical'>('urgent');
   const [reason, setReason] = useState<string>(ESCALATION_CATEGORIES[0]);
@@ -52,6 +56,7 @@ export function EscalateIssueModal({
     if (!title.trim()) return;
 
     const data = {
+      department,
       title: title.trim(),
       room: room.trim() || undefined,
       priority,
@@ -83,7 +88,7 @@ export function EscalateIssueModal({
             </span>
             <div>
               <h2 id="escalate-modal-title" className="text-base font-bold font-display text-white">
-                Escalate Issue to Duty Manager Marcus Vance
+                Escalate Issue to Department Manager
               </h2>
               <p className="text-xs text-mist-400">
                 Meera Nambiar (EMP-0105) · Department Supervisor Escalation
@@ -101,6 +106,7 @@ export function EscalateIssueModal({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <label className="block text-xs text-mist-300">Target department manager<select value={department} onChange={e => setDepartment(e.target.value)} className="block mt-2 w-full rounded-xl border border-white/10 bg-ink-950 p-3 text-white">{MANAGER_DEPARTMENTS.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}</select></label>
           {/* Issue Title */}
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-mist-300">

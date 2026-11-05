@@ -23,10 +23,133 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
-import { money, statusTone } from '@/lib/utils';
+import { cn, money, statusTone } from '@/lib/utils';
 import { GuestEmptyState, GuestPill, GuestSectionHeader, DeliveryTracker, GuestSheet } from '@/components/guest/guestUi';
 import type { GuestTabProps, GuestTabId } from '@/components/guest/types';
 import type { WorkItem, RoleId } from '@/types/demo';
+
+
+/* ------------------------------------------------------------------ */
+/* Multi-Step Service Request Timeline with Perfectly Aligned Nodes    */
+/* ------------------------------------------------------------------ */
+
+function getRequestStepIndex(status: string): number {
+  if (['Completed', 'Delivered', 'Resolved', 'Closed'].includes(status)) return 3;
+  if (['In Progress', 'Preparing', 'Ready', 'Out for Delivery', 'On the way'].includes(status)) return 2;
+  if (['Assigned', 'Accepted'].includes(status)) return 1;
+  return 0; // 'Requested', 'Received', 'Pending', 'Open'
+}
+
+function ServiceRequestTimeline({ status, createdAt }: { status: string; createdAt?: string }) {
+  const currentStep = getRequestStepIndex(status);
+  const isCancelled = status === 'Cancelled' || status === 'Rejected';
+
+  if (isCancelled) {
+    return (
+      <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center gap-2">
+        <XCircle className="h-4 w-4 shrink-0" />
+        <span className="font-semibold">This service request was cancelled.</span>
+      </div>
+    );
+  }
+
+  // Format initial logged time
+  let formattedTime = 'Recently';
+  if (createdAt) {
+    try {
+      const d = new Date(createdAt);
+      if (!isNaN(d.getTime())) {
+        formattedTime = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+    } catch {
+      // fallback
+    }
+  }
+
+  const stages = [
+    { key: 'requested', label: 'Requested', sublabel: formattedTime },
+    { key: 'assigned', label: 'Assigned', sublabel: currentStep >= 1 ? 'Desk Dispatched' : 'In dispatch' },
+    { key: 'inprogress', label: 'In Progress', sublabel: currentStep >= 2 ? 'Underway' : 'In queue' },
+    { key: 'completed', label: 'Completed', sublabel: currentStep >= 3 ? 'Delivered' : 'Pending' },
+  ];
+
+  return (
+    <div className="w-full bg-white/[0.03] border border-white/5 rounded-2xl p-3 sm:p-4 my-2.5">
+      <div className="flex items-center justify-between text-xs mb-3 font-semibold text-mist-300">
+        <span className="flex items-center gap-1.5 text-cyan-300 text-[11px] uppercase tracking-wider font-bold">
+          <Clock className="h-3.5 w-3.5" />
+          <span>Operational Progress</span>
+        </span>
+        <span className="text-[11px] font-mono text-mist-400">
+          Stage {currentStep + 1} of 4: <span className="text-white font-bold">{stages[currentStep].label}</span>
+        </span>
+      </div>
+
+      <div className="relative w-full">
+        {/* Background Track Line (aligned mathematically from column 1 center (12.5%) to column 4 center (87.5%)) */}
+        <div className="absolute top-[13px] left-[12.5%] right-[12.5%] h-0.5 bg-white/10 -translate-y-1/2 z-0" />
+
+        {/* Active Progress Track Line */}
+        <div
+          className="absolute top-[13px] left-[12.5%] h-0.5 bg-gradient-to-r from-amber-400 via-sky-400 to-emerald-400 -translate-y-1/2 z-0 transition-all duration-500"
+          style={{
+            width: `${(currentStep / 3) * 75}%`,
+          }}
+        />
+
+        {/* 4 Nodes Grid */}
+        <div className="relative z-10 grid grid-cols-4 w-full">
+          {stages.map((stage, idx) => {
+            const isDone = idx < currentStep;
+            const isCurrent = idx === currentStep;
+            const isUpcoming = idx > currentStep;
+
+            return (
+              <div key={stage.key} className="flex flex-col items-center text-center px-1">
+                {/* Centered Node Dot Container */}
+                <div className="h-[26px] w-[26px] flex items-center justify-center">
+                  <span
+                    className={cn(
+                      'rounded-full flex items-center justify-center transition-all duration-300',
+                      isDone && 'h-5 w-5 bg-emerald-400 text-ink-950 shadow-[0_0_10px_rgba(52,211,153,0.5)] ring-2 ring-emerald-400/30',
+                      isCurrent && 'h-6 w-6 bg-amber-400 text-ink-950 shadow-[0_0_12px_rgba(251,191,36,0.6)] ring-4 ring-amber-400/25 animate-pulse',
+                      isUpcoming && 'h-4 w-4 bg-ink-900 border-2 border-white/20'
+                    )}
+                  >
+                    {isDone && <CheckCircle2 className="h-3.5 w-3.5 stroke-[2.5]" />}
+                    {isCurrent && <span className="h-2 w-2 rounded-full bg-ink-950" />}
+                  </span>
+                </div>
+
+                {/* Stage Title */}
+                <p
+                  className={cn(
+                    'text-[10px] sm:text-xs font-bold mt-2 leading-tight transition-colors',
+                    isDone && 'text-emerald-300',
+                    isCurrent && 'text-amber-300',
+                    isUpcoming && 'text-mist-400'
+                  )}
+                >
+                  {stage.label}
+                </p>
+
+                {/* Subtitle / Timestamp */}
+                <p
+                  className={cn(
+                    'text-[9px] sm:text-[10px] mt-0.5 truncate max-w-full font-medium',
+                    isCurrent ? 'text-amber-200/90 font-semibold' : 'text-mist-400'
+                  )}
+                >
+                  {stage.sublabel}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) {
   const {
@@ -149,7 +272,7 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
   }
 
   return (
-    <div className="space-y-4 pb-8">
+    <div data-tour="tour-activity-tab" className="space-y-6 sm:space-y-8 pb-12 max-w-7xl mx-auto w-full">
       {/* Toast Alert */}
       {toastMessage && (
         <div className="guest-card flex items-start gap-2.5 border-emerald-400/40 bg-emerald-400/10 px-4 py-3 text-xs text-white shadow-lg">
@@ -159,7 +282,7 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
       )}
 
       {/* Header & Filter Pills */}
-      <div className="guest-card p-4 space-y-3">
+      <div className="guest-card p-4 sm:p-5 space-y-3.5">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-sm font-bold text-white flex items-center gap-2">
@@ -333,12 +456,10 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
                       </div>
                     </div>
 
-                    {/* Dining order stage tracker */}
-                    {item.category === 'room_service' && !isDelivered && (
-                      <div className="px-3.5 pb-3">
-                        <DeliveryTracker status={item.status} />
-                      </div>
-                    )}
+                    {/* Live Step-by-Step Progress Timeline */}
+                    <div className="px-3.5 pb-2">
+                      <ServiceRequestTimeline status={item.status} createdAt={item.createdAt} />
+                    </div>
 
                     {/* Expanded details */}
                     {isExpanded && (

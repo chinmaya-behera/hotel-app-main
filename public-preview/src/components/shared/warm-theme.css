@@ -1,0 +1,37 @@
+/* Shared by portal sign-in and every department manager workspace. */
+.warm-theme {
+  --warm-canvas: #ffffff;
+  --warm-panel: #ffffff;
+  --warm-sidebar: #fbfaf7;
+  --warm-soft: #f6f3ec;
+  --warm-highlight: #ebe2cc;
+  --warm-selected: #ded6c1;
+  --warm-line: #e7e2d7;
+  --warm-control: #b7b09e;
+  --warm-ink: #353229;
+  --warm-muted: #686252;
+  --warm-primary: #353229;
+  --warm-on-primary: #ffffff;
+  --warm-focus: #8b7550;
+  --warm-shadow: 0 4px 18px #35322906;
+  --warm-overlay: #1b191866;
+  color-scheme: light;
+}
+.warm-theme[data-theme='dark'] {
+  --warm-canvas: #171715;
+  --warm-panel: #1e1e1b;
+  --warm-sidebar: #1b1b18;
+  --warm-soft: #282720;
+  --warm-highlight: #343127;
+  --warm-selected: #403b2f;
+  --warm-line: #3d3a32;
+  --warm-control: #867e6c;
+  --warm-ink: #eee8dc;
+  --warm-muted: #b7b0a1;
+  --warm-primary: #ded6c1;
+  --warm-on-primary: #28261f;
+  --warm-focus: #d4c5a4;
+  --warm-shadow: 0 4px 18px #00000014;
+  --warm-overlay: #080807b3;
+  color-scheme: dark;
+}

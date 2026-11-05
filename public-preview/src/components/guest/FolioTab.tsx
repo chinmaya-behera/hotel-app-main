@@ -33,7 +33,7 @@ export function FolioTab({ room, guestName }: GuestTabProps) {
   }
 
   return (
-    <div className="space-y-6 pb-4">
+    <div className="space-y-6 sm:space-y-8 pb-12 max-w-7xl mx-auto w-full">
       <GuestSectionHeader title="Folio" hint={`Room ${room} · ${guest?.checkout ? `Check-out ${guest.checkout}` : 'Current stay'}`} />
 
       <ul className="guest-card divide-y" style={{ borderColor: 'var(--gs-border)' }}>

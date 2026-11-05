@@ -75,7 +75,7 @@ export function SupervisorOverviewTab({
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Pending Inspections */}
         <div
-          onClick={() => onNavigateTab('inspections')}
+          onClick={() => onNavigateTab?.('inspections')}
           className="group relative cursor-pointer overflow-hidden rounded-3xl border border-amber-400/20 bg-gradient-to-br from-amber-500/[0.08] to-ink-900/90 p-5 backdrop-blur-xl shadow-xl transition-all duration-300 hover:border-amber-400/40 hover:scale-[1.01]"
         >
           <div className="flex items-center justify-between">
@@ -101,7 +101,7 @@ export function SupervisorOverviewTab({
 
         {/* First-Pass Quality Rate */}
         <div
-          onClick={() => onNavigateTab('reports')}
+          onClick={() => onNavigateTab?.('reports')}
           className="group relative cursor-pointer overflow-hidden rounded-3xl border border-emerald-400/20 bg-gradient-to-br from-emerald-500/[0.08] to-ink-900/90 p-5 backdrop-blur-xl shadow-xl transition-all duration-300 hover:border-emerald-400/40 hover:scale-[1.01]"
         >
           <div className="flex items-center justify-between">
@@ -127,7 +127,7 @@ export function SupervisorOverviewTab({
 
         {/* Reopened / Deficiencies */}
         <div
-          onClick={() => onNavigateTab('inspections')}
+          onClick={() => onNavigateTab?.('inspections')}
           className="group relative cursor-pointer overflow-hidden rounded-3xl border border-rose-400/20 bg-gradient-to-br from-rose-500/[0.08] to-ink-900/90 p-5 backdrop-blur-xl shadow-xl transition-all duration-300 hover:border-rose-400/40 hover:scale-[1.01]"
         >
           <div className="flex items-center justify-between">
@@ -151,7 +151,7 @@ export function SupervisorOverviewTab({
 
         {/* Team On Duty */}
         <div
-          onClick={() => onNavigateTab('team')}
+          onClick={() => onNavigateTab?.('team')}
           className="group relative cursor-pointer overflow-hidden rounded-3xl border border-sky-400/20 bg-gradient-to-br from-sky-500/[0.08] to-ink-900/90 p-5 backdrop-blur-xl shadow-xl transition-all duration-300 hover:border-sky-400/40 hover:scale-[1.01]"
         >
           <div className="flex items-center justify-between">
@@ -192,7 +192,7 @@ export function SupervisorOverviewTab({
           </div>
           <button
             type="button"
-            onClick={() => onNavigateTab('tasks')}
+            onClick={() => onNavigateTab?.('tasks')}
             className="px-4 py-2 rounded-xl bg-amber-400 text-ink-950 text-xs font-bold hover:bg-amber-300 transition"
           >
             Review Reassignments
@@ -213,7 +213,7 @@ export function SupervisorOverviewTab({
           </div>
           <button
             type="button"
-            onClick={() => onNavigateTab('rooms')}
+            onClick={() => onNavigateTab?.('rooms')}
             className="text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1 transition"
           >
             <span>Open Room Board</span>
@@ -256,7 +256,7 @@ export function SupervisorOverviewTab({
             </div>
             <button
               type="button"
-              onClick={() => onNavigateTab('inspections')}
+              onClick={() => onNavigateTab?.('inspections')}
               className="text-xs text-mist-400 hover:text-white transition"
             >
               View all ({inspections.length})
@@ -276,7 +276,7 @@ export function SupervisorOverviewTab({
               pendingInspections.map((insp) => (
                 <div
                   key={insp.id}
-                  onClick={() => onSelectInspection(insp)}
+                  onClick={() => onSelectInspection?.(insp)}
                   className="group cursor-pointer p-4 rounded-3xl border border-white/10 bg-ink-900/90 hover:border-amber-400/40 transition-all duration-200 backdrop-blur-xl shadow-md flex items-center justify-between gap-4"
                 >
                   <div className="flex items-center gap-3 min-w-0">
@@ -329,8 +329,8 @@ export function SupervisorOverviewTab({
               <button
                 type="button"
                 onClick={() => {
-                  if (pendingInspections[0]) onSelectInspection(pendingInspections[0]);
-                  else onNavigateTab('inspections');
+                  if (pendingInspections[0]) onSelectInspection?.(pendingInspections[0]);
+                  else onNavigateTab?.('inspections');
                 }}
                 className="w-full p-3 rounded-2xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] hover:border-amber-400/30 transition text-left flex items-center justify-between"
               >
@@ -346,7 +346,7 @@ export function SupervisorOverviewTab({
 
               <button
                 type="button"
-                onClick={() => onNavigateTab('handover')}
+                onClick={() => onNavigateTab?.('handover')}
                 className="w-full p-3 rounded-2xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] hover:border-sky-400/30 transition text-left flex items-center justify-between"
               >
                 <div className="flex items-center gap-2.5">
@@ -382,7 +382,7 @@ export function SupervisorOverviewTab({
               <h3 className="text-sm font-bold font-display text-white">Attendant Quality Roster</h3>
               <button
                 type="button"
-                onClick={() => onNavigateTab('team')}
+                onClick={() => onNavigateTab?.('team')}
                 className="text-xs text-amber-400 hover:text-amber-300 transition"
               >
                 Manage
