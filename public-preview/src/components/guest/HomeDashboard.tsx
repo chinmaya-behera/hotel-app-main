@@ -24,6 +24,7 @@ import {
   Hotel,
   Compass,
   Palmtree,
+  PartyPopper,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
 import { useEmergencyBroadcast } from '@/lib/emergencyBroadcast';
@@ -1077,6 +1078,24 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
             </div>
           </form>
         </GuestSheet>
+      )}
+
+      {/* FLOATING ACTION: PLAN AN EVENT */}
+      {state.eventsConfig?.enabled !== false && (
+        <button
+          type="button"
+          onClick={() => onNavigate('services', 'events_celebrations')}
+          className="fixed bottom-20 md:bottom-8 right-4 sm:right-6 z-40 flex items-center gap-2.5 px-4 py-3 rounded-full bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 text-ink-950 text-xs sm:text-sm font-bold shadow-xl shadow-amber-500/25 hover:shadow-amber-500/40 hover:scale-105 active:scale-95 transition-all border border-amber-300/60 ring-2 ring-ink-950 group"
+          aria-label="Plan an Event or Celebration"
+          title="Plan an Event or Celebration with our VIP team"
+        >
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-ink-950 opacity-40" />
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-ink-950" />
+          </span>
+          <PartyPopper className="h-4 w-4 sm:h-5 sm:w-5 text-ink-950 group-hover:rotate-12 transition-transform" />
+          <span className="font-extrabold tracking-wide">Plan an Event 🎉</span>
+        </button>
       )}
     </div>
   );

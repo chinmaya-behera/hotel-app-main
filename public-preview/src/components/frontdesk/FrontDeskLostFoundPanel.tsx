@@ -144,7 +144,7 @@ export function FrontDeskLostFoundPanel({ onOpenRequests }: { onOpenRequests?: (
     <div className="space-y-4">
       {/* 3 Main Sub-Tabs: Claim Requests | All Items | Publish Item */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex p-1 rounded-xl bg-white/[0.04] border border-white/10 text-xs">
+        <div className="flex flex-wrap items-center gap-1 p-1 rounded-xl bg-white/[0.04] border border-white/10 text-xs max-w-full">
           <button
             type="button"
             onClick={() => setActiveTab('claims')}

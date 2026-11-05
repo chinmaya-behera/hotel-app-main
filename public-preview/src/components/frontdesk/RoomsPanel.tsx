@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   BedDouble,
   CheckCircle2,
@@ -271,6 +271,40 @@ export function RoomsPanel() {
   // Active drawer room
   const drawerRoom = allRooms.find((r) => r.no === drawerRoomNo);
 
+  // Synchronize browser history for the room details drawer to allow Back navigation
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handlePopState = (e: PopStateEvent) => {
+      const st = e.state;
+      if (st && st.staffRole === 'front-desk') {
+        if (!st.roomDrawer) {
+          setDrawerRoomNo(null);
+        } else {
+          setDrawerRoomNo(st.roomDrawer);
+        }
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const openRoomDrawer = (no: string) => {
+    setDrawerRoomNo(no);
+    if (typeof window !== 'undefined') {
+      window.history.pushState(
+        { staffRole: 'front-desk', tab: 'rooms', roomDrawer: no },
+        ''
+      );
+    }
+  };
+
+  const closeRoomDrawer = () => {
+    setDrawerRoomNo(null);
+    if (typeof window !== 'undefined' && window.history.state?.roomDrawer) {
+      window.history.back();
+    }
+  };
+
   const handleCopyPin = (pin: string) => {
     navigator.clipboard?.writeText(pin);
     setCopiedPin(true);
@@ -313,11 +347,120 @@ export function RoomsPanel() {
   };
 
   return (
-    <div className="flex-1 min-h-0 h-full flex flex-col lg:flex-row gap-4 overflow-hidden w-full">
+    <div className="flex-1 min-h-0 h-auto lg:h-full flex flex-col lg:flex-row gap-3 sm:gap-4 overflow-visible lg:overflow-hidden w-full">
       {/* ============================================================== */}
-      {/* 1. LEFT COLUMN: Front Desk Status Distribution & Filter Sidebar  */}
+      {/* 1A. MOBILE CONTROLS BAR: Compact Filter, Readiness & Floors    */}
       {/* ============================================================== */}
-      <div className="w-full lg:w-[250px] shrink-0 h-full flex flex-col justify-between p-4 rounded-2xl border border-white/10 bg-ink-900/80 shadow-lg overflow-y-auto">
+      <div className="lg:hidden rounded-2xl border border-white/10 bg-ink-900/80 p-3 sm:p-3.5 space-y-3 shadow-md">
+        {/* Readiness and Quick Search */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between text-xs font-semibold mb-1">
+              <span className="text-mist-300">Room Readiness</span>
+              <span className="text-cyan-300 tabular-nums">{readinessPercent}%</span>
+            </div>
+            <div className="h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-cyan-400 to-emerald-400 rounded-full transition-all duration-300"
+                style={{ width: `${readinessPercent}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Search Room or Guest */}
+          <div className="relative w-full sm:w-48 shrink-0">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-mist-400" />
+            <input
+              type="text"
+              placeholder="Search room or guest..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="field w-full text-xs py-1.5 pl-8 pr-7 rounded-lg bg-black/40 border-white/10 text-mist-200 placeholder:text-mist-500"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-mist-400 hover:text-white"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Status Filter Chips (Scrollable touch row) */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5" role="group" aria-label="Filter rooms by status">
+          {[
+            { id: 'all', label: 'All', count: counts.all, icon: BedDouble, tone: 'text-mist-300' },
+            { id: 'ready', label: 'Ready', count: counts.ready, icon: CheckCircle2, tone: 'text-emerald-400' },
+            { id: 'occupied', label: 'Booked', count: counts.occupied, icon: KeyRound, tone: 'text-sky-400' },
+            { id: 'dirty_cleaning', label: 'Cleaning', count: counts.dirty_cleaning, icon: Sparkles, tone: 'text-amber-400' },
+            { id: 'checkin', label: 'Check-In', count: counts.checkin, icon: LogIn, tone: 'text-cyan-300' },
+            { id: 'checkout', label: 'Check-Out', count: counts.checkout, icon: LogOut, tone: 'text-amber-300' },
+            { id: 'dnd', label: 'DND', count: counts.dnd, icon: MoonStar, tone: 'text-rose-400' },
+          ].map((item) => {
+            const Icon = item.icon;
+            const isSelected = activeStatusFilter === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setActiveStatusFilter(item.id as StatusFilterId)}
+                className={cn(
+                  'px-2.5 py-1.5 rounded-xl border text-xs font-semibold shrink-0 flex items-center gap-1.5 transition-all',
+                  isSelected
+                    ? 'border-cyan-400/40 bg-cyan-500/20 text-white shadow-xs'
+                    : 'border-white/10 bg-white/[0.02] text-mist-300 hover:bg-white/5 hover:text-white'
+                )}
+              >
+                <Icon className={cn('h-3.5 w-3.5 shrink-0', item.tone)} />
+                <span>{item.label}</span>
+                <span className={cn('px-1.5 py-0.2 rounded-md text-[10px] tabular-nums font-bold', isSelected ? 'bg-cyan-400 text-ink-950' : 'bg-white/10 text-mist-300')}>
+                  {item.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Quick Floor Filter Buttons */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1 border-t border-white/5">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-mist-400 shrink-0">Floors:</span>
+          <button
+            type="button"
+            onClick={() => setSelectedFloorFilter('all')}
+            className={cn(
+              'px-2.5 py-1 rounded-lg border text-xs font-semibold shrink-0 transition',
+              selectedFloorFilter === 'all'
+                ? 'border-cyan-400/40 bg-cyan-500/20 text-cyan-200'
+                : 'border-white/10 bg-white/[0.02] text-mist-300 hover:bg-white/5'
+            )}
+          >
+            All Floors
+          </button>
+          {floorsList.map((fl) => (
+            <button
+              key={fl}
+              type="button"
+              onClick={() => setSelectedFloorFilter(fl)}
+              className={cn(
+                'px-2.5 py-1 rounded-lg border text-xs font-semibold shrink-0 transition',
+                selectedFloorFilter === fl
+                  ? 'border-cyan-400/40 bg-cyan-500/20 text-cyan-200'
+                  : 'border-white/10 bg-white/[0.02] text-mist-300 hover:bg-white/5'
+              )}
+            >
+              Floor {fl}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ============================================================== */}
+      {/* 1B. DESKTOP LEFT COLUMN: Status Distribution & Filter Sidebar    */}
+      {/* ============================================================== */}
+      <div className="hidden lg:flex w-[250px] shrink-0 h-full flex-col justify-between p-4 rounded-2xl border border-white/10 bg-ink-900/80 shadow-lg overflow-y-auto">
         {/* Top Zone — ROOM STATUSES (Interactive Filter List with Counts & Progress Bar) */}
         <div className="space-y-4">
           <div>
@@ -450,7 +593,7 @@ export function RoomsPanel() {
       {/* ============================================================== */}
       {/* 2. MIDDLE COLUMN: High-Density Square Room Tiles Grouped by Floor */}
       {/* ============================================================== */}
-      <div className="flex-1 min-w-0 h-full flex flex-col rounded-2xl border border-white/10 bg-ink-900/60 p-4 shadow-lg overflow-hidden">
+      <div className="flex-1 min-w-0 h-auto lg:h-full flex flex-col rounded-xl sm:rounded-2xl border border-white/10 bg-ink-900/60 p-3 sm:p-4 shadow-lg overflow-visible lg:overflow-hidden">
         {/* Header Row */}
         <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/10 shrink-0">
           <div className="flex items-center gap-2.5">
@@ -476,7 +619,7 @@ export function RoomsPanel() {
         </div>
 
         {/* Scrollable Room Board grouped by Floor (Floors 1 to 4 with 12 rooms each) */}
-        <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-5">
+        <div className="flex-1 min-h-0 overflow-visible lg:overflow-y-auto pr-0 lg:pr-1 space-y-4 sm:space-y-5">
           {filteredRooms.length === 0 ? (
             <div className="p-12 text-center text-sm text-mist-400 flex flex-col items-center gap-2">
               <BedDouble className="h-8 w-8 text-mist-500" />
@@ -515,7 +658,7 @@ export function RoomsPanel() {
 
                   {/* Clean Square Room Tiles (12 rooms per floor) */}
                   {!isCollapsed && (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-6 gap-2.5">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-6 gap-2 sm:gap-2.5">
                       {floorRooms.map((room) => {
                         // Tile Border & Background tone
                         let tileClasses =
@@ -568,9 +711,9 @@ export function RoomsPanel() {
                           <button
                             key={room.no}
                             type="button"
-                            onClick={() => setDrawerRoomNo(room.no)}
+                            onClick={() => openRoomDrawer(room.no)}
                             className={cn(
-                              'aspect-[1/0.92] p-2.5 rounded-xl border flex flex-col justify-between text-left transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-cyan-400/50 relative overflow-hidden group cursor-pointer',
+                              'aspect-[1/0.92] p-2 sm:p-2.5 rounded-xl border flex flex-col justify-between text-left transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-cyan-400/50 relative overflow-hidden group cursor-pointer',
                               tileClasses,
                             )}
                           >
@@ -587,14 +730,14 @@ export function RoomsPanel() {
                               {showDot && (
                                 <span className={cn('h-2 w-2 rounded-full shrink-0', dotColor)} />
                               )}
-                              <span className="text-xl sm:text-2xl font-black tracking-tight tabular-nums text-white group-hover:text-cyan-200 transition-colors">
+                              <span className="text-lg sm:text-2xl font-black tracking-tight tabular-nums text-white group-hover:text-cyan-200 transition-colors">
                                 {room.no}
                               </span>
                             </div>
 
                             {/* Bottom: Concise 1-line Room Type + Status/Guest pill */}
                             <div className="w-full text-center">
-                              <span className="inline-block w-full truncate rounded-md px-1.5 py-0.5 text-[10px] font-bold bg-white/5 border border-white/10 text-mist-200 leading-tight">
+                              <span className="inline-block w-full truncate rounded-md px-1 sm:px-1.5 py-0.5 text-[9px] sm:text-[10px] font-bold bg-white/5 border border-white/10 text-mist-200 leading-tight">
                                 {room.statusLabel}
                               </span>
                             </div>
@@ -618,17 +761,17 @@ export function RoomsPanel() {
           {/* Backdrop Blur */}
           <div
             className="fixed inset-0 bg-black/60 backdrop-blur-[4px] z-[999] transition-opacity animate-fade-in"
-            onClick={() => setDrawerRoomNo(null)}
+            onClick={closeRoomDrawer}
           />
 
           {/* Drawer Slide-Over Panel */}
           <aside
-            className="fixed top-0 right-0 w-full sm:w-[420px] h-screen bg-ink-950 border-l border-white/10 z-[1000] shadow-2xl flex flex-col justify-between overflow-hidden animate-[fd-slide-from-right_0.25s_cubic-bezier(0.16,1,0.3,1)]"
+            className="fixed top-0 right-0 w-full sm:w-[420px] h-full sm:h-screen bg-ink-950 border-l border-white/10 z-[1000] shadow-2xl flex flex-col justify-between overflow-hidden animate-[fd-slide-from-right_0.25s_cubic-bezier(0.16,1,0.3,1)]"
             role="dialog"
             aria-label={`Room ${drawerRoom.no} details`}
           >
             {/* Drawer Header */}
-            <div className="p-4 border-b border-white/10 bg-white/[0.02] shrink-0">
+            <div className="p-3.5 sm:p-4 border-b border-white/10 bg-white/[0.02] shrink-0">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
@@ -644,7 +787,7 @@ export function RoomsPanel() {
 
                 <button
                   type="button"
-                  onClick={() => setDrawerRoomNo(null)}
+                  onClick={closeRoomDrawer}
                   className="h-8 w-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-mist-400 hover:text-white transition"
                 >
                   <X className="h-4 w-4" />

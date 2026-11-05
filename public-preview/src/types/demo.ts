@@ -679,6 +679,20 @@ export interface WorkflowConfig {
   autoEscalateOnOverdue: boolean;
 }
 
+export interface EventCategoryConfig {
+  id: string;
+  name: string;
+  startingPrice: number;
+  available: boolean;
+}
+
+export interface EventsCelebrationsConfig {
+  enabled: boolean;
+  cardImage: string;
+  subtitle: string;
+  categories?: EventCategoryConfig[];
+}
+
 export interface PermissionRule {
   key: string;
   label: string;
@@ -902,6 +916,8 @@ export interface DemoState {
   auditTrail: AuditEvent[];
   /** Workflow, SLA, and operational configuration (Admin and IT workflow) */
   workflowConfig: WorkflowConfig;
+  /** Events & Celebrations hotel configuration */
+  eventsConfig?: EventsCelebrationsConfig;
   /** In-app notification sounds enabled */
   soundEnabled?: boolean;
   /** Fulfiller shift availability */

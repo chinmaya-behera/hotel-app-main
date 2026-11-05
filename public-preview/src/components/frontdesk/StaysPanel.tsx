@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Sparkles,
   ArrowRightLeft,
@@ -55,11 +55,15 @@ const MOVE_REASONS = ['AC or maintenance fault', 'Noise complaint', 'Guest-reque
 
 const ORDER: Record<StayRecord['status'], number> = { expected: 0, in_house: 1, checked_out: 2 };
 
-export function StaysPanel() {
+export function StaysPanel({ initialFilter = 'all' }: { initialFilter?: Filter }) {
   const { state, fdAction } = useDemo();
-  const [filter, setFilter] = useState<Filter>('all');
+  const [filter, setFilter] = useState<Filter>(initialFilter);
   const [query, setQuery] = useState('');
   const [dialog, setDialog] = useState<Dialog>(null);
+
+  useEffect(() => {
+    if (initialFilter) setFilter(initialFilter);
+  }, [initialFilter]);
 
   const stays = state.frontDesk?.stays ?? [];
   const term = query.trim().toLowerCase();
@@ -83,7 +87,7 @@ export function StaysPanel() {
       hint="Arrivals, in-house guests and departures"
       icon={UserCheck}
       action={
-        <div className="relative w-full min-w-[12rem] sm:w-56">
+        <div className="relative w-full min-w-0 sm:w-56 sm:min-w-[12rem]">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mist-400" aria-hidden />
           <label htmlFor="stay-search" className="sr-only">
             Search guests or rooms
