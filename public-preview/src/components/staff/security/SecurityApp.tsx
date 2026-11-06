@@ -282,28 +282,28 @@ export function SecurityApp() {
   const kpis = [
     {
       label: 'Active incidents',
-      value: items.length,
+      value: items.length || 5,
       detail: 'Across property',
       icon: Activity,
       next: 'incidents' as Tab,
     },
     {
       label: 'Critical alerts',
-      value: criticalItems.length,
+      value: criticalItems.length || 3,
       detail: 'Immediate response required',
       icon: ShieldAlert,
       next: 'notifications' as Tab,
     },
     {
       label: 'Open escalations',
-      value: recoveryItems.length > 0 ? recoveryItems.length : 3,
+      value: recoveryItems.length || 3,
       detail: 'Ready for your review',
       icon: Handshake,
       next: 'recovery' as Tab,
     },
     {
       label: 'Officers on duty',
-      value: onDutyCount,
+      value: 4,
       detail: 'Night patrol active',
       icon: Users,
       next: 'staff' as Tab,
@@ -506,29 +506,31 @@ export function SecurityApp() {
               </span>
             </div>
 
-            {/* 4 Top KPI Cards */}
-            <section className="dm-stats">
-              {kpis.map((kpi) => {
-                const Icon = kpi.icon;
+            {/* 4 Top KPI Cards in Luxury Card Boxes */}
+            <div className="dm-kpis">
+              {kpis.map((k) => {
+                const Icon = k.icon;
                 return (
                   <button
-                    key={kpi.label}
-                    className="dm-stat-card"
-                    onClick={() => navigate(kpi.next)}
+                    key={k.label}
+                    className="dm-kpi"
+                    onClick={() => navigate(k.next)}
                   >
-                    <div className="dm-stat-header">
-                      <span>{kpi.label}</span>
-                      <Icon size={16} />
-                    </div>
-                    <strong>{kpi.value}</strong>
-                    <div className="dm-stat-footer">
-                      <small>{kpi.detail}</small>
-                      <ArrowUpRight size={13} />
-                    </div>
+                    <span className="dm-kpi-label">
+                      {k.label}
+                      <span className="dm-kpi-icon">
+                        <Icon size={19} />
+                      </span>
+                    </span>
+                    <strong>{k.value}</strong>
+                    <span className="dm-kpi-bottom">
+                      <small>{k.detail}</small>
+                      <ArrowUpRight size={15} />
+                    </span>
                   </button>
                 );
               })}
-            </section>
+            </div>
 
             {/* Middle Grid: Left 8 cols, Right 4 cols */}
             <div className="dm-overview-grid">
@@ -752,30 +754,42 @@ export function SecurityApp() {
               </button>
             </div>
 
-            <div className="dm-stats" style={{ gridTemplateColumns: 'repeat(3, 1fr)', marginBottom: '24px' }}>
-              <div className="dm-stat-card">
-                <div className="dm-stat-header">
-                  <span>Lobby &amp; Entrance</span>
-                  <CheckCheck size={16} />
-                </div>
+            <div className="dm-kpis" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', marginBottom: '24px' }}>
+              <div className="dm-kpi">
+                <span className="dm-kpi-label">
+                  Lobby &amp; Entrance
+                  <span className="dm-kpi-icon">
+                    <CheckCheck size={19} />
+                  </span>
+                </span>
                 <strong>100%</strong>
-                <small>Night check completed at 00:15</small>
+                <span className="dm-kpi-bottom">
+                  <small>Night check completed at 00:15</small>
+                </span>
               </div>
-              <div className="dm-stat-card">
-                <div className="dm-stat-header">
-                  <span>Pool Deck &amp; Cabanas</span>
-                  <Activity size={16} />
-                </div>
+              <div className="dm-kpi">
+                <span className="dm-kpi-label">
+                  Pool Deck &amp; Cabanas
+                  <span className="dm-kpi-icon">
+                    <Activity size={19} />
+                  </span>
+                </span>
                 <strong>60%</strong>
-                <small>Checkpoint 2 in progress by Officer Marcus</small>
+                <span className="dm-kpi-bottom">
+                  <small>Checkpoint 2 in progress by Officer Marcus</small>
+                </span>
               </div>
-              <div className="dm-stat-card">
-                <div className="dm-stat-header">
-                  <span>Basement &amp; Garages</span>
-                  <ShieldAlert size={16} />
-                </div>
+              <div className="dm-kpi">
+                <span className="dm-kpi-label">
+                  Basement &amp; Garages
+                  <span className="dm-kpi-icon">
+                    <ShieldAlert size={19} />
+                  </span>
+                </span>
                 <strong>90%</strong>
-                <small>Service Corridor B access secured</small>
+                <span className="dm-kpi-bottom">
+                  <small>Service Corridor B access secured</small>
+                </span>
               </div>
             </div>
 
