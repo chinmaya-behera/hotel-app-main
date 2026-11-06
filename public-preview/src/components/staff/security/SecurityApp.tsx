@@ -539,30 +539,30 @@ export function SecurityApp() {
                 {/* 1. Attention Required Panel */}
                 <section className="dm-panel dm-priority-panel">
                   <div className="dm-panel-heading">
-                    <div className="dm-section-title">
-                      <h2>Attention required</h2>
-                      <span className="dm-count">{Math.max(3, criticalItems.length)}</span>
+                    <div>
+                      <div className="dm-section-title">
+                        <h2>Attention required</h2>
+                        <span className="dm-count">{Math.max(3, criticalItems.length)}</span>
+                      </div>
+                      <p>Supervisor escalations waiting for a decision.</p>
                     </div>
                     <button className="dm-text-button" onClick={() => navigate('incidents')}>
                       View all <ArrowUpRight size={14} />
                     </button>
                   </div>
-                  <p className="dm-panel-intro">Supervisor escalations waiting for a decision.</p>
 
                   <div className="dm-attention-list">
                     {items.slice(0, 3).map((item) => (
-                      <div key={item.id} className="dm-attention-row">
-                        <div className="dm-attention-icon">
+                      <article key={item.id} className="dm-attention-row">
+                        <span className="dm-attention-icon">
                           <ShieldAlert size={18} />
-                        </div>
+                        </span>
                         <div>
-                          <strong>
-                            {item.title} {item.room ? `· ${item.room}` : ''}
-                          </strong>
+                          <strong>{item.title}</strong>
                           <small>
                             Security · Level {item.priority === 'critical' ? '4' : '3'} · {item.status}
                           </small>
-                          <span className="dm-status urgent">• Needs review</span>
+                          <span className="dm-status urgent">Needs review</span>
                         </div>
                         <button
                           className="dm-small-button"
@@ -570,7 +570,7 @@ export function SecurityApp() {
                         >
                           Review &rarr;
                         </button>
-                      </div>
+                      </article>
                     ))}
                   </div>
 
@@ -583,20 +583,22 @@ export function SecurityApp() {
                 {/* 2. Patrol & Inspection Queue */}
                 <section className="dm-panel dm-priority-panel">
                   <div className="dm-panel-heading">
-                    <div className="dm-section-title">
-                      <h2>Inspection queue</h2>
-                      <span className="dm-count">1</span>
+                    <div>
+                      <div className="dm-section-title">
+                        <h2>Inspection queue</h2>
+                        <span className="dm-count">1</span>
+                      </div>
+                      <p>Quality checks and General Manager directives.</p>
                     </div>
                     <button className="dm-text-button" onClick={() => navigate('inspections')}>
                       View all <ArrowUpRight size={14} />
                     </button>
                   </div>
-                  <p className="dm-panel-intro">Quality checks and General Manager directives.</p>
 
-                  <div className="dm-attention-row dm-inspection-row">
-                    <div className="dm-attention-icon">
+                  <article className="dm-attention-row dm-inspection-row">
+                    <span className="dm-attention-icon">
                       <ClipboardCheck size={18} />
-                    </div>
+                    </span>
                     <div>
                       <strong>402 Perimeter &amp; Service Corridors sweep</strong>
                       <small>Awaiting supervisor assignment</small>
@@ -607,7 +609,7 @@ export function SecurityApp() {
                     >
                       Assign &gt;
                     </button>
-                  </div>
+                  </article>
                 </section>
               </div>
 
