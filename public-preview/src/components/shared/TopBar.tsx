@@ -259,7 +259,7 @@ export function TopBar({ active, showRail = true }: TopBarProps) {
                       className={cn(
                         'staff-profile-card absolute right-0 top-full mt-2 w-84 sm:w-96 rounded-3xl p-5 z-50 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-2xl shadow-2xl overflow-hidden border-2',
                         isLight
-                          ? 'border-slate-300 shadow-[0_25px_60px_-15px_rgba(1,31,75,0.18)]'
+                          ? 'border-slate-300 shadow-[0_25px_60px_-15px_rgba(231,226,215,0.18)]'
                           : 'border-slate-600/90 shadow-[0_25px_60px_-10px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.15)] ring-1 ring-amber-400/30'
                       )}
                       style={{
