@@ -81,6 +81,7 @@ export interface WorkItem {
   dishFeedback?: Record<string, { rating: number; comment?: string; submittedAt: string }>;
   orderedAt?: string;
   requestedServiceAt?: string;
+  demoSource?: 'dining-showcase';
   repairCategory?: string;
   orderLines?: OrderLine[];
   /** accountable owner of a guest case (Front Desk owns cases; departments own routed tasks) */

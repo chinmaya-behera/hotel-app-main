@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { mealPeriod, scheduledDiningTime, orderTimestamp, dishCuisine, snapshotOrderLines, dishInsights, diningFeedbackPatch, patchDiningMirrors, repairCategory } from '../src/lib/department-insights.ts';
 import { ensureManagerState, applyManagerCommand } from '../src/lib/manager-domain.ts';
 import { managerOrders, managerRepairs } from '../src/lib/manager-workflows.ts';
+import { CUISINES, MEAL_PERIODS } from '../src/lib/department-insights.ts';
+import { createDiningShowcase } from '../src/lib/dining-showcase.ts';
 
 const menu = [
   { id: 'pasta', name: 'Pasta', category: 'Main Course', cuisine: 'Italian', price: 200, dietary: 'veg', image: '', ingredients: [], allergens: [], isAvailable: true },
@@ -14,10 +16,65 @@ const fixture = (department = 'engineering') => ensureManagerState({ persona: 'd
 const command = (s, c, id = 'rep-test') => applyManagerCommand(s, c, id, '2026-11-06T12:30:00Z');
 
 test('meal classification covers every boundary in hotel IST, including UTC date rollover', () => {
-  for (const [clock, expected] of [['04:59','late'],['05:00','breakfast'],['10:59','breakfast'],['11:00','lunch'],['15:59','lunch'],['16:00','tea'],['17:59','tea'],['18:00','dinner'],['22:59','dinner'],['23:00','late']]) {
+  assert.deepEqual(MEAL_PERIODS.map(period => period.id), ['breakfast', 'lunch', 'dinner']);
+  for (const [clock, expected] of [['04:59','dinner'],['05:00','breakfast'],['10:59','breakfast'],['11:00','lunch'],['15:59','lunch'],['16:00','lunch'],['17:59','lunch'],['18:00','dinner'],['22:59','dinner'],['23:00','dinner']]) {
     assert.equal(mealPeriod(order({ orderedAt: `2026-11-06T${clock}:00+05:30` })), expected, clock);
   }
   assert.equal(mealPeriod(order({ orderedAt: '2026-11-05T23:30:00Z' })), 'breakfast');
+});
+
+test('showcase covers every meal and cuisine with multiple dishes, ratings and nontrivial frequencies', () => {
+  const samples = createDiningShowcase(Date.parse('2026-11-06T12:00:00Z'));
+  assert.equal(samples.length, 63);
+  assert.equal(new Set(samples.map(sample => sample.id)).size, samples.length);
+  assert.equal(new Set(samples.map(sample => sample.ref)).size, samples.length);
+  for (const meal of MEAL_PERIODS) {
+    const orders = samples.filter(sample => mealPeriod(sample) === meal.id);
+    assert.equal(orders.length, 21);
+    const dishes = dishInsights(orders, []);
+    assert.equal(dishes.length, 14);
+    assert.deepEqual([...new Set(dishes.map(dish => dish.cuisine))].sort(), [...CUISINES].sort());
+    for (const cuisine of CUISINES) {
+      const rows = dishes.filter(dish => dish.cuisine === cuisine);
+      assert.equal(rows.length, 2);
+      assert.equal(new Set(rows.flatMap(row => row.orders.map(order => order.ref))).size, 3);
+      for (const row of rows) {
+        assert.equal(row.orders.length, 2);
+        assert.ok(row.averageRating >= 1 && row.averageRating <= 5);
+        assert.ok(row.reviews.some(review => review.comment.startsWith('Demo review:')));
+        assert.ok(row.value > 0);
+      }
+    }
+  }
+});
+
+test('showcase dates support recent-period filters and sample totals match recorded lines', () => {
+  const now = Date.parse('2027-01-01T00:15:00Z');
+  const samples = createDiningShowcase(now);
+  for (const sample of samples) {
+    assert.ok(orderTimestamp(sample) <= now);
+    assert.ok(orderTimestamp(sample) >= now - 7 * 86400000);
+    assert.equal(sample.amount, sample.orderLines.reduce((sum, line) => sum + line.qty * line.price, 0));
+    assert.equal(sample.demoSource, 'dining-showcase');
+    assert.notEqual(sample.guest, true);
+    assert.match(sample.ref, /^DEMO-DIN-/);
+    if (sample.status !== 'Delivered') assert.equal(sample.dishFeedback, undefined);
+  }
+  assert.ok(samples.some(sample => sample.status === 'Preparing'));
+  assert.ok(samples.some(sample => sample.status === 'Cancelled'));
+});
+
+test('recreating the showcase is deterministic without persisting or sharing mutable sample records', () => {
+  const now = Date.parse('2026-11-06T12:00:00Z');
+  const original = createDiningShowcase(now), next = createDiningShowcase(now);
+  assert.deepEqual(original, next);
+  original[0].orderLines[0].qty = 999;
+  assert.notEqual(next[0].orderLines[0].qty, 999);
+  const state = fixture('food-beverages');
+  const before = structuredClone(state);
+  createDiningShowcase(now);
+  assert.deepEqual(state, before);
+  assert.equal(managerOrders(state).some(order => order.demoSource), false);
 });
 test('scheduled service takes precedence over placement and menu availability', () => {
   assert.equal(mealPeriod(order({ requestedServiceAt: '2026-11-07T08:00:00+05:30' })), 'breakfast');
@@ -25,7 +82,7 @@ test('scheduled service takes precedence over placement and menu availability', 
 });
 test('legacy clock-only orders classify without inventing a calendar date', () => {
   assert.equal(mealPeriod(order({ orderedAt: undefined, createdAt: '08:30 PM' })), 'dinner');
-  assert.equal(mealPeriod(order({ orderedAt: undefined, createdAt: '12:00 AM' })), 'late');
+  assert.equal(mealPeriod(order({ orderedAt: undefined, createdAt: '12:00 AM' })), 'dinner');
   assert.equal(orderTimestamp(order({ orderedAt: undefined, createdAt: '08:30 PM' })), undefined);
   for (const createdAt of [undefined, 'yesterday', '25:00', '13:10 PM', '08:99']) assert.equal(mealPeriod(order({ orderedAt: undefined, createdAt })), 'unknown');
 });

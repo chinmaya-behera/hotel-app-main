@@ -3,11 +3,8 @@ import type { DemoState, DiningMenuItem, GuestHistoryEntry, OrderLine, RoleId, W
 export const CUISINES = ['Chinese', 'Continental', 'Indian', 'Italian', 'Mediterranean', 'International', 'Other'] as const;
 export const MEAL_PERIODS = [
   { id: 'breakfast', label: 'Breakfast', hours: '05:00–10:59' },
-  { id: 'lunch', label: 'Lunch', hours: '11:00–15:59' },
-  { id: 'tea', label: 'Afternoon tea', hours: '16:00–17:59' },
-  { id: 'dinner', label: 'Dinner', hours: '18:00–22:59' },
-  { id: 'late', label: 'Late night', hours: '23:00–04:59' },
-  { id: 'unknown', label: 'Time not recorded', hours: 'Legacy orders' },
+  { id: 'lunch', label: 'Lunch', hours: '11:00–17:59' },
+  { id: 'dinner', label: 'Dinner', hours: '18:00–04:59' },
 ] as const;
 // Explicit cuisine metadata for the original catalog, including older saved menus.
 const ORIGINAL_CUISINES: Record<string, string> = {
@@ -61,7 +58,7 @@ export function orderTimestamp(order: WorkItem): number | undefined {
   const timestamp = Date.parse(value);
   return Number.isFinite(timestamp) ? timestamp : undefined;
 }
-export function mealPeriod(order: WorkItem): typeof MEAL_PERIODS[number]['id'] {
+export function mealPeriod(order: WorkItem): typeof MEAL_PERIODS[number]['id'] | 'unknown' {
   const timestamp = orderTimestamp(order);
   let hour: number | undefined;
   if (timestamp !== undefined) hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', hourCycle: 'h23' }).format(timestamp));
@@ -70,7 +67,7 @@ export function mealPeriod(order: WorkItem): typeof MEAL_PERIODS[number]['id'] {
     if (clock && Number(clock[2]) < 60 && (clock[3] ? Number(clock[1]) >= 1 && Number(clock[1]) <= 12 : Number(clock[1]) < 24)) hour = clock[3] ? Number(clock[1]) % 12 + (/pm/i.test(clock[3]) ? 12 : 0) : Number(clock[1]);
   }
   if (hour === undefined) return 'unknown';
-  return hour < 5 || hour >= 23 ? 'late' : hour < 11 ? 'breakfast' : hour < 16 ? 'lunch' : hour < 18 ? 'tea' : 'dinner';
+  return hour >= 5 && hour < 11 ? 'breakfast' : hour >= 11 && hour < 18 ? 'lunch' : 'dinner';
 }
 export const cancelledOrder = (order: WorkItem) => /cancelled|canceled|rejected/i.test(order.status);
 export const completedOrder = (order: WorkItem) => /delivered|completed|closed/i.test(order.status) && !cancelledOrder(order);
