@@ -132,6 +132,15 @@ export interface WorkItem {
   ackSlaDue?: string;
   /** Acknowledgment SLA status */
   ackStatus?: 'pending' | 'acknowledged' | 'overdue';
+  serviceTiming?: {
+    createdAt?: string;
+    acknowledgedAt?: string;
+    completedAt?: string;
+    ackTargetMinutes?: number;
+    resolutionTargetMinutes?: number;
+    ackEnabled: boolean;
+    policySource: string;
+  };
   /** Department name for direct filtering */
   department?: string;
   /** Floor number for spatial assignment */
@@ -848,12 +857,12 @@ export interface ShiftScheduleRecord {
   department: string;
   roleId: RoleId;
   date: string;
-  shiftType: 'Morning' | 'Evening' | 'Night';
+  shiftType: 'Morning' | 'Day' | 'Evening' | 'Night';
   startTime: string;
   endTime: string;
   shiftHours?: string;
   floorZone: string;
-  status: 'scheduled' | 'on_duty' | 'completed' | 'leave' | 'conflict';
+  status: 'scheduled' | 'on_duty' | 'completed' | 'leave' | 'off' | 'conflict';
   conflictReason?: string;
   notes?: string;
 }
@@ -923,7 +932,7 @@ export interface ManagerMedicalCase {
   history: Array<{ at: string; author: string; note: string }>;
 }
 
-export type DepartmentRecordKind = 'repair' | 'task' | 'order' | 'medical' | 'complaint' | 'inspection' | 'menu' | 'stock' | 'asset' | 'room' | 'handover' | 'policy' | 'staff' | 'supplies';
+export type DepartmentRecordKind = 'repair' | 'task' | 'order' | 'medical' | 'complaint' | 'inspection' | 'menu' | 'stock' | 'asset' | 'room' | 'handover' | 'policy' | 'staff' | 'supplies' | 'schedule';
 export interface DepartmentRecordSnapshot {
   key: string;
   department: 'housekeeping' | 'wellness' | 'engineering' | 'food-beverages';
@@ -948,6 +957,7 @@ export interface DepartmentRecordEvent {
 }
 
 export interface DemoState {
+  departmentServiceTargets?: Partial<Record<'housekeeping' | 'wellness' | 'engineering' | 'food-beverages', { inspectionMinutes: number; complaintMinutes: number }>>;
   departmentRecordHistory?: DepartmentRecordEvent[];
   managerOperations?: { stock: ManagerStockItem[]; appointments: ManagerAppointment[]; assets: ManagerAsset[]; medicalCases?: ManagerMedicalCase[] };
   managerDepartment?: 'housekeeping' | 'wellness' | 'engineering' | 'food-beverages';

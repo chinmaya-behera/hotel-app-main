@@ -1,5 +1,6 @@
 'use client';
 
+import { stampTaskTimings } from './manager-performance';
 import { captureDepartmentHistory, initialiseDepartmentHistory, restoreDepartmentQueue } from './department-record-history';
 
 import { snapshotOrderLines, diningFeedbackPatch, patchDiningMirrors } from './department-insights';
@@ -446,7 +447,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const [state, setStoredState] = useState<DemoState>(() => initialiseDepartmentHistory(seedState()));
   const setState = useCallback((update: DemoState | ((previous: DemoState) => DemoState)) => {
     const at = new Date().toISOString();
-    setStoredState(previous => captureDepartmentHistory(previous, typeof update === 'function' ? update(previous) : update, at));
+    setStoredState(previous => captureDepartmentHistory(previous, stampTaskTimings(previous, typeof update === 'function' ? update(previous) : update, at), at));
   }, []);
   const [hydrated, setHydrated] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -464,6 +465,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         const base = seedState();
         setStoredState(initialiseDepartmentHistory(ensureManagerState({
           departmentRecordHistory: saved.departmentRecordHistory,
+          departmentServiceTargets: saved.departmentServiceTargets,
           managerDepartment: saved.managerDepartment,
           managerProfiles: saved.managerProfiles,
           managerOperations: saved.managerOperations,
@@ -5175,8 +5177,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           if (notesArg !== undefined) notes = notesArg;
         }
 
-        const startTime = shiftType === 'Morning' ? '07:00' : shiftType === 'Evening' ? '15:00' : '23:00';
-        const endTime = shiftType === 'Morning' ? '15:30' : shiftType === 'Evening' ? '23:30' : '07:30';
+        const startTime = typeof shiftTypeOrUpdates === 'object' && shiftTypeOrUpdates.startTime !== undefined ? shiftTypeOrUpdates.startTime : shiftType === target.shiftType ? target.startTime : shiftType === 'Morning' ? '07:00' : shiftType === 'Day' ? '08:00' : shiftType === 'Evening' ? '15:00' : '23:00';
+        const endTime = typeof shiftTypeOrUpdates === 'object' && shiftTypeOrUpdates.endTime !== undefined ? shiftTypeOrUpdates.endTime : shiftType === target.shiftType ? target.endTime : shiftType === 'Morning' ? '15:30' : shiftType === 'Day' ? '16:00' : shiftType === 'Evening' ? '23:30' : '07:30';
         const shiftHours = `${startTime} – ${endTime}`;
 
         const updated: ShiftScheduleRecord = {
@@ -5195,7 +5197,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           s.employeeId === target.employeeId
             ? {
               ...s,
-              shift: shiftType === 'Morning' ? ('Day' as const) : shiftType === 'Evening' ? ('Evening' as const) : ('Night' as const),
+              shift: shiftType === 'Morning' || shiftType === 'Day' ? ('Day' as const) : shiftType === 'Evening' ? ('Evening' as const) : ('Night' as const),
               floorZone,
             }
             : s,
