@@ -5,6 +5,7 @@ import { useLayoutEffect, useEffect, useRef, useState, type CSSProperties, type 
 import {
   Activity,
   BedDouble,
+  LayoutDashboard,
   Inbox,
   KeyRound,
   Landmark,
@@ -43,11 +44,13 @@ import { StaysPanel } from '@/components/frontdesk/StaysPanel';
 import { GuestRemindersPanel } from '@/components/frontdesk/GuestRemindersPanel';
 import { VipPreviewPanel } from '@/components/frontdesk/VipPreviewPanel';
 import { FrontDeskPoliciesPanel } from '@/components/frontdesk/FrontDeskPoliciesPanel';
+import { FrontDeskMobileDashboard } from '@/components/frontdesk/FrontDeskMobileDashboard';
 import { CountUp, spotlight } from '@/lib/gestures';
 import { useDemo } from '@/lib/store';
 import { cn } from '@/lib/utils';
 
 export type TabId =
+  | 'dashboard'
   | 'stays'
   | 'vip'
   | 'rooms'
@@ -59,6 +62,12 @@ export type TabId =
   | 'notifications'
   | 'profile'
   | 'policies';
+
+const DASHBOARD_TAB: { id: TabId; label: string; icon: LucideIcon } = {
+  id: 'dashboard',
+  label: 'Dashboard',
+  icon: LayoutDashboard,
+};
 
 type StaysFilterType = 'all' | 'arrivals' | 'inhouse' | 'departures' | 'checkedout';
 
@@ -102,6 +111,7 @@ export function FrontDeskConsole() {
   const pendingReminders = (state.guestReminders ?? []).filter((r) => r.status === 'pending');
 
   const counts: Record<TabId, { n: number; alert: boolean }> = {
+    dashboard: { n: 0, alert: false },
     stays: { n: arrivals.length, alert: arrivals.some((a) => !a.idChecked) },
     vip: { n: vipCount, alert: false },
     rooms: { n: rooms.filter((r) => r.readiness === 'dirty').length, alert: false },
@@ -130,15 +140,18 @@ export function FrontDeskConsole() {
     if (typeof window === 'undefined') return;
 
     // Check if initial window history already has front-desk state
+    const isMobile = window.innerWidth < 1024;
     const currentState = window.history.state;
     if (currentState && currentState.staffRole === 'front-desk' && currentState.tab) {
       setTab(currentState.tab);
       if (currentState.staysFilter) setStaysFilter(currentState.staysFilter);
       if (currentState.reqSourceTab) setReqSourceTab(currentState.reqSourceTab);
     } else {
-      // Seed the base state marker to prevent dropping back into /login on Back
+      // On mobile, default initial section is Dashboard; on desktop, default is Stays
+      const initialTab: TabId = isMobile ? 'dashboard' : 'stays';
+      setTab(initialTab);
       window.history.replaceState(
-        { staffRole: 'front-desk', tab: 'stays', staysFilter: 'all' },
+        { staffRole: 'front-desk', tab: initialTab, staysFilter: 'all' },
         ''
       );
     }
@@ -157,12 +170,14 @@ export function FrontDeskConsole() {
         }
       } else {
         // If the browser would otherwise pop out to /login,
-        // preserve the authenticated session and return to Front Desk dashboard
+        // preserve authenticated session and return to Front Desk dashboard on mobile, stays on desktop
+        const isMob = window.innerWidth < 1024;
+        const defaultTab: TabId = isMob ? 'dashboard' : 'stays';
         window.history.pushState(
-          { staffRole: 'front-desk', tab: 'stays', staysFilter: 'all' },
+          { staffRole: 'front-desk', tab: defaultTab, staysFilter: 'all' },
           ''
         );
-        setTab('stays');
+        setTab(defaultTab);
       }
     };
 
@@ -228,7 +243,7 @@ export function FrontDeskConsole() {
     refs.current[target.id]?.focus();
   }
 
-  const activeTabObj = TABS.find((t) => t.id === tab) ?? TABS[0];
+  const activeTabObj = tab === 'dashboard' ? DASHBOARD_TAB : (TABS.find((t) => t.id === tab) ?? TABS[0]);
   const ActiveIcon = activeTabObj.icon;
   const activeCount = counts[tab];
 
@@ -254,15 +269,17 @@ export function FrontDeskConsole() {
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <h1 className="text-xs font-bold text-white truncate">
-                  {tab === 'stays' && staysFilter === 'arrivals'
-                    ? 'Arrivals (Check-In)'
-                    : tab === 'stays' && staysFilter === 'departures'
-                      ? 'Departures (Check-Out)'
-                      : tab === 'requests' && reqSourceTab === 'complaints'
-                        ? 'Guest Complaints'
-                        : activeTabObj.label}
+                  {tab === 'dashboard'
+                    ? 'Dashboard'
+                    : tab === 'stays' && staysFilter === 'arrivals'
+                      ? 'Arrivals (Check-In)'
+                      : tab === 'stays' && staysFilter === 'departures'
+                        ? 'Departures (Check-Out)'
+                        : tab === 'requests' && reqSourceTab === 'complaints'
+                          ? 'Guest Complaints'
+                          : activeTabObj.label}
                 </h1>
-                {activeCount && activeCount.n > 0 && (
+                {activeCount && activeCount.n > 0 && tab !== 'dashboard' && (
                   <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-cyan-400 text-ink-950">
                     {activeCount.n}
                   </span>
@@ -278,14 +295,14 @@ export function FrontDeskConsole() {
 
         {/* Quick Header Actions */}
         <div className="flex items-center gap-1.5 shrink-0">
-          {tab !== 'stays' && (
+          {tab !== 'dashboard' && (
             <button
               type="button"
-              onClick={() => handleNavigate('stays')}
-              className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-[11px] font-bold text-mist-300 hover:text-white flex items-center gap-1 active:scale-95 transition"
-              title="Return to Front Desk Dashboard"
+              onClick={() => handleNavigate('dashboard')}
+              className="px-2.5 py-1.5 rounded-xl bg-white/5 border border-white/10 text-[11px] font-bold text-cyan-200 hover:text-white hover:bg-white/10 flex items-center gap-1 active:scale-95 transition shadow-xs"
+              title="Return to Dashboard Overview"
             >
-              <ArrowLeft className="h-3 w-3" />
+              <ArrowLeft className="h-3.5 w-3.5 text-cyan-300" />
               <span>Dashboard</span>
             </button>
           )}
@@ -303,8 +320,8 @@ export function FrontDeskConsole() {
         </div>
       </header>
 
-      {/* 2. Numeric Overview KPI Row (5 cards: 2-col on mobile with 5th spanning full, 3-col tablet, 5-col desktop) */}
-      <div className="shrink-0 mb-2 sm:mb-2.5">
+      {/* 2. Numeric Overview KPI Row - Preserved 100% on Desktop (Hidden on mobile, as mobile has dedicated Dashboard overview) */}
+      <div className="hidden lg:block shrink-0 mb-2 sm:mb-2.5">
         <div className="fd-stagger grid grid-cols-2 gap-2 sm:gap-2.5 sm:grid-cols-3 xl:grid-cols-5">
           {kpis.map((k, i) => {
             const Icon = k.icon;
@@ -338,8 +355,8 @@ export function FrontDeskConsole() {
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 sm:gap-4 xl:gap-5 overflow-visible lg:overflow-hidden">
         {/* Left Column: Section Navigation + Content Area */}
         <div className="flex-1 min-w-0 flex flex-col min-h-0 overflow-visible lg:overflow-hidden">
-          {/* Horizontal Section Navigation Bar (Preserved on Desktop, accessible touch swipe on mobile) */}
-          <div className="shrink-0 mb-2 sm:mb-2.5 flex items-center justify-between gap-3">
+          {/* Horizontal Section Navigation Bar (Preserved 100% on Desktop, Hidden on Mobile only) */}
+          <div className="hidden lg:flex shrink-0 mb-2 sm:mb-2.5 items-center justify-between gap-3">
             <div
               className="fd-tabs flex-1 min-w-0 overflow-x-auto no-scrollbar scroll-smooth"
               role="tablist"
@@ -385,7 +402,29 @@ export function FrontDeskConsole() {
           {/* Main Section Content Area */}
           <div className={cn("flex-1 min-h-0 pr-0 lg:pr-1 pb-2", tab === 'rooms' ? "flex flex-col overflow-visible lg:overflow-hidden" : "overflow-visible lg:overflow-y-auto space-y-4")}>
             <div key={tab} id={`fd-panel-${tab}`} role="tabpanel" aria-labelledby={`fd-tab-${tab}`} className={cn(swap, tab === 'rooms' && "flex-1 min-h-0 flex flex-col overflow-visible lg:overflow-hidden")}>
-              {tab === 'stays' && <StaysPanel initialFilter={staysFilter} />}
+              {/* On Mobile: Dashboard displays ONLY the complete Dashboard overview */}
+              {tab === 'dashboard' && (
+                <div className="lg:hidden">
+                  <FrontDeskMobileDashboard
+                    stays={stays}
+                    rooms={rooms}
+                    queue={queue}
+                    sync={sync}
+                    complaints={complaints}
+                    guestReminders={state.guestReminders ?? []}
+                    kpis={kpis}
+                    onNavigate={handleNavigate}
+                    onOpenLiveActivity={() => setMobileActivityOpen(true)}
+                  />
+                </div>
+              )}
+
+              {/* Stays Section - on desktop, default/dashboard falls back to Stays */}
+              {(tab === 'stays' || tab === 'dashboard') && (
+                <div className={tab === 'dashboard' ? 'hidden lg:block' : 'block'}>
+                  <StaysPanel initialFilter={staysFilter} />
+                </div>
+              )}
               {tab === 'vip' && <VipPreviewPanel onSwitchTab={(t) => handleNavigate(t as TabId)} />}
               {tab === 'rooms' && <RoomsPanel />}
               {tab === 'requests' && <RequestsPanel initialCategory={reqCategory} initialSourceTab={reqSourceTab} />}
@@ -400,31 +439,6 @@ export function FrontDeskConsole() {
               {tab === 'notifications' && <NotificationsPanel onNavigate={(t) => handleNavigate(t as TabId)} />}
               {tab === 'profile' && <StaffProfilePanel />}
               {tab === 'policies' && <FrontDeskPoliciesPanel />}
-            </div>
-
-            {/* Mobile Collapsible Activity Section (< lg) */}
-            <div className="lg:hidden mt-6 pt-4 border-t border-white/10">
-              <button
-                type="button"
-                onClick={() => setMobileActivityCollapsed((prev) => !prev)}
-                className="w-full flex items-center justify-between p-3.5 rounded-xl border border-white/10 bg-ink-900/90 text-xs font-bold text-white transition hover:bg-white/[0.04]"
-              >
-                <div className="flex items-center gap-2">
-                  <Activity className="h-4 w-4 text-emerald-400" />
-                  <span>Recent Hotel Activity</span>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span>Live</span>
-                  </span>
-                </div>
-                <ChevronDown className={cn('h-4 w-4 text-mist-400 transition-transform', !mobileActivityCollapsed && 'rotate-180')} />
-              </button>
-
-              {!mobileActivityCollapsed && (
-                <div className="mt-2.5 p-3 rounded-xl border border-white/10 bg-ink-900/70 max-h-80 overflow-y-auto">
-                  <FeedList limit={15} />
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -512,13 +526,36 @@ export function FrontDeskConsole() {
 
             {/* Drawer Scrollable Navigation Items */}
             <div className="flex-1 overflow-y-auto p-3 space-y-4 text-xs">
+              {/* TOP: Dedicated Dashboard Overview */}
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-mist-400 mb-1 px-2.5">
+                  Overview
+                </p>
+                <button
+                  type="button"
+                  onClick={() => handleNavigate('dashboard')}
+                  className={cn(
+                    'w-full flex items-center justify-between px-3 py-2.5 rounded-xl border text-left transition',
+                    tab === 'dashboard'
+                      ? 'border-cyan-400/50 bg-cyan-500/15 text-white font-bold'
+                      : 'border-transparent text-mist-300 hover:bg-white/5 hover:text-white'
+                  )}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <LayoutDashboard className={cn('h-4 w-4 shrink-0', tab === 'dashboard' ? 'text-cyan-300' : 'text-mist-400')} />
+                    <span className="truncate font-semibold">Dashboard</span>
+                  </div>
+                  {tab === 'dashboard' && <Check className="h-3.5 w-3.5 text-cyan-300" />}
+                </button>
+              </div>
+
               {/* GROUP 1: Core Operations */}
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-wider text-mist-400 mb-1 px-2.5">
                   Core Operations
                 </p>
                 <div className="space-y-0.5">
-                  {/* Dashboard / Stays */}
+                  {/* Stays */}
                   <button
                     type="button"
                     onClick={() => handleNavigate('stays', { staysFilter: 'all' })}
@@ -531,7 +568,7 @@ export function FrontDeskConsole() {
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       <UserCheck className={cn('h-4 w-4 shrink-0', tab === 'stays' && staysFilter === 'all' ? 'text-cyan-300' : 'text-mist-400')} />
-                      <span className="truncate">Dashboard &amp; Stays</span>
+                      <span className="truncate">Stays</span>
                     </div>
                     {tab === 'stays' && staysFilter === 'all' && <Check className="h-3.5 w-3.5 text-cyan-300" />}
                   </button>
@@ -857,8 +894,8 @@ export function FrontDeskConsole() {
               </div>
               <button
                 type="button"
-                onClick={() => handleNavigate('stays', { staysFilter: 'all' })}
-                className="w-full py-2 px-3 rounded-xl bg-white/5 border border-white/10 text-mist-200 hover:text-white text-xs font-bold text-center transition"
+                onClick={() => handleNavigate('dashboard')}
+                className="w-full py-2 px-3 rounded-xl bg-white/5 border border-white/10 text-cyan-200 hover:text-white text-xs font-bold text-center transition"
               >
                 Return to Dashboard
               </button>
