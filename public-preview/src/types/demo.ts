@@ -78,6 +78,11 @@ export interface WorkItem {
   dnd?: boolean;
   photoAttached?: boolean;
   feedback?: { rating: number; comment?: string; tags?: string[]; submittedAt?: string };
+  dishFeedback?: Record<string, { rating: number; comment?: string; submittedAt: string }>;
+  orderedAt?: string;
+  requestedServiceAt?: string;
+  demoSource?: 'dining-showcase';
+  repairCategory?: string;
   customDiningId?: string;
   compensationRefundId?: string;
   orderLines?: OrderLine[];
@@ -199,6 +204,9 @@ export interface GuestMessageRecord {
 export interface OrderLine {
   itemId: string;
   name: string;
+  dishName?: string;
+  cuisine?: string;
+  menuCategory?: string;
   qty: number;
   price: number;
 }
@@ -241,6 +249,7 @@ export interface DiningMenuItem {
   id: string;
   name: string;
   category: string;
+  cuisine?: string;
   price: number;
   dietary: DietaryType;
   rating?: number;
@@ -351,6 +360,9 @@ export interface InspectionCheckItem {
 }
 
 export interface SupervisorInspection {
+  batchId?: string;
+  scope?: 'room' | 'floor' | 'all';
+  typeLabel?: string;
   department?: string;
   createdAt?: string;
   scheduledTime?: string;
@@ -553,6 +565,9 @@ export interface SyncIssue {
 
 /** F32: complaint & recovery case. */
 export interface ComplaintCase {
+  department?: string;
+  priority?: 'normal' | 'urgent' | 'critical';
+  history?: GuestHistoryEntry[];
   id: string;
   ref: string;
   room: string;
@@ -897,8 +912,21 @@ export interface ManagerAsset {
   workOrderRef?: string;
 }
 
+export interface ManagerMedicalCase {
+  id: string;
+  reference: string;
+  guest: string;
+  location: string;
+  urgency: 'routine' | 'urgent' | 'critical';
+  status: 'open' | 'monitoring' | 'closed';
+  followUpAt?: string;
+  followUpAcknowledgedAt?: string;
+  createdAt: string;
+  history: Array<{ at: string; author: string; note: string }>;
+}
+
 export interface DemoState {
-  managerOperations?: { stock: ManagerStockItem[]; appointments: ManagerAppointment[]; assets: ManagerAsset[] };
+  managerOperations?: { stock: ManagerStockItem[]; appointments: ManagerAppointment[]; assets: ManagerAsset[]; medicalCases?: ManagerMedicalCase[] };
   managerDepartment?: 'housekeeping' | 'wellness' | 'engineering' | 'food-beverages';
   managerProfiles?: Record<string, { name: string; phone: string }>;
   persona: RoleId | null;

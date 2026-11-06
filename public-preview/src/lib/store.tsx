@@ -1,5 +1,7 @@
 'use client';
 
+import { snapshotOrderLines, diningFeedbackPatch, patchDiningMirrors } from './department-insights';
+
 import {
   createContext,
   useCallback,
@@ -49,6 +51,7 @@ import {
 } from '@/lib/mockData';
 import { afterAdvance, markCheckedOut, type FdResult } from '@/lib/frontDesk';
 import { roleById } from '@/lib/roles';
+import { reviewDepartmentInspection } from '@/lib/manager-workflows';
 import { applyManagerCommand, ensureManagerState, reviewManagerEscalation, type ManagerCommand, type ManagerDepartmentId } from '@/lib/manager-domain';
 import type {
   AuditEvent,
@@ -199,8 +202,8 @@ interface DemoApi {
   setTheme: (theme: ThemeMode) => void;
   setActiveDispatcherDept: (dept: DispatcherDepartment) => void;
   submitGuestRequest: (input: GuestRequestInput) => string;
-  placeRoomServiceOrder: (room: string, lines: OrderLine[], note?: string) => string;
-  placeDiningOrder: (room: string, lines: OrderLine[], note?: string) => string;
+  placeRoomServiceOrder: (room: string, lines: OrderLine[], note?: string, requestedServiceAt?: string) => string;
+  placeDiningOrder: (room: string, lines: OrderLine[], note?: string, requestedServiceAt?: string) => string;
   addDiningMenuItem: (item: Omit<DiningMenuItem, 'id'>) => string;
   updateDiningMenuItem: (id: string, updates: Partial<DiningMenuItem>) => void;
   deleteDiningMenuItem: (id: string) => void;
@@ -208,7 +211,14 @@ interface DemoApi {
   addDiningCategory: (category: string) => void;
   removeDiningCategory: (category: string) => void;
   cancelGuestItem: (roleId: RoleId, itemId: string) => void;
-  submitGuestFeedback: (roleId: RoleId, itemId: string, rating: number, comment?: string, tags?: string[]) => void;
+  submitGuestFeedback: (
+    roleId: RoleId,
+    itemId: string,
+    rating: number,
+    comment?: string,
+    dishesOrTags?: Record<string, { rating: number; comment?: string }> | string[],
+    tags?: string[],
+  ) => void;
   disputeFolioCharge: (room: string, lineId: string, reason: string) => void;
   claimLostItem: (room: string, itemId: string) => void;
   addLostFoundItem: (item: Omit<LostFoundItem, 'id' | 'claimed' | 'claimedRoom' | 'loggedBy'>) => void;
@@ -320,7 +330,7 @@ interface DemoApi {
   updateTransactionStatus: (txnId: string, status: TransactionStatus, notes?: string) => void;
   reconcileTransaction: (txnId: string) => void;
   /** Department Supervisor Operations APIs */
-  approveInspection: (inspectionId: string, notes?: string) => void;
+  approveInspection: (inspectionId: string, notes?: string, checks?: import('@/types/demo').InspectionCheckItem[]) => void;
   reopenInspection: (inspectionId: string, reason: string, correctiveAction: string, reassignToStaffId?: string) => void;
   reviewFulfillerReassignment: (taskId: string, action: 'reassign' | 'reject', newAssigneeId?: string, notes?: string) => void;
   escalateSupervisorIssue: (issue: { title: string; department?: string; room?: string; priority: 'urgent' | 'critical'; reason: string; notes?: string }) => void;
@@ -546,6 +556,18 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           items: {
             ...base.items,
             ...saved.items,
+            task_fulfiller: [
+              ...(base.items.task_fulfiller ?? []),
+              ...((saved.items?.task_fulfiller ?? []).filter(
+                (si) => !(base.items.task_fulfiller ?? []).some((bi) => bi.id === si.id),
+              )),
+            ],
+            department_dispatcher: [
+              ...(base.items.department_dispatcher ?? []),
+              ...((saved.items?.department_dispatcher ?? []).filter(
+                (si) => !(base.items.department_dispatcher ?? []).some((bi) => bi.id === si.id),
+              )),
+            ],
             department_dispatcher_supervisor:
               saved.items?.department_dispatcher_supervisor ?? base.items.department_dispatcher_supervisor,
             general_manager: saved.items?.general_manager ?? base.items.general_manager,
@@ -674,7 +696,18 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
   const advance = useCallback<DemoApi['advance']>(
     (roleId, itemId, t, reason) => {
-      const item = stateRef.current.items[roleId]?.find((i) => i.id === itemId);
+      let item = stateRef.current.items[roleId]?.find((i) => i.id === itemId);
+      let actualRoleId = roleId;
+      if (!item) {
+        for (const [r, list] of Object.entries(stateRef.current.items)) {
+          const found = list.find((i) => i.id === itemId);
+          if (found) {
+            item = found;
+            actualRoleId = r as RoleId;
+            break;
+          }
+        }
+      }
       if (!item) return;
       const text = `${t.message}: ${item.title}${reason ? ` · ${reason}` : ''}`;
       const revokes = Boolean(t.revokesQr && item.room);
@@ -682,49 +715,56 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
       setState((prev) => {
         const nextItems = { ...prev.items };
-        // Update the item in the active role
-        nextItems[roleId] = nextItems[roleId].map((i) =>
-          i.id === itemId
-            ? {
-              ...i,
-              status: t.next,
-              selfRequested: t.marksSelf ? true : i.selfRequested,
-              blockerReason: t.next === 'Blocked' ? (reason ?? i.blockerReason) : (t.next === 'In progress' ? undefined : i.blockerReason),
-              history: [...(i.history ?? []), historyEntry],
+        // Update matching items across all role queues
+        (Object.keys(nextItems) as RoleId[]).forEach((otherRoleId) => {
+          nextItems[otherRoleId] = nextItems[otherRoleId].map((other) => {
+            if (other.id === itemId || (item!.ref && other.ref === item!.ref)) {
+              return {
+                ...other,
+                status: t.next,
+                selfRequested: t.marksSelf ? true : other.selfRequested,
+                blockerReason:
+                  t.next === 'Blocked'
+                    ? (reason ?? other.blockerReason)
+                    : t.next === 'In progress' || t.next === 'Accepted' || t.next === 'Completed'
+                      ? undefined
+                      : other.blockerReason,
+                history: [...(other.history ?? []), historyEntry],
+              };
             }
-            : i,
-        );
-
-        // Connected cross-role update: If this is a fulfiller task or guest request, also update any mirrored item in other roles
-        if (item.ref) {
-          (Object.keys(nextItems) as RoleId[]).forEach((otherRoleId) => {
-            if (otherRoleId !== roleId) {
-              nextItems[otherRoleId] = nextItems[otherRoleId].map((other) => {
-                if (other.ref === item.ref || (other.room === item.room && other.title === item.title)) {
-                  return {
-                    ...other,
-                    status: t.next,
-                    history: [...(other.history ?? []), historyEntry],
-                  };
-                }
-                return other;
-              });
-            }
+            return other;
           });
+        });
+
+        // Ensure item exists in task_fulfiller queue when action is performed by fulfiller
+        if (roleId === 'task_fulfiller') {
+          const currentFulfiller = nextItems.task_fulfiller ?? [];
+          const exists = currentFulfiller.some((i) => i.id === itemId || (item!.ref && i.ref === item!.ref));
+          if (!exists) {
+            nextItems.task_fulfiller = [
+              {
+                ...item!,
+                status: t.next,
+                blockerReason: t.next === 'Blocked' ? (reason ?? item!.blockerReason) : undefined,
+                history: [...(item!.history ?? []), historyEntry],
+              },
+              ...currentFulfiller,
+            ];
+          }
         }
 
         return {
           ...prev,
           items: nextItems,
-          feed: [{ id: uid(), at: nowLabel(), role: roleById[roleId].short, text }, ...prev.feed].slice(0, 30),
+          feed: [{ id: uid(), at: nowLabel(), role: roleById[roleId]?.short ?? 'Staff', text }, ...prev.feed].slice(0, 30),
           revokedRooms:
-            revokes && item.room && !prev.revokedRooms.includes(item.room)
-              ? [...prev.revokedRooms, item.room]
+            revokes && item!.room && !prev.revokedRooms.includes(item!.room)
+              ? [...prev.revokedRooms, item!.room]
               : prev.revokedRooms,
         };
       });
-      setState((prev) => afterAdvance(prev, roleId, t.next, item.room));
-      notify(revokes ? `${text} · Room ${item.room} guest session revoked` : text);
+      setState((prev) => afterAdvance(prev, actualRoleId, t.next, item!.room));
+      notify(revokes ? `${text} · Room ${item!.room} guest session revoked` : text);
     },
     [notify],
   );
@@ -754,14 +794,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         const historyEntry: GuestHistoryEntry | null = patch.status ? { at: nowLabel(), status: patch.status } : null;
         return {
           ...prev,
-          items: {
-            ...prev.items,
-            [roleId]: prev.items[roleId].map((i) =>
-              i.id === itemId
-                ? { ...i, ...patch, history: historyEntry ? [...(i.history ?? []), historyEntry] : i.history }
-                : i,
-            ),
-          },
+          items: patchDiningMirrors(prev.items, roleId, itemId, patch, historyEntry || undefined),
           feed: feedText
             ? [{ id: uid(), at: nowLabel(), role: feedRole ?? roleById[roleId].short, text: feedText }, ...prev.feed].slice(0, 30)
             : prev.feed,
@@ -913,20 +946,30 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
   const attachTaskPhoto = useCallback((roleId: RoleId, itemId: string, dataUrl: string) => {
     setState((prev) => {
-      const item = prev.items[roleId]?.find((i) => i.id === itemId);
+      let item = prev.items[roleId]?.find((i) => i.id === itemId);
+      if (!item) {
+        for (const list of Object.values(prev.items)) {
+          const found = list.find((i) => i.id === itemId);
+          if (found) {
+            item = found;
+            break;
+          }
+        }
+      }
       if (!item) return prev;
       const historyEntry: GuestHistoryEntry = { at: nowLabel(), status: item.status, note: 'Photo evidence attached' };
+      const nextItems = { ...prev.items };
+      (Object.keys(nextItems) as RoleId[]).forEach((r) => {
+        nextItems[r] = nextItems[r].map((i) =>
+          i.id === itemId || (item!.ref && i.ref === item!.ref)
+            ? { ...i, photoUrl: dataUrl, photoAttached: true, history: [...(i.history ?? []), historyEntry] }
+            : i,
+        );
+      });
       return {
         ...prev,
-        items: {
-          ...prev.items,
-          [roleId]: prev.items[roleId].map((i) =>
-            i.id === itemId
-              ? { ...i, photoUrl: dataUrl, photoAttached: true, history: [...(i.history ?? []), historyEntry] }
-              : i,
-          ),
-        },
-        feed: [{ id: uid(), at: nowLabel(), role: roleById[roleId].short, text: `Photo attached for ${item.title}` }, ...prev.feed].slice(0, 30),
+        items: nextItems,
+        feed: [{ id: uid(), at: nowLabel(), role: roleById[roleId]?.short ?? 'Staff', text: `Photo attached for ${item.title}` }, ...prev.feed].slice(0, 30),
       };
     });
     notify('Photo attached successfully');
@@ -1108,7 +1151,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       setState((prev) => {
         const ddsItems = prev.items.department_dispatcher_supervisor ?? [];
         const ddItems = prev.items.department_dispatcher ?? [];
-        const task = ddsItems.find((i) => i.id === taskId) || ddItems.find((i) => i.id === taskId);
+        const fulItems = prev.items.task_fulfiller ?? [];
+        const task = ddsItems.find((i) => i.id === taskId) || ddItems.find((i) => i.id === taskId) || fulItems.find((i) => i.id === taskId);
         const staff = (prev.staffAccounts ?? []).find((s) => s.id === staffId || s.employeeId === staffId);
         if (!task || !staff) return prev;
 
@@ -1674,7 +1718,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   );
 
   const placeRoomServiceOrder = useCallback<DemoApi['placeRoomServiceOrder']>(
-    (room, lines, note) => {
+    (room, lines, note, requestedServiceAt) => {
       const total = Math.round(lines.reduce((sum, l) => sum + l.price * l.qty, 0) * 100) / 100;
       const ref = nextRef('DIN', room);
       const id = uid();
@@ -1693,7 +1737,9 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         description: note,
         ref,
         createdAt,
-        orderLines: lines,
+        orderLines: snapshotOrderLines(lines, state.diningMenu || []),
+        orderedAt: new Date().toISOString(),
+        requestedServiceAt: requestedServiceAt && Number.isFinite(Date.parse(requestedServiceAt)) ? requestedServiceAt : undefined,
         amount: total,
         history: [{ at: createdAt, status: 'Order Placed' }],
       };
@@ -1719,7 +1765,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       scheduleLifecycle('department_dispatcher', id, ref, `Dining ${ref}`, ORDER_LIFECYCLE);
       return ref;
     },
-    [notify, scheduleLifecycle],
+    [notify, scheduleLifecycle, state.diningMenu],
   );
 
   const placeDiningOrder = placeRoomServiceOrder;
@@ -1820,15 +1866,43 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   );
 
   const submitGuestFeedback = useCallback<DemoApi['submitGuestFeedback']>(
-    (roleId, itemId, rating, comment, tags) => {
+    (roleId, itemId, rating, comment, dishesOrTags, extraTags) => {
       const submittedAt = nowLabel();
+      let dishes: Record<string, { rating: number; comment?: string }> = {};
+      let tags: string[] | undefined = undefined;
+
+      if (Array.isArray(dishesOrTags)) {
+        tags = dishesOrTags;
+      } else if (dishesOrTags && typeof dishesOrTags === 'object') {
+        dishes = dishesOrTags;
+        tags = extraTags;
+      } else if (Array.isArray(extraTags)) {
+        tags = extraTags;
+      }
+
+      const item = stateRef.current.items[roleId]?.find((i) => i.id === itemId || i.ref === itemId);
+      let feedbackPatch: Partial<WorkItem> = { feedback: { rating, comment, tags, submittedAt } };
+
+      if (item?.orderLines?.length) {
+        try {
+          const diningPatch = diningFeedbackPatch(item, rating, comment, dishes, new Date().toISOString());
+          feedbackPatch = {
+            ...diningPatch,
+            feedback: { rating, comment, ...diningPatch.feedback, tags, submittedAt },
+          };
+        } catch (error) {
+          notify(error instanceof Error ? error.message : 'Unable to save feedback');
+          return;
+        }
+      }
+
       setState((prev) => {
-        const nextItems = { ...prev.items };
+        const nextItems = patchDiningMirrors(prev.items, roleId, itemId, feedbackPatch);
         for (const r of Object.keys(nextItems) as RoleId[]) {
           if (nextItems[r]) {
             nextItems[r] = nextItems[r].map((i) =>
               i.id === itemId || i.ref === itemId
-                ? { ...i, feedback: { rating, comment, tags, submittedAt } }
+                ? { ...i, ...feedbackPatch }
                 : i
             );
           }
@@ -4395,7 +4469,13 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   );
 
   const approveInspection = useCallback<DemoApi['approveInspection']>(
-    (inspectionId, notes) => {
+    (inspectionId, notes, checks) => {
+      const managed = stateRef.current.inspections?.find(i => i.id === inspectionId && i.initiatedRole === 'department_manager');
+      if (managed) {
+        try { setState(reviewDepartmentInspection(stateRef.current, inspectionId, 'passed', notes || '', checks)); notify('Department inspection passed. Manager notified.'); }
+        catch (error) { notify(error instanceof Error ? error.message : 'Unable to approve inspection.'); }
+        return;
+      }
       const timestamp = nowLabel();
       let targetRoom = '';
       let targetTaskId: string | undefined;
@@ -4496,6 +4576,12 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
   const reopenInspection = useCallback<DemoApi['reopenInspection']>(
     (inspectionId, reason, correctiveAction, reassignToStaffId) => {
+      const managed = stateRef.current.inspections?.find(i => i.id === inspectionId && i.initiatedRole === 'department_manager');
+      if (managed) {
+        try { setState(reviewDepartmentInspection(stateRef.current, inspectionId, 'reopened', reason + (correctiveAction ? '\n' + correctiveAction : ''))); notify('Inspection findings returned to the department manager.'); }
+        catch (error) { notify(error instanceof Error ? error.message : 'Unable to reopen inspection.'); }
+        return;
+      }
       const timestamp = nowLabel();
       let targetRoom = '';
       let targetTaskId: string | undefined;
@@ -5059,6 +5145,16 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
   const claimTask = useCallback<DemoApi['claimTask']>(
     (taskId, fulfillerId, fulfillerName) => {
+      const currentAvail = stateRef.current.fulfillerAvailability ?? 'on_duty';
+      if (currentAvail === 'break') {
+        notify('Cannot self-assign tasks while on break. Switch to On Duty status to claim tasks.');
+        return;
+      }
+      if (currentAvail === 'off_duty') {
+        notify('Cannot self-assign tasks while off duty. Switch to On Duty status to claim tasks.');
+        return;
+      }
+
       const timestamp = nowLabel();
       let conflictError = false;
 
@@ -6643,7 +6739,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         priority: taskPriority,
         room: input.room,
         guest: true,
-        category: 'guest_request',
+        category: 'safety',
         location: input.location,
         ref,
         createdAt: `Today, ${timestamp}`,

@@ -18,11 +18,13 @@ import {
 import type { SupervisorInspection, InspectionStatus, InspectionType } from '@/types/demo';
 
 interface SupervisorInspectionsTabProps {
+  departmentName?: string;
   inspections?: SupervisorInspection[];
   onSelectInspection?: (inspection: SupervisorInspection) => void;
 }
 
 export function SupervisorInspectionsTab({
+  departmentName = 'Housekeeping',
   inspections = [],
   onSelectInspection,
 }: SupervisorInspectionsTabProps) {
@@ -66,10 +68,10 @@ export function SupervisorInspectionsTab({
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-base font-bold font-display text-white">
-              Room Turnover & Quality Inspections Queue
+              {departmentName} inspection queue
             </h2>
             <p className="text-xs text-mist-400">
-              Verify housekeeping quality checklists before releasing rooms to Front Desk inventory
+              Review assigned supervisors, department checklists and individual inspection outcomes
             </p>
           </div>
 
@@ -190,7 +192,7 @@ export function SupervisorInspectionsTab({
                 <tr>
                   <th className="py-3 px-4">Room & Type</th>
                   <th className="py-3 px-4">Floor</th>
-                  <th className="py-3 px-4">Attendant</th>
+                  <th className="py-3 px-4">Supervisor / attendant</th>
                   <th className="py-3 px-4">Type</th>
                   <th className="py-3 px-4">Checklist Checks</th>
                   <th className="py-3 px-4">Score</th>
@@ -203,7 +205,7 @@ export function SupervisorInspectionsTab({
                 {filtered.map((insp) => {
                   const passedChecks = insp.items.filter((it) => it.passed).length;
                   const totalChecks = insp.items.length;
-                  const score = insp.score ?? Math.round((passedChecks / totalChecks) * 100);
+                  const score = insp.score ?? (totalChecks ? Math.round((passedChecks / totalChecks) * 100) : 0);
 
                   return (
                     <tr
@@ -245,15 +247,15 @@ export function SupervisorInspectionsTab({
                       {/* Attendant */}
                       <td className="py-3.5 px-4">
                         <div>
-                          <p className="font-medium text-white">{insp.attendantName}</p>
-                          <p className="text-[10px] text-mist-400 font-mono">{insp.attendantId}</p>
+                          <p className="font-medium text-white">{insp.assignedSupervisorName || insp.attendantName}</p>
+                          <p className="text-[10px] text-mist-400 font-mono">{insp.assignedSupervisorId || insp.attendantId}</p>
                         </div>
                       </td>
 
                       {/* Type */}
                       <td className="py-3.5 px-4">
                         <span className="px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-[10px] text-mist-300 capitalize">
-                          {insp.type.replace('_', ' ')}
+                          {insp.typeLabel || insp.type.replaceAll('_', ' ')}
                         </span>
                       </td>
 
