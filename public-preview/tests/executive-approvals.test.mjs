@@ -317,7 +317,3 @@ test('executive notifications map to exact item details, fields, and target tabs
   assert.equal(details5.ref, 'COMP-VIP-518-02');
   assert.equal(details5.amount, '₹14,500');
 });
-
-
-
-
