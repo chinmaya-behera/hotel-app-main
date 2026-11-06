@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   LayoutDashboard,
   Layers,
@@ -19,15 +19,11 @@ import {
   CheckCircle2,
   AlertTriangle,
   MessageSquare,
+  MessageSquareWarning,
   HeartPulse,
-  Wrench,
-  UtensilsCrossed,
-  ChevronDown,
-  Check,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
 import type { SupervisorInspection, RoleId, DispatcherDepartment, WorkItem, StaffAccount } from '@/types/demo';
-import { ROLE_AUTHORITY_PROFILES, SHARED_SERVICE_POLICIES } from '@/lib/policies';
 
 // Dispatcher Tabs
 import { DispatcherSupervisorOverviewTab } from './DispatcherSupervisorOverviewTab';
@@ -38,11 +34,14 @@ import { DispatcherSlaTab } from '@/components/dispatcher/DispatcherSlaTab';
 import { DispatcherReportsTab } from '@/components/dispatcher/DispatcherReportsTab';
 import { DispatcherBlockersTab } from '@/components/dispatcher/DispatcherBlockersTab';
 import { DispatcherGuestMessagesTab } from '@/components/dispatcher/DispatcherGuestMessagesTab';
+import { DispatcherComplaintsTab, isComplaintInActiveDept } from '@/components/dispatcher/DispatcherComplaintsTab';
+import { DispatcherPoliciesTab } from '@/components/dispatcher/DispatcherPoliciesTab';
 
 // Supervisor Tabs
 
 import { SupervisorInspectionsTab } from '@/components/supervisor/SupervisorInspectionsTab';
 import { SupervisorRoomsTab } from '@/components/supervisor/SupervisorRoomsTab';
+import { SupervisorMedicalTherapyTab } from '@/components/supervisor/SupervisorMedicalTherapyTab';
 import { SupervisorHandoverTab } from '@/components/supervisor/SupervisorHandoverTab';
 import { SupervisorAuditTab } from '@/components/supervisor/SupervisorAuditTab';
 import { SupervisorNotificationsTab } from '@/components/supervisor/SupervisorNotificationsTab';
@@ -60,8 +59,10 @@ export type DispatcherSupervisorTab =
   | 'blockers'
   | 'inspections'
   | 'rooms'
+  | 'medical_therapy'
   | 'routing'
   | 'guest_messages'
+  | 'complaints'
   | 'sla'
   | 'handover'
   | 'policies'
@@ -95,21 +96,6 @@ export function DispatcherSupervisorConsole() {
   } = useDemo();
 
   const [activeTab, setActiveTab] = useState<DispatcherSupervisorTab>('overview');
-  const [deptDropdownOpen, setDeptDropdownOpen] = useState(false);
-  const deptMenuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (deptMenuRef.current && !deptMenuRef.current.contains(event.target as Node)) {
-        setDeptDropdownOpen(false);
-      }
-    }
-    if (deptDropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [deptDropdownOpen]);
-
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Modals state
@@ -139,6 +125,13 @@ export function DispatcherSupervisorConsole() {
     }
   }, [setActiveDispatcherDept]);
 
+  // Redirect away from rooms tab if in Wellness department
+  useEffect(() => {
+    if (currentDept === 'Wellness' && activeTab === 'rooms') {
+      setActiveTab('overview');
+    }
+  }, [currentDept, activeTab]);
+
   // Department-specific task filter
   const isTaskInActiveDept = (t: WorkItem) => {
     const deptStr = (t.department || '').toLowerCase();
@@ -153,7 +146,7 @@ export function DispatcherSupervisorConsole() {
       return (
         deptStr.includes('spa') ||
         deptStr.includes('wellness') ||
-        ['spa', 'wellness', 'massage', 'hydrotherapy'].includes(catStr)
+        ['spa', 'wellness', 'massage', 'hydrotherapy', 'medical', 'therapy'].includes(catStr)
       );
     }
     if (currentDept === 'Maintenance & Engineering') {
@@ -276,26 +269,8 @@ export function DispatcherSupervisorConsole() {
   );
 
   const departmentRooms = useMemo(() => {
-    const allRooms = state.frontDesk?.rooms ?? [];
-    if (currentDept === 'Housekeeping') return allRooms;
-    if (currentDept === 'Maintenance & Engineering') {
-      return allRooms.filter(
-        (r) =>
-          r.readiness === 'out_of_order' ||
-          r.readiness === 'inspection_failed' ||
-          ['305', '412', '502', '108'].includes(r.no),
-      );
-    }
-    if (currentDept === 'Wellness') {
-      return allRooms.filter(
-        (r) => r.floor === 2 || r.note?.toLowerCase().includes('suite') || ['202', '204', '210', '518'].includes(r.no),
-      );
-    }
-    if (currentDept === 'Food & Beverages') {
-      return allRooms.filter((r) => ['518', '402', '301', '305', '501'].includes(r.no));
-    }
-    return allRooms;
-  }, [state.frontDesk?.rooms, currentDept]);
+    return state.frontDesk?.rooms ?? [];
+  }, [state.frontDesk?.rooms]);
 
   const unassignedCount = allTasks.filter((t) => t.status === 'Unassigned' || t.status === 'Received').length;
   const pendingInspections = inspections.filter((i) => i.status === 'pending').length;
@@ -313,7 +288,34 @@ export function DispatcherSupervisorConsole() {
     (t) => t.reassignPending || t.status === 'Reassignment requested',
   ).length;
 
-  const rolePolicy = ROLE_AUTHORITY_PROFILES['department_dispatcher_supervisor'];
+  const departmentComplaintsCount = useMemo(() => {
+    const fromFrontDesk = (state.frontDesk?.complaints ?? []).filter(
+      (c) => isComplaintInActiveDept(c, currentDept) && !c.compApplied && (c.status || '').toLowerCase() !== 'resolved',
+    );
+    const fromGuest = (state.guestComplaints ?? []).filter(
+      (c) => isComplaintInActiveDept(c, currentDept) && c.status !== 'Resolved',
+    );
+    return fromFrontDesk.length + fromGuest.length;
+  }, [state.frontDesk?.complaints, state.guestComplaints, currentDept]);
+
+  const medicalTherapyCount = useMemo(() => {
+    if (currentDept !== 'Wellness') return 0;
+    return allTasks.filter((t) => {
+      const cat = (t.category || '').toLowerCase();
+      const ref = (t.ref || '').toLowerCase();
+      const title = (t.title || '').toLowerCase();
+      const isMedOrTher =
+        cat === 'medical' ||
+        cat === 'therapy' ||
+        ref.startsWith('med-') ||
+        ref.startsWith('ther-') ||
+        title.includes('asthma') ||
+        title.includes('allergic') ||
+        title.includes('therapy') ||
+        title.includes('physiotherapy');
+      return isMedOrTher && (t.status === 'Unassigned' || t.status === 'Received');
+    }).length;
+  }, [allTasks, currentDept]);
 
   const navItems: NavItem[] = [
     {
@@ -324,8 +326,8 @@ export function DispatcherSupervisorConsole() {
     },
     {
       id: 'queue',
-      label: 'Task Queue',
-      shortLabel: 'Task Queue',
+      label: 'Task',
+      shortLabel: 'Task',
       icon: Layers,
       badge: unassignedCount > 0 ? unassignedCount : undefined,
       badgeTone: 'warning',
@@ -352,23 +354,41 @@ export function DispatcherSupervisorConsole() {
       badge: pendingInspections > 0 ? pendingInspections : undefined,
       badgeTone: 'warning',
     },
-    {
-      id: 'rooms',
-      label: 'Room Turnover & Readiness',
-      shortLabel: 'Rooms',
-      icon: BedDouble,
-    },
-    {
-      id: 'routing',
-      label: 'Auto-Routing Sandbox',
-      shortLabel: 'Auto-Routing',
-      icon: Sparkles,
-    },
+    ...(currentDept !== 'Wellness'
+      ? [
+          {
+            id: 'rooms' as DispatcherSupervisorTab,
+            label: 'Room Turnover & Readiness',
+            shortLabel: 'Rooms',
+            icon: BedDouble,
+          },
+        ]
+      : []),
+    ...(currentDept === 'Wellness'
+      ? [
+          {
+            id: 'medical_therapy' as DispatcherSupervisorTab,
+            label: 'Medical & Therapy',
+            shortLabel: 'Medical & Therapy',
+            icon: HeartPulse,
+            badge: medicalTherapyCount > 0 ? `${medicalTherapyCount} Action` : undefined,
+            badgeTone: 'danger' as const,
+          },
+        ]
+      : []),
     {
       id: 'guest_messages',
       label: 'Guest Messages',
       shortLabel: 'Guest Messages',
       icon: MessageSquare,
+    },
+    {
+      id: 'complaints',
+      label: 'Guest Complaints',
+      shortLabel: 'Complaints',
+      icon: MessageSquareWarning,
+      badge: departmentComplaintsCount > 0 ? departmentComplaintsCount : undefined,
+      badgeTone: 'danger',
     },
     {
       id: 'sla',
@@ -396,140 +416,12 @@ export function DispatcherSupervisorConsole() {
       shortLabel: 'Analytics',
       icon: BarChart3,
     },
-    {
-      id: 'audit',
-      label: 'Audit Trail',
-      shortLabel: 'Audit',
-      icon: History,
-    },
-    {
-      id: 'notifications',
-      label: 'Alerts & Notifications',
-      shortLabel: 'Alerts',
-      icon: Bell,
-    },
+
+
   ];
-
-  // Visual details for active department
-  const deptMeta = {
-    'Housekeeping': {
-      title: 'Housekeeping Operations',
-      subtitle: 'Turnover readiness, room cleaning, deep clean sanitization & linen logistics',
-      gradient: 'from-emerald-500 to-teal-600',
-      icon: Sparkles,
-      colorClass: 'text-emerald-400',
-      bgClass: 'bg-emerald-500/10 border-emerald-500/30',
-    },
-    'Wellness': {
-      title: 'Wellness & Spa Operations',
-      subtitle: 'Ayurvedic treatments, hydrotherapy pools, wellness suites & therapy appointments',
-      gradient: 'from-teal-500 to-cyan-600',
-      icon: HeartPulse,
-      colorClass: 'text-cyan-400',
-      bgClass: 'bg-cyan-500/10 border-cyan-500/30',
-    },
-    'Maintenance & Engineering': {
-      title: 'Maintenance & Engineering Operations',
-      subtitle: 'HVAC climate systems, plumbing, electrical repairs & IoT asset alerts',
-      gradient: 'from-amber-500 to-orange-600',
-      icon: Wrench,
-      colorClass: 'text-amber-400',
-      bgClass: 'bg-amber-500/10 border-amber-500/30',
-    },
-    'Food & Beverages': {
-      title: 'Food & Beverages Operations',
-      subtitle: 'In-room dining orders, kitchen expediting, tray presentation & minibar replenishment',
-      gradient: 'from-purple-500 to-pink-600',
-      icon: UtensilsCrossed,
-      colorClass: 'text-purple-400',
-      bgClass: 'bg-purple-500/10 border-purple-500/30',
-    },
-  }[currentDept];
-
-  const DeptIcon = deptMeta.icon;
 
   return (
     <div className="w-full pb-16">
-      {/* Active Department Header Banner & Interactive Switcher */}
-      <div className="rounded-3xl border border-white/10 bg-ink-900/90 p-4 sm:p-5 backdrop-blur-xl shadow-2xl mb-6">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div className="flex items-center gap-3.5 min-w-0">
-            <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${deptMeta.gradient} flex items-center justify-center text-white shadow-lg shadow-black/40 shrink-0`}>
-              <DeptIcon className="w-6 h-6" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono uppercase tracking-wider border ${deptMeta.bgClass} ${deptMeta.colorClass}`}>
-                  {currentDept} Portal
-                </span>
-                <span className="text-xs text-mist-400 font-mono">
-                  {allTasks.length} {currentDept} Tasks · {staffList.length} Staff on Roster
-                </span>
-              </div>
-              <h1 className="text-lg sm:text-xl font-bold font-display text-white mt-0.5 truncate">
-                {deptMeta.title}
-              </h1>
-              <p className="text-xs text-mist-400 line-clamp-1">
-                {deptMeta.subtitle}
-              </p>
-            </div>
-          </div>
-
-          {/* Department Dropdown Menu */}
-          <div className="relative shrink-0" ref={deptMenuRef}>
-            <button
-              type="button"
-              onClick={() => setDeptDropdownOpen(!deptDropdownOpen)}
-              className="px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition flex items-center gap-2.5 border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] hover:border-amber-400/40 text-white cursor-pointer shadow-sm"
-            >
-              <DeptIcon className="w-4 h-4 text-amber-400 shrink-0" />
-              <span>{currentDept} Supervisor</span>
-              <ChevronDown
-                className={`w-4 h-4 text-mist-400 transition-transform duration-200 ${
-                  deptDropdownOpen ? 'rotate-180' : ''
-                }`}
-              />
-            </button>
-
-            {deptDropdownOpen && (
-              <div className="absolute right-0 top-full mt-2 z-50 w-72 rounded-2xl border border-white/10 bg-ink-900/95 backdrop-blur-xl shadow-2xl p-2 space-y-1.5">
-                {(['Housekeeping', 'Wellness', 'Maintenance & Engineering', 'Food & Beverages'] as DispatcherDepartment[]).map((d) => {
-                  const isCurrent = d === currentDept;
-                  const icons = {
-                    'Housekeeping': Sparkles,
-                    'Wellness': HeartPulse,
-                    'Maintenance & Engineering': Wrench,
-                    'Food & Beverages': UtensilsCrossed,
-                  };
-                  const PIcon = icons[d];
-                  return (
-                    <button
-                      key={d}
-                      type="button"
-                      onClick={() => {
-                        setActiveDispatcherDept(d);
-                        setDeptDropdownOpen(false);
-                      }}
-                      className={`w-full text-left flex items-center justify-between px-3 py-2.5 rounded-xl border transition cursor-pointer ${
-                        isCurrent
-                          ? 'bg-amber-400/10 border-amber-400/70 text-white ring-1 ring-amber-400/40 font-bold shadow-sm'
-                          : 'bg-white/[0.03] border-white/5 hover:border-white/20 text-mist-200 hover:text-white font-medium hover:bg-white/[0.08]'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <PIcon className="w-4 h-4 shrink-0 text-amber-400" />
-                        <span className="text-xs sm:text-sm truncate">{d} Supervisor</span>
-                      </div>
-                      {isCurrent && <Check className="w-4 h-4 text-amber-400 shrink-0 ml-1.5" />}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
       {/* Main Layout: Sticky Sidebar + Dynamic View */}
       <div className="flex flex-col lg:flex-row items-start gap-6">
         {/* Sidebar */}
@@ -628,6 +520,7 @@ export function DispatcherSupervisorConsole() {
           {activeTab === 'inspections' && (
             <SupervisorInspectionsTab
               inspections={inspections}
+              department={currentDept}
               onSelectInspection={(insp) => {
                 setSelectedInspection(insp);
                 setIsInspectionModalOpen(true);
@@ -639,6 +532,7 @@ export function DispatcherSupervisorConsole() {
             <SupervisorRoomsTab
               rooms={departmentRooms}
               inspections={inspections}
+              department={currentDept}
               onSelectInspectionByRoom={(roomNo) => {
                 const existing = (inspections ?? []).find((i) => i.roomNumber === roomNo);
                 if (existing) {
@@ -654,6 +548,14 @@ export function DispatcherSupervisorConsole() {
             />
           )}
 
+          {activeTab === 'medical_therapy' && (
+            <SupervisorMedicalTherapyTab
+              tasks={allTasks}
+              staffList={staffList}
+              department={currentDept}
+            />
+          )}
+
           {activeTab === 'workload' && <DispatcherWorkloadTab staffList={staffList} department={currentDept} />}
 
           {activeTab === 'blockers' && (
@@ -662,9 +564,16 @@ export function DispatcherSupervisorConsole() {
 
           {activeTab === 'routing' && <DispatcherRoutingTab />}
 
-          {activeTab === 'sla' && <DispatcherSlaTab tasks={allTasks} />}
+          {activeTab === 'sla' && <DispatcherSlaTab tasks={allTasks} department={currentDept} />}
 
-          {activeTab === 'guest_messages' && <DispatcherGuestMessagesTab />}
+          {activeTab === 'guest_messages' && <DispatcherGuestMessagesTab activeDept={currentDept} />}
+
+          {activeTab === 'complaints' && (
+            <DispatcherComplaintsTab
+              department={currentDept}
+              onOpenEscalate={() => setIsEscalateModalOpen(true)}
+            />
+          )}
 
           {activeTab === 'handover' && (
             <SupervisorHandoverTab
@@ -672,112 +581,15 @@ export function DispatcherSupervisorConsole() {
               tasks={allTasks}
               inspections={inspections}
               incidents={incidents}
+              department={currentDept}
               onSubmitHandover={submitShiftHandover}
               onAcknowledgeHandover={acknowledgeShiftHandover}
             />
           )}
 
-          {activeTab === 'policies' && (
-            <div className="space-y-6">
-              <div className="rounded-3xl border border-white/10 bg-ink-900/90 p-6 backdrop-blur-xl shadow-xl space-y-6">
-                <div>
-                  <h2 className="text-base font-bold text-white font-display">
-                    Service Authority & Operational Policies
-                  </h2>
-                  <p className="text-xs text-mist-400">
-                    Governing authority, dispatch boundaries, escalation triggers, and operational limits
-                  </p>
-                </div>
+          {activeTab === 'policies' && <DispatcherPoliciesTab department={currentDept} />}
 
-                {rolePolicy && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-4 rounded-2xl border border-white/10 bg-white/[0.02] space-y-3">
-                      <p className="text-xs font-bold text-amber-300 uppercase tracking-wider">
-                        Operational Authority
-                      </p>
-                      <ul className="text-xs space-y-2 text-mist-300">
-                        {(rolePolicy.operationalAuthority ?? rolePolicy.canDo ?? []).map((p, idx) => (
-                          <li key={idx} className="flex items-start gap-2">
-                            <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
-                            <span>{p}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    <div className="p-4 rounded-2xl border border-rose-500/20 bg-rose-500/5 space-y-3">
-                      <p className="text-xs font-bold text-rose-300 uppercase tracking-wider">
-                        Strict Negative Boundaries (Escalate to Duty Manager)
-                      </p>
-                      <ul className="text-xs space-y-2 text-rose-200/90">
-                        {(rolePolicy.negativeBoundaries ?? rolePolicy.cannotDo ?? []).map((p, idx) => (
-                          <li key={idx} className="flex items-start gap-2">
-                            <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0 mt-0.5" />
-                            <span>{p}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                )}
-
-                {/* Department Manager Active Directives */}
-                {(state.departmentPolicies ?? []).length > 0 && (
-                  <div className="space-y-3 pt-4 border-t border-purple-500/20">
-                    <div className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full bg-purple-400" />
-                      <h3 className="text-sm font-bold text-purple-200">
-                        Department Manager Active Directives ({(state.departmentPolicies ?? []).length})
-                      </h3>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {(state.departmentPolicies ?? []).map((p) => (
-                        <div key={p.id} className="p-4 rounded-2xl border border-purple-500/30 bg-purple-950/20 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-white text-xs">{p.title}</span>
-                            <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-[10px] font-bold">
-                              {p.category}
-                            </span>
-                          </div>
-                          <p className="text-xs text-mist-300">{p.summary}</p>
-                          <div className="flex items-center justify-between text-[11px] pt-1 text-mist-400">
-                            <span className="text-amber-300 font-mono">Limit: {p.authorityLimit}</span>
-                            <span>Owner: {p.policyOwner}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div className="space-y-3 pt-4 border-t border-white/[0.06]">
-                  <h3 className="text-sm font-bold text-white">General Manager Property-Wide Service Standards</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {SHARED_SERVICE_POLICIES.filter((p) => p.department === 'Housekeeping' || p.department === 'Operations').map((p) => (
-                      <div key={p.id} className="p-4 rounded-2xl border border-white/10 bg-white/[0.02] space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-white text-xs">{p.title}</span>
-                          {!p.configured || p.needsConfiguration ? (
-                            <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-bold">
-                              Needs Config
-                            </span>
-                          ) : (
-                            <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold">
-                              Verified
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-mist-300">{p.summary ?? p.policySummary}</p>
-                        <p className="text-[11px] text-mist-400">Escalation: {p.escalationTarget}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'reports' && <DispatcherReportsTab />}
+          {activeTab === 'reports' && <DispatcherReportsTab department={currentDept} tasks={allTasks} />}
 
           {activeTab === 'audit' && <SupervisorAuditTab auditTrail={state.auditTrail ?? []} />}
 

@@ -295,6 +295,9 @@ interface DemoApi {
     instructions: string;
     initiatedBy: string;
     initiatedRole: RoleId;
+    scope?: 'single_room' | 'floor' | 'all_rooms';
+    scopeLabel?: string;
+    affectedRooms?: string[];
   }) => void;
   /** Phase 3: Compensation & Multi-Tier Escalations */
   createCompensationRequest: (request: Omit<CompensationRequest, 'id' | 'ref' | 'status' | 'tier' | 'history' | 'requestedAt'>) => void;
@@ -455,15 +458,42 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           items: {
             ...base.items,
             ...saved.items,
-            department_dispatcher_supervisor:
-              saved.items?.department_dispatcher_supervisor ?? base.items.department_dispatcher_supervisor,
+            department_dispatcher_supervisor: [
+              ...(saved.items?.department_dispatcher_supervisor ?? []).map((s) => {
+                const b = (base.items.department_dispatcher_supervisor ?? []).find((x) => x.id === s.id);
+                return b ? { ...b, ...s, feedback: s.feedback ?? b.feedback, department: s.department || b.department } : s;
+              }),
+              ...(base.items.department_dispatcher_supervisor ?? []).filter(
+                (b) => !(saved.items?.department_dispatcher_supervisor ?? []).some((s) => s.id === b.id)
+              ),
+            ],
+            department_dispatcher: [
+              ...(saved.items?.department_dispatcher ?? []).map((s) => {
+                const b = (base.items.department_dispatcher ?? []).find((x) => x.id === s.id);
+                return b ? { ...b, ...s, feedback: s.feedback ?? b.feedback, department: s.department || b.department } : s;
+              }),
+              ...(base.items.department_dispatcher ?? []).filter(
+                (b) => !(saved.items?.department_dispatcher ?? []).some((s) => s.id === b.id)
+              ),
+            ],
             general_manager: saved.items?.general_manager ?? base.items.general_manager,
             // saves made before the Front Desk console start its queue from the new seed
             front_desk_coordinator: saved.frontDesk
               ? (saved.items?.front_desk_coordinator ?? base.items.front_desk_coordinator)
               : base.items.front_desk_coordinator,
           },
-          frontDesk: saved.frontDesk ?? base.frontDesk,
+          frontDesk: saved.frontDesk
+            ? {
+                ...base.frontDesk,
+                ...saved.frontDesk,
+                complaints: [
+                  ...(saved.frontDesk.complaints ?? []),
+                  ...(base.frontDesk?.complaints ?? []).filter(
+                    (b) => !(saved.frontDesk?.complaints ?? []).some((s) => s.id === b.id || s.ref === b.ref)
+                  ),
+                ],
+              }
+            : base.frontDesk,
           feed: saved.feed ?? base.feed,
           integrations: { ...base.integrations, ...saved.integrations },
           revokedRooms: saved.revokedRooms ?? [],
@@ -1255,7 +1285,10 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     (taskId, newStaffId, reason) => {
       const timestamp = nowLabel();
       setState((prev) => {
-        const task = prev.items.department_dispatcher?.find((i) => i.id === taskId);
+        const task =
+          prev.items.department_dispatcher?.find((i) => i.id === taskId) ||
+          prev.items.department_dispatcher_supervisor?.find((i) => i.id === taskId) ||
+          prev.items.task_fulfiller?.find((i) => i.id === taskId);
         const newStaff = (prev.staffAccounts ?? []).find((s) => s.id === newStaffId || s.employeeId === newStaffId);
         if (!task || !newStaff) return prev;
 
@@ -1277,7 +1310,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           history: [...(task.history ?? []), historyEntry],
         };
 
-        const nextFulfillerItems = (prev.items.task_fulfiller ?? []).map((f) => {
+        let nextFulfillerItems = (prev.items.task_fulfiller ?? []).map((f) => {
           if (f.id === task.id || (task.ref && f.ref === task.ref)) {
             return {
               ...f,
@@ -1290,6 +1323,25 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           }
           return f;
         });
+
+        const existsInFulfiller = nextFulfillerItems.some((f) => f.id === task.id || (task.ref && f.ref === task.ref));
+        if (!existsInFulfiller && newStaff.roleId === 'task_fulfiller') {
+          nextFulfillerItems = [
+            {
+              ...updatedTask,
+              location: updatedTask.location || (task.room ? `Room ${task.room}, Level ${task.floor || task.room[0]}` : undefined),
+              evidenceRequired: task.category === 'maintenance' || task.category === 'housekeeping',
+            },
+            ...nextFulfillerItems,
+          ];
+        }
+
+        let nextDds = prev.items.department_dispatcher_supervisor ?? [];
+        if (nextDds.some((i) => i.id === taskId)) {
+          nextDds = nextDds.map((i) => (i.id === taskId ? updatedTask : i));
+        } else {
+          nextDds = [updatedTask, ...nextDds];
+        }
 
         const notif: InAppNotification = {
           id: uid(),
@@ -1307,6 +1359,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           items: {
             ...prev.items,
             department_dispatcher: prev.items.department_dispatcher.map((i) => (i.id === taskId ? updatedTask : i)),
+            department_dispatcher_supervisor: nextDds,
             task_fulfiller: nextFulfillerItems,
           },
           notifications: [notif, ...(prev.notifications ?? [])],
@@ -1349,7 +1402,10 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     (taskId, parentRef) => {
       const timestamp = nowLabel();
       setState((prev) => {
-        const task = prev.items.department_dispatcher?.find((i) => i.id === taskId);
+        const task =
+          prev.items.department_dispatcher?.find((i) => i.id === taskId) ||
+          prev.items.department_dispatcher_supervisor?.find((i) => i.id === taskId) ||
+          prev.items.task_fulfiller?.find((i) => i.id === taskId);
         if (!task) return prev;
 
         const historyEntry: GuestHistoryEntry = {
@@ -1399,7 +1455,10 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     (taskId, reason) => {
       const timestamp = nowLabel();
       setState((prev) => {
-        const task = prev.items.department_dispatcher?.find((i) => i.id === taskId);
+        const task =
+          prev.items.department_dispatcher?.find((i) => i.id === taskId) ||
+          prev.items.department_dispatcher_supervisor?.find((i) => i.id === taskId) ||
+          prev.items.task_fulfiller?.find((i) => i.id === taskId);
         if (!task) return prev;
 
         const historyEntry: GuestHistoryEntry = {
@@ -1490,14 +1549,24 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       }
 
       const loadMap = new Map<string, number>();
+      const allItems = [
+        ...(currentState.items.task_fulfiller ?? []),
+        ...(currentState.items.department_dispatcher_supervisor ?? []),
+        ...(currentState.items.department_dispatcher ?? []),
+      ];
+      const uniqueItems = allItems.filter((t, i, arr) => arr.findIndex((x) => x.id === t.id) === i);
+
       fulfillers.forEach((f) => {
-        const count = (currentState.items.task_fulfiller ?? []).filter(
-          (t) => t.assigneeId === f.employeeId && t.status !== 'Completed' && t.status !== 'Cancelled'
+        const count = uniqueItems.filter(
+          (t) =>
+            (t.assigneeId === f.employeeId || (t.assignee && t.assignee.toLowerCase().includes(f.name.toLowerCase()))) &&
+            t.status !== 'Completed' &&
+            t.status !== 'Cancelled'
         ).length;
         loadMap.set(f.employeeId, count);
       });
 
-      const overloaded = fulfillers.filter((f) => (loadMap.get(f.employeeId) ?? 0) >= 4);
+      const overloaded = fulfillers.filter((f) => (loadMap.get(f.employeeId) ?? 0) >= 3);
       const underloaded = fulfillers.filter((f) => (loadMap.get(f.employeeId) ?? 0) < 3);
 
       if (overloaded.length === 0 || underloaded.length === 0) {
@@ -1507,8 +1576,10 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
       let movedCount = 0;
       overloaded.forEach((heavyStaff) => {
-        const unstartedTasks = (currentState.items.department_dispatcher ?? []).filter(
-          (t) => t.assigneeId === heavyStaff.employeeId && t.status === 'Assigned'
+        const unstartedTasks = uniqueItems.filter(
+          (t) =>
+            (t.assigneeId === heavyStaff.employeeId || (t.assignee && t.assignee.toLowerCase().includes(heavyStaff.name.toLowerCase()))) &&
+            (t.status === 'Assigned' || t.status === 'Open' || t.status === 'Accepted')
         );
         if (unstartedTasks.length > 0 && underloaded.length > 0) {
           const taskToMove = unstartedTasks[0];
@@ -3703,8 +3774,10 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       let targetTaskId: string | undefined;
 
       setState((prev) => {
+        let currentTargetInsp: SupervisorInspection | undefined;
         const inspections = (prev.inspections ?? seedInspections).map((insp) => {
           if (insp.id === inspectionId) {
+            currentTargetInsp = insp;
             targetRoom = insp.roomNumber;
             targetTaskId = insp.taskId;
             return {
@@ -3719,9 +3792,12 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           return insp;
         });
 
-        // Update front desk room status to clean & ready
+        // Update front desk room status to clean & ready (supports single room, entire floor, and all rooms)
+        const affected = currentTargetInsp?.affectedRooms;
         const rooms = prev.frontDesk.rooms.map((rm) => {
-          if (rm.no === targetRoom) {
+          const isTargetRoom = rm.no === targetRoom;
+          const isAffected = affected && affected.includes(rm.no);
+          if (isTargetRoom || isAffected) {
             return {
               ...rm,
               readiness: 'ready' as const,
@@ -4039,7 +4115,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         severity: issue.priority === 'critical' ? 'critical' : 'major',
         affectedArea: issue.room ? `Room ${issue.room}` : 'Housekeeping Dept',
         department: issue.department || 'Housekeeping',
-        coordinator: 'Duty Manager Marcus Vance',
+        coordinator: 'Department Manager Marcus Vance',
         reportedAt: timestamp,
         status: 'investigating',
         timeline: [
@@ -4059,7 +4135,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         timestamp,
         read: false,
         tone: 'urgent',
-        targetRole: 'duty_manager',
+        targetRole: 'department_manager',
         category: 'Incident',
       };
 
@@ -4073,7 +4149,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
             id: uid(),
             at: timestamp,
             role: 'Housekeeping Supervisor',
-            text: `Meera Nambiar escalated ${issue.title} to Duty Manager Marcus Vance.`,
+            text: `Meera Nambiar escalated ${issue.title} to Department Manager Marcus Vance.`,
           },
           ...prev.feed,
         ].slice(0, 30),
@@ -4082,14 +4158,14 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       recordAuditEvent({
         actor: 'Meera Nambiar',
         actorRole: 'Housekeeping Supervisor',
-        action: 'Issue Escalated to Duty Manager',
+        action: 'Issue Escalated to Department Manager',
         category: 'Security',
         resource: escRef,
         outcome: 'warning',
         details: `Priority: ${issue.priority}. Reason: ${issue.reason}. Room: ${issue.room || 'N/A'}. Details: ${issue.notes || 'None'}`,
       });
 
-      notify(`Issue escalated to Duty Manager Marcus Vance (${escRef})`);
+      notify(`Issue escalated to Department Manager Marcus Vance (${escRef})`);
     },
     [notify, recordAuditEvent],
   );
@@ -4582,6 +4658,9 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         initiatedRole: input.initiatedRole,
         assignedSupervisorId: input.department ? undefined : 'EMP-0105',
         assignedSupervisorName: input.department ? undefined : 'Meera Nambiar',
+        scope: input.scope || 'single_room',
+        scopeLabel: input.scopeLabel,
+        affectedRooms: input.affectedRooms,
         items: input.department ? [{ id: 'department-standard', category: 'Safety & Keycard', label: input.instructions, passed: false }] : [
           { id: 'chk-1', category: 'bedding', label: 'Linens crisp, taut, and stain-free', passed: true },
           { id: 'chk-2', category: 'bathroom', label: 'Shower glass & chrome polished', passed: false },

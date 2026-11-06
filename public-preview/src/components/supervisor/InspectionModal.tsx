@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import {
   X,
+  Layers,
+  Building,
   CheckCircle2,
   AlertTriangle,
   RotateCcw,
@@ -108,13 +110,29 @@ export function InspectionModal({
               <ClipboardCheck className="h-5 w-5" />
             </span>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h2 id="inspection-modal-title" className="text-lg font-bold font-display text-white">
-                  Room {inspection.roomNumber} Quality Inspection
+                  {inspection.scope === 'all_rooms'
+                    ? 'Property-Wide Quality Audit (All 40 Rooms)'
+                    : inspection.scope === 'floor'
+                    ? `Floor ${inspection.floor} Sweep · All Rooms`
+                    : `Room ${inspection.roomNumber} Quality Inspection`}
                 </h2>
-                <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-[11px] font-semibold text-mist-200">
-                  {inspection.roomType}
-                </span>
+                {inspection.scope === 'all_rooms' ? (
+                  <span className="rounded-full bg-purple-500/20 border border-purple-500/30 px-2.5 py-0.5 text-[11px] font-bold text-purple-200 flex items-center gap-1">
+                    <Building className="h-3 w-3" />
+                    Property-Wide
+                  </span>
+                ) : inspection.scope === 'floor' ? (
+                  <span className="rounded-full bg-amber-400/20 border border-amber-400/30 px-2.5 py-0.5 text-[11px] font-bold text-amber-200 flex items-center gap-1">
+                    <Layers className="h-3 w-3" />
+                    Floor-Wide Sweep
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-[11px] font-semibold text-mist-200">
+                    {inspection.roomType}
+                  </span>
+                )}
                 <span
                   className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider ${
                     inspection.status === 'passed'
@@ -128,7 +146,11 @@ export function InspectionModal({
                 </span>
               </div>
               <p className="text-xs text-mist-400 mt-0.5">
-                Turnover completed by {inspection.attendantName} ({inspection.attendantId}) · Floor {inspection.floor}
+                {inspection.scope === 'all_rooms'
+                  ? 'Audit conducted by ' + inspection.attendantName + ' across all 40 rooms (Floors 1–5)'
+                  : inspection.scope === 'floor'
+                  ? 'Floor-wide sweep by ' + inspection.attendantName + ' · Level ' + inspection.floor + ' (' + (inspection.affectedRooms?.length || 8) + ' Rooms)'
+                  : 'Turnover completed by ' + inspection.attendantName + ' (' + inspection.attendantId + ') · Floor ' + inspection.floor}
               </p>
             </div>
           </div>
@@ -141,6 +163,32 @@ export function InspectionModal({
             <X className="h-4 w-4" />
           </button>
         </div>
+
+        {/* Batch Sweep Affected Rooms Grid */}
+        {inspection.affectedRooms && inspection.affectedRooms.length > 1 && (
+          <div className="rounded-2xl border border-amber-400/20 bg-amber-400/[0.04] p-3.5 space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-bold text-amber-200 flex items-center gap-1.5">
+                <Layers className="h-3.5 w-3.5 text-amber-300" />
+                <span>Rooms Included in this Sweep ({inspection.affectedRooms.length}):</span>
+              </span>
+              <span className="text-[11px] text-mist-400 font-mono">
+                {inspection.status === 'passed' ? 'All Rooms Released' : 'Release pending sign-off'}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto custom-scrollbar">
+              {inspection.affectedRooms.map((rm) => (
+                <span
+                  key={rm}
+                  className="rounded-lg bg-black/40 border border-white/10 px-2 py-0.5 text-xs font-mono font-semibold text-white flex items-center gap-1"
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  Room {rm}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Management Directive Callout if present */}
         {inspection.initiatedBy && (
@@ -300,7 +348,13 @@ export function InspectionModal({
               className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-ink-950 text-xs font-bold hover:brightness-110 shadow-lg shadow-emerald-500/20 transition flex items-center justify-center gap-2"
             >
               <CheckCircle2 className="h-4 w-4" />
-              <span>Approve & Release Room to Front Desk</span>
+              <span>
+                {inspection.scope === 'all_rooms'
+                  ? 'Approve & Release All 40 Rooms to Front Desk'
+                  : inspection.scope === 'floor'
+                  ? `Approve & Release All Floor ${inspection.floor} Rooms to Front Desk`
+                  : 'Approve & Release Room to Front Desk'}
+              </span>
             </button>
           </div>
         </div>

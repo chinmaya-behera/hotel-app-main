@@ -63,7 +63,7 @@ export function RoleDashboard({ roleId }: { roleId: RoleId }) {
   ) {
     return (
       <div style={accentVars(role)} className="min-h-screen">
-        <TopBar active={roleId} />
+        <TopBar active={roleId} hideGestureButton />
         <main className="w-full max-w-[1720px] mx-auto px-2 sm:px-4 lg:px-6 pt-4 pb-20">
           <DispatcherSupervisorConsole />
         </main>

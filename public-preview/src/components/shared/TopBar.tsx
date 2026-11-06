@@ -36,9 +36,10 @@ import type { ActiveId, RoleId } from '@/types/demo';
 interface TopBarProps {
   active: ActiveId;
   showRail?: boolean;
+  hideGestureButton?: boolean;
 }
 
-export function TopBar({ active, showRail = true }: TopBarProps) {
+export function TopBar({ active, showRail = true, hideGestureButton = false }: TopBarProps) {
   const router = useRouter();
   const { state, reset, setTheme, markNotificationRead, clearAllNotifications, departmentManagerCommand, gestureGuideOpen, setGestureGuideOpen } = useDemo();
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
@@ -51,6 +52,13 @@ export function TopBar({ active, showRail = true }: TopBarProps) {
   const isRole = active !== 'home' && active !== 'guest' && active !== 'site';
   const roleId = isRole ? (active as RoleId) : null;
   const role = roleId ? roleById[roleId] : null;
+
+  const isDispatcherSupervisor =
+    roleId === 'department_dispatcher_supervisor' ||
+    roleId === 'department_dispatcher' ||
+    roleId === 'department_supervisor';
+
+  const shouldHideGestureButton = hideGestureButton || isDispatcherSupervisor;
 
   // Active employee record from shared staff roster
   const department = managerDepartment(state.managerDepartment);
@@ -613,16 +621,18 @@ export function TopBar({ active, showRail = true }: TopBarProps) {
                   {isLight ? <Moon className="h-4 w-4" aria-hidden /> : <Sun className="h-4 w-4" aria-hidden />}
                 </button>
 
-                {/* Gesture Guide Emoji Button (Only emoji, no text) */}
-                <button
-                  type="button"
-                  onClick={() => setGestureGuideOpen(true)}
-                  className="grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-base transition-all hover:border-amber-400/40 hover:bg-amber-400/10 hover:scale-105 active:scale-95 cursor-pointer"
-                  title="Gesture & Keyboard Shortcuts"
-                  aria-label="Gesture and keyboard shortcut instructions"
-                >
-                  🖐️
-                </button>
+                {/* Gesture Guide Emoji Button (Only emoji, no text) - hidden in Department Dispatcher / Supervisor portal */}
+                {!shouldHideGestureButton && (
+                  <button
+                    type="button"
+                    onClick={() => setGestureGuideOpen(true)}
+                    className="grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-base transition-all hover:border-amber-400/40 hover:bg-amber-400/10 hover:scale-105 active:scale-95 cursor-pointer"
+                    title="Gesture & Keyboard Shortcuts"
+                    aria-label="Gesture and keyboard shortcut instructions"
+                  >
+                    🖐️
+                  </button>
+                )}
 
                 {/* Logout Button */}
                 <button
@@ -751,10 +761,12 @@ export function TopBar({ active, showRail = true }: TopBarProps) {
         />
       )}
       {/* Reusable Gesture & Shortcut Guide Modal */}
-      <GestureGuideModal
-        isOpen={gestureGuideOpen}
-        onClose={() => setGestureGuideOpen(false)}
-      />
+      {!shouldHideGestureButton && (
+        <GestureGuideModal
+          isOpen={gestureGuideOpen}
+          onClose={() => setGestureGuideOpen(false)}
+        />
+      )}
     </>
   );
 }
