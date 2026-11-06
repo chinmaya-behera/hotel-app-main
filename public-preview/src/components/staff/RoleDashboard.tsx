@@ -48,11 +48,10 @@ export function RoleDashboard({ roleId }: { roleId: RoleId }) {
   // Security Responder console for Hotel Security Officers
   if (roleId === 'security_responder') {
     return (
-      <div style={accentVars(role)} className="min-h-screen">
-        <TopBar active={roleId} />
-        <main className="w-full max-w-[1720px] mx-auto px-2 sm:px-4 lg:px-6 pt-4 pb-20">
+      <div className="department-manager-page warm-theme" data-theme={state.theme}>
+        <div className="dm-page-container">
           <SecurityApp />
-        </main>
+        </div>
       </div>
     );
   }
