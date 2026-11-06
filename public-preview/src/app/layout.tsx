@@ -6,6 +6,7 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'The Grand ADP · Demo Control',
   description: 'Frontend-only hotel operations demo with nine staff roles, a guest portal and a public website. All data is simulated.',
+  icons: { icon: '/icon.svg' },
 };
 
 export const viewport: Viewport = {

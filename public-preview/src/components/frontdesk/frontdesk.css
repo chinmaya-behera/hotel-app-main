@@ -93,27 +93,44 @@
   animation: fd-bump 0.35s ease;
 }
 
-/* ---- animated tab strip ---- */
+/* ---- animated tab strip with visible, smooth horizontal scrollbar ---- */
 .fd-tabs {
   position: relative;
   display: flex;
-  gap: 0.25rem;
+  gap: 0.35rem;
   max-width: 100%;
   overflow-x: auto;
+  overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
-  padding: 6px 10px;
+  padding: 6px 10px 8px 10px;
   border-radius: 0.85rem;
   border: 1px solid rgb(var(--white) / 0.1);
   background: rgb(var(--white) / 0.04);
-  scrollbar-width: none;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--a), 0.45) rgba(var(--white), 0.04);
+  scroll-behavior: smooth;
 }
 .fd-tabs::-webkit-scrollbar {
-  display: none;
+  height: 5px;
+  display: block;
+}
+.fd-tabs::-webkit-scrollbar-track {
+  background: rgba(var(--white), 0.04);
+  border-radius: 9999px;
+  margin: 0 8px;
+}
+.fd-tabs::-webkit-scrollbar-thumb {
+  background: linear-gradient(90deg, rgba(var(--a), 0.45), rgba(var(--b), 0.55));
+  border-radius: 9999px;
+  transition: background 0.2s ease;
+}
+.fd-tabs::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(90deg, rgba(var(--a), 0.75), rgba(var(--b), 0.85));
 }
 .fd-tab-pill {
   position: absolute;
   top: 6px;
-  bottom: 6px;
+  bottom: 8px;
   left: 0;
   border-radius: 0.65rem;
   background: linear-gradient(135deg, rgb(var(--a) / 0.26), rgb(var(--b) / 0.18));
@@ -305,7 +322,7 @@
 :root[data-theme='light'] .fd-tabs {
   background: rgba(255, 255, 255, 0.88);
   border-color: rgba(234, 213, 220, 0.7);
-  box-shadow: 0 2px 8px -2px rgba(1, 31, 75, 0.05);
+  box-shadow: 0 2px 8px -2px rgba(231, 226, 215, 0.05);
 }
 :root[data-theme='light'] .fd-tab[aria-selected='true'] {
   color: #011f4b;

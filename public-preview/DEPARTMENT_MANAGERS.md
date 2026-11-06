@@ -17,10 +17,10 @@ The previous `manager@thegrandadp.com` account remains an alias for the housekee
 2. **Task Monitoring:** deduplicated departmental requests, text search, open/completed filters and follow-up actions.
 3. **Inspections:** receive General Manager directives, assign or reassign an active supervisor in the same department, and use **Start inspection** for a single room/service area, a floor sweep or all actual hotel rooms. Each target gets its own department checklist, priority, supervisor and outcome.
 4. **Escalations & Recovery:** receive supervisor cases, record a resolution, or send a reasoned escalation to the General Manager. Decisions update shared task copies.
-5. **Staff & Workload:** departmental roster, assignment counts, capacity and availability updates.
+5. **Staff & Workload:** weekly schedule grid, per-day shift editing with audit reasons, previous/next-week navigation, role/availability filters and a workload roster with task drill-down, capacity and live SLA risk counts.
 6. **Policies (Housekeeping, Engineering and F&B):** read service standards and add departmental procedures. Wellness has no Policies section or policy-creation action.
 7. **Handover:** save the receiving manager, notes and a snapshot of open departmental requests. Only the named incoming manager can acknowledge.
-8. **Analytics:** day/week/month rolling reports, completion counts and CSV export. Undated legacy sample requests are explicitly excluded.
+8. **Analytics:** acknowledgement and resolution/delivery SLA compliance, current service risks, timed median/P90 turnaround, arrivals/completions chart, data-quality coverage, operational service targets and CSV export for rolling 24-hour/7-day/30-day periods.
 9. **Notifications:** department-specific notifications and read state, including GM decisions.
 10. **Profile:** editable display name and phone; department and demo email remain fixed.
 11. **Complaints:** available to all four managers; search routed guest/Front Desk records, log a concern and record review, progress or resolution with a guest-visible response. Shared complaint records and linked task statuses update together; compensation is unchanged. Ambiguous guest categories remain with Front Desk until explicitly routed.
@@ -71,7 +71,7 @@ These are implementation choices informed by the references, rather than integra
 
 ## Record history and completed work
 
-Every department has a **Record history** workspace. It opens on completed work and supports type, date and text filters, saved details, before/after field comparisons and CSV export. Use **Changes since history began** for new activity or **All saved records & changes** to include existing records imported when history was introduced. Task Monitoring also links each task to its history.
+Every department has a compact **Record history** list. Click a record to open its detail popup: recorded outcome, location, responsible staff, notes, before/after comparisons and all saved versions for that record. It opens on completed work and supports type, date and text filters and CSV export. Use **Changes since history began** for new activity or **All saved records & changes** to include existing records imported when history was introduced. Task Monitoring also links each task to its history.
 
 Engineering **Repairs → Completed repair history** shows completed jobs with the repair/location, assigned technician, completion time and preserved completion notes. Recategorising a completed repair does not replace its completion time or outcome. Wellness has **Closed case history**, and all four departments have **Resolved complaint history** filters.
 
@@ -80,6 +80,16 @@ The journal captures changes to department tasks and live dining orders, repairs
 Saved versions are appended rather than automatically trimmed. Earlier menu values remain after removal, old service dates/work-order links remain after another service cycle, and recorded completion outcomes remain after subsequent edits. Existing records are labelled as such; missing historical completion times are **Not recorded**, never inferred from the migration date. Persisted task updates take priority over seed examples on reload. History persists with the demo's browser localStorage data; clearing that storage or explicitly resetting the entire demo clears it. This is operational demo history, not a server-backed tamper-proof audit service.
 
 ## Verification commands
+
+### SLA measurement and staffing rules
+
+Acknowledgement and resolution targets come from the matching active department/category routing rule, then the property workflow fallback. New observed task changes retain full timestamps and task policy snapshots. Assignment alone does not acknowledge a request: an Accepted/Acknowledged/work-start event is needed. Untimed acknowledgements and legacy clock-only creation dates remain unknown; reported legacy overdue flags are listed separately from timed outcomes. Cancellation/rejection is excluded. Blocked and reopened requests keep the elapsed clock running. Scheduled dining uses its promised service slot rather than breaching while waiting for a future delivery.
+
+Compliance is met / (met + breached). Pending, at-risk, unknown, disabled and excluded outcomes do not enter that denominator. Open work past a measurable deadline counts as a breach. Request cohorts use creation time; the arrivals/completions chart counts each event within the selected rolling period independently. Live task risks include all backlog ages. Priority filters affect requests, while operational case/inspection metrics retain the full department cohort. Unknown timing can be inspected across all recorded requests.
+
+Operational SLA rows cover complaints, inspections, Wellness follow-up due times and Engineering asset due dates. Complaint/inspection demo defaults are 60/30 minutes and can be customised for the signed-in department; their outcomes compare with current department targets. Preventive service outcomes compare the saved service time with the due date *before* the next service cycle was advanced. Unknown completion times never receive an invented compliant result. The CSV exports the period's request and operational measurements, targets, deadlines, outcomes and policy sources.
+
+The staffing grid uses actual shared shift records in hotel time (IST), distinguishes Unscheduled from Off/Leave, and does not invent a published week from profile defaults. Select a current/future day to publish Morning, Day, Evening, Night or Off with a zone and audit reason. Dates before today and inactive staff are read-only. The hotel planning policy rejects overlaps, shifts longer than 12 hours and less than 11 hours of rest, including overnight and adjacent-week shifts. These are hotel demo scheduling rules, not a statement of local labour law. All changes remain in Record history. Future plans do not alter attendance. Ready-for-dispatch counts require an active fulfilment employee, live on-duty availability, a current published shift and spare task capacity.
 
 Run `npm run test:manager` on Node 22.18+ or Node 24+. The suite covers all four departments, scoped workflows, meal/timezone boundaries, scheduled meals, historical metadata snapshots, order deduplication, rating validation/averages, queue synchronisation and repair category persistence. Run `npm run typecheck` and `npm run build` for full-project validation.
 

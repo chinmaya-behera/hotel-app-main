@@ -15,13 +15,8 @@ import {
   ArrowUpRight,
   MessageSquare,
   Send,
-  Eye,
-  Camera,
-  Layers,
-  ChevronRight,
-  FileText,
 } from 'lucide-react';
-import type { WorkItem, Tone } from '@/types/demo';
+import type { WorkItem } from '@/types/demo';
 import { SecurityFloorPlanModal } from './SecurityFloorPlanModal';
 import { SecurityReportModal } from './SecurityReportModal';
 import { SecurityEscalateModal } from './SecurityEscalateModal';
@@ -140,66 +135,59 @@ export function SecurityIncidentDetailModal({
 
   return (
     <>
-      <div className="fixed inset-0 z-40 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-        <div className="w-full sm:max-w-lg bg-ink-900 border border-white/10 rounded-t-3xl sm:rounded-2xl p-5 shadow-2xl flex flex-col max-h-[92vh] overflow-y-auto">
+      <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-stone-900/45 backdrop-blur-sm animate-in fade-in duration-150">
+        <div className="w-full max-w-lg bg-white border border-[var(--dm-line)] rounded-2xl p-6 shadow-2xl flex flex-col max-h-[92vh] overflow-y-auto text-[var(--dm-ink)]">
           {/* Header */}
-          <div className="flex items-center justify-between pb-3 border-b border-white/10">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between pb-4 border-b border-[var(--dm-line)]">
+            <div className="flex items-center gap-2.5">
               <span
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${
-                  item.priority === 'critical'
-                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                    : item.priority === 'urgent'
-                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                    : 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
-                }`}
+                className={
+                  item.priority === 'critical' || item.priority === 'urgent'
+                    ? 'dm-status urgent font-semibold'
+                    : 'dm-status font-semibold'
+                }
               >
                 {item.priority || 'Normal'} Priority
               </span>
-              <span className="text-xs text-mist-400 font-mono">{item.ref || item.id}</span>
+              <span className="text-xs text-[var(--dm-muted)] font-mono">{item.ref || item.id}</span>
             </div>
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg text-mist-400 hover:text-white hover:bg-white/10 transition-colors"
+              className="dm-icon-button"
+              aria-label="Close dialog"
             >
-              <X className="h-4 w-4" />
+              <X size={18} />
             </button>
           </div>
 
           {/* Main Title & Status Pill */}
-          <div className="mt-3.5">
+          <div className="mt-4">
             <div className="flex items-start justify-between gap-3">
-              <h2 className="text-base font-bold text-white leading-snug">{item.title}</h2>
+              <h2 className="text-base font-semibold text-[var(--dm-ink)] leading-snug">{item.title}</h2>
               <span
-                className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold ${
+                className={
                   isResolved
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                    : isEscalated
-                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                    : isBackup
-                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                    : isOnScene
-                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                    : isAck
-                    ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
-                    : 'bg-rose-500 text-white animate-pulse'
-                }`}
+                    ? 'dm-status good'
+                    : isEscalated || isBackup || isNew
+                    ? 'dm-status urgent'
+                    : 'dm-status'
+                }
               >
                 {item.chip || item.status}
               </span>
             </div>
-            <p className="mt-1 text-xs text-mist-400">{item.meta}</p>
+            <p className="mt-1 text-xs text-[var(--dm-muted)]">{item.meta}</p>
           </div>
 
           {/* Location & Tactical Map Button */}
-          <div className="mt-3.5 p-3 rounded-xl bg-ink-950 border border-white/10 flex items-center justify-between">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="h-8 w-8 rounded-lg bg-sky-500/15 text-sky-400 flex items-center justify-center shrink-0">
-                <MapPin className="h-4 w-4" />
-              </div>
+          <div className="mt-4 p-3.5 rounded-xl bg-[var(--dm-surface)] border border-[var(--dm-line)] flex items-center justify-between">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="dm-attention-icon">
+                <MapPin size={18} />
+              </span>
               <div className="min-w-0">
-                <p className="text-xs text-white font-medium truncate">{item.location || 'Hotel Property'}</p>
-                <p className="text-[10px] text-mist-400">
+                <p className="text-xs text-[var(--dm-ink)] font-semibold truncate">{item.location || 'Hotel Property'}</p>
+                <p className="text-[11px] text-[var(--dm-muted)]">
                   {item.floor !== undefined ? `Level ${item.floor}` : 'Main Property'}
                   {item.room ? ` · Room ${item.room}` : ''}
                 </p>
@@ -207,70 +195,68 @@ export function SecurityIncidentDetailModal({
             </div>
             <button
               onClick={() => setShowFloorPlan(true)}
-              className="px-3 py-1.5 rounded-lg bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 text-xs font-medium flex items-center gap-1 transition-colors shrink-0"
+              className="dm-small-button flex items-center gap-1.5 cursor-pointer shrink-0"
             >
-              <Compass className="h-3.5 w-3.5" />
+              <Compass size={14} />
               <span>Floor Plan</span>
             </button>
           </div>
 
           {/* Description */}
           {item.description && (
-            <div className="mt-3 p-3 rounded-xl bg-white/[0.03] border border-white/5">
-              <h4 className="text-[11px] font-semibold text-mist-400 uppercase tracking-wider mb-1">
+            <div className="mt-3.5 p-3.5 rounded-xl bg-[var(--warm-soft)] border border-[var(--dm-line)]">
+              <h4 className="text-[11px] font-semibold text-[var(--dm-muted)] uppercase tracking-wider mb-1">
                 Incident Description
               </h4>
-              <p className="text-xs text-mist-200 leading-relaxed">{item.description}</p>
+              <p className="text-xs text-[var(--dm-ink)] leading-relaxed">{item.description}</p>
             </div>
           )}
 
-          {/* Workflow Validation & Incident Origin Section (2.A) */}
-          <div className="mt-3 p-3 rounded-xl bg-ink-950 border border-white/10 space-y-2 text-xs">
-            <h4 className="text-[11px] font-semibold text-mist-400 uppercase tracking-wider flex items-center gap-1.5">
-              <FileCheck2 className="h-3.5 w-3.5 text-sky-400" />
-              <span>Report Origin & Validation Status</span>
+          {/* Workflow Validation & Incident Origin Section */}
+          <div className="mt-3.5 p-3.5 rounded-xl bg-[var(--dm-surface)] border border-[var(--dm-line)] space-y-2 text-xs">
+            <h4 className="text-[11px] font-semibold text-[var(--dm-muted)] uppercase tracking-wider flex items-center gap-1.5">
+              <FileCheck2 size={14} />
+              <span>Report Origin &amp; Validation Status</span>
             </h4>
             <div className="grid grid-cols-2 gap-2 text-[11px]">
               <div>
-                <span className="text-mist-500 block">Reported By:</span>
-                <span className="font-medium text-white">
+                <span className="text-[var(--dm-muted)] block">Reported By:</span>
+                <span className="font-semibold text-[var(--dm-ink)]">
                   {item.guest ? `Guest in Room ${item.room ?? '402'}` : 'Security Officer Patrol'}
                 </span>
               </div>
               <div>
-                <span className="text-mist-500 block">Reported At:</span>
-                <span className="font-mono text-mist-300">{item.createdAt || 'Recent'}</span>
+                <span className="text-[var(--dm-muted)] block">Reported At:</span>
+                <span className="font-mono text-[var(--dm-ink)]">{item.createdAt || 'Recent'}</span>
               </div>
-              <div className="col-span-2 pt-1 border-t border-white/5">
-                <span className="text-mist-500 block">Front Desk Validation:</span>
+              <div className="col-span-2 pt-2 border-t border-[var(--dm-line)]">
+                <span className="text-[var(--dm-muted)] block">Front Desk Validation:</span>
                 {item.guest && item.status === 'New' ? (
-                  <span className="text-amber-300 font-semibold flex items-center gap-1 mt-0.5">
-                    <AlertTriangle className="h-3.5 w-3.5" />
-                    <span>Pending Front Desk Validation (Unverified Guest Report)</span>
+                  <span className="dm-status urgent mt-1">
+                    Pending Front Desk Validation
                   </span>
                 ) : (
-                  <span className="text-emerald-400 font-semibold flex items-center gap-1 mt-0.5">
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    <span>Validated by Front Desk (EMP-0104 Maya Lin)</span>
+                  <span className="dm-status good mt-1">
+                    Validated by Front Desk (EMP-0104 Maya Lin)
                   </span>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Relevant Staff Involved & Authorized Backup Section (2.B) */}
-          <div className="mt-3 p-3 rounded-xl bg-white/[0.02] border border-white/5 space-y-2 text-xs">
-            <h4 className="text-[11px] font-semibold text-mist-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Users className="h-3.5 w-3.5 text-indigo-400" />
-              <span>Relevant Staff & Support Dispatch</span>
+          {/* Relevant Staff Involved & Support Dispatch */}
+          <div className="mt-3.5 p-3.5 rounded-xl bg-[var(--dm-surface)] border border-[var(--dm-line)] space-y-2 text-xs">
+            <h4 className="text-[11px] font-semibold text-[var(--dm-muted)] uppercase tracking-wider flex items-center gap-1.5">
+              <Users size={14} />
+              <span>Relevant Staff &amp; Support Dispatch</span>
             </h4>
-            <div className="space-y-1 text-[11px] text-mist-300">
-              <p>• Lead Officer: <strong className="text-white">Senior Officer Roy (EMP-0108)</strong></p>
-              <p>• Front Desk Coordinator: <strong className="text-white">Maya Lin (EMP-0104)</strong></p>
-              <p>• Duty Manager: <strong className="text-white">Marcus Vance (Duty Shift Head)</strong></p>
+            <div className="space-y-1 text-[11px] text-[var(--dm-muted)]">
+              <p>• Lead Officer: <strong className="text-[var(--dm-ink)]">Senior Officer Roy (EMP-0108)</strong></p>
+              <p>• Front Desk Coordinator: <strong className="text-[var(--dm-ink)]">Maya Lin (EMP-0104)</strong></p>
+              <p>• Duty Manager: <strong className="text-[var(--dm-ink)]">Marcus Vance (Operations Shift Head)</strong></p>
               {isBackup && (
-                <p className="text-rose-400 font-semibold mt-1">
-                  ⚠️ Backup actively requested from Department Supervisor & Duty Manager
+                <p className="text-rose-700 font-semibold mt-1">
+                  ⚠️ Backup actively requested from Night Supervisor &amp; Duty Manager
                 </p>
               )}
             </div>
@@ -280,14 +266,14 @@ export function SecurityIncidentDetailModal({
                 <button
                   type="button"
                   onClick={() => setShowBackupModal(true)}
-                  className="flex-1 py-1.5 px-2 rounded-lg border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-[11px] font-semibold transition"
+                  className="dm-small-button flex-1 justify-center"
                 >
                   Request Backup
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowEscalateModal(true)}
-                  className="flex-1 py-1.5 px-2 rounded-lg border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-[11px] font-semibold transition"
+                  className="dm-small-button flex-1 justify-center"
                 >
                   Escalate to DM
                 </button>
@@ -296,12 +282,12 @@ export function SecurityIncidentDetailModal({
           </div>
 
           {/* Documented Protocol SOP Banner */}
-          <div className="mt-3 p-3 rounded-xl bg-sky-950/40 border border-sky-500/30 text-xs">
-            <div className="flex items-center gap-2 text-sky-300 font-semibold mb-1.5">
-              <ShieldAlert className="h-4 w-4" />
+          <div className="mt-3.5 p-3.5 rounded-xl bg-[var(--warm-soft)] border border-[var(--dm-line)] text-xs">
+            <div className="flex items-center gap-2 font-semibold text-[var(--dm-ink)] mb-1.5">
+              <ShieldAlert size={16} />
               <span>{protocol.code}: {protocol.title}</span>
             </div>
-            <ul className="space-y-1 text-[11px] text-sky-200/80 list-disc list-inside">
+            <ul className="space-y-1 text-[11px] text-[var(--dm-muted)] list-disc list-inside">
               {protocol.steps.map((st, idx) => (
                 <li key={idx}>{st}</li>
               ))}
@@ -310,48 +296,48 @@ export function SecurityIncidentDetailModal({
 
           {/* Filed Security Incident Report (When Resolved) */}
           {item.securityReport && (
-            <div className="mt-3 p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-xs space-y-2">
-              <div className="flex items-center justify-between border-b border-emerald-500/20 pb-2">
-                <span className="text-emerald-300 font-bold flex items-center gap-1.5">
-                  <FileCheck2 className="h-4 w-4" /> Formal Incident Report Filed
+            <div className="mt-3.5 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-xs space-y-2 text-emerald-950">
+              <div className="flex items-center justify-between border-b border-emerald-200 pb-2">
+                <span className="font-bold flex items-center gap-1.5 text-emerald-900">
+                  <FileCheck2 size={16} /> Formal Incident Report Filed
                 </span>
-                <span className="text-[10px] text-emerald-400/80 font-mono">
+                <span className="text-[10px] text-emerald-700 font-mono">
                   {item.securityReport.filedAt || 'Recorded'}
                 </span>
               </div>
               <div>
-                <span className="text-[10px] text-mist-400 uppercase tracking-wider block">Officer</span>
-                <span className="text-white font-medium">{item.securityReport.officer || 'Inspector Roy (EMP-0108)'}</span>
+                <span className="text-[10px] text-emerald-700 uppercase tracking-wider block font-semibold">Officer</span>
+                <span className="font-semibold text-emerald-950">{item.securityReport.officer || 'Inspector Roy (EMP-0108)'}</span>
               </div>
               <div>
-                <span className="text-[10px] text-mist-400 uppercase tracking-wider block">Summary</span>
-                <span className="text-white font-medium">{item.securityReport.summary}</span>
+                <span className="text-[10px] text-emerald-700 uppercase tracking-wider block font-semibold">Summary</span>
+                <span>{item.securityReport.summary}</span>
               </div>
               <div>
-                <span className="text-[10px] text-mist-400 uppercase tracking-wider block">Scene Observations</span>
-                <span className="text-mist-200">{item.securityReport.observations}</span>
+                <span className="text-[10px] text-emerald-700 uppercase tracking-wider block font-semibold">Scene Observations</span>
+                <span>{item.securityReport.observations}</span>
               </div>
               <div>
-                <span className="text-[10px] text-mist-400 uppercase tracking-wider block">Actions Taken</span>
-                <span className="text-mist-200">{item.securityReport.actionsTaken}</span>
+                <span className="text-[10px] text-emerald-700 uppercase tracking-wider block font-semibold">Actions Taken</span>
+                <span>{item.securityReport.actionsTaken}</span>
               </div>
               <div>
-                <span className="text-[10px] text-mist-400 uppercase tracking-wider block">Final Outcome</span>
-                <span className="text-emerald-300 font-semibold">{item.securityReport.outcome}</span>
+                <span className="text-[10px] text-emerald-700 uppercase tracking-wider block font-semibold">Final Outcome</span>
+                <span className="font-bold text-emerald-900">{item.securityReport.outcome}</span>
               </div>
               {item.securityReport.witnessDetails && (
                 <div>
-                  <span className="text-[10px] text-mist-400 uppercase tracking-wider block">Witnesses</span>
-                  <span className="text-mist-200">{item.securityReport.witnessDetails}</span>
+                  <span className="text-[10px] text-emerald-700 uppercase tracking-wider block font-semibold">Witnesses</span>
+                  <span>{item.securityReport.witnessDetails}</span>
                 </div>
               )}
               {item.securityReport.photoUrl && (
                 <div>
-                  <span className="text-[10px] text-mist-400 uppercase tracking-wider block mb-1">Attached Photo Evidence</span>
+                  <span className="text-[10px] text-emerald-700 uppercase tracking-wider block mb-1 font-semibold">Attached Photo Evidence</span>
                   <img
                     src={item.securityReport.photoUrl}
                     alt="Evidence"
-                    className="h-24 w-24 object-cover rounded-xl border border-emerald-500/30"
+                    className="h-20 w-20 object-cover rounded-xl border border-emerald-300"
                   />
                 </div>
               )}
@@ -359,44 +345,44 @@ export function SecurityIncidentDetailModal({
           )}
 
           {/* Timeline & Notes */}
-          <div className="mt-3.5 space-y-2">
-            <h4 className="text-[11px] font-semibold text-mist-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Clock className="h-3.5 w-3.5" /> Incident Audit Timeline
+          <div className="mt-4 space-y-2">
+            <h4 className="text-[11px] font-semibold text-[var(--dm-muted)] uppercase tracking-wider flex items-center gap-1.5">
+              <Clock size={14} /> Incident Audit Timeline
             </h4>
-            <div className="space-y-2 pl-2 border-l border-white/10 text-xs">
+            <div className="space-y-2 pl-2 border-l border-[var(--dm-line)] text-xs">
               {(item.history ?? []).map((h, i) => (
                 <div key={i} className="relative pl-3">
-                  <span className="absolute -left-[13px] top-1.5 h-1.5 w-1.5 rounded-full bg-sky-400" />
+                  <span className="absolute -left-[13px] top-1.5 h-1.5 w-1.5 rounded-full bg-[var(--dm-ink)]" />
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-white">{h.status}</span>
-                    <span className="text-[10px] text-mist-500">{h.at}</span>
+                    <span className="font-semibold text-[var(--dm-ink)]">{h.status}</span>
+                    <span className="text-[10px] text-[var(--dm-muted)]">{h.at}</span>
                   </div>
-                  {h.note && <p className="text-[11px] text-mist-300 mt-0.5">{h.note}</p>}
+                  {h.note && <p className="text-[11px] text-[var(--dm-muted)] mt-0.5">{h.note}</p>}
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Security Officer Notes Section */}
-          <div className="mt-4 pt-3 border-t border-white/10">
-            <h4 className="text-[11px] font-semibold text-mist-400 uppercase tracking-wider flex items-center gap-1.5 mb-2">
-              <MessageSquare className="h-3.5 w-3.5" /> Officer Field Notes
+          {/* Security Officer Field Notes Section */}
+          <div className="mt-4 pt-3.5 border-t border-[var(--dm-line)]">
+            <h4 className="text-[11px] font-semibold text-[var(--dm-muted)] uppercase tracking-wider flex items-center gap-1.5 mb-2">
+              <MessageSquare size={14} /> Officer Field Notes
             </h4>
 
             {item.securityNotes && item.securityNotes.length > 0 ? (
               <div className="space-y-2 mb-3">
                 {item.securityNotes.map((note, idx) => (
-                  <div key={idx} className="p-2.5 rounded-xl bg-ink-950 border border-white/5 text-xs">
-                    <div className="flex items-center justify-between text-[10px] text-mist-400 mb-1">
-                      <span className="font-semibold text-sky-400">{note.author}</span>
+                  <div key={idx} className="p-2.5 rounded-xl bg-[var(--dm-surface)] border border-[var(--dm-line)] text-xs">
+                    <div className="flex items-center justify-between text-[10px] text-[var(--dm-muted)] mb-1">
+                      <span className="font-semibold text-[var(--dm-ink)]">{note.author}</span>
                       <span>{note.at}</span>
                     </div>
-                    <p className="text-mist-200">{note.text}</p>
+                    <p className="text-[var(--dm-ink)]">{note.text}</p>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-[11px] text-mist-500 italic mb-2">No field notes logged yet.</p>
+              <p className="text-[11px] text-[var(--dm-muted)] italic mb-2">No field notes logged yet.</p>
             )}
 
             {!isResolved && (
@@ -406,14 +392,14 @@ export function SecurityIncidentDetailModal({
                   value={noteInput}
                   onChange={(e) => setNoteInput(e.target.value)}
                   placeholder="Log quick observation..."
-                  className="flex-1 rounded-xl bg-ink-950 border border-white/10 px-3 py-2 text-xs text-white placeholder-mist-500 focus:outline-none focus:border-sky-500"
+                  className="flex-1 rounded-xl bg-[var(--dm-surface)] border border-[var(--dm-line)] px-3 py-2 text-xs text-[var(--dm-ink)] placeholder-[var(--dm-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--dm-accent)]"
                 />
                 <button
                   type="submit"
                   disabled={!noteInput.trim()}
-                  className="px-3 py-2 rounded-xl bg-sky-500 hover:bg-sky-600 disabled:opacity-40 text-ink-950 font-bold text-xs transition-colors flex items-center gap-1"
+                  className="dm-primary px-4 py-2 rounded-xl text-xs font-medium cursor-pointer disabled:opacity-40 flex items-center gap-1.5"
                 >
-                  <Send className="h-3.5 w-3.5" />
+                  <Send size={13} />
                   <span>Log</span>
                 </button>
               </form>
@@ -421,17 +407,17 @@ export function SecurityIncidentDetailModal({
           </div>
 
           {/* Contextual Action Buttons Area */}
-          <div className="mt-5 pt-3 border-t border-white/10 space-y-2">
+          <div className="mt-5 pt-3.5 border-t border-[var(--dm-line)] space-y-2">
             {isNew && (
               <button
                 onClick={() => {
                   onAcknowledge(item.id);
                   onClose();
                 }}
-                className="w-full py-3 px-4 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-rose-500/30 flex items-center justify-center gap-2 transition-all active:scale-[0.99]"
+                className="dm-primary w-full py-3 rounded-xl font-medium text-xs flex items-center justify-center gap-2 cursor-pointer"
               >
-                <ShieldAlert className="h-4 w-4" />
-                <span>Acknowledge Alert & Mark En Route</span>
+                <ShieldAlert size={16} />
+                <span>Acknowledge Alert &amp; Mark En Route</span>
               </button>
             )}
 
@@ -440,20 +426,20 @@ export function SecurityIncidentDetailModal({
                 {!confirmArrive ? (
                   <button
                     onClick={() => setConfirmArrive(true)}
-                    className="w-full py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-ink-950 font-bold text-xs uppercase tracking-wider shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 transition-all active:scale-[0.99]"
+                    className="dm-primary w-full py-3 rounded-xl font-medium text-xs flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <CheckCircle2 className="h-4 w-4" />
+                    <CheckCircle2 size={16} />
                     <span>Arrived on Scene</span>
                   </button>
                 ) : (
-                  <div className="p-3 rounded-xl bg-amber-500/20 border border-amber-500/40 text-center space-y-2">
-                    <p className="text-xs text-amber-200 font-semibold">
-                      Confirm physical arrival at {item.location}?
+                  <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-center space-y-2.5">
+                    <p className="text-xs text-amber-950 font-semibold">
+                      Confirm physical arrival at {item.location || 'scene'}?
                     </p>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2.5">
                       <button
                         onClick={() => setConfirmArrive(false)}
-                        className="flex-1 py-1.5 rounded-lg bg-white/10 text-white text-xs"
+                        className="dm-secondary flex-1 py-2 rounded-xl text-xs font-medium cursor-pointer"
                       >
                         Cancel
                       </button>
@@ -463,7 +449,7 @@ export function SecurityIncidentDetailModal({
                           setConfirmArrive(false);
                           onClose();
                         }}
-                        className="flex-1 py-1.5 rounded-lg bg-amber-400 text-ink-950 font-bold text-xs"
+                        className="dm-primary flex-1 py-2 rounded-xl text-xs font-medium cursor-pointer"
                       >
                         Confirm Arrival
                       </button>
@@ -477,26 +463,26 @@ export function SecurityIncidentDetailModal({
               <div className="space-y-2">
                 <button
                   onClick={() => setShowReportModal(true)}
-                  className="w-full py-3 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-ink-950 font-bold text-xs uppercase tracking-wider shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 transition-all active:scale-[0.99]"
+                  className="dm-primary w-full py-3 rounded-xl font-medium text-xs flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <FileCheck2 className="h-4 w-4" />
-                  <span>Log Report & Resolve Incident</span>
+                  <FileCheck2 size={16} />
+                  <span>Log Report &amp; Resolve Incident</span>
                 </button>
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2.5">
                   <button
                     onClick={() => setShowBackupModal(true)}
-                    className="py-2.5 px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                    className="dm-secondary py-2.5 px-3 rounded-xl font-medium text-xs flex items-center justify-center gap-1.5 cursor-pointer"
                   >
-                    <Users className="h-3.5 w-3.5" />
+                    <Users size={14} />
                     <span>Request Backup</span>
                   </button>
 
                   <button
                     onClick={() => setShowEscalateModal(true)}
-                    className="py-2.5 px-3 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                    className="dm-secondary py-2.5 px-3 rounded-xl font-medium text-xs flex items-center justify-center gap-1.5 cursor-pointer"
                   >
-                    <ArrowUpRight className="h-3.5 w-3.5" />
+                    <ArrowUpRight size={14} />
                     <span>Escalate to Duty Mgr</span>
                   </button>
                 </div>
@@ -504,11 +490,11 @@ export function SecurityIncidentDetailModal({
             )}
 
             {isResolved && (
-              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center">
-                <p className="text-xs text-emerald-300 font-semibold flex items-center justify-center gap-1.5">
-                  <ShieldCheck className="h-4 w-4" /> Incident Permanently Secured & Archived
+              <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-center">
+                <p className="text-xs text-emerald-900 font-semibold flex items-center justify-center gap-1.5">
+                  <ShieldCheck size={16} /> Incident Permanently Secured &amp; Archived
                 </p>
-                <p className="text-[10px] text-mist-400 mt-0.5">
+                <p className="text-[10px] text-emerald-700 mt-0.5">
                   Archived security records are read-only per hotel security compliance.
                 </p>
               </div>
@@ -538,17 +524,6 @@ export function SecurityIncidentDetailModal({
         }}
       />
 
-      <SecurityEscalateModal
-        item={item}
-        isOpen={showEscalateModal}
-        onClose={() => setShowEscalateModal(false)}
-        onSubmit={(reason, notes) => {
-          onEscalate(item.id, reason, notes);
-          setShowEscalateModal(false);
-          onClose();
-        }}
-      />
-
       <SecurityBackupModal
         item={item}
         isOpen={showBackupModal}
@@ -556,6 +531,16 @@ export function SecurityIncidentDetailModal({
         onSubmit={(reason) => {
           onRequestBackup(item.id, reason);
           setShowBackupModal(false);
+        }}
+      />
+
+      <SecurityEscalateModal
+        item={item}
+        isOpen={showEscalateModal}
+        onClose={() => setShowEscalateModal(false)}
+        onSubmit={(reason, notes) => {
+          onEscalate(item.id, reason, notes);
+          setShowEscalateModal(false);
           onClose();
         }}
       />

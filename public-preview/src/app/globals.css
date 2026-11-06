@@ -38,8 +38,7 @@
 :root[data-theme='light'] {
   /* Soft baby rose/porcelain canvas - soothing, multi-tonal pastel, not stark white or yellow */
   --page: 249 243 246;
-  /* Deep classic navy for headings & bold typography (from #011f4b) */
-  --white: 1 31 75;
+  --white: 231 226 215;
   --ink-950: 254 249 251;
   --ink-900: 255 255 255;
   --ink-850: 250 244 247;
@@ -525,11 +524,11 @@
 :root[data-theme='light'] .panel {
   background: rgba(255, 255, 255, 0.92);
   border-color: rgba(234, 213, 220, 0.7);
-  box-shadow: 0 14px 36px -14px rgba(1, 31, 75, 0.08), 0 2px 6px -1px rgba(100, 151, 177, 0.05);
+  box-shadow: 0 14px 36px -14px rgba(231, 226, 215, 0.08), 0 2px 6px -1px rgba(100, 151, 177, 0.05);
 }
 :root[data-theme='light'] [class*='bg-ink-900'] {
   background-color: rgba(255, 255, 255, 0.93);
-  box-shadow: 0 12px 32px -12px rgba(1, 31, 75, 0.07);
+  box-shadow: 0 12px 32px -12px rgba(231, 226, 215, 0.07);
 }
 :root[data-theme='light'] [class*='bg-ink-950'] {
   background-color: rgba(254, 249, 251, 0.94);
@@ -539,7 +538,7 @@
   background:
     linear-gradient(180deg, rgb(var(--a) / 0.12), rgba(255, 255, 255, 0.8) 45%),
     rgba(255, 255, 255, 0.95);
-  box-shadow: 0 12px 30px -12px rgba(1, 31, 75, 0.07);
+  box-shadow: 0 12px 30px -12px rgba(231, 226, 215, 0.07);
 }
 :root[data-theme='light'] .work-row {
   border-color: rgba(234, 213, 220, 0.5);
@@ -607,7 +606,7 @@
 :root[data-theme='light'] header.sticky {
   background: linear-gradient(180deg, #e4eff9 0%, #d8e8f6 100%) !important;
   border-bottom: 1.5px solid rgba(100, 151, 177, 0.38) !important;
-  box-shadow: 0 4px 20px -2px rgba(1, 31, 75, 0.09), 0 1px 3px rgba(3, 57, 108, 0.05) !important;
+  box-shadow: 0 4px 20px -2px rgba(231, 226, 215, 0.09), 0 1px 3px rgba(3, 57, 108, 0.05) !important;
   backdrop-filter: blur(16px);
 }
 :root[data-theme='light'] header.sticky [class*='border-white/'] {
@@ -615,7 +614,7 @@
 }
 :root[data-theme='light'] header.sticky [class*='bg-white/[0.04]'] {
   background-color: rgba(255, 255, 255, 0.88);
-  box-shadow: 0 2px 6px -1px rgba(1, 31, 75, 0.06);
+  box-shadow: 0 2px 6px -1px rgba(231, 226, 215, 0.06);
 }
 :root[data-theme='light'] header.sticky .font-display {
   color: #011f4b;
@@ -661,7 +660,7 @@
 :root[data-theme='light'] aside:not(.dm-sidebar) > div {
   background-color: rgba(255, 255, 255, 0.94);
   border-color: rgba(234, 213, 220, 0.75);
-  box-shadow: 0 14px 36px -12px rgba(1, 31, 75, 0.08);
+  box-shadow: 0 14px 36px -12px rgba(231, 226, 215, 0.08);
 }
 :root[data-theme='light'] aside:not(.dm-sidebar) button {
   color: #2d4b6e;
@@ -707,7 +706,7 @@
 :root[data-theme='light'] [class*='border-rose-500/30'] [class*='bg-ink-950'] {
   background-color: #ffffff;
   border-color: rgba(244, 182, 194, 0.6);
-  box-shadow: 0 4px 12px -2px rgba(1, 31, 75, 0.04);
+  box-shadow: 0 4px 12px -2px rgba(231, 226, 215, 0.04);
 }
 :root[data-theme='light'] [class*='border-amber-400/30'][class*='bg-amber-400/[0.04]'] {
   background-color: rgba(254, 243, 199, 0.45);
@@ -1006,7 +1005,7 @@ input:-webkit-autofill:focus {
   background-color: #ffffff !important;
   color: #0f172a !important;
   border-color: #cbd5e1 !important;
-  box-shadow: 0 25px 60px -15px rgba(1, 31, 75, 0.18) !important;
+  box-shadow: 0 25px 60px -15px rgba(231, 226, 215, 0.18) !important;
 }
 :root[data-theme='light'] .staff-profile-card h3 {
   color: #0f172a !important;

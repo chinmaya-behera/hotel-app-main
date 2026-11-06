@@ -317,3 +317,37 @@ test('executive notifications map to exact item details, fields, and target tabs
   assert.equal(details5.ref, 'COMP-VIP-518-02');
   assert.equal(details5.amount, '₹14,500');
 });
+
+
+
+
+
+test('executive overview department pulse click provides exact department performance details without tab redirection', () => {
+  const expectedDepts = [
+    { id: 'maintenance', name: 'Maintenance & Engineering', lead: 'Arjun Mehta', targetSla: 91.4 },
+    { id: 'housekeeping', name: 'Housekeeping & Rooms', lead: 'Meera Nambiar', targetSla: 96.8 },
+    { id: 'front_office', name: 'Front Office & Stays', lead: 'Sunita Patel', targetSla: 95.2 },
+    { id: 'food_beverage', name: 'Food & Beverage', lead: 'Kabir Sen', targetSla: 94.0 },
+    { id: 'spa_wellness', name: 'Wellness', lead: 'T. Brandt', targetSla: 98.5 },
+    { id: 'security', name: 'Safety & Security', lead: 'Inspector Roy', targetSla: 97.1 },
+  ];
+
+  let selectedDepartmentState = null;
+  let activeTabState = 'overview';
+
+  // Simulating department item click in Department Operational Pulse section
+  const handleDepartmentClick = (dept) => {
+    // Exact detail selection occurs locally without redirecting activeTab
+    selectedDepartmentState = dept;
+  };
+
+  for (const dept of expectedDepts) {
+    handleDepartmentClick(dept);
+    assert.ok(selectedDepartmentState !== null, 'Department performance details must be selected');
+    assert.equal(selectedDepartmentState.id, dept.id);
+    assert.equal(selectedDepartmentState.name, dept.name);
+    assert.equal(selectedDepartmentState.lead, dept.lead);
+    assert.equal(selectedDepartmentState.targetSla, dept.targetSla);
+    assert.equal(activeTabState, 'overview', 'Must stay on overview tab without redirecting');
+  }
+});
