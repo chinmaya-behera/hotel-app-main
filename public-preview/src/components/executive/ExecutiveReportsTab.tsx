@@ -190,7 +190,7 @@ export function ExecutiveReportsTab() {
 
           <div className="space-y-3">
             {[
-              { name: 'Spa & Wellness', percent: 98.5, turnaround: '8m', count: 3 },
+              { name: 'Wellness', percent: 98.5, turnaround: '8m', count: 3 },
               { name: 'Safety & Security', percent: 97.1, turnaround: '4m', count: 2 },
               { name: 'Housekeeping & Rooms', percent: 96.8, turnaround: '12m', count: 14 },
               { name: 'Front Office & Stays', percent: 95.2, turnaround: '6m', count: 9 },
