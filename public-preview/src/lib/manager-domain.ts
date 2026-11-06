@@ -26,7 +26,7 @@ export function departmentId(value?: string): ManagerDepartmentId | undefined {
 export function taskDepartment(item: WorkItem): ManagerDepartmentId | undefined {
   return departmentId(item.department) ?? departmentId(item.category) ?? departmentId(item.routedTo) ?? departmentId(`${item.title} ${item.meta}`);
 }
-export function isOpen(status: string) { return !['completed', 'resolved', 'cancelled', 'closed', 'rejected', 'passed'].includes(status.toLowerCase()); }
+export function isOpen(status: string) { return !['completed', 'delivered', 'resolved', 'cancelled', 'canceled', 'closed', 'rejected', 'passed'].includes(status.toLowerCase()); }
 export function managerTasks(s: DemoState, id: ManagerDepartmentId) {
   const unique = new Map<string, WorkItem>();
   // The departmental queue is authoritative for shared request references.

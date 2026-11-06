@@ -1,7 +1,7 @@
 'use client';
 
 import { Fragment, useEffect, useRef, useState, type FormEvent } from 'react';
-import { Activity, ArrowRight, ArrowUpRight, BarChart3, Bell, BookOpen, CalendarDays, CheckCheck, ChevronRight, ClipboardCheck, Download, Gauge, Handshake, LockKeyhole, LogOut, Menu, MessageSquare, Moon, ShoppingBag, Wrench, Search, Sun, Send, UserRound, Users, X, type LucideIcon } from 'lucide-react';
+import { Activity, ArrowRight, ArrowUpRight, BarChart3, Bell, BookOpen, CalendarDays, CheckCheck, ChevronRight, ClipboardCheck, Download, Gauge, Handshake, History, LockKeyhole, LogOut, Menu, MessageSquare, Moon, ShoppingBag, Wrench, Search, Sun, Send, UserRound, Users, X, type LucideIcon } from 'lucide-react';
 import { useDemo } from '@/lib/store';
 import { departmentId, isOpen, managerDepartment, managerInspections, managerNotifications, managerTasks } from '@/lib/manager-domain';
 import type { SupervisorInspection, WorkItem } from '@/types/demo';
@@ -10,6 +10,7 @@ import '../shared/warm-theme.css';
 import './department-manager.css';
 import { DepartmentComplaints, HotelRepairs, MedicalCases, useManagerClock } from './ManagerCases';
 import { DiningKitchenMenu, OrderingOverview } from './ManagerDining';
+import { DepartmentRecordHistory } from './DepartmentRecordHistory';
 import { InspectionLauncher } from './InspectionLauncher';
 import { managerComplaints, managerOrders, managerRepairs, medicalReminders } from '@/lib/manager-workflows';
 
@@ -17,7 +18,7 @@ const NAV = [
   ['department', 'Department desk', ClipboardCheck],
   ['overview', 'Overview', Gauge], ['complaints', 'Complaints', MessageSquare], ['repairs', 'Repairs', Wrench], ['orders', 'Ordering overview', ShoppingBag], ['tasks', 'Task Monitoring', Activity],
   ['inspections', 'Inspections', ClipboardCheck], ['recovery', 'Escalations & Recovery', Handshake],
-  ['staff', 'Staff & Workload', Users], ['policies', 'Policies', BookOpen],
+  ['history', 'Record history', History], ['staff', 'Staff & Workload', Users], ['policies', 'Policies', BookOpen],
   ['handover', 'Handover', Send], ['analytics', 'Analytics', BarChart3],
   ['notifications', 'Notifications', Bell], ['profile', 'Profile', UserRound],
 ] as const satisfies readonly (readonly [string, string, LucideIcon])[];
@@ -34,6 +35,7 @@ export function DepartmentManagerConsole() {
   const reminders = d.id === 'wellness' ? medicalReminders(state, now) : [];
   const complaints = managerComplaints(state, d.id);
   const [tab, setTab] = useState<Tab>('overview');
+  const [historySearch, setHistorySearch] = useState('');
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
   const [period, setPeriod] = useState('week');
@@ -60,7 +62,7 @@ export function DepartmentManagerConsole() {
   const pending = inspections.filter(i => i.status === 'pending');
   const completed = tasks.filter(t => !isOpen(t.status));
   const visibleTasks = tasks.filter(t => (status === 'all' || (status === 'open' ? isOpen(t.status) : !isOpen(t.status))) && `${t.title} ${t.ref} ${t.room} ${t.assignee}`.toLowerCase().includes(search.toLowerCase()));
-  const navigate = (next: Tab) => { setTab(next); setSearch(''); setStatus('all'); setSidebarOpen(false); };
+  const navigate = (next: Tab) => { setHistorySearch(''); setTab(next); setSearch(''); setStatus('all'); setSidebarOpen(false); };
   const openModal = (next: NonNullable<Modal>) => { setModal(next); dialog.current?.showModal(); };
   const closeModal = () => { dialog.current?.close(); setModal(null); };
   const title = tab === 'department' ? DESK_LABELS[d.id] : NAV.find(n => n[0] === tab)?.[1];
@@ -80,7 +82,7 @@ export function DepartmentManagerConsole() {
     const url = URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }));
     const a = document.createElement('a'); a.href = url; a.download = `${d.id}-${period}-report.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
-  const taskRows = (rows: WorkItem[]) => rows.length ? <div className="dm-table-wrap"><table className="dm-table"><thead><tr><th>Request / location</th><th>Owner</th><th>Priority</th><th>Status</th><th>Follow-up</th></tr></thead><tbody>{rows.map(t => <tr key={t.id}><td><strong>{t.title}</strong><small>{t.ref || t.id}{t.room ? ` · Room ${t.room}` : ''}</small></td><td>{t.assignee || 'Awaiting assignment'}</td><td>{t.priority || 'normal'}</td><td><span className={statusClass(t.status)}>{t.status}</span></td><td>{isOpen(t.status) ? <button className="dm-text-button" onClick={() => openModal({ kind: 'recovery', task: t })}>Review <ChevronRight size={14}/></button> : 'Complete'}</td></tr>)}</tbody></table></div> : <div className="dm-empty"><CheckCheck size={26}/><h3>All clear here</h3><p>No matching department requests.</p></div>;
+  const taskRows = (rows: WorkItem[]) => rows.length ? <div className="dm-table-wrap"><table className="dm-table"><thead><tr><th>Request / location</th><th>Owner</th><th>Priority</th><th>Status</th><th>Follow-up</th></tr></thead><tbody>{rows.map(t => <tr key={t.id}><td><strong>{t.title}</strong><small>{t.ref || t.id}{t.room ? ` · Room ${t.room}` : ''}</small></td><td>{t.assignee || 'Awaiting assignment'}</td><td>{t.priority || 'normal'}</td><td><span className={statusClass(t.status)}>{t.status}</span></td><td>{isOpen(t.status) ? <button className="dm-text-button" onClick={() => openModal({ kind: 'recovery', task: t })}>Review <ChevronRight size={14}/></button> : 'Complete'}<button className="dm-text-button dm-task-history-link" onClick={() => { navigate('history'); setHistorySearch(t.ref || t.id); }}>View history</button></td></tr>)}</tbody></table></div> : <div className="dm-empty"><CheckCheck size={26}/><h3>All clear here</h3><p>No matching department requests.</p></div>;
 
   const navigation = [NAV.find(n => n[0] === 'overview')!, ...NAV.filter(n => n[0] !== 'overview' && (n[0] !== 'repairs' || d.id === 'engineering') && (n[0] !== 'orders' || d.id === 'food-beverages') && (n[0] !== 'policies' || d.id !== 'wellness'))];
   const completionRate = tasks.length ? Math.round(completed.length / tasks.length * 100) : 0;
@@ -119,6 +121,7 @@ export function DepartmentManagerConsole() {
 
       {reminders.length > 0 && <div className="dm-followup-banner" role="status"><Bell size={18}/><span><strong>{reminders.length} medical follow-up{reminders.length === 1 ? '' : 's'} due</strong><small>Review the case history, record the outcome and acknowledge or reschedule the reminder.</small></span><button className="dm-small-button" onClick={() => navigate('department')}>Review cases</button></div>}
       {tab === 'department' && (d.id === 'wellness' ? <><MedicalCases now={now}/><DepartmentDesk onOpen={() => navigate('department')} onInspect={() => navigate('inspections')}/></> : d.id === 'food-beverages' ? <DiningKitchenMenu/> : <DepartmentDesk onOpen={() => navigate('department')} onInspect={() => navigate('inspections')}/>)}
+      {tab === 'history' && <DepartmentRecordHistory key={historySearch} initialSearch={historySearch}/>}
       {tab === 'complaints' && <DepartmentComplaints/>}
       {tab === 'repairs' && d.id === 'engineering' && <HotelRepairs/>}
       {tab === 'orders' && d.id === 'food-beverages' && <OrderingOverview/>}

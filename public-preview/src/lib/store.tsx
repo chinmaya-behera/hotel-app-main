@@ -1,5 +1,7 @@
 'use client';
 
+import { captureDepartmentHistory, initialiseDepartmentHistory, restoreDepartmentQueue } from './department-record-history';
+
 import { snapshotOrderLines, diningFeedbackPatch, patchDiningMirrors } from './department-insights';
 
 import {
@@ -312,7 +314,7 @@ interface DemoApi {
   addManagerNote: (taskId: string, noteText: string) => void;
   updateIncidentStatus: (incidentId: string, status: IncidentRecord['status'], noteText?: string) => void;
   /** Executive Viewer / Approver Operations APIs */
-  reviewExecutiveItem: (itemId: string, action: 'approve' | 'reject' | 'info_requested', reason?: string, comments?: string) => void;
+  reviewExecutiveItem: (itemId: string, action: 'approve' | 'reject' | 'info_requested' | 'reopen', reason?: string, comments?: string) => void;
   addExecutiveComment: (itemId: string, comment: string) => void;
   requestExecutiveDirective: (targetId: string, type: 'incident' | 'complaint' | 'department', directiveText: string) => void;
   /** Security Responder Operations APIs */
@@ -369,6 +371,7 @@ interface DemoApi {
     instructions: string;
     initiatedBy: string;
     initiatedRole: RoleId;
+    scheduledTime?: string;
   }) => void;
   /** Phase 3: Compensation & Multi-Tier Escalations */
   createCompensationRequest: (request: Omit<CompensationRequest, 'id' | 'ref' | 'status' | 'tier' | 'history' | 'requestedAt'>) => void;
@@ -533,7 +536,11 @@ const ORDER_LIFECYCLE: LifecycleStep[] = [
 ];
 
 export function DemoProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<DemoState>(seedState);
+  const [state, setStoredState] = useState<DemoState>(() => initialiseDepartmentHistory(seedState()));
+  const setState = useCallback((update: DemoState | ((previous: DemoState) => DemoState)) => {
+    const at = new Date().toISOString();
+    setStoredState(previous => captureDepartmentHistory(previous, typeof update === 'function' ? update(previous) : update, at));
+  }, []);
   const [hydrated, setHydrated] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [gestureGuideOpen, setGestureGuideOpen] = useState(false);
@@ -548,7 +555,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       if (raw) {
         const saved = JSON.parse(raw) as Partial<DemoState>;
         const base = seedState();
-        setState(ensureManagerState({
+        setStoredState(initialiseDepartmentHistory(ensureManagerState({
+          departmentRecordHistory: saved.departmentRecordHistory,
           managerDepartment: saved.managerDepartment,
           managerProfiles: saved.managerProfiles,
           managerOperations: saved.managerOperations,
@@ -556,21 +564,28 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           items: {
             ...base.items,
             ...saved.items,
-            task_fulfiller: [
-              ...(base.items.task_fulfiller ?? []),
-              ...((saved.items?.task_fulfiller ?? []).filter(
-                (si) => !(base.items.task_fulfiller ?? []).some((bi) => bi.id === si.id),
-              )),
-            ],
-            department_dispatcher: [
-              ...(base.items.department_dispatcher ?? []),
-              ...((saved.items?.department_dispatcher ?? []).filter(
-                (si) => !(base.items.department_dispatcher ?? []).some((bi) => bi.id === si.id),
-              )),
-            ],
+            task_fulfiller: restoreDepartmentQueue(base.items.task_fulfiller, saved.items?.task_fulfiller),
+            department_dispatcher: restoreDepartmentQueue(base.items.department_dispatcher, saved.items?.department_dispatcher),
             department_dispatcher_supervisor:
               saved.items?.department_dispatcher_supervisor ?? base.items.department_dispatcher_supervisor,
-            general_manager: saved.items?.general_manager ?? base.items.general_manager,
+            executive_viewer: [
+              ...((saved.items?.executive_viewer ?? []).map((si) => {
+                const baseItem = (base.items.executive_viewer ?? []).find((b) => b.id === si.id);
+                return baseItem ? { ...baseItem, ...si } : si;
+              })),
+              ...((base.items.executive_viewer ?? []).filter(
+                (bi) => !(saved.items?.executive_viewer ?? []).some((si) => si.id === bi.id),
+              )),
+            ],
+            general_manager: [
+              ...((saved.items?.general_manager ?? []).map((si) => {
+                const baseItem = (base.items.general_manager ?? []).find((b) => b.id === si.id);
+                return baseItem ? { ...baseItem, ...si } : si;
+              })),
+              ...((base.items.general_manager ?? []).filter(
+                (bi) => !(saved.items?.general_manager ?? []).some((si) => si.id === bi.id),
+              )),
+            ],
             // saves made before the Front Desk console start its queue from the new seed
             front_desk_coordinator: saved.frontDesk
               ? (saved.items?.front_desk_coordinator ?? base.items.front_desk_coordinator)
@@ -613,7 +628,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           customDiningRequests: saved.customDiningRequests ?? base.customDiningRequests,
           guestCompensationRefundRequests: saved.guestCompensationRefundRequests ?? base.guestCompensationRefundRequests,
           guestIncidents: saved.guestIncidents ?? base.guestIncidents,
-        }));
+        })));
       }
     } catch {
       /* corrupted or unavailable storage: fall back to seed data */
@@ -3232,6 +3247,10 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const reviewExecutiveItem = useCallback<DemoApi['reviewExecutiveItem']>(
     (itemId, action, reason, comments) => {
       if (itemId.startsWith('gm-department-')) {
+        if (action === 'reopen') {
+          notify('Department escalation cannot be reopened once decided.');
+          return;
+        }
         try {
           const next = reviewManagerEscalation(stateRef.current, itemId, action, reason || comments || 'General Manager decision recorded.', crypto.randomUUID());
           stateRef.current = next;
@@ -3242,8 +3261,9 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       }
       const timestamp = nowLabel();
       setState((prev) => {
-        const list = prev.items.executive_viewer ?? [];
-        const item = list.find((i) => i.id === itemId);
+        const execList = prev.items.executive_viewer ?? [];
+        const gmList = prev.items.general_manager ?? [];
+        const item = execList.find((i) => i.id === itemId) || gmList.find((i) => i.id === itemId);
         if (!item) return prev;
 
         const nextStatus =
@@ -3251,21 +3271,27 @@ export function DemoProvider({ children }: { children: ReactNode }) {
             ? 'Approved'
             : action === 'reject'
               ? 'Rejected'
-              : 'Info Requested';
+              : action === 'reopen'
+                ? 'Needs approval'
+                : 'Info Requested';
 
         const nextChip =
           action === 'approve'
             ? 'GM Approved'
             : action === 'reject'
               ? 'Declined by GM'
-              : 'Pending Clarification';
+              : action === 'reopen'
+                ? 'Pending Review'
+                : 'Pending Clarification';
 
         const nextTone =
           action === 'approve'
             ? ('success' as const)
             : action === 'reject'
               ? ('danger' as const)
-              : ('info' as const);
+              : action === 'reopen'
+                ? ('warning' as const)
+                : ('info' as const);
 
         const historyEntry = {
           at: timestamp,
@@ -3277,20 +3303,26 @@ export function DemoProvider({ children }: { children: ReactNode }) {
               ? 'Authorized by Executive General Manager Priya Nair'
               : action === 'reject'
                 ? 'Declined by Executive General Manager'
-                : 'Clarification requested on budget impact'),
+                : action === 'reopen'
+                  ? 'Returned to pending review by Executive General Manager Priya Nair'
+                  : 'Clarification requested on budget impact'),
         };
 
-        const updatedList = list.map((i) =>
-          i.id === itemId
-            ? {
-              ...i,
-              status: nextStatus,
-              chip: nextChip,
-              tone: nextTone,
-              history: [...(i.history ?? []), historyEntry],
-            }
-            : i,
-        );
+        const updateList = (list: WorkItem[] = []) =>
+          list.map((i) =>
+            i.id === itemId
+              ? {
+                  ...i,
+                  status: nextStatus,
+                  chip: nextChip,
+                  tone: nextTone,
+                  history: [...(i.history ?? []), historyEntry],
+                }
+              : i,
+          );
+
+        const updatedExecList = updateList(execList);
+        const updatedGmList = updateList(gmList);
 
         // Cross-role updates:
         let updatedComplaints = prev.frontDesk.complaints;
@@ -3322,7 +3354,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           ) {
             return {
               ...r,
-              status: action === 'approve' ? ('approved' as const) : action === 'reject' ? ('rejected' as const) : r.status,
+              status: action === 'approve' ? ('approved' as const) : action === 'reject' ? ('rejected' as const) : action === 'reopen' ? ('pending' as const) : r.status,
               reviewedBy: 'Priya Nair (General Manager)',
               reviewedAt: timestamp,
               reviewNotes: reason || comments || `Executive decision: ${action}`,
@@ -3346,7 +3378,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           ...prev,
           items: {
             ...prev.items,
-            executive_viewer: updatedList,
+            executive_viewer: updatedExecList,
+            general_manager: updatedGmList,
           },
           frontDesk: {
             ...prev.frontDesk,
@@ -3386,27 +3419,30 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     (itemId, comment) => {
       const timestamp = nowLabel();
       setState((prev) => {
-        const list = prev.items.executive_viewer ?? [];
-        const item = list.find((i) => i.id === itemId);
+        const item =
+          (prev.items.executive_viewer ?? []).find((i) => i.id === itemId) ||
+          (prev.items.general_manager ?? []).find((i) => i.id === itemId);
         if (!item) return prev;
 
-        const updatedList = list.map((i) =>
-          i.id === itemId
-            ? {
-              ...i,
-              history: [
-                ...(i.history ?? []),
-                { at: timestamp, status: 'Executive Note', note: `[Priya Nair - GM] ${comment}` },
-              ],
-            }
-            : i,
-        );
+        const updateList = (list: WorkItem[] = []) =>
+          list.map((i) =>
+            i.id === itemId
+              ? {
+                  ...i,
+                  history: [
+                    ...(i.history ?? []),
+                    { at: timestamp, status: 'Executive Note', note: `[Priya Nair - GM] ${comment}` },
+                  ],
+                }
+              : i,
+          );
 
         return {
           ...prev,
           items: {
             ...prev.items,
-            executive_viewer: updatedList,
+            executive_viewer: updateList(prev.items.executive_viewer),
+            general_manager: updateList(prev.items.general_manager),
           },
         };
       });
@@ -5368,7 +5404,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         score: 0,
         completedChecklistCount: 0,
         totalChecklistCount: 15,
-        scheduledTime: timestamp,
+        scheduledTime: input.scheduledTime || timestamp,
         createdAt: timestamp,
         completedAt: '',
         instructions: input.instructions,
@@ -6296,7 +6332,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     }
     timers.current.forEach(clearTimeout);
     timers.current = [];
-    setState({ ...seedState(), theme: stateRef.current.theme });
+    setStoredState(initialiseDepartmentHistory({ ...seedState(), theme: stateRef.current.theme }));
     notify('Demo data reset to its initial state');
   }, [notify]);
 
