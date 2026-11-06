@@ -281,8 +281,16 @@ function FulfillerAppContent() {
         .fulfiller-light .border-emerald-500\/40,
         .fulfiller-light .border-emerald-500\/30,
         .fulfiller-light .border-emerald-400\/40,
-        .fulfiller-light .border-amber-400\/40 {
-          border-color: rgba(180, 150, 120, 0.32) !important;
+        .fulfiller-light .border-amber-400\/40,
+        .fulfiller-light .border-\[rgba\(165\,130\,95\,0\.18\)\],
+        .fulfiller-light .border-\[rgba\(165\,130\,95\,0\.2\)\],
+        .fulfiller-light .border-\[rgba\(165\,130\,95\,0\.24\)\],
+        .fulfiller-light .border-\[rgba\(165\,130\,95\,0\.25\)\],
+        .fulfiller-light .border-\[rgba\(165\,130\,95\,0\.28\)\],
+        .fulfiller-light .border-\[rgba\(165\,130\,95\,0\.3\)\],
+        .fulfiller-light .border-\[rgba\(165\,130\,95\,0\.35\)\],
+        .fulfiller-light .border-\[rgba\(165\,130\,95\,0\.4\)\] {
+          border-color: rgba(180, 150, 120, 0.35) !important;
         }
         .fulfiller-light .bg-white\/\[0\.03\],
         .fulfiller-light .bg-white\/\[0\.04\],
@@ -291,28 +299,73 @@ function FulfillerAppContent() {
         .fulfiller-light .bg-emerald-500\/\[0\.03\],
         .fulfiller-light .bg-emerald-500\/\[0\.06\],
         .fulfiller-light .bg-amber-400\/\[0\.03\],
-        .fulfiller-light .bg-amber-400\/\[0\.04\] {
+        .fulfiller-light .bg-amber-400\/\[0\.04\],
+        .fulfiller-light .bg-\[\#1a1918\],
+        .fulfiller-light .bg-\[\#14120e\],
+        .fulfiller-light .bg-\[\#161513\],
+        .fulfiller-light .bg-\[\#1c1c20\],
+        .fulfiller-light .bg-\[\#1e1c1a\],
+        .fulfiller-light .bg-\[\#141417\],
+        .fulfiller-light .bg-\[\#18181c\],
+        .fulfiller-light .bg-ink-950,
+        .fulfiller-light .bg-ink-900 {
           background-color: #ffffff !important;
+          color: #1c1917 !important;
         }
+
+        /* High-Contrast Light Theme Text Visibility */
         .fulfiller-light .text-white {
-          color: #2b221a !important;
+          color: #1c1917 !important;
         }
-        .fulfiller-light .text-mist-200,
+        .fulfiller-light .text-\[\#f7f4ed\],
+        .fulfiller-light .text-\[\#ded6c9\],
+        .fulfiller-light .text-\[\#d9cebe\] {
+          color: #292524 !important;
+        }
+        .fulfiller-light .text-\[\#d4b896\],
+        .fulfiller-light .text-\[\#a89f91\],
+        .fulfiller-light .text-\[\#a69886\] {
+          color: #57483b !important;
+        }
+        .fulfiller-light .text-\[\#dfc187\],
+        .fulfiller-light .text-\[\#c8a96e\] {
+          color: #8c6b2d !important;
+        }
+        .fulfiller-light .text-mist-100,
+        .fulfiller-light .text-mist-200 {
+          color: #1c1917 !important;
+        }
         .fulfiller-light .text-mist-300 {
-          color: #685747 !important;
+          color: #44403c !important;
         }
         .fulfiller-light .text-mist-400,
         .fulfiller-light .text-mist-500 {
-          color: #938170 !important;
+          color: #57483b !important;
         }
         .fulfiller-light .text-emerald-600,
         .fulfiller-light .text-emerald-400,
+        .fulfiller-light .text-emerald-300 {
+          color: #065f46 !important;
+        }
         .fulfiller-light .text-amber-600,
         .fulfiller-light .text-amber-500,
         .fulfiller-light .text-amber-400,
-        .fulfiller-light .text-sky-600 {
-          color: #b89656 !important;
+        .fulfiller-light .text-amber-300 {
+          color: #854d0e !important;
         }
+        .fulfiller-light .text-sky-600,
+        .fulfiller-light .text-sky-400,
+        .fulfiller-light .text-sky-300 {
+          color: #0369a1 !important;
+        }
+        .fulfiller-light .text-rose-200,
+        .fulfiller-light .text-rose-200\/90,
+        .fulfiller-light .text-rose-300,
+        .fulfiller-light .text-rose-400 {
+          color: #9f1239 !important;
+        }
+
+        /* Light Theme Buttons & Badges */
         .fulfiller-light .bg-emerald-500,
         .fulfiller-light .bg-emerald-600,
         .fulfiller-light .bg-amber-400,
@@ -331,19 +384,32 @@ function FulfillerAppContent() {
         .fulfiller-light .bg-sky-400\/20,
         .fulfiller-light .bg-purple-400\/20 {
           background-color: rgba(200, 169, 110, 0.15) !important;
-          color: #9c7836 !important;
+          color: #8c6b2d !important;
           border-color: rgba(180, 150, 120, 0.4) !important;
+        }
+
+        /* Light Theme Inputs, Textareas & Modals */
+        .fulfiller-light textarea,
+        .fulfiller-light input[type="text"],
+        .fulfiller-light input[type="search"] {
+          background-color: #ffffff !important;
+          color: #1c1917 !important;
+          border-color: rgba(180, 150, 120, 0.45) !important;
+        }
+        .fulfiller-light textarea::placeholder,
+        .fulfiller-light input::placeholder {
+          color: #8c7b6d !important;
         }
       `}</style>
 
-      {/* Fluid Responsive Container: Mobile full-bleed, Tablet max-w-4xl, Desktop max-w-7xl */}
+      {/* Full-Screen Fluid Responsive Container */}
       <div
         id="fulfiller-phone-shell"
         className={cn(
-          'relative flex flex-col w-full h-full max-w-7xl mx-auto overflow-hidden transition-colors duration-300 sm:border-x',
+          'relative flex flex-col w-full h-full overflow-hidden transition-colors duration-300',
           isLight
-            ? 'bg-[#faf8f4] text-[#2b221a] sm:border-[rgba(180,150,120,0.3)] sm:shadow-[0_20px_60px_-15px_rgba(80,60,40,0.08)]'
-            : 'bg-[#141417] text-[#f7f4ed] sm:border-[rgba(165,130,95,0.24)] sm:shadow-[0_25px_80px_-15px_rgba(0,0,0,0.9)]',
+            ? 'bg-[#faf8f4] text-[#2b221a]'
+            : 'bg-[#141417] text-[#f7f4ed]',
         )}
       >
         {/* In-App Toast Notification Banner */}
@@ -355,17 +421,17 @@ function FulfillerAppContent() {
                 className={cn(
                   'toast-in pointer-events-auto w-full max-w-md flex items-start gap-2.5 rounded-2xl border px-3.5 py-2.5 text-xs shadow-2xl animate-in slide-in-from-top-3 duration-200 backdrop-blur-xl',
                   isLight
-                    ? 'border-[rgba(180,150,120,0.4)] bg-white/95 text-[#2b221a]'
+                    ? 'border-[rgba(180,150,120,0.5)] bg-white text-stone-900 shadow-[0_12px_40px_rgba(80,60,40,0.15)]'
                     : 'border-[rgba(165,130,95,0.4)] bg-[#1c1c20]/95 text-[#f7f4ed]',
                 )}
               >
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#c8a96e]" />
+                <CheckCircle2 className={cn('mt-0.5 h-4 w-4 shrink-0', isLight ? 'text-amber-700' : 'text-[#c8a96e]')} />
                 <div className="min-w-0 flex-1">
-                  <p className="font-semibold leading-snug">{t.text}</p>
+                  <p className={cn('font-bold leading-snug', isLight ? 'text-stone-900' : 'text-[#f7f4ed]')}>{t.text}</p>
                   <p
                     className={cn(
-                      'mt-0.5 text-[10px] uppercase font-mono tracking-wider',
-                      isLight ? 'text-[#938170]' : 'text-[#a69886]',
+                      'mt-0.5 text-[10px] uppercase font-mono tracking-wider font-semibold',
+                      isLight ? 'text-stone-600' : 'text-[#a69886]',
                     )}
                   >
                     Task Notification

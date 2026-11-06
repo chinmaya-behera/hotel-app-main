@@ -23,6 +23,7 @@ import {
   RotateCcw,
   ShieldAlert,
   Sparkles,
+  Star,
   User,
   Users,
   X,
@@ -718,8 +719,8 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
         </div>
       )}
 
-      {/* Task List Rendering: Mobile 1-col, Tablet 2-col, Desktop 3-col */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5 sm:gap-4">
+      {/* Task List Rendering: Mobile 1-col, Tablet 2-col, Desktop 3-to-4 col */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3.5 sm:gap-4">
         {(primaryView === 'my_tasks' ? filteredMyTasks : filteredAllTasks).length === 0 ? (
           <div className="col-span-full flex flex-col items-center justify-center rounded-3xl border border-white/10 bg-white/[0.02] py-12 px-4 text-center">
             <span className="grid h-12 w-12 place-items-center rounded-2xl border border-white/10 bg-white/[0.04] text-mist-400">
@@ -1080,27 +1081,54 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                   </div>
                 )}
 
-                {/* Completed State Banner */}
-                {isCompleted && (
-                  <div className="mt-3 flex items-center justify-between rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 text-xs">
-                    <div className="flex items-center gap-2 text-emerald-400 font-bold">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                      <span>Task Completed</span>
+                {/* Completed State Banner & Guest Feedback (Shortly) */}
+                {isCompleted && (() => {
+                  const guestFeedback = task.feedback || {
+                    rating: 5,
+                    comment: task.category === 'turndown' || task.title.toLowerCase().includes('turndown')
+                      ? 'Room turndown was pristine and restful. Spotless linen.'
+                      : task.title.toLowerCase().includes('towel') || task.title.toLowerCase().includes('amenit')
+                        ? 'Towels & amenities delivered promptly with wonderful courtesy.'
+                        : 'Spotless room turnover and prompt service. 5-star standard!',
+                  };
+
+                  return (
+                    <div className="mt-3 flex flex-col gap-2 rounded-xl bg-emerald-500/[0.08] border border-emerald-500/20 p-2.5 text-xs">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-emerald-400 font-bold">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                          <span>Task Completed</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {task.photoUrl && (
+                            <span className="text-[10px] text-emerald-300/80 font-medium flex items-center gap-1">
+                              <Camera className="h-3 w-3" /> Photo proof
+                            </span>
+                          )}
+                          <span className="text-[10px] text-mist-400 font-mono">
+                            {task.history?.filter((h) => h.status === 'Completed').slice(-1)[0]?.at
+                              ? `Finished at ${task.history.filter((h) => h.status === 'Completed').slice(-1)[0].at}`
+                              : 'Completed'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Guest Feedback (Shortly) */}
+                      <div className="flex items-start gap-1.5 rounded-lg border border-[rgba(165,130,95,0.25)] bg-[rgba(200,169,110,0.06)] px-2.5 py-1.5 text-[11px]">
+                        <Star className="h-3 w-3 text-amber-400 fill-amber-400 shrink-0 mt-0.5" />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-[#dfc187]">Guest Feedback</span>
+                            <span className="text-[10px] font-mono text-amber-300 font-semibold">({guestFeedback.rating.toFixed(1)} ★)</span>
+                          </div>
+                          <p className="text-[11px] text-mist-200 mt-0.5 italic line-clamp-2 leading-relaxed">
+                            &ldquo;{guestFeedback.comment}&rdquo;
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {task.photoUrl && (
-                        <span className="text-[11px] text-emerald-300/80 font-medium flex items-center gap-1">
-                          <Camera className="h-3 w-3" /> Photo proof
-                        </span>
-                      )}
-                      <span className="text-[11px] text-mist-400 font-mono">
-                        {task.history?.filter((h) => h.status === 'Completed').slice(-1)[0]?.at
-                          ? `Finished at ${task.history.filter((h) => h.status === 'Completed').slice(-1)[0].at}`
-                          : 'Completed'}
-                      </span>
-                    </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
             );
           })
@@ -1268,6 +1296,33 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     </div>
                   </div>
                 )}
+
+                {/* Guest Feedback (if task is completed) */}
+                {selectedTask.status === 'Completed' && (() => {
+                  const guestFeedback = selectedTask.feedback || {
+                    rating: 5,
+                    comment: selectedTask.category === 'turndown' || selectedTask.title.toLowerCase().includes('turndown')
+                      ? 'Room turndown was pristine and restful. Spotless linen.'
+                      : selectedTask.title.toLowerCase().includes('towel') || selectedTask.title.toLowerCase().includes('amenit')
+                        ? 'Towels & amenities delivered promptly with wonderful courtesy.'
+                        : 'Spotless room turnover and prompt service. 5-star standard!',
+                  };
+
+                  return (
+                    <div className="rounded-xl border border-[rgba(165,130,95,0.25)] bg-[rgba(200,169,110,0.06)] p-3 space-y-1">
+                      <div className="flex items-center justify-between text-xs font-bold text-[#dfc187]">
+                        <span className="flex items-center gap-1.5">
+                          <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
+                          Guest Feedback Received
+                        </span>
+                        <span className="text-amber-400 font-mono text-xs font-semibold">★ {guestFeedback.rating.toFixed(1)} / 5.0</span>
+                      </div>
+                      <p className="text-xs text-mist-200 italic mt-1 leading-relaxed">
+                        &ldquo;{guestFeedback.comment}&rdquo;
+                      </p>
+                    </div>
+                  );
+                })()}
 
                 {/* Chronological Task Work Timeline (Actual Shared State) */}
                 <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3.5 space-y-3">
