@@ -157,7 +157,7 @@ export function ExecutiveOverviewTab({
       },
       {
         id: 'spa_wellness',
-        name: 'Spa & Wellness',
+        name: 'Wellness',
         icon: Star,
         head: 'T. Brandt',
         slaPercent: 98.5,
@@ -566,7 +566,7 @@ export function ExecutiveOverviewTab({
             {/* Attention Items List */}
             <div className="space-y-3">
               {/* Item 1: Goodwill Comp Room 402 */}
-              {executiveItems.find((i) => i.id === 'exe-1') && (
+              {executiveItems.find((i) => i.id === 'exe-1' && i.status === 'Needs approval') && (
                 <div className="p-3.5 rounded-2xl border border-amber-500/30 bg-amber-500/[0.06] hover:bg-amber-500/[0.1] transition space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-300">
@@ -600,7 +600,7 @@ export function ExecutiveOverviewTab({
               )}
 
               {/* Item 2: Otis Lift 2 Controller Capex */}
-              {executiveItems.find((i) => i.id === 'exe-3') && (
+              {executiveItems.find((i) => i.id === 'exe-3' && i.status === 'Needs approval') && (
                 <div className="p-3.5 rounded-2xl border border-purple-500/30 bg-purple-500/[0.06] hover:bg-purple-500/[0.1] transition space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-600 dark:text-purple-300">

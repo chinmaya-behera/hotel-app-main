@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   AlertOctagon,
   AlertTriangle,
@@ -26,22 +26,57 @@ import {
   X,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
+import { taskDepartment, managerDepartment } from '@/lib/manager-domain';
 import type { IncidentRecord, ComplaintCase, WorkItem } from '@/types/demo';
+
+function getTaskDepartmentDisplay(item: WorkItem): string {
+  if (item.department) {
+    if (/spa\s*(&|and)\s*wellness/i.test(item.department) || item.department.trim().toLowerCase() === 'spa') {
+      return 'Wellness';
+    }
+    return item.department;
+  }
+  const deptId = taskDepartment(item);
+  if (deptId) {
+    return deptId === 'wellness' ? 'Wellness' : managerDepartment(deptId).name;
+  }
+  return 'Property Operations';
+}
+
+function formatTaskMeta(meta?: string): string {
+  if (!meta) return '';
+  return meta
+    .replace(/\bSpa\s*(&|and)\s*Wellness\b/gi, 'Wellness')
+    .replace(/\bSpa\b(\s*·)/g, 'Wellness$1');
+}
 
 interface ExecutiveIncidentsTabProps {
   permissionMode: 'viewer' | 'approver';
   initialView?: 'incidents' | 'complaints' | 'escalations';
+  selectedIncidentFromParent?: IncidentRecord | null;
+  onClearSelectedIncident?: () => void;
+  selectedTaskIdFromParent?: string | null;
 }
 
 export function ExecutiveIncidentsTab({
   permissionMode,
   initialView = 'incidents',
+  selectedIncidentFromParent,
+  onClearSelectedIncident,
+  selectedTaskIdFromParent,
 }: ExecutiveIncidentsTabProps) {
   const { state, requestExecutiveDirective, updateIncidentStatus } = useDemo();
-  const [activeView, setActiveView] = useState<'incidents' | 'complaints' | 'escalations'>(initialView);
+  const activeView = initialView;
   const [severityFilter, setSeverityFilter] = useState<string>('all');
-  const [selectedIncident, setSelectedIncident] = useState<IncidentRecord | null>(null);
+  const [selectedIncident, setSelectedIncident] = useState<IncidentRecord | null>(selectedIncidentFromParent || null);
   const [selectedComplaint, setSelectedComplaint] = useState<ComplaintCase | null>(null);
+
+  // Sync selectedIncidentFromParent
+  useEffect(() => {
+    if (selectedIncidentFromParent) {
+      setSelectedIncident(selectedIncidentFromParent);
+    }
+  }, [selectedIncidentFromParent]);
 
   // Executive Directive Modal
   const [directiveModalTarget, setDirectiveModalTarget] = useState<{ id: string; title: string; type: 'incident' | 'complaint' } | null>(null);
@@ -85,6 +120,44 @@ export function ExecutiveIncidentsTab({
     setDirectiveText('');
   };
 
+  const viewMetadata = useMemo(() => {
+    switch (activeView) {
+      case 'complaints':
+        return {
+          title: 'Guest Complaints',
+          subtitle: 'Duty Manager escalations, unresolved service recovery cases, and goodwill gestures.',
+          icon: MessageSquareWarning,
+          iconColor: 'text-amber-500',
+          badgeText: `${complaints.filter((c) => !c.compApplied).length} Unresolved`,
+          badgeTone: 'bg-amber-500/15 text-amber-600 dark:text-amber-300 border-amber-500/20',
+          countLabel: `${complaints.length} ${complaints.length === 1 ? 'case' : 'cases'}`,
+        };
+      case 'escalations':
+        return {
+          title: 'High Escalations',
+          subtitle: 'Cross-department operational bottlenecks, urgent task fulfiller issues, and manager escalations.',
+          icon: Siren,
+          iconColor: 'text-purple-500 dark:text-purple-400',
+          badgeText: `${escalatedTasks.length} Escalated Tasks`,
+          badgeTone: 'bg-purple-500/15 text-purple-600 dark:text-purple-300 border-purple-500/20',
+          countLabel: `${escalatedTasks.length} ${escalatedTasks.length === 1 ? 'task' : 'tasks'}`,
+        };
+      case 'incidents':
+      default:
+        return {
+          title: 'Property Incidents',
+          subtitle: 'Cross-department emergency oversight, fire/safety responses, and building security command.',
+          icon: ShieldAlert,
+          iconColor: 'text-rose-500',
+          badgeText: `${incidents.filter((i) => i.status !== 'resolved').length} Active`,
+          badgeTone: 'bg-rose-500/15 text-rose-600 dark:text-rose-300 border-rose-500/20',
+          countLabel: `${incidents.length} ${incidents.length === 1 ? 'incident' : 'incidents'}`,
+        };
+    }
+  }, [activeView, complaints, escalatedTasks.length, incidents]);
+
+  const CurrentViewIcon = viewMetadata.icon;
+
   return (
     <div className="space-y-6">
       {/* Header bar */}
@@ -92,45 +165,25 @@ export function ExecutiveIncidentsTab({
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-black text-navy-950 dark:text-white flex items-center gap-2">
-              <ShieldAlert className="h-5 w-5 text-rose-500" />
-              Incident Command & Executive Recovery
+              <CurrentViewIcon className={`h-5 w-5 ${viewMetadata.iconColor}`} />
+              {viewMetadata.title}
             </h2>
-            <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-300 border border-rose-500/20">
-              {incidents.filter((i) => i.status !== 'resolved').length} Active
+            <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded-full border ${viewMetadata.badgeTone}`}>
+              {viewMetadata.badgeText}
             </span>
           </div>
           <p className="text-xs text-slate-500 dark:text-mist-400 mt-0.5">
-            Cross-department emergency oversight, critical guest escalations, and binding executive directives.
+            {viewMetadata.subtitle}
           </p>
         </div>
 
-        {/* View Switcher */}
-        <div className="flex items-center gap-1.5 p-1 rounded-2xl border border-slate-200 dark:border-white/10 bg-black/5 dark:bg-ink-950/80">
-          {[
-            { id: 'incidents', label: 'Property Incidents', count: incidents.length },
-            { id: 'complaints', label: 'Guest Complaints', count: complaints.length },
-            { id: 'escalations', label: 'High Escalations', count: escalatedTasks.length },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveView(tab.id as any)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 ${
-                activeView === tab.id
-                  ? 'bg-rose-500 text-white shadow-sm'
-                  : 'text-slate-500 dark:text-mist-400 hover:text-navy-950 dark:hover:text-white'
-              }`}
-            >
-              <span>{tab.label}</span>
-              <span
-                className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${
-                  activeView === tab.id ? 'bg-white/30 text-white' : 'bg-black/10 dark:bg-white/10'
-                }`}
-              >
-                {tab.count}
-              </span>
-            </button>
-          ))}
+        {/* Page Opened Name Display (replaces the removed navbar) */}
+        <div className="flex items-center gap-2 px-3.5 py-2 rounded-2xl border border-slate-200 dark:border-white/10 bg-black/5 dark:bg-ink-950/80 text-xs font-bold text-navy-950 dark:text-white shadow-sm self-start md:self-auto">
+          <CurrentViewIcon className={`h-4 w-4 ${viewMetadata.iconColor}`} />
+          <span>{viewMetadata.title}</span>
+          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-black/10 dark:bg-white/10 text-slate-600 dark:text-mist-300">
+            {viewMetadata.countLabel}
+          </span>
         </div>
       </div>
 
@@ -335,31 +388,49 @@ export function ExecutiveIncidentsTab({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-white/[0.06] text-xs">
-                {escalatedTasks.map((t) => (
-                  <tr key={t.id} className="hover:bg-slate-50/70 dark:hover:bg-white/[0.03] transition">
-                    <td className="px-4 py-3 font-mono font-bold text-navy-950 dark:text-white">
-                      {t.ref || t.id}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="font-bold text-navy-950 dark:text-white">{t.title}</div>
-                      <div className="text-[11px] text-slate-400 dark:text-mist-400">{t.meta}</div>
-                    </td>
-                    <td className="px-4 py-3 font-medium text-slate-600 dark:text-mist-300">
-                      {t.department || 'Property Operations'}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-600 dark:text-purple-300">
-                        {t.priority || 'VIP'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap font-bold text-navy-950 dark:text-white">
-                      {t.status}
-                    </td>
-                    <td className="px-4 py-3 text-right text-slate-500 dark:text-mist-400">
-                      {t.owner || t.assignee || 'Unassigned'}
-                    </td>
-                  </tr>
-                ))}
+                {escalatedTasks.map((t) => {
+                  const isHighlighted = Boolean(
+                    selectedTaskIdFromParent &&
+                      (t.id === selectedTaskIdFromParent || t.ref === selectedTaskIdFromParent),
+                  );
+                  return (
+                    <tr
+                      key={t.id}
+                      className={`transition ${
+                        isHighlighted
+                          ? 'bg-amber-500/15 dark:bg-amber-500/25 font-bold border-l-4 border-l-amber-500 shadow-sm'
+                          : 'hover:bg-slate-50/70 dark:hover:bg-white/[0.03]'
+                      }`}
+                    >
+                      <td className="px-4 py-3 font-mono font-bold text-navy-950 dark:text-white">
+                        {t.ref || t.id}
+                        {isHighlighted && (
+                          <span className="ml-2 text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400">
+                            Selected
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="font-bold text-navy-950 dark:text-white">{t.title}</div>
+                        <div className="text-[11px] text-slate-400 dark:text-mist-400">{formatTaskMeta(t.meta)}</div>
+                      </td>
+                      <td className="px-4 py-3 font-medium text-slate-600 dark:text-mist-300">
+                        {getTaskDepartmentDisplay(t)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-600 dark:text-purple-300">
+                          {t.priority || 'VIP'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap font-bold text-navy-950 dark:text-white">
+                        {t.status}
+                      </td>
+                      <td className="px-4 py-3 text-right text-slate-500 dark:text-mist-400">
+                        {t.owner || t.assignee || 'Unassigned'}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -386,7 +457,10 @@ export function ExecutiveIncidentsTab({
               </div>
               <button
                 type="button"
-                onClick={() => setSelectedIncident(null)}
+                onClick={() => {
+                  setSelectedIncident(null);
+                  onClearSelectedIncident?.();
+                }}
                 className="p-2 rounded-2xl hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 transition"
               >
                 <X className="h-5 w-5" />
@@ -411,7 +485,10 @@ export function ExecutiveIncidentsTab({
             <div className="flex justify-end pt-2">
               <button
                 type="button"
-                onClick={() => setSelectedIncident(null)}
+                onClick={() => {
+                  setSelectedIncident(null);
+                  onClearSelectedIncident?.();
+                }}
                 className="px-5 py-2 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition shadow-md"
               >
                 Close Timeline
