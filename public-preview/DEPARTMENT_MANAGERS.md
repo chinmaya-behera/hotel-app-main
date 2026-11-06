@@ -24,8 +24,16 @@ The previous `manager@thegrandadp.com` account remains an alias for the housekee
 9. **Notifications:** department-specific notifications and read state, including GM decisions.
 10. **Profile:** editable display name and phone; department and demo email remain fixed.
 11. **Complaints:** available to all four managers; search routed guest/Front Desk records, log a concern and record review, progress or resolution with a guest-visible response. Shared complaint records and linked task statuses update together; compensation is unchanged. Ambiguous guest categories remain with Front Desk until explicitly routed.
-12. **Repairs (Engineering):** hotel-wide Engineering work across rooms and public/service areas, including existing maintenance tasks. Log new repairs, assign an available technician, record progress/blockers/completion and keep shared task copies consistent.
-13. **Ordering overview (F&B):** deduplicated dining orders, line items, guest instructions, recorded values and current status, with search and active/all filters. Recorded order values are not a revenue reconciliation report.
+12. **Repairs (Engineering):** hotel-wide work grouped into Furniture, Plumbing, Appliances, Electrical, HVAC, Lifts & elevators, Building & fixtures and Other. Category counts follow search and active/all filters. Select a category when logging/updating repairs; completed repairs can be recategorised without changing their status or completion notes. Older records have labelled category suggestions, with repair titles taking precedence over incidental mentions in descriptions. Category changes persist across shared task copies and reloads.
+13. **Ordering overview (F&B):** drill down from meal service to cuisine to dish. Filter meal, cuisine, reporting period, status and dish/reference/room. Each dish shows distinct order count, non-cancelled units and item subtotal, order frequency, delivered/active/cancelled counts, average dish rating, rating count, written reviews and expandable order records. Menu cuisine is editable separately from its course/category.
+
+### Dining metrics and feedback
+
+Meal boundaries use hotel time (Asia/Kolkata): Breakfast 05:00–10:59, Lunch 11:00–15:59, Afternoon tea 16:00–17:59, Dinner 18:00–22:59, Late night 23:00–04:59. Structured scheduled service time takes precedence over placement time. Menu meal availability does not classify an order. Clock-only legacy orders can be grouped by meal under All dates; undated records and future service times are excluded from rolling past-7/past-30-day filters. Unitemised historical orders remain readable outside dish metrics.
+
+Frequency means distinct orders containing a dish divided by distinct orders in its meal/cuisine, before dish search. Multiple portions or variants in one order count once toward frequency, while quantities and option-inclusive line values are summed. Mixed-cuisine orders appear in each relevant cuisine, but count once overall. Cancelled/rejected orders remain visible and count toward order frequency, but contribute no units or item value. Item value is a pre-tax recorded subtotal, not collected revenue.
+
+Guests can rate individual ordered dishes and leave optional written reviews after delivery via **My Activity → expand dining order → Rate Experience**. One rating per dish per order is retained; editing feedback replaces that rating. Dish averages use those guest ratings only. Order service feedback is labelled separately in the expanded record, and catalog demonstration scores are excluded from analytics. Missing reviews display an explicit empty state. New orders snapshot dish name, cuisine and menu category so later catalog edits/deletions retain historical classification.
 
 ### Guest medical cases and department inspection workflow
 
@@ -59,6 +67,6 @@ These are implementation choices informed by the references, rather than integra
 
 ## Verification
 
-Run `npm run test:manager` on Node 22.18+ or Node 24+. Tests cover all four departments, migration idempotence, scoped mutations, inspection delegation, GM escalation/decision feedback, handovers and notification isolation. Run `node scripts/check-manager-types.mjs b9e05db` to compare strict TypeScript diagnostics with the source pulled for this change. The repository's existing full-project type errors are not hidden by this comparison.
+Run `npm run test:manager` on Node 22.18+ or Node 24+. The suite covers all four departments, scoped workflows, meal/timezone boundaries, scheduled meals, historical metadata snapshots, order deduplication, rating validation/averages, queue synchronisation and repair category persistence. Run `npm run typecheck` and `npm run build` for full-project validation.
 
 This repository is a standalone frontend demonstration. Records and selected department persist in browser localStorage; credentials and restrictions illustrate the intended workflow. Production access isolation requires authenticated server-side authorization and a database. There is no backend or production staff authentication in this repository.

@@ -78,6 +78,10 @@ export interface WorkItem {
   dnd?: boolean;
   photoAttached?: boolean;
   feedback?: { rating: number; comment?: string };
+  dishFeedback?: Record<string, { rating: number; comment?: string; submittedAt: string }>;
+  orderedAt?: string;
+  requestedServiceAt?: string;
+  repairCategory?: string;
   orderLines?: OrderLine[];
   /** accountable owner of a guest case (Front Desk owns cases; departments own routed tasks) */
   owner?: string;
@@ -197,6 +201,9 @@ export interface GuestMessageRecord {
 export interface OrderLine {
   itemId: string;
   name: string;
+  dishName?: string;
+  cuisine?: string;
+  menuCategory?: string;
   qty: number;
   price: number;
 }
@@ -239,6 +246,7 @@ export interface DiningMenuItem {
   id: string;
   name: string;
   category: string;
+  cuisine?: string;
   price: number;
   dietary: DietaryType;
   rating?: number;

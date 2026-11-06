@@ -24,6 +24,7 @@ import {
   Layers,
   HeartHandshake,
 } from 'lucide-react';
+import { scheduledDiningTime } from '@/lib/department-insights';
 import { useDemo } from '@/lib/store';
 import { money } from '@/lib/utils';
 import { GuestSheet } from '@/components/guest/guestUi';
@@ -341,7 +342,8 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
     ].filter(Boolean);
 
     // Call store API
-    const orderRef = placeRoomServiceOrder(room, orderLines, fullNotesParts.join('\n\n'));
+    const requestedServiceAt = scheduleType === 'slot' ? scheduledDiningTime(deliveryDate, selectedSlot) : undefined;
+    const orderRef = placeRoomServiceOrder(room, orderLines, fullNotesParts.join('\n\n'), requestedServiceAt);
 
     setConfirmedOrderId(orderRef);
     setCartSheetOpen(false);

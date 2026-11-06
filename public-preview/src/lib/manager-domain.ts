@@ -83,7 +83,7 @@ export function applyManagerCommand(state: DemoState, command: ManagerCommand, u
   const pushNotification = (roleId: 'department_manager' | 'department_dispatcher_supervisor' | 'general_manager', title: string, message: string, itemId: string) => {
     s.notifications = [{ id: `${uid}-${roleId}`, roleId, title, message, itemId, department: d.name, timestamp: now, read: false, type: 'alert' }, ...(s.notifications ?? [])];
   };
-  if (['medical-create', 'medical-update', 'complaint-create', 'complaint-update', 'repair-create', 'repair-update', 'menu-save', 'menu-delete', 'inspection-launch'].includes(command.type)) {
+  if (['medical-create', 'medical-update', 'complaint-create', 'complaint-update', 'repair-create', 'repair-update', 'repair-category', 'menu-save', 'menu-delete', 'inspection-launch'].includes(command.type)) {
     s.managerOperations ??= seedManagerOperations();
     applyManagerWorkflow(s, command as WorkflowCommand, uid, now);
   } else if (['stock-count', 'replenish', 'room-cleaning', 'appointment', 'appointment-status', 'asset-work-order', 'asset-service', 'menu-availability'].includes(command.type)) {

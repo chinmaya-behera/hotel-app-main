@@ -1,3 +1,4 @@
+import { REPAIR_CATEGORIES } from './department-insights.ts';
 import type { AllergenType, ComplaintStatus, DemoState, DietaryType, DiningMenuItem, InspectionCheckItem, InspectionType, ManagerMedicalCase, SupervisorInspection, WorkItem } from '../types/demo';
 import { departmentId, isOpen, managerDepartment, managerTasks, type ManagerDepartmentId } from './manager-domain.ts';
 
@@ -32,9 +33,10 @@ export type WorkflowCommand =
   | { type: 'medical-update'; caseId: string; urgency: ManagerMedicalCase['urgency']; status: ManagerMedicalCase['status']; note: string; followUpAt?: string; acknowledge?: boolean }
   | { type: 'complaint-create'; guest: string; room: string; title: string; description: string; priority: 'normal' | 'urgent' | 'critical' }
   | { type: 'complaint-update'; reference: string; status: ComplaintStatus; note: string }
-  | { type: 'repair-create'; title: string; location: string; priority: 'normal' | 'urgent' | 'critical'; technicianId?: string; note: string }
-  | { type: 'repair-update'; taskId: string; status: 'In progress' | 'Blocked' | 'Completed'; note: string; technicianId?: string }
-  | { type: 'menu-save'; menuId?: string; item: Pick<DiningMenuItem, 'name' | 'category' | 'price' | 'dietary' | 'image' | 'desc' | 'ingredients' | 'allergens' | 'isAvailable'> }
+  | { type: 'repair-create'; title: string; location: string; priority: 'normal' | 'urgent' | 'critical'; technicianId?: string; note: string; repairCategory?: string }
+  | { type: 'repair-update'; taskId: string; status: 'In progress' | 'Blocked' | 'Completed'; note: string; technicianId?: string; repairCategory?: string }
+  | { type: 'repair-category'; taskId: string; repairCategory: string }
+  | { type: 'menu-save'; menuId?: string; item: Pick<DiningMenuItem, 'name' | 'category' | 'cuisine' | 'price' | 'dietary' | 'image' | 'desc' | 'ingredients' | 'allergens' | 'isAvailable'> }
   | { type: 'menu-delete'; menuId: string }
   | { type: 'inspection-launch'; scope: 'room' | 'floor' | 'all'; location?: string; floor?: number; inspectionType: InspectionType; priority: 'normal' | 'urgent' | 'vip'; instructions: string; supervisorId: string };
 
@@ -130,19 +132,26 @@ export function applyManagerWorkflow(s: DemoState, c: WorkflowCommand, uid: stri
     for (const record of s.frontDesk?.complaints ?? []) if (record.ref === c.reference) { record.department = d.name; record.status = c.status; record.responseRemarks = note; record.history = [...(record.history ?? []), { at: now, status: c.status, note, actor: person }]; }
     syncTask(c.reference, { status: c.status === 'Resolved' ? 'Resolved' : c.status, notes: note });
     notify(`Complaint ${c.status.toLowerCase()}`, c.reference);
+  } else if (c.type === 'repair-category') {
+    only('engineering');
+    if (!REPAIR_CATEGORIES.includes(c.repairCategory as typeof REPAIR_CATEGORIES[number])) throw Error('Choose a listed repair category.');
+    const task = managerRepairs(s).find(t => t.id === c.taskId);
+    if (!task) throw Error('Repair unavailable.');
+    syncTask(task.ref || task.id, { repairCategory: c.repairCategory, history: [...(task.history || []), { at: now, status: task.status, actor: person, note: 'Category: ' + c.repairCategory }] });
   } else if (c.type === 'repair-create' || c.type === 'repair-update') {
     only('engineering');
     const note = text(c.note), member = technician(c.technicianId);
+    if (c.repairCategory && !REPAIR_CATEGORIES.includes(c.repairCategory as typeof REPAIR_CATEGORIES[number])) throw Error('Choose a listed repair category.');
     if (c.type === 'repair-create') {
       if (!['normal', 'urgent', 'critical'].includes(c.priority)) throw Error('Choose a listed repair priority.');
-      const task: WorkItem = { id: uid, ref: `REP-${uid.toUpperCase()}`, title: text(c.title, 160), location: text(c.location, 150), meta: c.location.trim(), department: d.name, category: 'maintenance', status: member ? 'Assigned' : 'Unassigned', priority: c.priority, assignee: member?.name, assigneeId: member?.id, createdAt: now, description: note, history: [{ at: now, status: member ? 'Assigned' : 'Unassigned', actor: person, note }] };
+      const task: WorkItem = { id: uid, ref: `REP-${uid.toUpperCase()}`, title: text(c.title, 160), location: text(c.location, 150), meta: c.location.trim(), department: d.name, category: 'maintenance', repairCategory: c.repairCategory || 'Other', status: member ? 'Assigned' : 'Unassigned', priority: c.priority, assignee: member?.name, assigneeId: member?.id, createdAt: now, description: note, history: [{ at: now, status: member ? 'Assigned' : 'Unassigned', actor: person, note }] };
       for (const key of ['department_dispatcher_supervisor', 'department_dispatcher', 'task_fulfiller'] as const) s.items[key].unshift({ ...task, id: key === 'task_fulfiller' ? `${uid}-fulfiller` : uid });
       notify('Hotel repair logged', uid, 'department_dispatcher_supervisor');
     } else {
       const task = managerRepairs(s).find(t => t.id === c.taskId);
       if (!task || !isOpen(task.status)) throw Error('Open repair unavailable.');
       if (!['In progress', 'Blocked', 'Completed'].includes(c.status)) throw Error('Choose a listed repair status.');
-      syncTask(task.ref || task.id, { status: c.status, assignee: member?.name || task.assignee, assigneeId: member?.id || task.assigneeId, history: [...(task.history ?? []), { at: now, status: c.status, actor: person, note }], notes: note });
+      syncTask(task.ref || task.id, { repairCategory: c.repairCategory || task.repairCategory, status: c.status, assignee: member?.name || task.assignee, assigneeId: member?.id || task.assigneeId, history: [...(task.history ?? []), { at: now, status: c.status, actor: person, note }], notes: note });
       notify(`Repair ${c.status.toLowerCase()}`, task.id, 'department_dispatcher_supervisor');
     }
   } else if (c.type === 'menu-save' || c.type === 'menu-delete') {
@@ -155,7 +164,7 @@ export function applyManagerWorkflow(s: DemoState, c: WorkflowCommand, uid: stri
       if (!Number.isFinite(value.price) || value.price < 0 || value.price > 1000000) throw Error('Enter a valid menu price.');
       if (!['veg', 'non_veg', 'vegan'].includes(value.dietary) || value.allergens.some(a => !MENU_ALLERGENS.includes(a))) throw Error('Choose listed dietary and allergen values.');
       if (value.image && !/^https:\/\//i.test(value.image)) throw Error('Use an HTTPS image URL.');
-      const updates = { ...value, name: text(value.name, 150), category: text(value.category, 80), desc: value.desc?.slice(0, 1000), ingredients: value.ingredients.map(v => text(v, 120)) };
+      const updates = { ...value, name: text(value.name, 150), category: text(value.category, 80), cuisine: value.cuisine ? text(value.cuisine, 80) : item?.cuisine, desc: value.desc?.slice(0, 1000), ingredients: value.ingredients.map(v => text(v, 120)) };
       if (item) Object.assign(item, updates);
       else s.diningMenu = [{ ...updates, id: uid }, ...(s.diningMenu ?? [])];
       s.diningCategories = [...new Set([...(s.diningCategories ?? []), updates.category])];

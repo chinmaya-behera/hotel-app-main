@@ -169,6 +169,9 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
   const [feedbackItem, setFeedbackItem] = useState<{ roleId: RoleId; itemId: string; title: string } | null>(null);
   const [feedbackRating, setFeedbackRating] = useState(5);
   const [feedbackComment, setFeedbackComment] = useState('');
+  const [dishRatings, setDishRatings] = useState<Record<string, { rating: number; comment?: string }>>({});
+  const ratedOrder = feedbackItem ? state.items[feedbackItem.roleId]?.find(i => i.id === feedbackItem.itemId) : undefined;
+  const feedbackDishes = [...new Map((ratedOrder?.orderLines || []).map(line => [line.itemId, line])).values()];
 
   // Quick reply modal state for messages
   const [replyMessageId, setReplyMessageId] = useState<string | null>(null);
@@ -241,9 +244,10 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
 
   function handleSendFeedback() {
     if (!feedbackItem) return;
-    submitGuestFeedback(feedbackItem.roleId, feedbackItem.itemId, feedbackRating, feedbackComment);
+    submitGuestFeedback(feedbackItem.roleId, feedbackItem.itemId, feedbackRating, feedbackComment, dishRatings);
     setFeedbackItem(null);
     setFeedbackComment('');
+    setDishRatings({});
     showToast('Thank you for rating our service!');
   }
 
@@ -422,8 +426,8 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
                 const isExpanded = expandedItemId === item.id;
                 const canCancel = item.status === 'Open' || item.status === 'Pending' || item.status === 'Assigned';
                 const isDelivered = item.status === 'Delivered' || item.status === 'Completed';
-                const roleId: RoleId = 'task_fulfiller';
-                const orderLines = (item as any).lines as { qty: number; name: string; price: number }[] | undefined;
+                const roleId = (Object.entries(state.items).find(([, items]) => items.some(record => record.id === item.id))?.[0] || 'task_fulfiller') as RoleId;
+                const orderLines = item.orderLines;
 
                 return (
                   <div
@@ -511,6 +515,9 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setFeedbackItem({ roleId, itemId: item.id, title: item.title });
+                                setFeedbackRating(item.feedback?.rating || 5);
+                                setFeedbackComment(item.feedback?.comment || '');
+                                setDishRatings(Object.fromEntries(Object.entries(item.dishFeedback || {}).map(([id, review]) => [id, { rating: review.rating, comment: review.comment }])));
                               }}
                               className="px-2.5 py-1.5 rounded-lg bg-amber-400 text-ink-950 font-bold text-[11px] hover:bg-amber-300"
                             >
@@ -716,7 +723,7 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
       {feedbackItem && (
         <GuestSheet
           title={`Rate ${feedbackItem.title}`}
-          onClose={() => setFeedbackItem(null)}
+          onClose={() => { setFeedbackItem(null); setDishRatings({}); }}
           footer={
             <button
               type="button"
@@ -734,6 +741,7 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
                 <button
                   key={star}
                   type="button"
+                  aria-label={`Service rating ${star} of 5`} aria-pressed={star === feedbackRating}
                   onClick={() => setFeedbackRating(star)}
                   className="p-1.5 transition-transform hover:scale-125"
                 >
@@ -750,11 +758,13 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
 
             <textarea
               rows={2}
+              aria-label="Service review" maxLength={1000}
               value={feedbackComment}
               onChange={(e) => setFeedbackComment(e.target.value)}
               placeholder="Any compliments or suggestions for the team? (Optional)"
               className="guest-field w-full px-3 py-2 text-xs text-white text-left"
             />
+            {feedbackDishes.length > 0 && <div className="space-y-4 text-left border-t border-white/10 pt-4"><h3 className="font-semibold">Rate your dishes (optional)</h3><p className="text-mist-300">These ratings are separate from the service rating.</p>{feedbackDishes.map(line => <div className="space-y-2" key={line.itemId}><label className="block">{line.dishName || line.name}<select aria-label={'Rating for ' + (line.dishName || line.name)} className="guest-field w-full mt-2 p-2" value={dishRatings[line.itemId]?.rating || ''} onChange={e => setDishRatings(prev => { const next = { ...prev }; if (!e.target.value) delete next[line.itemId]; else next[line.itemId] = { ...prev[line.itemId], rating: Number(e.target.value) }; return next; })}><option value="">Skip dish rating</option>{[5,4,3,2,1].map(r => <option key={r} value={r}>{r} / 5</option>)}</select></label>{dishRatings[line.itemId] && <textarea aria-label={'Review for ' + (line.dishName || line.name)} className="guest-field w-full p-2" rows={2} maxLength={1000} placeholder="Your dish review (optional)" value={dishRatings[line.itemId].comment || ''} onChange={e => setDishRatings(prev => ({ ...prev, [line.itemId]: { ...prev[line.itemId], comment: e.target.value } }))}/>}</div>)}</div>}
           </div>
         </GuestSheet>
       )}

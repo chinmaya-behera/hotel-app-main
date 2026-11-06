@@ -1,5 +1,7 @@
 'use client';
 
+import { snapshotOrderLines, diningFeedbackPatch, patchDiningMirrors } from './department-insights';
+
 import {
   createContext,
   useCallback,
@@ -184,8 +186,8 @@ interface DemoApi {
   setTheme: (theme: ThemeMode) => void;
   setActiveDispatcherDept: (dept: DispatcherDepartment) => void;
   submitGuestRequest: (input: GuestRequestInput) => string;
-  placeRoomServiceOrder: (room: string, lines: OrderLine[], note?: string) => string;
-  placeDiningOrder: (room: string, lines: OrderLine[], note?: string) => string;
+  placeRoomServiceOrder: (room: string, lines: OrderLine[], note?: string, requestedServiceAt?: string) => string;
+  placeDiningOrder: (room: string, lines: OrderLine[], note?: string, requestedServiceAt?: string) => string;
   addDiningMenuItem: (item: Omit<DiningMenuItem, 'id'>) => string;
   updateDiningMenuItem: (id: string, updates: Partial<DiningMenuItem>) => void;
   deleteDiningMenuItem: (id: string) => void;
@@ -193,7 +195,7 @@ interface DemoApi {
   addDiningCategory: (category: string) => void;
   removeDiningCategory: (category: string) => void;
   cancelGuestItem: (roleId: RoleId, itemId: string) => void;
-  submitGuestFeedback: (roleId: RoleId, itemId: string, rating: number, comment?: string) => void;
+  submitGuestFeedback: (roleId: RoleId, itemId: string, rating: number, comment?: string, dishes?: Record<string, { rating: number; comment?: string }>) => void;
   disputeFolioCharge: (room: string, lineId: string, reason: string) => void;
   claimLostItem: (room: string, itemId: string) => void;
   addLostFoundItem: (item: Omit<LostFoundItem, 'id' | 'claimed' | 'claimedRoom' | 'loggedBy'>) => void;
@@ -696,14 +698,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         const historyEntry: GuestHistoryEntry | null = patch.status ? { at: nowLabel(), status: patch.status } : null;
         return {
           ...prev,
-          items: {
-            ...prev.items,
-            [roleId]: prev.items[roleId].map((i) =>
-              i.id === itemId
-                ? { ...i, ...patch, history: historyEntry ? [...(i.history ?? []), historyEntry] : i.history }
-                : i,
-            ),
-          },
+          items: patchDiningMirrors(prev.items, roleId, itemId, patch, historyEntry || undefined),
           feed: feedText
             ? [{ id: uid(), at: nowLabel(), role: feedRole ?? roleById[roleId].short, text: feedText }, ...prev.feed].slice(0, 30)
             : prev.feed,
@@ -1627,7 +1622,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   );
 
   const placeRoomServiceOrder = useCallback<DemoApi['placeRoomServiceOrder']>(
-    (room, lines, note) => {
+    (room, lines, note, requestedServiceAt) => {
       const total = Math.round(lines.reduce((sum, l) => sum + l.price * l.qty, 0) * 100) / 100;
       const ref = nextRef('DIN', room);
       const id = uid();
@@ -1646,7 +1641,9 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         description: note,
         ref,
         createdAt,
-        orderLines: lines,
+        orderLines: snapshotOrderLines(lines, state.diningMenu || []),
+        orderedAt: new Date().toISOString(),
+        requestedServiceAt: requestedServiceAt && Number.isFinite(Date.parse(requestedServiceAt)) ? requestedServiceAt : undefined,
         amount: total,
         history: [{ at: createdAt, status: 'Order Placed' }],
       };
@@ -1672,7 +1669,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       scheduleLifecycle('department_dispatcher', id, ref, `Dining ${ref}`, ORDER_LIFECYCLE);
       return ref;
     },
-    [notify, scheduleLifecycle],
+    [notify, scheduleLifecycle, state.diningMenu],
   );
 
   const placeDiningOrder = placeRoomServiceOrder;
@@ -1773,11 +1770,16 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   );
 
   const submitGuestFeedback = useCallback<DemoApi['submitGuestFeedback']>(
-    (roleId, itemId, rating, comment) => {
-      patchGuestItem(roleId, itemId, { feedback: { rating, comment } });
-      notify('Thanks for your feedback');
+    (roleId, itemId, rating, comment, dishes = {}) => {
+      const item = state.items[roleId]?.find(i => i.id === itemId);
+      if (!item) return;
+      try {
+        const patch = item.orderLines?.length ? diningFeedbackPatch(item, rating, comment, dishes, new Date().toISOString()) : { feedback: { rating, comment } };
+        patchGuestItem(roleId, itemId, patch);
+        notify('Thanks for your feedback');
+      } catch (error) { notify(error instanceof Error ? error.message : 'Unable to save feedback'); }
     },
-    [notify, patchGuestItem],
+    [notify, patchGuestItem, state.items],
   );
 
   const disputeFolioCharge = useCallback<DemoApi['disputeFolioCharge']>(
