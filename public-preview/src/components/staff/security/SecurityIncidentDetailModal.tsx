@@ -136,7 +136,7 @@ export function SecurityIncidentDetailModal({
   return (
     <>
       <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-stone-900/45 backdrop-blur-sm animate-in fade-in duration-150">
-        <div className="w-full max-w-lg bg-white border border-[var(--dm-line)] rounded-2xl p-6 shadow-2xl flex flex-col max-h-[92vh] overflow-y-auto text-[var(--dm-ink)]">
+        <div className="dm-dialog-card w-full max-w-lg bg-white border border-[var(--dm-line)] rounded-2xl p-6 shadow-2xl flex flex-col max-h-[92vh] overflow-y-auto text-[var(--dm-ink)]">
           {/* Header */}
           <div className="flex items-center justify-between pb-4 border-b border-[var(--dm-line)]">
             <div className="flex items-center gap-2.5">

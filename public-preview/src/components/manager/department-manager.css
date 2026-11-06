@@ -1,4 +1,55 @@
 /* Local aliases keep every manager screen, form and dialog on the shared warm theme. */
+.department-manager-page,
+.dm-dialog,
+.dm-workspace,
+.dm-dialog-card {
+  --white: 231 226 215;
+}
+.department-manager-page input,
+.department-manager-page select,
+.department-manager-page textarea,
+.dm-dialog input,
+.dm-dialog select,
+.dm-dialog textarea,
+.dm-workspace input,
+.dm-workspace select,
+.dm-workspace textarea,
+.dm-dialog-card input,
+.dm-dialog-card select,
+.dm-dialog-card textarea {
+  background: rgb(231, 226, 215) !important;
+  border: 1px solid var(--dm-accent) !important;
+  color: var(--dm-ink) !important;
+}
+.department-manager-page .dm-small-button,
+.dm-dialog .dm-small-button,
+.dm-workspace .dm-small-button,
+.dm-dialog-card .dm-small-button,
+.department-manager-page .dm-secondary,
+.dm-dialog .dm-secondary,
+.dm-workspace .dm-secondary,
+.dm-dialog-card .dm-secondary,
+.department-manager-page .dm-icon-button,
+.dm-dialog .dm-icon-button,
+.dm-workspace .dm-icon-button,
+.dm-dialog-card .dm-icon-button {
+  background: rgb(231, 226, 215) !important;
+  border-color: var(--dm-accent) !important;
+}
+.department-manager-page .dm-small-button:hover,
+.dm-dialog .dm-small-button:hover,
+.dm-workspace .dm-small-button:hover,
+.dm-dialog-card .dm-small-button:hover,
+.department-manager-page .dm-secondary:hover,
+.dm-dialog .dm-secondary:hover,
+.dm-workspace .dm-secondary:hover,
+.dm-dialog-card .dm-secondary:hover,
+.department-manager-page .dm-icon-button:hover,
+.dm-dialog .dm-icon-button:hover,
+.dm-workspace .dm-icon-button:hover,
+.dm-dialog-card .dm-icon-button:hover {
+  background: var(--dm-surface) !important;
+}
 .department-manager-page {
   --dm-paper: var(--warm-panel);
   --dm-surface: var(--warm-highlight);
@@ -47,7 +98,7 @@
 .dm-breadcrumb strong { font-weight: 500; color: var(--dm-ink); }
 .dm-live { display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--dm-muted); margin-right: 6px; white-space: nowrap; }
 .dm-live i { width: 5px; height: 5px; border-radius: 50%; background: var(--dm-muted); }
-.dm-icon-button { position: relative; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 36px; height: 36px; border: 1px solid var(--dm-line); border-radius: 8px; color: var(--dm-ink); background: var(--dm-paper); box-shadow: 0 1px 3px rgba(44, 36, 25, 0.04); transition: transform .2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow .2s cubic-bezier(0.16, 1, 0.3, 1), background .2s ease; }
+.dm-icon-button { position: relative; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 36px; height: 36px; border: 1px solid var(--dm-line); border-radius: 8px; color: var(--dm-ink); background: rgb(231, 226, 215); box-shadow: 0 1px 3px rgba(44, 36, 25, 0.04); transition: transform .2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow .2s cubic-bezier(0.16, 1, 0.3, 1), background .2s ease; }
 .dm-icon-button:hover { background: var(--dm-surface); transform: translateY(-1px); box-shadow: 0 4px 10px rgba(44, 36, 25, 0.1); }
 .dm-icon-button:active { transform: translateY(0); }
 .dm-icon-button b { position: absolute; top: -5px; right: -5px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 10px; background: var(--dm-ink); color: var(--dm-paper); font-size: 10px; line-height: 17px; }
@@ -81,12 +132,12 @@
 .dm-text-button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; font-size: 12px; line-height: 1.5; font-weight: 500; color: var(--dm-ink); flex-shrink: 0; }
 .dm-text-button:hover { text-decoration: underline; text-underline-offset: 4px; }
 .dm-small-button, .dm-primary, .dm-secondary { display: inline-flex; justify-content: center; align-items: center; gap: 8px; border-radius: 7px; font-weight: 500; font-size: 12px; line-height: 1.4; transition: transform .2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow .2s cubic-bezier(0.16, 1, 0.3, 1), background .2s ease, border-color .2s ease, color .2s ease; }
-.dm-small-button { min-height: 34px; padding: 7px 11px; border: 1px solid var(--dm-accent); color: var(--dm-ink); background: var(--dm-paper); box-shadow: 0 1px 3px rgba(44, 36, 25, 0.04); }
+.dm-small-button { min-height: 34px; padding: 7px 11px; border: 1px solid var(--dm-accent); color: var(--dm-ink); background: rgb(231, 226, 215); box-shadow: 0 1px 3px rgba(44, 36, 25, 0.04); }
 .dm-primary, .dm-secondary { min-height: 41px; padding: 11px 16px; }
 .dm-primary { background: var(--warm-primary); border: 1px solid var(--warm-primary); color: var(--warm-on-primary); box-shadow: 0 2px 8px rgba(44, 36, 25, 0.16); }
 .dm-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(44, 36, 25, 0.26); filter: brightness(1.05); }
 .dm-primary:active:not(:disabled) { transform: translateY(0); box-shadow: 0 2px 4px rgba(44, 36, 25, 0.16); }
-.dm-secondary { border: 1px solid var(--dm-accent); color: var(--dm-ink); background: transparent; box-shadow: 0 1px 3px rgba(44, 36, 25, 0.04); }
+.dm-secondary { border: 1px solid var(--dm-accent); color: var(--dm-ink); background: rgb(231, 226, 215); box-shadow: 0 1px 3px rgba(44, 36, 25, 0.04); }
 .dm-secondary:hover, .dm-small-button:hover:not(:disabled) { background: var(--dm-surface); border-color: var(--dm-ink); transform: translateY(-1.5px); box-shadow: 0 4px 12px rgba(44, 36, 25, 0.09); }
 .dm-secondary:active, .dm-small-button:active:not(:disabled) { transform: translateY(0); box-shadow: 0 1px 2px rgba(44, 36, 25, 0.05); }
 .dm-priority-panel { display: flex; flex-direction: column; }
@@ -143,7 +194,8 @@
 .dm-toolbar > input { width: 100%; max-width: 500px; }
 .dm-search { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 170px; max-width: 500px; color: var(--dm-muted); }
 .dm-search input { width: 100%; }
-.dm-workspace input, .dm-workspace select, .dm-workspace textarea { min-width: 0; min-height: 41px; padding: 10px 12px; border: 1px solid var(--dm-accent); border-radius: 7px; background: var(--dm-paper); color: var(--dm-ink); font-size: 13px; font-family: inherit; line-height: 1.5; }
+.dm-workspace input, .dm-workspace select, .dm-workspace textarea,
+.dm-dialog input, .dm-dialog select, .dm-dialog textarea { min-width: 0; min-height: 41px; padding: 10px 12px; border: 1px solid var(--dm-accent); border-radius: 7px; background: rgb(231, 226, 215); color: var(--dm-ink); font-size: 13px; font-family: inherit; line-height: 1.5; }
 .dm-workspace input::placeholder, .dm-workspace textarea::placeholder { color: var(--dm-muted); opacity: .85; }
 .dm-workspace input[readonly] { background: var(--dm-surface); color: var(--dm-muted); }
 .dm-workspace select { cursor: pointer; padding-right: 25px; }
