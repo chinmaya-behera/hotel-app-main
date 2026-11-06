@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Clock,
   Send,
@@ -11,15 +11,15 @@ import {
   Plus,
   Trash2,
   Calendar,
-  Check,
 } from 'lucide-react';
-import type { ShiftHandover, WorkItem, SupervisorInspection, IncidentRecord } from '@/types/demo';
+import type { ShiftHandover, WorkItem, SupervisorInspection, IncidentRecord, DispatcherDepartment } from '@/types/demo';
 
 interface SupervisorHandoverTabProps {
   handovers?: ShiftHandover[];
   tasks?: WorkItem[];
   inspections?: SupervisorInspection[];
   incidents?: IncidentRecord[];
+  department?: DispatcherDepartment;
   onSubmitHandover?: (handover: Omit<ShiftHandover, 'id' | 'timestamp' | 'status'>) => void;
   onAcknowledgeHandover?: (handoverId: string) => void;
 }
@@ -29,10 +29,20 @@ export function SupervisorHandoverTab({
   tasks = [],
   inspections = [],
   incidents = [],
+  department = 'Housekeeping',
   onSubmitHandover,
   onAcknowledgeHandover,
 }: SupervisorHandoverTabProps) {
-  const [incomingManager, setIncomingManager] = useState('Pooja Nair (Evening HK Supervisor)');
+  const defaultIncomingManager =
+    department === 'Housekeeping'
+      ? 'Pooja Nair (Evening HK Supervisor)'
+      : department === 'Maintenance & Engineering'
+        ? 'Kiran Rao (Evening Lead Engineer)'
+        : department === 'Food & Beverages'
+          ? 'Chef Rahul (Evening F&B Supervisor)'
+          : 'Ananya (Evening Spa Lead)';
+
+  const [incomingManager, setIncomingManager] = useState(defaultIncomingManager);
   const [shift, setShift] = useState<'Day' | 'Evening' | 'Night' | 'Duty'>('Day');
   const [notes, setNotes] = useState('');
   const [priorityActions, setPriorityActions] = useState<string[]>([
@@ -40,6 +50,11 @@ export function SupervisorHandoverTab({
     'Follow up on Floor 3 linen restock order with Laundry coordinator',
   ]);
   const [newActionInput, setNewActionInput] = useState('');
+  const [submittedAlert, setSubmittedAlert] = useState(false);
+
+  useEffect(() => {
+    setIncomingManager(defaultIncomingManager);
+  }, [defaultIncomingManager]);
 
   const outstandingTasksCount = (tasks ?? []).filter((t) => t.status !== 'Completed').length;
   const pendingInspectionsCount = (inspections ?? []).filter((i) => i.status === 'pending').length;
@@ -66,7 +81,7 @@ export function SupervisorHandoverTab({
       outgoingManager: 'Meera Nambiar (EMP-0105)',
       incomingManager,
       shift,
-      department: 'Housekeeping',
+      department: department || 'Housekeeping',
       scope: 'My Department',
       outstandingTasksCount,
       unresolvedComplaintsCount: pendingInspectionsCount,
@@ -76,10 +91,18 @@ export function SupervisorHandoverTab({
     });
 
     setNotes('');
+    setSubmittedAlert(true);
+    setTimeout(() => setSubmittedAlert(false), 4000);
   };
 
   return (
     <div className="space-y-6">
+      {submittedAlert && (
+        <div className="p-3.5 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 text-xs text-emerald-300 flex items-center gap-2 animate-in fade-in shadow-lg shadow-emerald-500/10">
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
+          <span>Shift Handover log successfully transmitted for {department}.</span>
+        </div>
+      )}
       {/* Handover Submission Form */}
       <div className="rounded-3xl border border-white/10 bg-ink-900/90 p-5 backdrop-blur-xl shadow-xl space-y-4">
         <div className="flex items-center gap-3">
@@ -138,7 +161,7 @@ export function SupervisorHandoverTab({
           {/* Auto-populated Metric Snapshot */}
           <div className="grid grid-cols-3 gap-3 p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.04] text-xs">
             <div>
-              <p className="text-[10px] uppercase font-bold text-mist-400">Open HK Tasks</p>
+              <p className="text-[10px] uppercase font-bold text-mist-400">Open {department} Tasks</p>
               <p className="text-lg font-bold font-mono text-white mt-0.5">
                 {outstandingTasksCount}
               </p>
@@ -233,70 +256,6 @@ export function SupervisorHandoverTab({
             </button>
           </div>
         </form>
-      </div>
-
-      {/* Historical Handovers List */}
-      <div className="rounded-3xl border border-white/10 bg-ink-900/90 p-5 backdrop-blur-xl shadow-xl space-y-4">
-        <h3 className="text-sm font-bold font-display text-white">Recent Shift Handovers</h3>
-
-        <div className="space-y-3">
-          {handovers.length === 0 ? (
-            <p className="text-xs text-mist-400">No shift handovers on record.</p>
-          ) : (
-            handovers.map((h) => (
-              <div
-                key={h.id}
-                className="p-4 rounded-2xl border border-white/10 bg-white/[0.02] space-y-3"
-              >
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-white text-xs">
-                        {h.outgoingManager} → {h.incomingManager}
-                      </span>
-                      <span className="px-2 py-0.5 rounded-full bg-white/5 text-[10px] font-mono text-amber-300">
-                        {h.shift} Shift
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-mist-400 mt-0.5">
-                      Submitted at {h.timestamp} · Scope: {h.scope} ({h.department})
-                    </p>
-                  </div>
-
-                  {h.status === 'submitted' ? (
-                    <button
-                      type="button"
-                      onClick={() => onAcknowledgeHandover?.(h.id)}
-                      className="px-3 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold hover:bg-emerald-500/30 transition flex items-center gap-1.5"
-                    >
-                      <Check className="h-3.5 w-3.5" />
-                      <span>Acknowledge Handover</span>
-                    </button>
-                  ) : (
-                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 text-[10px] font-bold uppercase tracking-wider">
-                      Acknowledged
-                    </span>
-                  )}
-                </div>
-
-                <p className="text-xs text-mist-200 pl-2 border-l-2 border-amber-400/40">
-                  {h.notes}
-                </p>
-
-                {h.priorityActions && h.priorityActions.length > 0 && (
-                  <div className="space-y-1">
-                    <p className="text-[10px] uppercase font-bold text-mist-400">Priority Actions</p>
-                    <ul className="list-disc list-inside text-xs text-mist-300 space-y-0.5">
-                      {h.priorityActions.map((pa, i) => (
-                        <li key={i}>{pa}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            ))
-          )}
-        </div>
       </div>
     </div>
   );

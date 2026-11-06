@@ -10,49 +10,125 @@ import {
   Sparkles,
   MapPin,
   AlertTriangle,
+  ShieldCheck,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
-import type { WorkItem, StaffAccount } from '@/types/demo';
+import type { WorkItem, StaffAccount, DispatcherDepartment } from '@/types/demo';
 
 interface AssignTaskModalProps {
   task: WorkItem;
   onClose: () => void;
   onAssigned?: (staffName: string) => void;
+  department?: DispatcherDepartment | string;
+  lockDepartment?: boolean;
 }
 
-export function AssignTaskModal({ task, onClose, onAssigned }: AssignTaskModalProps) {
+export function AssignTaskModal({ task, onClose, onAssigned, department, lockDepartment = true }: AssignTaskModalProps) {
   const { state, assignDispatcherTask, reassignDispatcherTask } = useDemo();
   const [selectedStaffId, setSelectedStaffId] = useState<string>('');
-  const [filterDept, setFilterDept] = useState<string>('all');
   const [dispatchReason, setDispatchReason] = useState<string>('');
   const [overrideAuthorized, setOverrideAuthorized] = useState<boolean>(false);
 
-  // Find fulfillers & dispatchers
-  const staffAccounts = state.staffAccounts ?? [];
-
-  // Determine matching department
-  const taskDept =
+  // Determine matching department strictly
+  const rawDept =
+    department ||
     task.department ||
     (task.category === 'housekeeping'
       ? 'Housekeeping'
       : task.category === 'maintenance'
       ? 'Maintenance & Engineering'
       : task.category === 'room_service'
-      ? 'Food & Beverage'
+      ? 'Food & Beverages'
+      : task.category === 'spa'
+      ? 'Wellness'
       : '');
 
-  // Filter staff by department if selected
+  const getDeptInfo = (deptStr: string) => {
+    const s = deptStr.toLowerCase();
+    if (s.includes('spa') || s.includes('well')) {
+      return {
+        key: 'wellness',
+        label: 'Spa & Wellness',
+        match: (d: string) => {
+          const dl = d.toLowerCase();
+          return dl.includes('spa') || dl.includes('well');
+        },
+      };
+    }
+    if (s.includes('maint') || s.includes('eng')) {
+      return {
+        key: 'maintenance',
+        label: 'Maintenance & Engineering',
+        match: (d: string) => {
+          const dl = d.toLowerCase();
+          return dl.includes('maint') || dl.includes('eng');
+        },
+      };
+    }
+    if (s.includes('food') || s.includes('bev')) {
+      return {
+        key: 'food',
+        label: 'Food & Beverages',
+        match: (d: string) => {
+          const dl = d.toLowerCase();
+          return dl.includes('food') || dl.includes('bev');
+        },
+      };
+    }
+    if (s.includes('house')) {
+      return {
+        key: 'housekeeping',
+        label: 'Housekeeping',
+        match: (d: string) => {
+          const dl = d.toLowerCase();
+          return dl.includes('house');
+        },
+      };
+    }
+    return null;
+  };
+
+  const deptInfo = getDeptInfo(rawDept);
+  const isDeptLocked = lockDepartment || Boolean(deptInfo);
+  const [filterDept, setFilterDept] = useState<string>(deptInfo ? deptInfo.key : 'all');
+
+  // Find fulfillers & dispatchers
+  const staffAccounts = state.staffAccounts ?? [];
+
+  // Filter staff strictly by department (cannot assign to other department employee)
   const filteredStaff = staffAccounts.filter((s) => {
     if (s.roleId !== 'task_fulfiller' && s.roleId !== 'department_dispatcher') return false;
-    if (filterDept !== 'all' && !s.department.toLowerCase().includes(filterDept.toLowerCase())) return false;
+    if (isDeptLocked && deptInfo) {
+      return deptInfo.match(s.department);
+    }
+    if (filterDept !== 'all') {
+      const sDept = s.department.toLowerCase();
+      if (filterDept === 'wellness' && !(sDept.includes('spa') || sDept.includes('wellness'))) return false;
+      if (filterDept === 'maintenance' && !(sDept.includes('maint') || sDept.includes('eng'))) return false;
+      if (filterDept === 'food' && !(sDept.includes('food') || sDept.includes('bev'))) return false;
+      if (filterDept === 'housekeeping' && !sDept.includes('house')) return false;
+    }
     return true;
   });
 
   // Calculate active workload per staff member
   const getActiveWorkload = (staff: StaffAccount) => {
-    return (state.items.task_fulfiller ?? []).filter(
-      (f) => f.assigneeId === staff.employeeId && f.status !== 'Completed' && f.status !== 'Cancelled',
-    ).length;
+    const allItems = [
+      ...(state.items.task_fulfiller ?? []),
+      ...(state.items.department_dispatcher_supervisor ?? []),
+      ...(state.items.department_dispatcher ?? []),
+    ];
+    const uniqueItems = allItems.filter((t, i, arr) => arr.findIndex((x) => x.id === t.id) === i);
+    return uniqueItems.filter((f) => {
+      if (f.status === 'Completed' || f.status === 'Cancelled') return false;
+      const matchId = f.assigneeId && (f.assigneeId === staff.employeeId || f.assigneeId.toLowerCase() === staff.employeeId.toLowerCase());
+      const matchName = staff.name && f.assignee && (
+        f.assignee.toLowerCase() === staff.name.toLowerCase() ||
+        f.assignee.toLowerCase().includes(staff.name.toLowerCase()) ||
+        staff.name.toLowerCase().includes(f.assignee.toLowerCase())
+      );
+      return Boolean(matchId || matchName);
+    }).length;
   };
 
   const selectedStaff = staffAccounts.find((s) => s.id === selectedStaffId || s.employeeId === selectedStaffId);
@@ -63,9 +139,10 @@ export function AssignTaskModal({ task, onClose, onAssigned }: AssignTaskModalPr
 
   const handleAssign = () => {
     if (!selectedStaffId || !selectedStaff) return;
+    if (isDeptLocked && deptInfo && !deptInfo.match(selectedStaff.department)) return;
     if (isSelectedOverloaded && !overrideAuthorized) return;
 
-    if (task.assigneeId && task.assigneeId !== selectedStaff.employeeId) {
+    if ((task.assigneeId || task.assignee) && (task.assigneeId !== selectedStaff.employeeId && task.assignee !== selectedStaff.name)) {
       reassignDispatcherTask(task.id, selectedStaff.employeeId, dispatchReason || 'Manual rebalance by Dispatcher');
     } else {
       assignDispatcherTask(task.id, selectedStaff.employeeId);
@@ -89,11 +166,11 @@ export function AssignTaskModal({ task, onClose, onAssigned }: AssignTaskModalPr
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-amber-400" />
               <p className="text-[10px] font-bold uppercase tracking-widest text-amber-300">
-                {task.assigneeId ? 'Workload Reassignment & Balancing' : 'Manual Dispatch Assignment'}
+                {task.assigneeId || task.assignee ? 'Workload Reassignment & Balancing' : 'Manual Dispatch Assignment'}
               </p>
             </div>
             <h2 id="assign-modal-title" className="text-xl font-bold font-display text-white">
-              {task.assigneeId ? 'Reassign Task to Employee' : 'Assign Task to Attendant / Engineer'}
+              {task.assigneeId || task.assignee ? 'Reassign Task to Employee' : 'Assign Task to Attendant / Engineer'}
             </h2>
             <p className="text-xs text-mist-300 truncate max-w-lg">
               {task.ref ? <span className="font-mono text-amber-300 font-semibold">{task.ref} · </span> : null}
@@ -137,34 +214,63 @@ export function AssignTaskModal({ task, onClose, onAssigned }: AssignTaskModalPr
           )}
         </div>
 
-        {/* Department Filter Pills */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-mist-400 font-medium">Filter by Department:</span>
-            <span className="text-[11px] text-mist-500">{filteredStaff.length} eligible staff members</span>
+        {/* Department Restriction Header & Indicator */}
+        {isDeptLocked && deptInfo ? (
+          <div className="rounded-2xl border border-amber-400/25 bg-amber-400/[0.06] p-3.5 shadow-sm flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-xl bg-amber-400/15 border border-amber-400/30 flex items-center justify-center text-amber-300 shrink-0">
+                <ShieldCheck className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300">
+                    Department Scoped Reassignment
+                  </span>
+                  <span className="rounded-full bg-amber-400/20 border border-amber-400/30 px-2 py-0.5 text-[10px] font-bold text-amber-200">
+                    {deptInfo.label}
+                  </span>
+                </div>
+                <p className="text-[11px] text-mist-300 mt-0.5">
+                  Tasks can only be reassigned to employees within the <strong className="text-white font-semibold">{deptInfo.label}</strong> department. Cross-department reassignment is disabled.
+                </p>
+              </div>
+            </div>
+            <div className="text-right shrink-0">
+              <span className="text-xs font-mono font-bold text-amber-200">
+                {filteredStaff.length} Eligible {filteredStaff.length === 1 ? 'Attendant' : 'Attendants'}
+              </span>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2 text-xs">
-            {[
-              { id: 'all', label: 'All Departments' },
-              { id: 'housekeeping', label: 'Housekeeping' },
-              { id: 'maintenance', label: 'Maintenance & Eng' },
-              { id: 'food', label: 'Food & Beverage' },
-            ].map((d) => (
-              <button
-                key={d.id}
-                type="button"
-                onClick={() => setFilterDept(d.id)}
-                className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition ${
-                  filterDept === d.id
-                    ? 'border-amber-400 bg-amber-400/10 text-amber-200 shadow-sm'
-                    : 'border-white/10 bg-white/[0.03] text-mist-300 hover:text-white hover:bg-white/[0.06]'
-                }`}
-              >
-                {d.label}
-              </button>
-            ))}
+        ) : (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-mist-400 font-medium">Filter by Department:</span>
+              <span className="text-[11px] text-mist-500">{filteredStaff.length} eligible staff members</span>
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs">
+              {[
+                { id: 'all', label: 'All Departments' },
+                { id: 'housekeeping', label: 'Housekeeping' },
+                { id: 'maintenance', label: 'Maintenance & Eng' },
+                { id: 'food', label: 'Food & Beverage' },
+                { id: 'wellness', label: 'Spa & Wellness' },
+              ].map((d) => (
+                <button
+                  key={d.id}
+                  type="button"
+                  onClick={() => setFilterDept(d.id)}
+                  className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition ${
+                    filterDept === d.id
+                      ? 'border-amber-400 bg-amber-400/10 text-amber-200 shadow-sm'
+                      : 'border-white/10 bg-white/[0.03] text-mist-300 hover:text-white hover:bg-white/[0.06]'
+                  }`}
+                >
+                  {d.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Staff Selection Roster */}
         <div className="max-h-60 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
@@ -203,9 +309,15 @@ export function AssignTaskModal({ task, onClose, onAssigned }: AssignTaskModalPr
                       .join('')}
                   </div>
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-sm text-white">{staff.name}</span>
                       <span className="text-[10px] font-mono text-mist-400">{staff.employeeId}</span>
+                      {((task.assigneeId && (staff.employeeId === task.assigneeId || staff.employeeId.toLowerCase() === task.assigneeId.toLowerCase())) ||
+                        (task.assignee && (staff.name.toLowerCase() === task.assignee.toLowerCase() || staff.name.toLowerCase().includes(task.assignee.toLowerCase())))) ? (
+                        <span className="rounded-full bg-mist-700/60 border border-mist-500/40 text-mist-300 text-[10px] px-2 py-0.5 font-bold">
+                          Current Assignee
+                        </span>
+                      ) : null}
                       {matchesFloor ? (
                         <span className="rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-[10px] px-1.5 py-0.5 font-bold">
                           Floor Match
@@ -329,7 +441,7 @@ export function AssignTaskModal({ task, onClose, onAssigned }: AssignTaskModalPr
               className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-amber-400 text-ink-950 text-xs font-bold hover:bg-amber-300 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-lg shadow-amber-500/20"
             >
               <UserCheck className="h-4 w-4" />
-              <span>Confirm & Dispatch</span>
+              <span>{task.assigneeId || task.assignee ? 'Confirm & Reassign' : 'Confirm & Dispatch'}</span>
             </button>
           </div>
         </div>

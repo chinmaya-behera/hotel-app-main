@@ -69,7 +69,7 @@ export interface WorkItem {
   /** reference number shown to the guest, e.g. "HK-402-003" */
   ref?: string;
   /** guest-portal originating module, when this item came from the Guest Portal */
-  category?: 'housekeeping' | 'maintenance' | 'spa' | 'concierge' | 'recreation' | 'room_service' | 'folio' | 'lost_found' | 'safety' | 'laundry' | 'front_desk';
+  category?: 'housekeeping' | 'maintenance' | 'spa' | 'concierge' | 'recreation' | 'room_service' | 'folio' | 'lost_found' | 'safety' | 'laundry' | 'front_desk' | 'medical' | 'therapy';
   notes?: string;
   note?: string;
   description?: string;
@@ -77,14 +77,13 @@ export interface WorkItem {
   history?: GuestHistoryEntry[];
   dnd?: boolean;
   photoAttached?: boolean;
-  feedback?: { rating: number; comment?: string; tags?: string[]; submittedAt?: string };
-  dishFeedback?: Record<string, { rating: number; comment?: string; submittedAt: string }>;
-  orderedAt?: string;
-  requestedServiceAt?: string;
-  demoSource?: 'dining-showcase';
-  repairCategory?: string;
-  customDiningId?: string;
-  compensationRefundId?: string;
+  feedback?: {
+    rating: number;
+    comment?: string;
+    guestName?: string;
+    reviewedAt?: string;
+    tags?: string[];
+  };
   orderLines?: OrderLine[];
   /** accountable owner of a guest case (Front Desk owns cases; departments own routed tasks) */
   owner?: string;
@@ -467,14 +466,6 @@ export interface InspectionCheckItem {
 }
 
 export interface SupervisorInspection {
-  batchId?: string;
-  scope?: 'room' | 'floor' | 'all';
-  typeLabel?: string;
-  department?: string;
-  createdAt?: string;
-  scheduledTime?: string;
-  completedChecklistCount?: number;
-  totalChecklistCount?: number;
   id: string;
   taskId?: string;
   roomNumber: string;
@@ -503,6 +494,15 @@ export interface SupervisorInspection {
   followUpAction?: string;
   assignedSupervisorId?: string;
   assignedSupervisorName?: string;
+  department?: string;
+  completedChecklistCount?: number;
+  totalChecklistCount?: number;
+  scheduledTime?: string;
+  createdAt?: string;
+  /** Inspection scope: particular room, entire floor, or property-wide */
+  scope?: 'single_room' | 'floor' | 'all_rooms';
+  scopeLabel?: string;
+  affectedRooms?: string[];
 }
 
 export interface LostFoundItem {
@@ -691,6 +691,9 @@ export interface ComplaintCase {
   compApplied: boolean;
   createdAt: string;
   managerItemId?: string;
+  department?: DispatcherDepartment;
+  assignedTo?: string;
+  managerNotes?: string;
   repeatOf?: string;
   guestName?: string;
   description?: string;
@@ -701,6 +704,7 @@ export interface ComplaintCase {
   status?: string;
   responseRemarks?: string;
   photoUrl?: string;
+  maintenanceCategory?: 'furniture' | 'electrical_appliances' | 'washroom' | 'plumbing';
 }
 
 /* ---- Public website bookings (frontend-only simulation; never a real reservation or payment) ---- */
