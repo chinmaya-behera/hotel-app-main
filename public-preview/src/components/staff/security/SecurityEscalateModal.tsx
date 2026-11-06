@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X, AlertTriangle, ShieldAlert, ArrowUpRight, CheckCircle2 } from 'lucide-react';
+import { X, AlertTriangle, ShieldAlert } from 'lucide-react';
 import type { WorkItem } from '@/types/demo';
 
 interface SecurityEscalateModalProps {
@@ -31,54 +31,55 @@ export function SecurityEscalateModal({ item, isOpen, onClose, onSubmit }: Secur
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full sm:max-w-md bg-ink-900 border border-white/10 rounded-t-3xl sm:rounded-2xl p-5 shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/45 backdrop-blur-sm animate-in fade-in duration-150">
+      <div className="w-full max-w-lg bg-[var(--warm-paper)] border border-[var(--dm-line)] rounded-2xl p-6 shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto text-[var(--dm-ink)]">
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-white/10">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center">
-              <ShieldAlert className="h-4 w-4" />
-            </div>
+        <div className="flex items-center justify-between pb-4 border-b border-[var(--dm-line)]">
+          <div className="flex items-center gap-3">
+            <span className="dm-attention-icon">
+              <ShieldAlert size={18} />
+            </span>
             <div>
-              <h3 className="text-sm font-semibold text-white">Escalate to Duty Manager</h3>
-              <p className="text-[11px] text-mist-400">{item.ref || item.id} · Marcus Vance</p>
+              <h3 className="text-base font-semibold text-[var(--dm-ink)]">Escalate to Duty Manager</h3>
+              <p className="text-xs text-[var(--dm-muted)]">{item.ref || item.id} · Marcus Vance (Operations Lead)</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-mist-400 hover:text-white hover:bg-white/10 transition-colors"
+            className="dm-icon-button"
+            aria-label="Close dialog"
           >
-            <X className="h-4 w-4" />
+            <X size={18} />
           </button>
         </div>
 
         {/* Warning callout */}
-        <div className="mt-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-200 text-xs flex items-start gap-2.5">
-          <AlertTriangle className="h-4 w-4 shrink-0 text-rose-400 mt-0.5" />
+        <div className="mt-4 p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs flex items-start gap-2.5">
+          <AlertTriangle size={18} className="shrink-0 text-amber-600 mt-0.5" />
           <div>
-            <p className="font-semibold">Formal Management Escalation</p>
-            <p className="text-[11px] text-rose-300/80 mt-0.5">
+            <p className="font-semibold text-amber-900">Formal Management Escalation</p>
+            <p className="text-[11px] text-amber-800 mt-0.5">
               This action transfers primary incident oversight to Duty Manager Marcus Vance and triggers cross-department manager notifications.
             </p>
           </div>
         </div>
 
         {error && (
-          <div className="mt-2 text-rose-400 text-xs">
+          <div className="mt-3 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="mt-4 space-y-3.5 text-xs">
-          {/* Target Recipient (Read only) */}
+        <form onSubmit={handleSubmit} className="mt-4 space-y-4 text-xs">
+          {/* Target Recipient */}
           <div>
-            <label className="block text-mist-400 font-medium mb-1">Target Authority</label>
-            <div className="p-2.5 rounded-xl bg-ink-950 border border-white/10 flex items-center justify-between">
+            <label className="block text-[var(--dm-muted)] font-medium mb-1.5">Target Authority</label>
+            <div className="p-3 rounded-xl bg-[var(--dm-surface)] border border-[var(--dm-line)] flex items-center justify-between">
               <div>
-                <p className="text-white font-medium">Marcus Vance</p>
-                <p className="text-[10px] text-mist-400">Duty Manager · Operations Command</p>
+                <p className="text-[var(--dm-ink)] font-semibold text-xs">Marcus Vance</p>
+                <p className="text-[10px] text-[var(--dm-muted)]">Duty Manager · Operations Command</p>
               </div>
-              <span className="px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-300 text-[10px] font-semibold">
+              <span className="dm-status urgent">
                 SOP Level 2
               </span>
             </div>
@@ -86,13 +87,13 @@ export function SecurityEscalateModal({ item, isOpen, onClose, onSubmit }: Secur
 
           {/* Reason Selection */}
           <div>
-            <label className="block text-mist-300 font-medium mb-1">
-              Escalation Reason <span className="text-rose-400">*</span>
+            <label className="block text-[var(--dm-ink)] font-medium mb-1.5">
+              Escalation Reason <span className="text-rose-500">*</span>
             </label>
             <select
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className="w-full rounded-xl bg-ink-950 border border-white/10 px-3 py-2 text-white focus:outline-none focus:border-rose-500"
+              className="w-full rounded-xl bg-[var(--dm-surface)] border border-[var(--dm-line)] px-3.5 py-2.5 text-xs text-[var(--dm-ink)] focus:outline-none focus:ring-1 focus:ring-[var(--dm-accent)]"
             >
               <option value="Perimeter breach beyond lone responder capacity">Perimeter breach beyond lone responder capacity</option>
               <option value="Physical altercation / violent guest behavior">Physical altercation / violent guest behavior</option>
@@ -105,49 +106,49 @@ export function SecurityEscalateModal({ item, isOpen, onClose, onSubmit }: Secur
 
           {reason === 'Other' && (
             <div>
-              <label className="block text-mist-300 font-medium mb-1">
-                Custom Reason <span className="text-rose-400">*</span>
+              <label className="block text-[var(--dm-ink)] font-medium mb-1.5">
+                Custom Reason <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
                 value={customReason}
                 onChange={(e) => setCustomReason(e.target.value)}
                 placeholder="Enter specific escalation reason..."
-                className="w-full rounded-xl bg-ink-950 border border-white/10 px-3 py-2 text-white placeholder-mist-500 focus:outline-none focus:border-rose-500"
+                className="w-full rounded-xl bg-[var(--dm-surface)] border border-[var(--dm-line)] px-3.5 py-2.5 text-xs text-[var(--dm-ink)] placeholder-[var(--dm-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--dm-accent)]"
               />
             </div>
           )}
 
           {/* Additional Notes */}
           <div>
-            <label className="block text-mist-300 font-medium mb-1">
-              Situation Briefing & Handover Notes
+            <label className="block text-[var(--dm-ink)] font-medium mb-1.5">
+              Situation Briefing &amp; Handover Notes
             </label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
               placeholder="Immediate observations, current guest location, assistance needed from Front Office or Engineering..."
-              className="w-full rounded-xl bg-ink-950 border border-white/10 px-3 py-2 text-white placeholder-mist-500 focus:outline-none focus:border-rose-500"
+              className="w-full rounded-xl bg-[var(--dm-surface)] border border-[var(--dm-line)] px-3.5 py-2.5 text-xs text-[var(--dm-ink)] placeholder-[var(--dm-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--dm-accent)]"
             />
           </div>
 
-          <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/5 text-[11px] text-mist-400">
-            <span className="font-semibold text-mist-300">Demonstration notice:</span> Escalation dispatch is simulated inside the shared frontend memory store. Marcus Vance's Duty Manager console will immediately reflect this item.
+          <div className="p-3 rounded-xl bg-[var(--warm-soft)] border border-[var(--dm-line)] text-[11px] text-[var(--dm-muted)]">
+            <span className="font-semibold text-[var(--dm-ink)]">Demonstration notice:</span> Escalation dispatch is simulated inside the shared demo store. The Duty Manager console will immediately reflect this item.
           </div>
 
           {/* Buttons */}
-          <div className="pt-2 flex gap-2">
+          <div className="pt-3 border-t border-[var(--dm-line)] flex items-center justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-semibold transition-colors"
+              className="dm-secondary px-5 py-2.5 rounded-xl text-xs font-medium cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 py-2.5 px-4 rounded-xl bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold transition-colors shadow-lg shadow-rose-500/20"
+              className="dm-primary px-5 py-2.5 rounded-xl text-xs font-medium cursor-pointer"
             >
               Confirm Escalation
             </button>

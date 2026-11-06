@@ -30,49 +30,51 @@ export function SecurityBackupModal({ item, isOpen, onClose, onSubmit }: Securit
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full sm:max-w-md bg-ink-900 border border-white/10 rounded-t-3xl sm:rounded-2xl p-5 shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/45 backdrop-blur-sm animate-in fade-in duration-150">
+      <div className="w-full max-w-md bg-[var(--warm-paper)] border border-[var(--dm-line)] rounded-2xl p-6 shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto text-[var(--dm-ink)]">
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-white/10">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center">
-              <Users className="h-4 w-4" />
-            </div>
+        <div className="flex items-center justify-between pb-4 border-b border-[var(--dm-line)]">
+          <div className="flex items-center gap-3">
+            <span className="dm-attention-icon">
+              <Users size={18} />
+            </span>
             <div>
-              <h3 className="text-sm font-semibold text-white">Request Security Backup</h3>
-              <p className="text-[11px] text-mist-400">{item.ref || item.id} · {item.location || 'Incident zone'}</p>
+              <h3 className="text-base font-semibold text-[var(--dm-ink)]">Request Security Backup</h3>
+              <p className="text-xs text-[var(--dm-muted)]">{item.ref || item.id} · {item.room ? `Room ${item.room}` : item.location || 'Incident zone'}</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-mist-400 hover:text-white hover:bg-white/10 transition-colors"
+            className="dm-icon-button"
+            aria-label="Close dialog"
           >
-            <X className="h-4 w-4" />
+            <X size={18} />
           </button>
         </div>
 
-        <div className="mt-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-200 text-xs flex items-start gap-2.5">
-          <ShieldAlert className="h-4 w-4 shrink-0 text-amber-400 mt-0.5" />
-          <p>
+        <div className="mt-4 p-3.5 rounded-xl bg-[var(--warm-soft)] border border-[var(--dm-line)] text-xs flex items-start gap-2.5">
+          <ShieldAlert size={18} className="shrink-0 text-amber-600 mt-0.5" />
+          <p className="text-[var(--dm-ink)] leading-relaxed">
             Calling secondary officer to your active coordinates. Dispatcher will alert available night patrol units and Duty Manager.
           </p>
         </div>
 
         {error && (
-          <div className="mt-2 text-rose-400 text-xs">
-            {error}
+          <div className="mt-3 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+            <AlertCircle size={16} className="shrink-0 text-rose-600" />
+            <span>{error}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="mt-4 space-y-3.5 text-xs">
+        <form onSubmit={handleSubmit} className="mt-4 space-y-4 text-xs">
           <div>
-            <label className="block text-mist-300 font-medium mb-1">
-              Backup Reason <span className="text-rose-400">*</span>
+            <label className="block text-[var(--dm-ink)] font-medium mb-1.5">
+              Backup Reason <span className="text-rose-500">*</span>
             </label>
             <select
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className="w-full rounded-xl bg-ink-950 border border-white/10 px-3 py-2 text-white focus:outline-none focus:border-amber-500"
+              className="w-full rounded-xl bg-[var(--dm-surface)] border border-[var(--dm-line)] px-3.5 py-2.5 text-xs text-[var(--dm-ink)] focus:outline-none focus:ring-1 focus:ring-[var(--dm-accent)]"
             >
               <option value="Dispersal assistance required for large gathering">Dispersal assistance required for large gathering</option>
               <option value="Dual officer perimeter sweep required">Dual officer perimeter sweep required</option>
@@ -85,28 +87,28 @@ export function SecurityBackupModal({ item, isOpen, onClose, onSubmit }: Securit
 
           {reason === 'Other' && (
             <div>
-              <label className="block text-mist-300 font-medium mb-1">Specify Reason</label>
+              <label className="block text-[var(--dm-ink)] font-medium mb-1.5">Specify Reason</label>
               <input
                 type="text"
                 value={customReason}
                 onChange={(e) => setCustomReason(e.target.value)}
-                placeholder="Enter reason for backup..."
-                className="w-full rounded-xl bg-ink-950 border border-white/10 px-3 py-2 text-white placeholder-mist-500 focus:outline-none focus:border-amber-500"
+                placeholder="Enter specific reason for backup call..."
+                className="w-full rounded-xl bg-[var(--dm-surface)] border border-[var(--dm-line)] px-3.5 py-2.5 text-xs text-[var(--dm-ink)] placeholder-[var(--dm-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--dm-accent)]"
               />
             </div>
           )}
 
-          <div className="pt-2 flex gap-2">
+          <div className="pt-3 border-t border-[var(--dm-line)] flex items-center justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-semibold transition-colors"
+              className="dm-secondary px-5 py-2.5 rounded-xl text-xs font-medium cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-ink-950 text-xs font-bold transition-colors shadow-lg shadow-amber-500/20"
+              className="dm-primary px-5 py-2.5 rounded-xl text-xs font-medium cursor-pointer"
             >
               Dispatch Backup Call
             </button>
