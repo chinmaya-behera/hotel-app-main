@@ -1,5 +1,7 @@
 'use client';
 
+import { captureDepartmentHistory, initialiseDepartmentHistory, restoreDepartmentQueue } from './department-record-history';
+
 import { snapshotOrderLines, diningFeedbackPatch, patchDiningMirrors } from './department-insights';
 
 import {
@@ -441,7 +443,11 @@ const ORDER_LIFECYCLE: LifecycleStep[] = [
 ];
 
 export function DemoProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<DemoState>(seedState);
+  const [state, setStoredState] = useState<DemoState>(() => initialiseDepartmentHistory(seedState()));
+  const setState = useCallback((update: DemoState | ((previous: DemoState) => DemoState)) => {
+    const at = new Date().toISOString();
+    setStoredState(previous => captureDepartmentHistory(previous, typeof update === 'function' ? update(previous) : update, at));
+  }, []);
   const [hydrated, setHydrated] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [gestureGuideOpen, setGestureGuideOpen] = useState(false);
@@ -456,7 +462,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       if (raw) {
         const saved = JSON.parse(raw) as Partial<DemoState>;
         const base = seedState();
-        setState(ensureManagerState({
+        setStoredState(initialiseDepartmentHistory(ensureManagerState({
+          departmentRecordHistory: saved.departmentRecordHistory,
           managerDepartment: saved.managerDepartment,
           managerProfiles: saved.managerProfiles,
           managerOperations: saved.managerOperations,
@@ -464,18 +471,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           items: {
             ...base.items,
             ...saved.items,
-            task_fulfiller: [
-              ...(base.items.task_fulfiller ?? []),
-              ...((saved.items?.task_fulfiller ?? []).filter(
-                (si) => !(base.items.task_fulfiller ?? []).some((bi) => bi.id === si.id),
-              )),
-            ],
-            department_dispatcher: [
-              ...(base.items.department_dispatcher ?? []),
-              ...((saved.items?.department_dispatcher ?? []).filter(
-                (si) => !(base.items.department_dispatcher ?? []).some((bi) => bi.id === si.id),
-              )),
-            ],
+            task_fulfiller: restoreDepartmentQueue(base.items.task_fulfiller, saved.items?.task_fulfiller),
+            department_dispatcher: restoreDepartmentQueue(base.items.department_dispatcher, saved.items?.department_dispatcher),
             department_dispatcher_supervisor:
               saved.items?.department_dispatcher_supervisor ?? base.items.department_dispatcher_supervisor,
             executive_viewer: [
@@ -535,7 +532,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           diningMenu: saved.diningMenu ?? base.diningMenu,
           diningCategories: saved.diningCategories ?? base.diningCategories,
           activeDispatcherDept: saved.activeDispatcherDept ?? base.activeDispatcherDept ?? 'Housekeeping',
-        }));
+        })));
       }
     } catch {
       /* corrupted or unavailable storage: fall back to seed data */
@@ -5644,7 +5641,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     }
     timers.current.forEach(clearTimeout);
     timers.current = [];
-    setState({ ...seedState(), theme: stateRef.current.theme });
+    setStoredState(initialiseDepartmentHistory({ ...seedState(), theme: stateRef.current.theme }));
     notify('Demo data reset to its initial state');
   }, [notify]);
 

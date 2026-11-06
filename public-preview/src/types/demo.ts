@@ -923,7 +923,32 @@ export interface ManagerMedicalCase {
   history: Array<{ at: string; author: string; note: string }>;
 }
 
+export type DepartmentRecordKind = 'repair' | 'task' | 'order' | 'medical' | 'complaint' | 'inspection' | 'menu' | 'stock' | 'asset' | 'room' | 'handover' | 'policy' | 'staff' | 'supplies';
+export interface DepartmentRecordSnapshot {
+  key: string;
+  department: 'housekeeping' | 'wellness' | 'engineering' | 'food-beverages';
+  kind: DepartmentRecordKind;
+  reference: string;
+  title: string;
+  status: string;
+  location: string;
+  owner: string;
+  notes: string;
+  completedAt?: string;
+  fields: Record<string, string>;
+}
+export interface DepartmentRecordEvent {
+  id: string;
+  recordedAt: string;
+  actor: string;
+  actorRole: string;
+  action: 'recorded' | 'created' | 'updated' | 'completed' | 'reopened' | 'deleted';
+  record: DepartmentRecordSnapshot;
+  changes: Array<{ field: string; before: string; after: string }>;
+}
+
 export interface DemoState {
+  departmentRecordHistory?: DepartmentRecordEvent[];
   managerOperations?: { stock: ManagerStockItem[]; appointments: ManagerAppointment[]; assets: ManagerAsset[]; medicalCases?: ManagerMedicalCase[] };
   managerDepartment?: 'housekeeping' | 'wellness' | 'engineering' | 'food-beverages';
   managerProfiles?: Record<string, { name: string; phone: string }>;
