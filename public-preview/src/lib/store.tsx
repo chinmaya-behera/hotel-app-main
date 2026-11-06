@@ -46,6 +46,7 @@ import {
 } from '@/lib/mockData';
 import { afterAdvance, markCheckedOut, type FdResult } from '@/lib/frontDesk';
 import { roleById } from '@/lib/roles';
+import { reviewDepartmentInspection } from '@/lib/manager-workflows';
 import { applyManagerCommand, ensureManagerState, reviewManagerEscalation, type ManagerCommand, type ManagerDepartmentId } from '@/lib/manager-domain';
 import type {
   AuditEvent,
@@ -261,7 +262,7 @@ interface DemoApi {
   updateTransactionStatus: (txnId: string, status: TransactionStatus, notes?: string) => void;
   reconcileTransaction: (txnId: string) => void;
   /** Department Supervisor Operations APIs */
-  approveInspection: (inspectionId: string, notes?: string) => void;
+  approveInspection: (inspectionId: string, notes?: string, checks?: import('@/types/demo').InspectionCheckItem[]) => void;
   reopenInspection: (inspectionId: string, reason: string, correctiveAction: string, reassignToStaffId?: string) => void;
   reviewFulfillerReassignment: (taskId: string, action: 'reassign' | 'reject', newAssigneeId?: string, notes?: string) => void;
   escalateSupervisorIssue: (issue: { title: string; department?: string; room?: string; priority: 'urgent' | 'critical'; reason: string; notes?: string }) => void;
@@ -3775,7 +3776,13 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   );
 
   const approveInspection = useCallback<DemoApi['approveInspection']>(
-    (inspectionId, notes) => {
+    (inspectionId, notes, checks) => {
+      const managed = stateRef.current.inspections?.find(i => i.id === inspectionId && i.initiatedRole === 'department_manager');
+      if (managed) {
+        try { setState(reviewDepartmentInspection(stateRef.current, inspectionId, 'passed', notes || '', checks)); notify('Department inspection passed. Manager notified.'); }
+        catch (error) { notify(error instanceof Error ? error.message : 'Unable to approve inspection.'); }
+        return;
+      }
       const timestamp = nowLabel();
       let targetRoom = '';
       let targetTaskId: string | undefined;
@@ -3876,6 +3883,12 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
   const reopenInspection = useCallback<DemoApi['reopenInspection']>(
     (inspectionId, reason, correctiveAction, reassignToStaffId) => {
+      const managed = stateRef.current.inspections?.find(i => i.id === inspectionId && i.initiatedRole === 'department_manager');
+      if (managed) {
+        try { setState(reviewDepartmentInspection(stateRef.current, inspectionId, 'reopened', reason + (correctiveAction ? '\n' + correctiveAction : ''))); notify('Inspection findings returned to the department manager.'); }
+        catch (error) { notify(error instanceof Error ? error.message : 'Unable to reopen inspection.'); }
+        return;
+      }
       const timestamp = nowLabel();
       let targetRoom = '';
       let targetTaskId: string | undefined;

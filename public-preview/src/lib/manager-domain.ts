@@ -1,8 +1,9 @@
 import type { DemoState, WorkItem, SupervisorInspection } from '../types/demo';
+import { applyManagerWorkflow, type WorkflowCommand } from './manager-workflows.ts';
 
 export const MANAGER_DEPARTMENTS = [
   { id: 'housekeeping', name: 'Housekeeping', person: 'Ananya Rao', email: 'housekeeping.manager@thegrandadp.com', focus: 'Room readiness, spotless spaces and thoughtful guest care.', standard: 'Verify linen, amenities, sanitation and room presentation.' },
-  { id: 'wellness', name: 'Spa & Wellness', person: 'Leena Kapoor', email: 'wellness.manager@thegrandadp.com', focus: 'Calm treatment spaces, safe therapies and seamless appointments.', standard: 'Verify treatment-room hygiene, therapist readiness and appointment setup.' },
+  { id: 'wellness', name: 'Spa & Wellness', person: 'Leena Kapoor', email: 'wellness.manager@thegrandadp.com', focus: 'Guest care, medical case follow-up and wellness service quality.', standard: 'Verify wellness-area hygiene, guest-care readiness and follow-up ownership.' },
   { id: 'engineering', name: 'Maintenance & Engineering', person: 'Arjun Mehta', email: 'engineering.manager@thegrandadp.com', focus: 'Reliable systems, preventive maintenance and safe facilities.', standard: 'Verify equipment operation, repair evidence and safety clearance.' },
   { id: 'food-beverages', name: 'Food & Beverages', person: 'Vikram Joshi', email: 'dining.manager@thegrandadp.com', focus: 'Timely service, food safety and memorable dining experiences.', standard: 'Verify food temperatures, allergen checks, presentation and delivery.' },
 ] as const;
@@ -42,7 +43,7 @@ export function managerNotifications(s: DemoState, id: ManagerDepartmentId) {
   return (s.notifications ?? []).filter(n => n.roleId === 'department_manager' && (departmentId(n.department) === id || !n.department && !!n.itemId && (tasks.has(n.itemId) || inspections.has(n.itemId))));
 }
 export function ensureManagerState(s: DemoState): DemoState {
-  const next = { ...s, managerOperations: s.managerOperations ?? seedManagerOperations(), managerDepartment: s.managerDepartment ?? 'housekeeping' as const, staffAccounts: [...s.staffAccounts], items: { ...s.items }, inspections: [...(s.inspections ?? [])] };
+  const next = { ...s, managerOperations: { ...(s.managerOperations ?? seedManagerOperations()), medicalCases: s.managerOperations?.medicalCases ?? [] }, managerDepartment: s.managerDepartment ?? 'housekeeping' as const, staffAccounts: [...s.staffAccounts], items: { ...s.items }, inspections: [...(s.inspections ?? [])] };
   for (const d of MANAGER_DEPARTMENTS) {
     if (d.id === 'wellness' && !next.staffAccounts.some(st => st.id === 'dept-therapist-wellness')) next.staffAccounts.push({ id: 'dept-therapist-wellness', employeeId: 'SPA-0201', name: 'Maya Sen', email: 'maya.sen@thegrandadp.com', roleId: 'task_fulfiller', department: d.name, floorZone: 'Spa treatment rooms', shift: 'Day', status: 'active', financialLimit: 0, createdAt: '2026-11-04', availability: 'on_duty', skills: ['Wellness treatments'], maxWorkload: 4 });
     if (!next.staffAccounts.some(st => st.id === `dept-manager-${d.id}`)) next.staffAccounts.push({ id: `dept-manager-${d.id}`, employeeId: `MGR-${d.id.toUpperCase()}`, name: d.person, email: d.email, roleId: 'department_manager', department: d.name, floorZone: 'All floors', shift: 'Day', status: 'active', financialLimit: 16000, createdAt: '2026-11-04', availability: 'on_duty' });
@@ -56,6 +57,7 @@ export function ensureManagerState(s: DemoState): DemoState {
 }
 
 export type ManagerCommand =
+  | WorkflowCommand
   | { type: 'stock-count'; stockId: string; quantity: number }
   | { type: 'replenish'; stockId: string }
   | { type: 'room-cleaning'; room: string }
@@ -81,7 +83,10 @@ export function applyManagerCommand(state: DemoState, command: ManagerCommand, u
   const pushNotification = (roleId: 'department_manager' | 'department_dispatcher_supervisor' | 'general_manager', title: string, message: string, itemId: string) => {
     s.notifications = [{ id: `${uid}-${roleId}`, roleId, title, message, itemId, department: d.name, timestamp: now, read: false, type: 'alert' }, ...(s.notifications ?? [])];
   };
-  if (['stock-count', 'replenish', 'room-cleaning', 'appointment', 'appointment-status', 'asset-work-order', 'asset-service', 'menu-availability'].includes(command.type)) {
+  if (['medical-create', 'medical-update', 'complaint-create', 'complaint-update', 'repair-create', 'repair-update', 'menu-save', 'menu-delete', 'inspection-launch'].includes(command.type)) {
+    s.managerOperations ??= seedManagerOperations();
+    applyManagerWorkflow(s, command as WorkflowCommand, uid, now);
+  } else if (['stock-count', 'replenish', 'room-cleaning', 'appointment', 'appointment-status', 'asset-work-order', 'asset-service', 'menu-availability'].includes(command.type)) {
     applyDepartmentOperation(s, command, uid, now);
   } else if (command.type === 'inspection') {
     const supervisor = scopedStaff(command.supervisorId);
@@ -118,6 +123,7 @@ export function applyManagerCommand(state: DemoState, command: ManagerCommand, u
     if (!handover || handover.outgoingManager === person || handover.incomingManager !== person) throw Error('Only the named incoming manager can acknowledge this handover.');
     handover.status = 'acknowledged'; handover.acknowledgedAt = now;
   } else if (command.type === 'policy') {
+    if (d.id === 'wellness') throw Error('Policies are not available in the Wellness manager workspace.');
     s.departmentPolicies = [{ id: uid, department: d.name, title: required(command.title), category: 'Service Standard', summary: required(command.content), content: command.content.trim(), scope: d.name, policyOwner: person, escalationTarget: 'General Manager', effectiveDate: now.slice(0, 10), lastUpdated: now, isManagerLevel: true }, ...(s.departmentPolicies ?? [])];
   } else if (command.type === 'read') {
     if (!managerNotifications(s, d.id).some(n => n.id === command.notificationId)) throw Error('Notification unavailable in your department.');

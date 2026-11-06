@@ -349,6 +349,9 @@ export interface InspectionCheckItem {
 }
 
 export interface SupervisorInspection {
+  batchId?: string;
+  scope?: 'room' | 'floor' | 'all';
+  typeLabel?: string;
   department?: string;
   createdAt?: string;
   scheduledTime?: string;
@@ -551,6 +554,9 @@ export interface SyncIssue {
 
 /** F32: complaint & recovery case. */
 export interface ComplaintCase {
+  department?: string;
+  priority?: 'normal' | 'urgent' | 'critical';
+  history?: GuestHistoryEntry[];
   id: string;
   ref: string;
   room: string;
@@ -895,8 +901,21 @@ export interface ManagerAsset {
   workOrderRef?: string;
 }
 
+export interface ManagerMedicalCase {
+  id: string;
+  reference: string;
+  guest: string;
+  location: string;
+  urgency: 'routine' | 'urgent' | 'critical';
+  status: 'open' | 'monitoring' | 'closed';
+  followUpAt?: string;
+  followUpAcknowledgedAt?: string;
+  createdAt: string;
+  history: Array<{ at: string; author: string; note: string }>;
+}
+
 export interface DemoState {
-  managerOperations?: { stock: ManagerStockItem[]; appointments: ManagerAppointment[]; assets: ManagerAsset[] };
+  managerOperations?: { stock: ManagerStockItem[]; appointments: ManagerAppointment[]; assets: ManagerAsset[]; medicalCases?: ManagerMedicalCase[] };
   managerDepartment?: 'housekeeping' | 'wellness' | 'engineering' | 'food-beverages';
   managerProfiles?: Record<string, { name: string; phone: string }>;
   persona: RoleId | null;
@@ -1084,6 +1103,7 @@ export type ComplaintCategory =
   | 'Other';
 
 export interface GuestComplaintRecord {
+  department?: string;
   id: string;
   complaintId: string;
   room: string;
