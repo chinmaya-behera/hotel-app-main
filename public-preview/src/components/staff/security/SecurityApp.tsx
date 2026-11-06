@@ -37,6 +37,9 @@ import {
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
 import type { WorkItem, ShiftHandover } from '@/types/demo';
+import Lenis from 'lenis';
+import 'lenis/dist/lenis.css';
+import gsap from 'gsap';
 import { SecurityIncidentDetailModal } from './SecurityIncidentDetailModal';
 import { SecurityLogIncidentModal } from './SecurityLogIncidentModal';
 import { playSecurityChime, playPanicSiren } from './securityChime';
@@ -48,7 +51,7 @@ const NAV = [
   ['incidents', 'Incident Monitoring', Activity, 'Workspace'],
   ['recovery', 'Escalations & Recovery', Handshake, 'Workspace'],
   ['staff', 'Officers & Workload', Users, 'Management'],
-  ['policies', 'Policies & SOPs', BookOpen, 'Management'],
+  ['policies', 'PlayBook', BookOpen, 'Management'],
   ['handover', 'Shift Handover', Send, 'Management'],
   ['notifications', 'Notifications', Bell, 'Personal'],
   ['profile', 'Profile', UserRound, 'Personal'],
@@ -136,6 +139,74 @@ export function SecurityApp() {
   useEffect(() => {
     setPersona('security_responder');
   }, [setPersona]);
+
+  // Initialize Lenis smooth scroll
+  useEffect(() => {
+    const lenis = new Lenis({
+      duration: 1.15,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      smoothWheel: true,
+      touchMultiplier: 1.5,
+    });
+
+    let rafId: number;
+    function raf(time: number) {
+      lenis.raf(time);
+      rafId = requestAnimationFrame(raf);
+    }
+    rafId = requestAnimationFrame(raf);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      lenis.destroy();
+    };
+  }, []);
+
+  // GSAP Text & UI entrance animations
+  useEffect(() => {
+    // 1. Hero text stagger
+    gsap.fromTo(
+      '.gsap-hero-title',
+      { opacity: 0, y: 14 },
+      { opacity: 1, y: 0, duration: 0.55, ease: 'power2.out' }
+    );
+    gsap.fromTo(
+      '.gsap-hero-sub',
+      { opacity: 0, y: 10 },
+      { opacity: 1, y: 0, duration: 0.55, delay: 0.08, ease: 'power2.out' }
+    );
+    gsap.fromTo(
+      '.gsap-meta',
+      { opacity: 0, y: 8 },
+      { opacity: 1, y: 0, duration: 0.5, delay: 0.14, ease: 'power2.out' }
+    );
+
+    // 2. KPI metrics entrance & numbers
+    gsap.fromTo(
+      '.dm-kpi',
+      { opacity: 0, y: 18 },
+      { opacity: 1, y: 0, duration: 0.5, stagger: 0.06, delay: 0.16, ease: 'power2.out' }
+    );
+    gsap.fromTo(
+      '.gsap-kpi-num',
+      { opacity: 0, scale: 0.94 },
+      { opacity: 1, scale: 1, duration: 0.45, stagger: 0.06, delay: 0.22, ease: 'back.out(1.5)' }
+    );
+
+    // 3. Grid panels entrance
+    gsap.fromTo(
+      '.gsap-panel',
+      { opacity: 0, y: 20 },
+      { opacity: 1, y: 0, duration: 0.6, stagger: 0.1, delay: 0.24, ease: 'power2.out' }
+    );
+
+    // 4. Section headings
+    gsap.fromTo(
+      '.gsap-section-title',
+      { opacity: 0, x: -8 },
+      { opacity: 1, x: 0, duration: 0.5, delay: 0.3, ease: 'power2.out' }
+    );
+  }, [tab]);
 
   // Audio siren trigger when critical or new incident arrives
   const isSoundOn = state.soundEnabled ?? true;
@@ -478,8 +549,8 @@ export function SecurityApp() {
         <div className="dm-page-heading">
           <div>
             <p className="dm-eyebrow">DEPARTMENT OPERATIONS</p>
-            <h1>{tab === 'overview' ? 'Safety & Security overview' : title}</h1>
-            <p>Rapid emergency response, patrol coverage, and guest safety facilities</p>
+            <h1 className="gsap-hero-title">{tab === 'overview' ? 'Safety & Security overview' : title}</h1>
+            <p className="gsap-hero-sub">Rapid emergency response, patrol coverage, and guest safety facilities</p>
           </div>
 
           <div className="dm-heading-actions">
@@ -500,7 +571,7 @@ export function SecurityApp() {
         {tab === 'overview' && (
           <>
             {/* Meta Row: Date & Department Security Lock */}
-            <div className="dm-overview-meta">
+            <div className="dm-overview-meta gsap-meta">
               <span>
                 <CalendarDays size={15} />
                 {currentDateFormatted}
@@ -513,28 +584,20 @@ export function SecurityApp() {
 
             {/* 4 Top KPI Cards in Luxury Card Boxes */}
             <div className="dm-kpis">
-              {kpis.map((k) => {
-                const Icon = k.icon;
-                return (
-                  <button
-                    key={k.label}
-                    className="dm-kpi"
-                    onClick={() => navigate(k.next)}
-                  >
-                    <span className="dm-kpi-label">
-                      {k.label}
-                      <span className="dm-kpi-icon">
-                        <Icon size={19} />
-                      </span>
-                    </span>
-                    <strong>{k.value}</strong>
-                    <span className="dm-kpi-bottom">
-                      <small>{k.detail}</small>
-                      <ArrowUpRight size={15} />
-                    </span>
-                  </button>
-                );
-              })}
+              {kpis.map((k) => (
+                <button
+                  key={k.label}
+                  className="dm-kpi cursor-pointer"
+                  onClick={() => navigate(k.next)}
+                >
+                  <span className="dm-kpi-label">{k.label}</span>
+                  <strong className="gsap-kpi-num">{k.value}</strong>
+                  <span className="dm-kpi-bottom">
+                    <small>{k.detail}</small>
+                    <ArrowUpRight size={15} />
+                  </span>
+                </button>
+              ))}
             </div>
 
             {/* Middle Grid: Left 8 cols, Right 4 cols */}
@@ -542,11 +605,11 @@ export function SecurityApp() {
               {/* Left Column */}
               <div className="dm-grid-stack">
                 {/* 1. Attention Required Panel */}
-                <section className="dm-panel dm-priority-panel">
+                <section className="dm-panel dm-priority-panel gsap-panel">
                   <div className="dm-panel-heading">
                     <div>
                       <div className="dm-section-title">
-                        <h2>Attention required</h2>
+                        <h2 className="gsap-section-title">Attention required</h2>
                         <span className="dm-count">{Math.max(3, criticalItems.length)}</span>
                       </div>
                       <p>Supervisor escalations waiting for a decision.</p>
@@ -559,9 +622,6 @@ export function SecurityApp() {
                   <div className="dm-attention-list">
                     {items.slice(0, 3).map((item) => (
                       <article key={item.id} className="dm-attention-row">
-                        <span className="dm-attention-icon">
-                          <ShieldAlert size={18} />
-                        </span>
                         <div>
                           <strong>{item.title}</strong>
                           <small>
@@ -586,11 +646,11 @@ export function SecurityApp() {
                 </section>
 
                 {/* 2. Patrol & Inspection Queue */}
-                <section className="dm-panel dm-priority-panel">
+                <section className="dm-panel dm-priority-panel gsap-panel">
                   <div className="dm-panel-heading">
                     <div>
                       <div className="dm-section-title">
-                        <h2>Inspection queue</h2>
+                        <h2 className="gsap-section-title">Inspection queue</h2>
                         <span className="dm-count">1</span>
                       </div>
                       <p>Quality checks and General Manager directives.</p>
@@ -601,9 +661,6 @@ export function SecurityApp() {
                   </div>
 
                   <article className="dm-attention-row dm-inspection-row">
-                    <span className="dm-attention-icon">
-                      <ClipboardCheck size={18} />
-                    </span>
                     <div>
                       <strong>402 Perimeter &amp; Service Corridors sweep</strong>
                       <small>Awaiting supervisor assignment</small>
@@ -621,9 +678,9 @@ export function SecurityApp() {
               {/* Right Column */}
               <div className="dm-grid-stack">
                 {/* 1. Shift Snapshot Card */}
-                <section className="dm-panel dm-shift-card">
+                <section className="dm-panel dm-shift-card gsap-panel">
                   <div className="dm-section-title">
-                    <h2>Shift snapshot</h2>
+                    <h2 className="gsap-section-title">Shift snapshot</h2>
                     <span className="dm-shift-label">Night shift</span>
                   </div>
 
@@ -660,12 +717,11 @@ export function SecurityApp() {
                 </section>
 
                 {/* 2. Policies & SOPs / Department Tools Card */}
-                <section className="dm-panel dm-desk-summary">
+                <section className="dm-panel dm-desk-summary gsap-panel">
                   <div className="dm-desk-card-label">
-                    <Shield size={16} />
                     <span>Department tools</span>
                   </div>
-                  <h2>Policies &amp; SOPs</h2>
+                  <h2 className="gsap-section-title">Policies &amp; SOPs</h2>
                   <p>Emergency playbooks &amp; response protocols</p>
                   <small>Stay ahead of critical incidents and keep emergency protocols ready.</small>
                   <div style={{ marginTop: 'auto', paddingTop: '18px' }}>
@@ -682,10 +738,10 @@ export function SecurityApp() {
             </div>
 
             {/* Bottom Full-Width Active Incidents Table */}
-            <section className="dm-panel">
+            <section className="dm-panel gsap-panel">
               <div className="dm-panel-heading">
                 <div>
-                  <h2>Active incidents</h2>
+                  <h2 className="gsap-section-title">Active incidents</h2>
                   <p>The latest work across safety &amp; security.</p>
                 </div>
                 <button className="dm-text-button" onClick={() => navigate('incidents')}>
