@@ -110,6 +110,8 @@ export function SecurityApp() {
   const [localHandovers, setLocalHandovers] = useState<ShiftHandover[]>([
     {
       id: 'sec-ho-1',
+      shift: 'Night',
+      scope: 'My Department',
       department: 'Safety & Security',
       timestamp: new Date(Date.now() - 3600000 * 3).toISOString(),
       outgoingManager: 'Officer T. Chen (Evening)',
@@ -117,6 +119,8 @@ export function SecurityApp() {
       notes:
         'Gate 3 magnetic latch recalibrated by Engineering. Suite 402 guest reported mild hallway foot traffic; quiet hours advisory active. Perimeter camera 4 cleared.',
       outstandingTasksCount: 3,
+      unresolvedComplaintsCount: 0,
+      criticalIncidentsCount: 1,
       priorityActions: [
         'Monitor Pool Deck quiet hours after 23:00',
         'Verify Executive Suite 509 smoke detector replacement ticket',
@@ -248,12 +252,16 @@ export function SecurityApp() {
     if (modal?.kind === 'handover') {
       const newHo: ShiftHandover = {
         id: `sec-ho-${Date.now()}`,
+        shift: 'Night',
+        scope: 'My Department',
         department: 'Safety & Security',
         timestamp: new Date().toISOString(),
         outgoingManager: 'Inspector Roy (Night)',
         incomingManager: text('incoming') || 'Officer Morning Lead',
         notes: text('notes'),
         outstandingTasksCount: activeIncidents.length,
+        unresolvedComplaintsCount: 0,
+        criticalIncidentsCount: criticalItems.length,
         priorityActions: [
           'Verify fire suppression panels after overnight test',
           'Coordinate pool deck towel station access unlocks',
@@ -1314,7 +1322,7 @@ export function SecurityApp() {
         <SecurityLogIncidentModal
           isOpen={showLogModal}
           onClose={() => setShowLogModal(false)}
-          onCreateIncident={(inc) => {
+          onSubmit={(inc) => {
             createSecurityIncident(inc);
             setShowLogModal(false);
           }}
