@@ -23,7 +23,7 @@ import { Panel } from '@/components/ui/Panel';
 import { Modal } from '@/components/frontdesk/Modal';
 import { useDemo } from '@/lib/store';
 import { money } from '@/lib/utils';
-import type { SyncIssue } from '@/types/demo';
+import type { SyncIssue, CompensationRefundRequest } from '@/types/demo';
 
 export interface CompensationItem {
   id: string;
@@ -132,8 +132,19 @@ const INITIAL_REFUNDS: RefundDisputeItem[] = [
 ];
 
 export function DisputesPanel() {
-  const { state, fdAction } = useDemo();
-  const [activeTab, setActiveTab] = useState<'compensation' | 'refunds' | 'sync'>('compensation');
+  const { state, fdAction, reviewCompensationRefundRequest } = useDemo();
+  const [activeTab, setActiveTab] = useState<'guest_claims' | 'compensation' | 'refunds' | 'sync'>('guest_claims');
+
+  const guestRequests = state.guestCompensationRefundRequests ?? [];
+  const pendingGuestCount = guestRequests.filter((r) => !['Resolved', 'Rejected'].includes(r.status)).length;
+
+  // Guest Claim Review Modal State
+  const [selectedGuestClaim, setSelectedGuestClaim] = useState<CompensationRefundRequest | null>(null);
+  const [claimAction, setClaimAction] = useState<'approve' | 'partially_approve' | 'reject' | 'request_info' | 'process' | 'resolve'>('approve');
+  const [approvedAmountInput, setApprovedAmountInput] = useState('');
+  const [guestResponseInput, setGuestResponseInput] = useState('');
+  const [internalNoteInput, setInternalNoteInput] = useState('');
+  const [resolutionDetailsInput, setResolutionDetailsInput] = useState('');
 
   const [compensations, setCompensations] = useState<CompensationItem[]>(INITIAL_COMPENSATIONS);
   const [refunds, setRefunds] = useState<RefundDisputeItem[]>(INITIAL_REFUNDS);
@@ -207,6 +218,22 @@ export function DisputesPanel() {
         <div className="flex flex-wrap items-center gap-1 p-1 rounded-xl bg-white/[0.04] border border-white/10 text-xs max-w-full">
           <button
             type="button"
+            onClick={() => setActiveTab('guest_claims')}
+            className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${activeTab === 'guest_claims'
+                ? 'bg-amber-400 text-ink-950 shadow-sm'
+                : 'text-mist-300 hover:text-white'
+              }`}
+          >
+            <Scale className="h-3.5 w-3.5" />
+            <span>Guest Claims &amp; Refunds ({guestRequests.length})</span>
+            {pendingGuestCount > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-rose-500 text-white">
+                {pendingGuestCount}
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
             onClick={() => setActiveTab('compensation')}
             className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 ${activeTab === 'compensation'
                 ? 'bg-amber-400 text-ink-950 shadow-sm'
@@ -214,7 +241,7 @@ export function DisputesPanel() {
               }`}
           >
             <DollarSign className="h-3.5 w-3.5" />
-            <span>Compensation &amp; Service Recovery ({compensations.length})</span>
+            <span>Staff Goodwill Comps ({compensations.length})</span>
           </button>
           <button
             type="button"
@@ -251,6 +278,114 @@ export function DisputesPanel() {
           </Button>
         )}
       </div>
+
+      {/* Sub-tab 0: Guest Portal Claims & Refunds */}
+      {activeTab === 'guest_claims' && (
+        <Panel
+          title="Guest Portal Compensation & Refund Requests"
+          hint="Review guest-submitted financial claims, billing disputes, and compensation requests. All financial approvals must follow authorized limits."
+          icon={Scale}
+        >
+          {guestRequests.length === 0 ? (
+            <div className="py-8 text-center text-xs text-mist-400">
+              No guest compensation or refund requests logged yet.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-white/10 text-mist-400 font-semibold">
+                    <th className="py-2.5 px-3">Ref / Date</th>
+                    <th className="py-2.5 px-3">Guest / Room</th>
+                    <th className="py-2.5 px-3">Category &amp; Reason</th>
+                    <th className="py-2.5 px-3">Amount</th>
+                    <th className="py-2.5 px-3">Status</th>
+                    <th className="py-2.5 px-3">Resolution Details</th>
+                    <th className="py-2.5 px-3 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {guestRequests.map((req) => {
+                    const isPending = !['Resolved', 'Rejected'].includes(req.status);
+                    return (
+                      <tr key={req.id} className="hover:bg-white/[0.02] transition-colors">
+                        <td className="py-3 px-3">
+                          <span className="font-mono font-bold text-amber-300 block">{req.ref}</span>
+                          <span className="text-[10px] text-mist-400">{req.createdAt}</span>
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className="font-bold text-white block">{req.guestName}</span>
+                          <span className="text-[10px] text-mist-400">Room {req.room}</span>
+                        </td>
+                        <td className="py-3 px-3 max-w-xs">
+                          <Badge tone="neutral" className="mb-1">{req.category}</Badge>
+                          <p className="text-mist-200 truncate font-medium">{req.reason}</p>
+                          <p className="text-[10px] text-mist-400 line-clamp-1">{req.explanation}</p>
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className="font-mono text-white block">
+                            {req.amountRequested ? money(req.amountRequested) : 'TBD'}
+                          </span>
+                          {req.approvedAmount !== undefined && (
+                            <span className="font-mono text-emerald-400 text-[10px] block font-bold">
+                              Appr: {money(req.approvedAmount)}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-3">
+                          <Badge
+                            tone={
+                              req.status === 'Resolved'
+                                ? 'success'
+                                : req.status === 'Approved' || req.status === 'Partially Approved'
+                                ? 'info'
+                                : req.status === 'Rejected'
+                                ? 'danger'
+                                : 'warning'
+                            }
+                          >
+                            {req.status}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-3 max-w-xs">
+                          {req.staffResponse ? (
+                            <p className="text-[11px] text-mist-300 truncate" title={req.staffResponse}>
+                              {req.staffResponse}
+                            </p>
+                          ) : (
+                            <span className="text-mist-500 text-[10px] italic">Awaiting staff response</span>
+                          )}
+                          {req.internalStaffNote && (
+                            <span className="text-[10px] text-amber-300/80 block truncate">
+                              Internal: {req.internalStaffNote}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-3 text-right">
+                          <Button
+                            size="sm"
+                            variant={isPending ? 'accent' : 'subtle'}
+                            onClick={() => {
+                              setSelectedGuestClaim(req);
+                              setClaimAction(req.status === 'Approved' ? 'resolve' : 'approve');
+                              setApprovedAmountInput(req.approvedAmount?.toString() || req.amountRequested?.toString() || '');
+                              setGuestResponseInput(req.staffResponse || '');
+                              setInternalNoteInput(req.internalStaffNote || '');
+                              setResolutionDetailsInput(req.resolutionDetails || '');
+                            }}
+                          >
+                            {isPending ? 'Review Case' : 'View / Edit'}
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Panel>
+      )}
 
       {/* Sub-tab 1: Compensation (Log & manage guest service compensation, folio credits, vouchers, rate adjustments, route to Financial Operator) */}
       {activeTab === 'compensation' && (
@@ -445,9 +580,13 @@ export function DisputesPanel() {
                     onClick={() => {
                       if (fdAction) {
                         fdAction((s) => {
-                          const item = s.frontDesk?.sync.find((x) => x.id === sync.id);
-                          if (item) item.bookingState = 'Refund_Requested';
-                          return { next: s, message: 'Refund requested' };
+                          const syncList = (s.frontDesk?.sync ?? []).map((x) =>
+                            x.id === sync.id ? { ...x, bookingState: 'Refund_Requested' as const } : x
+                          );
+                          return {
+                            next: { ...s, frontDesk: { ...s.frontDesk, sync: syncList } },
+                            message: 'Sync item updated to Refund_Requested',
+                          };
                         });
                       }
                     }}
@@ -551,6 +690,158 @@ export function DisputesPanel() {
               </Button>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {/* GUEST COMPENSATION / REFUND REVIEW MODAL */}
+      {selectedGuestClaim && (
+        <Modal
+          title={`Review Case: ${selectedGuestClaim.ref} · Room ${selectedGuestClaim.room}`}
+          onClose={() => setSelectedGuestClaim(null)}
+        >
+          <div className="space-y-4 text-xs">
+            {/* Case Summary */}
+            <div className="p-3 rounded-xl bg-white/[0.04] border border-white/10 space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-white text-sm">{selectedGuestClaim.guestName}</span>
+                  <span className="text-mist-400 text-[11px] block">
+                    Room {selectedGuestClaim.room} · Stay {selectedGuestClaim.bookingRef || 'In-House'} · Category: <strong className="text-amber-300">{selectedGuestClaim.category}</strong>
+                  </span>
+                </div>
+                <Badge tone="warning">{selectedGuestClaim.status}</Badge>
+              </div>
+
+              <div className="pt-1 text-mist-200">
+                <strong className="text-mist-400 block text-[10px] uppercase">Reason &amp; Statement:</strong>
+                <p className="font-semibold text-white mt-0.5">{selectedGuestClaim.reason}</p>
+                <p className="text-mist-300 text-[11px] mt-1 leading-relaxed bg-black/20 p-2 rounded-lg">
+                  {selectedGuestClaim.explanation}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-white/5">
+                <div>
+                  <span className="text-mist-400 block text-[10px]">Requested Amount:</span>
+                  <span className="text-white font-mono font-bold">
+                    {selectedGuestClaim.amountRequested ? money(selectedGuestClaim.amountRequested) : 'Open review'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-mist-400 block text-[10px]">Preferred Resolution:</span>
+                  <span className="text-amber-300 font-medium">
+                    {selectedGuestClaim.preferredResolution || 'Standard Adjustment'}
+                  </span>
+                </div>
+              </div>
+
+              {selectedGuestClaim.additionalInfoProvided && (
+                <div className="p-2 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-200 text-[11px]">
+                  <strong>Guest Provided Additional Info:</strong> {selectedGuestClaim.additionalInfoProvided}
+                </div>
+              )}
+            </div>
+
+            {/* Decision Action Form */}
+            <div className="space-y-3 pt-1">
+              <div>
+                <label className="text-xs font-semibold text-mist-300 mb-1 block">Staff Action / Decision *</label>
+                <select
+                  value={claimAction}
+                  onChange={(e) => setClaimAction(e.target.value as any)}
+                  className="field w-full text-xs"
+                >
+                  <option value="approve">Approve Request</option>
+                  <option value="partially_approve">Partially Approve</option>
+                  <option value="request_info">Request Additional Information</option>
+                  <option value="reject">Reject Request</option>
+                  <option value="process">Mark Processing (Accounting Settlement)</option>
+                  <option value="resolve">Record Resolution &amp; Mark Resolved</option>
+                </select>
+              </div>
+
+              {(claimAction === 'approve' || claimAction === 'partially_approve' || claimAction === 'resolve') && (
+                <div>
+                  <label className="text-xs font-semibold text-mist-300 mb-1 block">
+                    Approved Amount (₹)
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={approvedAmountInput}
+                    onChange={(e) => setApprovedAmountInput(e.target.value)}
+                    placeholder="e.g. 1200"
+                    className="field w-full text-xs font-mono"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="text-xs font-semibold text-mist-300 mb-1 block">
+                  Guest-Visible Response (Shown to guest in portal) *
+                </label>
+                <textarea
+                  rows={2}
+                  value={guestResponseInput}
+                  onChange={(e) => setGuestResponseInput(e.target.value)}
+                  placeholder="e.g. Front Desk Duty Manager Marcus Vance reviewed your dispute and approved a ₹450 folio credit adjustment..."
+                  className="field w-full text-xs"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-mist-300 mb-1 block">
+                  Internal Staff Note (Audit &amp; Finance Record - Private)
+                </label>
+                <input
+                  type="text"
+                  value={internalNoteInput}
+                  onChange={(e) => setInternalNoteInput(e.target.value)}
+                  placeholder="e.g. Sensor fault verified with housekeeping; covered under Goodwill SOP..."
+                  className="field w-full text-xs"
+                />
+              </div>
+
+              {claimAction === 'resolve' && (
+                <div>
+                  <label className="text-xs font-semibold text-mist-300 mb-1 block">
+                    Resolution &amp; Payment Details
+                  </label>
+                  <input
+                    type="text"
+                    value={resolutionDetailsInput}
+                    onChange={(e) => setResolutionDetailsInput(e.target.value)}
+                    placeholder="e.g. Reversal settled via HDFC Payment Gateway Terminal #TXN-9021..."
+                    className="field w-full text-xs"
+                  />
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/10">
+                <Button variant="subtle" type="button" onClick={() => setSelectedGuestClaim(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="accent"
+                  type="button"
+                  disabled={!guestResponseInput.trim()}
+                  onClick={() => {
+                    const parsedAmount = approvedAmountInput.trim() ? parseFloat(approvedAmountInput) : undefined;
+                    reviewCompensationRefundRequest(selectedGuestClaim.id, claimAction, {
+                      approvedAmount: parsedAmount && !isNaN(parsedAmount) ? parsedAmount : undefined,
+                      guestResponse: guestResponseInput.trim(),
+                      internalNote: internalNoteInput.trim() || undefined,
+                      resolutionDetails: resolutionDetailsInput.trim() || undefined,
+                    });
+                    setSelectedGuestClaim(null);
+                  }}
+                >
+                  Save Decision &amp; Update Guest
+                </Button>
+              </div>
+            </div>
+          </div>
         </Modal>
       )}
     </div>

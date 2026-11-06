@@ -497,7 +497,7 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
           <button
             data-tour="tour-front-desk"
             type="button"
-            onClick={() => setFdSheetOpen(true)}
+            onClick={() => onNavigate('services', 'front_desk')}
             className="relative overflow-hidden guest-tile p-3 sm:p-3.5 lg:p-4 text-left flex flex-row items-center gap-2.5 sm:gap-3 hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_20px_rgba(34,211,238,0.12)] transition-all group min-w-0 w-full box-border min-h-[72px] sm:min-h-[78px] lg:min-h-[82px]"
           >
             <div className="absolute -right-2 -bottom-2 opacity-[0.05] group-hover:opacity-[0.12] group-hover:scale-105 transition-all text-white pointer-events-none">
@@ -513,7 +513,7 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
                 Front Desk
               </p>
               <p className="text-[10px] sm:text-xs text-mist-400 group-hover:text-mist-200 truncate mt-0.5 font-medium leading-tight">
-                24/7 Desk Chat
+                24/7 Desk Support
               </p>
             </div>
           </button>

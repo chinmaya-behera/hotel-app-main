@@ -19,7 +19,7 @@ interface InspectionModalProps {
   isOpen: boolean;
   onClose: () => void;
   inspection: SupervisorInspection | null;
-  onApprove: (inspectionId: string, notes?: string) => void;
+  onApprove: (inspectionId: string, notes?: string, checks?: InspectionCheckItem[]) => void;
   onOpenReopenModal: (inspection: SupervisorInspection) => void;
 }
 
@@ -77,6 +77,7 @@ export function InspectionModal({
 
   if (!isOpen || !inspection) return null;
 
+  const isHousekeeping = !inspection.department || /housekeep/i.test(inspection.department);
   const passedCount = items.filter((it) => it.passed).length;
   const totalCount = items.length;
   const scorePercent = totalCount > 0 ? Math.round((passedCount / totalCount) * 100) : 100;
@@ -89,7 +90,7 @@ export function InspectionModal({
   };
 
   const handleApprove = () => {
-    onApprove(inspection.id, notes);
+    onApprove(inspection.id, notes, items);
     onClose();
   };
 
@@ -110,7 +111,7 @@ export function InspectionModal({
             <div>
               <div className="flex items-center gap-2">
                 <h2 id="inspection-modal-title" className="text-lg font-bold font-display text-white">
-                  Room {inspection.roomNumber} Quality Inspection
+                  {inspection.roomNumber} · {inspection.department || 'Room quality'} inspection
                 </h2>
                 <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-[11px] font-semibold text-mist-200">
                   {inspection.roomType}
@@ -128,7 +129,7 @@ export function InspectionModal({
                 </span>
               </div>
               <p className="text-xs text-mist-400 mt-0.5">
-                Turnover completed by {inspection.attendantName} ({inspection.attendantId}) · Floor {inspection.floor}
+                {inspection.assignedSupervisorName ? `Assigned supervisor: ${inspection.assignedSupervisorName}` : `Completed by ${inspection.attendantName}`} · {inspection.floor ? `Floor ${inspection.floor}` : 'Service area'}
               </p>
             </div>
           </div>
@@ -177,10 +178,10 @@ export function InspectionModal({
             </div>
           </div>
           <div>
-            <p className="text-[11px] uppercase tracking-wider text-mist-400">Attendant Roster</p>
+            <p className="text-[11px] uppercase tracking-wider text-mist-400">{inspection.assignedSupervisorName ? 'Assigned supervisor' : 'Attendant roster'}</p>
             <div className="flex items-center gap-2 mt-1">
               <User className="h-4 w-4 text-mist-300" />
-              <span className="text-xs font-semibold text-white truncate">{inspection.attendantName}</span>
+              <span className="text-xs font-semibold text-white truncate">{inspection.assignedSupervisorName || inspection.attendantName}</span>
             </div>
           </div>
           <div>
@@ -218,10 +219,13 @@ export function InspectionModal({
 
           <div className="space-y-2">
             {items.map((it) => (
-              <div
+              <button
+                type="button"
+                aria-label={it.label}
+                aria-pressed={it.passed}
                 key={it.id}
                 onClick={() => toggleCheck(it.id)}
-                className={`flex items-start gap-3 p-3 rounded-2xl border transition cursor-pointer select-none ${
+                className={`w-full text-left flex items-start gap-3 p-3 rounded-2xl border transition cursor-pointer select-none ${
                   it.passed
                     ? 'bg-emerald-500/[0.04] border-emerald-500/20 hover:border-emerald-500/40'
                     : 'bg-rose-500/[0.06] border-rose-500/30 hover:border-rose-500/50'
@@ -252,7 +256,7 @@ export function InspectionModal({
                   <p className="text-[11px] text-mist-400 mt-0.5">{it.category}</p>
                   {it.notes && <p className="text-[11px] text-amber-300/90 mt-1 italic">Note: {it.notes}</p>}
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -267,7 +271,7 @@ export function InspectionModal({
             rows={2}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="e.g. Linens pristine, VIP welcome fruits placed, turn-down gift card aligned..."
+            placeholder="Record department findings and the verification outcome."
             className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-xs text-white placeholder-mist-500 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400 transition"
           />
         </div>
@@ -297,10 +301,11 @@ export function InspectionModal({
             <button
               type="button"
               onClick={handleApprove}
+              disabled={inspection.initiatedRole === 'department_manager' && (!allPassed || inspection.status === 'passed')}
               className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-ink-950 text-xs font-bold hover:brightness-110 shadow-lg shadow-emerald-500/20 transition flex items-center justify-center gap-2"
             >
               <CheckCircle2 className="h-4 w-4" />
-              <span>Approve & Release Room to Front Desk</span>
+              <span>{isHousekeeping ? 'Approve & release room' : 'Approve department inspection'}</span>
             </button>
           </div>
         </div>
