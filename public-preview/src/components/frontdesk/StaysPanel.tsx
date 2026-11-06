@@ -282,11 +282,15 @@ function StayRow({ stay, onDialog }: { stay: StayRecord; onDialog: (kind: 'verif
                   setCleanerAssigned(true);
                   if (fdAction) {
                     fdAction((s) => {
-                      const r = s.frontDesk?.rooms.find((rm) => rm.no === stay.room);
-                      if (r) {
-                        r.readiness = 'cleaning';
-                        r.note = 'Housekeeping turnover assigned by Front Desk';
-                      }
+                      const updatedRooms = (s.frontDesk?.rooms ?? []).map((rm) =>
+                        rm.no === stay.room
+                          ? { ...rm, readiness: 'cleaning' as const, note: 'Housekeeping turnover assigned by Front Desk' }
+                          : rm
+                      );
+                      return {
+                        next: { ...s, frontDesk: { ...s.frontDesk, rooms: updatedRooms } },
+                        message: 'Housekeeping turnover assigned',
+                      };
                     });
                   }
                 }}

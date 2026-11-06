@@ -42,6 +42,9 @@ import {
   seedDepartmentPolicies,
   seedGuestReminders,
   seedSafetyAlerts,
+  seedCustomDiningRequests,
+  seedCompensationRefundRequests,
+  seedGuestIncidents,
   MANAGER_COMPENSATION_THRESHOLD,
 } from '@/lib/mockData';
 import { afterAdvance, markCheckedOut, type FdResult } from '@/lib/frontDesk';
@@ -93,6 +96,16 @@ import type {
   GuestFrontDeskReply,
   ComplaintCase,  ComplaintCategory,
   DispatcherDepartment,
+  CustomDiningRequest,
+  CustomDiningStatus,
+  CompensationRefundCategory,
+  CompensationRefundStatus,
+  CompensationRefundRequest,
+  CompensationRefundAttachment,
+  GuestIncidentCategory,
+  GuestIncidentStatus,
+  GuestIncidentRecord,
+  GuestIncidentAttachment,
 } from '@/types/demo';
 
 const STORAGE_KEY = 'grand-azure-demo-v1';
@@ -136,6 +149,9 @@ function seedState(): DemoState {
     diningMenu: INITIAL_DINING_MENU,
     diningCategories: INITIAL_DINING_CATEGORIES,
     activeDispatcherDept: 'Housekeeping' as DispatcherDepartment,
+    customDiningRequests: seedCustomDiningRequests,
+    guestCompensationRefundRequests: seedCompensationRefundRequests,
+    guestIncidents: seedGuestIncidents,
   }) as DemoState);
 }
 
@@ -192,10 +208,53 @@ interface DemoApi {
   addDiningCategory: (category: string) => void;
   removeDiningCategory: (category: string) => void;
   cancelGuestItem: (roleId: RoleId, itemId: string) => void;
-  submitGuestFeedback: (roleId: RoleId, itemId: string, rating: number, comment?: string) => void;
+  submitGuestFeedback: (roleId: RoleId, itemId: string, rating: number, comment?: string, tags?: string[]) => void;
   disputeFolioCharge: (room: string, lineId: string, reason: string) => void;
   claimLostItem: (room: string, itemId: string) => void;
   addLostFoundItem: (item: Omit<LostFoundItem, 'id' | 'claimed' | 'claimedRoom' | 'loggedBy'>) => void;
+  submitCustomDiningRequest: (input: {
+    room: string;
+    guestName: string;
+    dishName?: string;
+    description: string;
+    cuisine: string;
+    specialPreferences?: string;
+    spiceLevel: 'None' | 'Mild' | 'Medium' | 'Spicy' | 'Extra Spicy';
+    dietaryPreference: 'Vegetarian' | 'Vegan' | 'Non-Vegetarian' | 'Other';
+    allergiesToAvoid?: string;
+    servings: number;
+    deliveryTimePreference: string;
+    additionalInstructions?: string;
+    imageUrl?: string;
+  }) => string;
+  reviewCustomDishRequest: (
+    id: string,
+    action: 'quote' | 'reject' | 'clarify',
+    payload: { price?: number; prepTime?: string; kitchenNote: string; internalNote?: string }
+  ) => void;
+  guestApproveCustomDiningQuote: (id: string, approved: boolean) => void;
+  guestReplyCustomDiningClarification: (id: string, reply: string) => void;
+  updateCustomDiningStatus: (id: string, status: CustomDiningStatus) => void;
+  submitCompensationRefundRequest: (input: {
+    room: string;
+    guestName: string;
+    bookingRef?: string;
+    category: CompensationRefundCategory;
+    relatedServiceOrTransaction?: string;
+    amountRequested?: number;
+    reason: string;
+    explanation: string;
+    incidentDate?: string;
+    preferredResolution?: string;
+    attachments?: CompensationRefundAttachment[];
+    additionalInstructions?: string;
+  }) => string;
+  reviewCompensationRefundRequest: (
+    id: string,
+    action: 'approve' | 'partially_approve' | 'reject' | 'request_info' | 'process' | 'resolve',
+    payload: { approvedAmount?: number; guestResponse: string; internalNote?: string; resolutionDetails?: string }
+  ) => void;
+  guestProvideAdditionalRefundInfo: (id: string, additionalInfo: string) => void;
   expressCheckout: (room: string, guestName: string) => void;
   /** Runs a pure Front Desk reducer (src/lib/frontDesk.ts) against the shared state. Returns an error message or null. */
   fdAction: (fn: (s: DemoState) => FdResult) => string | null;
@@ -340,6 +399,16 @@ interface DemoApi {
   updateDndStatus: (room: string, active: boolean, duration?: string, instructions?: string) => void;
   submitGuestMessageToFrontDesk: (room: string, subject: string, message: string, instructions?: string) => string;
   replyGuestMessage: (messageId: string, replyText: string, sender: 'guest' | 'front_desk') => void;
+  submitGuestFrontDeskRequest: (input: {
+    room: string;
+    guestName: string;
+    category: string;
+    title: string;
+    description: string;
+    preferredDateTime?: string;
+    additionalInstructions?: string;
+    attachments?: Array<{ name: string; size?: string; type?: string; url?: string }>;
+  }) => string;
   submitGuestComplaint: (input: {
     room: string;
     guestName: string;
@@ -347,6 +416,23 @@ interface DemoApi {
     category: ComplaintCategory;
     description: string;
     photoUrl?: string;
+    department?: string;
+    preferredResolution?: string;
+    additionalInstructions?: string;
+    attachments?: Array<{ name: string; size?: string; type?: string; url?: string }>;
+  }) => string;
+  submitGuestIncident: (input: {
+    room: string;
+    guestName: string;
+    category: GuestIncidentCategory;
+    title: string;
+    description: string;
+    incidentDateTime: string;
+    location: string;
+    peopleInvolved?: string;
+    immediateAssistanceRequired: boolean;
+    attachments?: Array<{ name: string; size?: string; type?: string; url?: string }>;
+    additionalInfo?: string;
   }) => string;
   submitGuestLostItemReport: (input: {
     room: string;
@@ -502,6 +588,9 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           diningMenu: saved.diningMenu ?? base.diningMenu,
           diningCategories: saved.diningCategories ?? base.diningCategories,
           activeDispatcherDept: saved.activeDispatcherDept ?? base.activeDispatcherDept ?? 'Housekeeping',
+          customDiningRequests: saved.customDiningRequests ?? base.customDiningRequests,
+          guestCompensationRefundRequests: saved.guestCompensationRefundRequests ?? base.guestCompensationRefundRequests,
+          guestIncidents: saved.guestIncidents ?? base.guestIncidents,
         }));
       }
     } catch {
@@ -1731,11 +1820,583 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   );
 
   const submitGuestFeedback = useCallback<DemoApi['submitGuestFeedback']>(
-    (roleId, itemId, rating, comment) => {
-      patchGuestItem(roleId, itemId, { feedback: { rating, comment } });
-      notify('Thanks for your feedback');
+    (roleId, itemId, rating, comment, tags) => {
+      const submittedAt = nowLabel();
+      setState((prev) => {
+        const nextItems = { ...prev.items };
+        for (const r of Object.keys(nextItems) as RoleId[]) {
+          if (nextItems[r]) {
+            nextItems[r] = nextItems[r].map((i) =>
+              i.id === itemId || i.ref === itemId
+                ? { ...i, feedback: { rating, comment, tags, submittedAt } }
+                : i
+            );
+          }
+        }
+        const nextCustom = (prev.customDiningRequests ?? []).map((c) =>
+          c.id === itemId || c.ref === itemId
+            ? { ...c, feedback: { rating, comment, tags, submittedAt } }
+            : c
+        );
+        const nextComp = (prev.guestCompensationRefundRequests ?? []).map((cr) =>
+          cr.id === itemId || cr.ref === itemId
+            ? { ...cr, feedback: { rating, comment, tags, submittedAt } }
+            : cr
+        );
+        const nextComplaints = (prev.guestComplaints ?? []).map((cp) =>
+          cp.id === itemId || cp.complaintId === itemId
+            ? { ...cp, feedback: { rating, comment, tags, submittedAt } as any }
+            : cp
+        );
+        const nextLost = (prev.guestLostReports ?? []).map((lr) =>
+          lr.id === itemId || lr.ref === itemId
+            ? { ...lr, feedback: { rating, comment, tags, submittedAt } as any }
+            : lr
+        );
+        const nextIncidents = (prev.guestIncidents ?? []).map((inc) =>
+          inc.id === itemId || inc.ref === itemId
+            ? { ...inc, feedback: { rating, comment, tags, submittedAt } as any }
+            : inc
+        );
+        const nextMsgs = (prev.frontDeskMessages ?? []).map((msg) =>
+          msg.id === itemId || (msg as any).ref === itemId
+            ? { ...msg, feedback: { rating, comment, tags, submittedAt } as any }
+            : msg
+        );
+        return {
+          ...prev,
+          items: nextItems,
+          customDiningRequests: nextCustom,
+          guestCompensationRefundRequests: nextComp,
+          guestComplaints: nextComplaints,
+          guestLostReports: nextLost,
+          guestIncidents: nextIncidents,
+          frontDeskMessages: nextMsgs,
+        };
+      });
+      notify('Thank you for rating our service!');
     },
-    [notify, patchGuestItem],
+    [notify],
+  );
+
+  const submitCustomDiningRequest = useCallback<DemoApi['submitCustomDiningRequest']>(
+    (input) => {
+      const ref = nextRef('CST', input.room);
+      const id = uid();
+      const createdAt = nowLabel();
+      const newCustomItem: CustomDiningRequest = {
+        id,
+        ref,
+        room: input.room,
+        guestName: input.guestName,
+        dishName: input.dishName,
+        description: input.description,
+        cuisine: input.cuisine,
+        specialPreferences: input.specialPreferences,
+        spiceLevel: input.spiceLevel,
+        dietaryPreference: input.dietaryPreference,
+        allergiesToAvoid: input.allergiesToAvoid,
+        servings: input.servings,
+        deliveryTimePreference: input.deliveryTimePreference,
+        additionalInstructions: input.additionalInstructions,
+        imageUrl: input.imageUrl,
+        status: 'Submitted',
+        createdAt,
+        history: [{ at: createdAt, status: 'Submitted', note: 'Custom food request submitted by guest', staff: 'Guest' }],
+      };
+
+      const taskFloor = input.room ? parseInt(input.room[0], 10) || 1 : undefined;
+      const workItem: WorkItem = {
+        id,
+        title: `Custom Dish: ${input.dishName || input.cuisine + ' dish'}`,
+        meta: `Custom Dining · ${input.cuisine} (${input.dietaryPreference}) · Room ${input.room}`,
+        status: 'Submitted',
+        chip: 'Kitchen Review Needed',
+        tone: 'warning',
+        room: input.room,
+        floor: taskFloor,
+        location: `Room ${input.room}`,
+        guest: true,
+        category: 'room_service',
+        description: `Custom Food Request (${ref}):\n${input.description}\nCuisine: ${input.cuisine} | Spice: ${input.spiceLevel} | Servings: ${input.servings}\nDietary: ${input.dietaryPreference}${input.allergiesToAvoid ? ` | Avoid: ${input.allergiesToAvoid}` : ''}\nDelivery: ${input.deliveryTimePreference}${input.additionalInstructions ? `\nInstructions: ${input.additionalInstructions}` : ''}`,
+        priority: 'normal',
+        ref,
+        createdAt,
+        customDiningId: id,
+        history: [{ at: createdAt, status: 'Submitted', note: 'Awaiting Kitchen / F&B review & pricing' }],
+      };
+
+      setState((prev) => ({
+        ...prev,
+        customDiningRequests: [newCustomItem, ...(prev.customDiningRequests ?? [])],
+        items: {
+          ...prev.items,
+          department_dispatcher_supervisor: [workItem, ...(prev.items.department_dispatcher_supervisor ?? [])],
+          department_dispatcher: [workItem, ...(prev.items.department_dispatcher ?? [])],
+          task_fulfiller: [workItem, ...(prev.items.task_fulfiller ?? [])],
+        },
+        feed: [
+          { id: uid(), at: createdAt, role: 'Kitchen Expediter', text: `New Custom Dish Request ${ref} submitted by Room ${input.room} (${input.guestName})` },
+          ...prev.feed,
+        ].slice(0, 30),
+      }));
+
+      notify(`Custom food request ${ref} submitted to Chef & Kitchen team.`);
+      return ref;
+    },
+    [notify],
+  );
+
+  const reviewCustomDishRequest = useCallback<DemoApi['reviewCustomDishRequest']>(
+    (id, action, payload) => {
+      const at = nowLabel();
+      let nextStatus: CustomDiningStatus = 'Under Kitchen Review';
+      let statusNote = '';
+
+      if (action === 'quote') {
+        nextStatus = 'Price Quoted';
+        statusNote = `Price quoted: ₹${payload.price} · Est. Prep: ${payload.prepTime || '30-40 mins'}`;
+      } else if (action === 'reject') {
+        nextStatus = 'Rejected';
+        statusNote = `Kitchen unavailable: ${payload.kitchenNote}`;
+      } else if (action === 'clarify') {
+        nextStatus = 'Clarification Requested';
+        statusNote = `Kitchen question: ${payload.kitchenNote}`;
+      }
+
+      setState((prev) => {
+        const nextCustom = (prev.customDiningRequests ?? []).map((item) => {
+          if (item.id === id || item.ref === id) {
+            return {
+              ...item,
+              status: nextStatus,
+              quotedPrice: payload.price !== undefined ? payload.price : item.quotedPrice,
+              quotedPrepTime: payload.prepTime || item.quotedPrepTime,
+              kitchenNote: payload.kitchenNote,
+              internalKitchenNote: payload.internalNote || item.internalKitchenNote,
+              history: [...(item.history ?? []), { at, status: nextStatus, note: statusNote, staff: 'Executive Chef Anand' }],
+            };
+          }
+          return item;
+        });
+
+        // Sync with WorkItems
+        const nextItems = { ...prev.items };
+        for (const role of Object.keys(nextItems) as RoleId[]) {
+          if (nextItems[role]) {
+            nextItems[role] = nextItems[role].map((wi) => {
+              if (wi.id === id || wi.ref === id || wi.customDiningId === id) {
+                return {
+                  ...wi,
+                  status: nextStatus,
+                  chip: nextStatus === 'Price Quoted' ? `Quoted ₹${payload.price}` : nextStatus,
+                  tone: nextStatus === 'Rejected' ? 'danger' : nextStatus === 'Price Quoted' ? 'warning' : 'info',
+                  amount: payload.price !== undefined ? payload.price : wi.amount,
+                  notes: payload.kitchenNote ? `Kitchen: ${payload.kitchenNote}` : wi.notes,
+                  history: [...(wi.history ?? []), { at, status: nextStatus, note: statusNote }],
+                };
+              }
+              return wi;
+            });
+          }
+        }
+
+        return {
+          ...prev,
+          customDiningRequests: nextCustom,
+          items: nextItems,
+          feed: [
+            { id: uid(), at, role: 'Kitchen Expediter', text: `Custom Request ${id}: ${statusNote}` },
+            ...prev.feed,
+          ].slice(0, 30),
+        };
+      });
+
+      if (action === 'quote') {
+        notify(`Quote of ₹${payload.price} sent to guest for custom dish.`);
+      } else if (action === 'reject') {
+        notify(`Custom food request declined with reason provided.`);
+      } else {
+        notify(`Clarification question sent to guest.`);
+      }
+    },
+    [notify],
+  );
+
+  const guestApproveCustomDiningQuote = useCallback<DemoApi['guestApproveCustomDiningQuote']>(
+    (id, approved) => {
+      const at = nowLabel();
+      const nextStatus: CustomDiningStatus = approved ? 'In Preparation' : 'Cancelled';
+      const note = approved ? 'Guest approved quoted price. Sent to kitchen for preparation.' : 'Guest declined quoted price.';
+
+      setState((prev) => {
+        let matchingReq: CustomDiningRequest | undefined;
+        const nextCustom = (prev.customDiningRequests ?? []).map((item) => {
+          if (item.id === id || item.ref === id) {
+            matchingReq = item;
+            return {
+              ...item,
+              status: nextStatus,
+              history: [...(item.history ?? []), { at, status: nextStatus, note, staff: 'Guest' }],
+            };
+          }
+          return item;
+        });
+
+        const nextItems = { ...prev.items };
+        for (const role of Object.keys(nextItems) as RoleId[]) {
+          if (nextItems[role]) {
+            nextItems[role] = nextItems[role].map((wi) => {
+              if (wi.id === id || wi.ref === id || wi.customDiningId === id) {
+                return {
+                  ...wi,
+                  status: nextStatus === 'In Preparation' ? 'In Progress' : 'Cancelled',
+                  chip: nextStatus === 'In Preparation' ? 'Cooking in Kitchen' : 'Cancelled by Guest',
+                  tone: nextStatus === 'In Preparation' ? 'info' : 'danger',
+                  history: [...(wi.history ?? []), { at, status: nextStatus, note }],
+                };
+              }
+              return wi;
+            });
+          }
+        }
+
+        // If approved, post to folio
+        let nextFolios = prev.folios;
+        if (approved && matchingReq && matchingReq.quotedPrice) {
+          const room = matchingReq.room;
+          const price = matchingReq.quotedPrice;
+          const dishName = matchingReq.dishName || `${matchingReq.cuisine} Custom Dish`;
+          nextFolios = {
+            ...prev.folios,
+            [room]: [
+              ...(prev.folios[room] ?? []),
+              { id: `fo-custom-${matchingReq.id}`, label: `Custom Dining · ${dishName} (${matchingReq.ref})`, amount: price, date: at },
+            ],
+          };
+        }
+
+        return {
+          ...prev,
+          customDiningRequests: nextCustom,
+          items: nextItems,
+          folios: nextFolios,
+          feed: [
+            { id: uid(), at, role: 'Guest Portal', text: `Custom dish ${matchingReq?.ref ?? id}: ${note}` },
+            ...prev.feed,
+          ].slice(0, 30),
+        };
+      });
+
+      if (approved) {
+        notify('Order confirmed! The kitchen has begun preparing your custom dish.');
+      } else {
+        notify('Custom dish request cancelled.');
+      }
+    },
+    [notify],
+  );
+
+  const guestReplyCustomDiningClarification = useCallback<DemoApi['guestReplyCustomDiningClarification']>(
+    (id, reply) => {
+      const at = nowLabel();
+      setState((prev) => {
+        const nextCustom = (prev.customDiningRequests ?? []).map((item) => {
+          if (item.id === id || item.ref === id) {
+            return {
+              ...item,
+              guestClarificationReply: reply,
+              status: 'Under Kitchen Review' as CustomDiningStatus,
+              history: [...(item.history ?? []), { at, status: 'Under Kitchen Review' as CustomDiningStatus, note: `Guest reply: "${reply}"`, staff: 'Guest' }],
+            };
+          }
+          return item;
+        });
+
+        const nextItems = { ...prev.items };
+        for (const role of Object.keys(nextItems) as RoleId[]) {
+          if (nextItems[role]) {
+            nextItems[role] = nextItems[role].map((wi) => {
+              if (wi.id === id || wi.ref === id || wi.customDiningId === id) {
+                return {
+                  ...wi,
+                  status: 'Under Kitchen Review',
+                  chip: 'Guest Replied',
+                  tone: 'info',
+                  notes: `${wi.notes || ''}\nGuest clarification: "${reply}"`,
+                  history: [...(wi.history ?? []), { at, status: 'Under Kitchen Review', note: `Guest clarified: "${reply}"` }],
+                };
+              }
+              return wi;
+            });
+          }
+        }
+
+        return {
+          ...prev,
+          customDiningRequests: nextCustom,
+          items: nextItems,
+          feed: [
+            { id: uid(), at, role: 'Guest Portal', text: `Guest clarified requirements for custom dish ${id}` },
+            ...prev.feed,
+          ].slice(0, 30),
+        };
+      });
+      notify('Clarification sent to kitchen.');
+    },
+    [notify],
+  );
+
+  const updateCustomDiningStatus = useCallback<DemoApi['updateCustomDiningStatus']>(
+    (id, nextStatus) => {
+      const at = nowLabel();
+      const completedAt = ['Delivered', 'Completed'].includes(nextStatus) ? at : undefined;
+
+      setState((prev) => {
+        const nextCustom = (prev.customDiningRequests ?? []).map((item) => {
+          if (item.id === id || item.ref === id) {
+            return {
+              ...item,
+              status: nextStatus,
+              completedAt: completedAt || item.completedAt,
+              history: [...(item.history ?? []), { at, status: nextStatus, staff: 'F&B Team' }],
+            };
+          }
+          return item;
+        });
+
+        const workStatus = ['Delivered', 'Completed'].includes(nextStatus) ? 'Completed' : nextStatus === 'In Preparation' ? 'In Progress' : nextStatus;
+        const nextItems = { ...prev.items };
+        for (const role of Object.keys(nextItems) as RoleId[]) {
+          if (nextItems[role]) {
+            nextItems[role] = nextItems[role].map((wi) => {
+              if (wi.id === id || wi.ref === id || wi.customDiningId === id) {
+                return {
+                  ...wi,
+                  status: workStatus,
+                  chip: nextStatus,
+                  tone: ['Delivered', 'Completed'].includes(nextStatus) ? 'success' : 'info',
+                  history: [...(wi.history ?? []), { at, status: workStatus }],
+                };
+              }
+              return wi;
+            });
+          }
+        }
+
+        return {
+          ...prev,
+          customDiningRequests: nextCustom,
+          items: nextItems,
+          feed: [
+            { id: uid(), at, role: 'F&B Dispatcher', text: `Custom dish ${id} status: ${nextStatus}` },
+            ...prev.feed,
+          ].slice(0, 30),
+        };
+      });
+      notify(`Custom dish status updated to ${nextStatus}.`);
+    },
+    [notify],
+  );
+
+  const submitCompensationRefundRequest = useCallback<DemoApi['submitCompensationRefundRequest']>(
+    (input) => {
+      const ref = nextRef('REF', input.room);
+      const id = uid();
+      const createdAt = nowLabel();
+      const newRequest: CompensationRefundRequest = {
+        id,
+        ref,
+        room: input.room,
+        guestName: input.guestName,
+        bookingRef: input.bookingRef || `BK-${input.room}-01`,
+        category: input.category,
+        relatedServiceOrTransaction: input.relatedServiceOrTransaction,
+        amountRequested: input.amountRequested,
+        reason: input.reason,
+        explanation: input.explanation,
+        incidentDate: input.incidentDate,
+        preferredResolution: input.preferredResolution,
+        attachments: input.attachments,
+        additionalInstructions: input.additionalInstructions,
+        status: 'Submitted',
+        createdAt,
+        history: [{ at: createdAt, status: 'Submitted', note: `Compensation/refund request submitted: ${input.category}`, staff: 'Guest' }],
+      };
+
+      const taskFloor = input.room ? parseInt(input.room[0], 10) || 1 : undefined;
+      const workItem: WorkItem = {
+        id,
+        title: `${input.category} (${ref})`,
+        meta: `Front Desk · ${input.category} · Room ${input.room} · ${input.amountRequested ? `₹${input.amountRequested}` : 'Amount TBD'}`,
+        status: 'Submitted',
+        chip: 'Under Review',
+        tone: 'warning',
+        room: input.room,
+        floor: taskFloor,
+        location: `Room ${input.room}`,
+        guest: true,
+        category: 'front_desk',
+        description: `Compensation/Refund Request (${ref}):\nCategory: ${input.category}\nReason: ${input.reason}\nExplanation: ${input.explanation}\nAmount Requested: ${input.amountRequested ? `₹${input.amountRequested}` : 'Not specified'}\nPreferred Resolution: ${input.preferredResolution || 'Not specified'}${input.relatedServiceOrTransaction ? `\nRelated Transaction: ${input.relatedServiceOrTransaction}` : ''}`,
+        priority: 'normal',
+        ref,
+        createdAt,
+        compensationRefundId: id,
+        amount: input.amountRequested,
+        history: [{ at: createdAt, status: 'Submitted', note: 'Submitted to Front Desk Duty Team' }],
+      };
+
+      setState((prev) => ({
+        ...prev,
+        guestCompensationRefundRequests: [newRequest, ...(prev.guestCompensationRefundRequests ?? [])],
+        items: {
+          ...prev.items,
+          front_desk_coordinator: [workItem, ...(prev.items.front_desk_coordinator ?? [])],
+        },
+        feed: [
+          { id: uid(), at: createdAt, role: 'Guest Relations', text: `New ${input.category} ${ref} logged for Room ${input.room} (${input.guestName})` },
+          ...prev.feed,
+        ].slice(0, 30),
+      }));
+
+      notify(`Compensation & refund request ${ref} submitted to Front Desk team.`);
+      return ref;
+    },
+    [notify],
+  );
+
+  const reviewCompensationRefundRequest = useCallback<DemoApi['reviewCompensationRefundRequest']>(
+    (id, action, payload) => {
+      const at = nowLabel();
+      let nextStatus: CompensationRefundStatus = 'Under Review';
+      let statusNote = '';
+
+      if (action === 'approve') {
+        nextStatus = 'Approved';
+        statusNote = `Approved for ₹${payload.approvedAmount || 0}. ${payload.guestResponse}`;
+      } else if (action === 'partially_approve') {
+        nextStatus = 'Partially Approved';
+        statusNote = `Partially approved for ₹${payload.approvedAmount || 0}. ${payload.guestResponse}`;
+      } else if (action === 'reject') {
+        nextStatus = 'Rejected';
+        statusNote = `Request rejected: ${payload.guestResponse}`;
+      } else if (action === 'request_info') {
+        nextStatus = 'Additional Information Required';
+        statusNote = `Information requested: ${payload.guestResponse}`;
+      } else if (action === 'process') {
+        nextStatus = 'Processing';
+        statusNote = `Payment/settlement processing. ${payload.guestResponse}`;
+      } else if (action === 'resolve') {
+        nextStatus = 'Resolved';
+        statusNote = `Resolved & completed. Resolution details: ${payload.resolutionDetails || payload.guestResponse}`;
+      }
+
+      setState((prev) => {
+        const nextRequests = (prev.guestCompensationRefundRequests ?? []).map((item) => {
+          if (item.id === id || item.ref === id) {
+            return {
+              ...item,
+              status: nextStatus,
+              approvedAmount: payload.approvedAmount !== undefined ? payload.approvedAmount : item.approvedAmount,
+              staffResponse: payload.guestResponse,
+              internalStaffNote: payload.internalNote || item.internalStaffNote,
+              resolutionDetails: payload.resolutionDetails || item.resolutionDetails,
+              resolvedAt: nextStatus === 'Resolved' ? at : item.resolvedAt,
+              resolvedBy: nextStatus === 'Resolved' ? 'Front Desk Coordinator' : item.resolvedBy,
+              updatedAt: at,
+              history: [...(item.history ?? []), { at, status: nextStatus, note: statusNote, staff: 'Front Desk Coordinator' }],
+            };
+          }
+          return item;
+        });
+
+        // Sync with WorkItems
+        const workStatus = nextStatus === 'Resolved' ? 'Completed' : nextStatus;
+        const nextItems = { ...prev.items };
+        for (const role of Object.keys(nextItems) as RoleId[]) {
+          if (nextItems[role]) {
+            nextItems[role] = nextItems[role].map((wi) => {
+              if (wi.id === id || wi.ref === id || wi.compensationRefundId === id) {
+                return {
+                  ...wi,
+                  status: workStatus,
+                  chip: nextStatus,
+                  tone: nextStatus === 'Resolved' ? 'success' : nextStatus === 'Rejected' ? 'danger' : nextStatus === 'Approved' || nextStatus === 'Partially Approved' ? 'info' : 'warning',
+                  amount: payload.approvedAmount !== undefined ? payload.approvedAmount : wi.amount,
+                  notes: payload.guestResponse ? `Staff response: ${payload.guestResponse}` : wi.notes,
+                  history: [...(wi.history ?? []), { at, status: workStatus, note: statusNote }],
+                };
+              }
+              return wi;
+            });
+          }
+        }
+
+        return {
+          ...prev,
+          guestCompensationRefundRequests: nextRequests,
+          items: nextItems,
+          feed: [
+            { id: uid(), at, role: 'Front Desk', text: `Compensation request ${id} updated: ${nextStatus}` },
+            ...prev.feed,
+          ].slice(0, 30),
+        };
+      });
+
+      notify(`Compensation & refund request updated to "${nextStatus}".`);
+    },
+    [notify],
+  );
+
+  const guestProvideAdditionalRefundInfo = useCallback<DemoApi['guestProvideAdditionalRefundInfo']>(
+    (id, additionalInfo) => {
+      const at = nowLabel();
+      setState((prev) => {
+        const nextRequests = (prev.guestCompensationRefundRequests ?? []).map((item) => {
+          if (item.id === id || item.ref === id) {
+            return {
+              ...item,
+              additionalInfoProvided: additionalInfo,
+              status: 'Under Review' as CompensationRefundStatus,
+              updatedAt: at,
+              history: [...(item.history ?? []), { at, status: 'Under Review' as CompensationRefundStatus, note: `Guest provided additional information: "${additionalInfo}"`, staff: 'Guest' }],
+            };
+          }
+          return item;
+        });
+
+        const nextItems = { ...prev.items };
+        for (const role of Object.keys(nextItems) as RoleId[]) {
+          if (nextItems[role]) {
+            nextItems[role] = nextItems[role].map((wi) => {
+              if (wi.id === id || wi.ref === id || wi.compensationRefundId === id) {
+                return {
+                  ...wi,
+                  status: 'Under Review',
+                  chip: 'Info Provided',
+                  tone: 'info',
+                  notes: `${wi.notes || ''}\nGuest added info: "${additionalInfo}"`,
+                  history: [...(wi.history ?? []), { at, status: 'Under Review', note: `Guest submitted additional information` }],
+                };
+              }
+              return wi;
+            });
+          }
+        }
+
+        return {
+          ...prev,
+          guestCompensationRefundRequests: nextRequests,
+          items: nextItems,
+          feed: [
+            { id: uid(), at, role: 'Guest Portal', text: `Guest submitted additional details for refund request ${id}` },
+            ...prev.feed,
+          ].slice(0, 30),
+        };
+      });
+      notify('Additional information submitted to Front Desk.');
+    },
+    [notify],
   );
 
   const disputeFolioCharge = useCallback<DemoApi['disputeFolioCharge']>(
@@ -5784,9 +6445,13 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         guestName: input.guestName,
         bookingRef: stay?.bookingRef,
         category: input.category,
+        department: input.department,
         title: input.title,
         description: input.description,
-        photoUrl: input.photoUrl,
+        photoUrl: input.photoUrl || input.attachments?.find((a) => a.type?.startsWith('image/'))?.url,
+        preferredResolution: input.preferredResolution,
+        additionalInstructions: input.additionalInstructions,
+        attachments: input.attachments,
         submittedAt: `Today, ${timestamp}`,
         status: 'Submitted',
         assignedTo: 'Front Desk & Duty Operations',
@@ -5866,6 +6531,166 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
       notify(`Complaint registered (ID: ${complaintId})`);
       return complaintId;
+    },
+    [notify],
+  );
+
+  const submitGuestFrontDeskRequest = useCallback<DemoApi['submitGuestFrontDeskRequest']>(
+    (input) => {
+      const timestamp = nowLabel();
+      const id = `req-${uid()}`;
+      const ref = nextRef('REQ', input.room);
+      const stay = (stateRef.current.frontDesk?.stays ?? []).find((s) => s.room === input.room && s.status === 'in_house');
+
+      const newMsg: GuestFrontDeskMessage = {
+        id,
+        room: input.room,
+        guestName: input.guestName,
+        subject: input.title,
+        message: input.description,
+        instructions: input.additionalInstructions,
+        category: input.category,
+        preferredDateTime: input.preferredDateTime,
+        attachments: input.attachments,
+        status: 'Submitted',
+        createdAt: `Today, ${timestamp}`,
+        replies: [],
+        bookingRef: stay?.bookingRef ?? 'BK-402-992',
+      };
+
+      const fdTask: WorkItem = {
+        id: `fd-req-${id}`,
+        title: `Guest Request · [${input.category}] ${input.title}`,
+        meta: `Front Desk Service · Room ${input.room} · ${input.guestName}`,
+        status: 'Submitted',
+        chip: input.category,
+        tone: 'info',
+        room: input.room,
+        guest: true,
+        category: 'front_desk',
+        description: `${input.description}${input.preferredDateTime ? `\nPreferred Time: ${input.preferredDateTime}` : ''}${input.additionalInstructions ? `\nInstructions: ${input.additionalInstructions}` : ''}`,
+        createdAt: `Today, ${timestamp}`,
+        owner: 'Front Desk',
+        ref,
+        history: [{ at: timestamp, status: 'Submitted', note: `Request logged by guest via Front Desk Portal` }],
+      };
+
+      setState((prev) => ({
+        ...prev,
+        frontDeskMessages: [newMsg, ...(prev.frontDeskMessages ?? [])],
+        items: {
+          ...prev.items,
+          front_desk_coordinator: [fdTask, ...(prev.items.front_desk_coordinator ?? [])],
+        },
+        feed: [
+          {
+            id: uid(),
+            at: timestamp,
+            role: 'Guest Portal',
+            text: `Guest request ${ref} (${input.category}) submitted from Room ${input.room}: "${input.title}"`,
+          },
+          ...prev.feed,
+        ].slice(0, 30),
+      }));
+
+      notify(`Request ${ref} submitted to Front Desk coordinator`);
+      return ref;
+    },
+    [notify],
+  );
+
+  const submitGuestIncident = useCallback<DemoApi['submitGuestIncident']>(
+    (input) => {
+      const timestamp = nowLabel();
+      const ref = nextRef('INC', input.room);
+      const id = `inc-${uid()}`;
+      const stay = (stateRef.current.frontDesk?.stays ?? []).find((s) => s.room === input.room && s.status === 'in_house');
+
+      const newRecord: GuestIncidentRecord = {
+        id,
+        ref,
+        room: input.room,
+        guestName: input.guestName,
+        bookingRef: stay?.bookingRef ?? 'BK-402-992',
+        category: input.category,
+        title: input.title,
+        description: input.description,
+        incidentDateTime: input.incidentDateTime,
+        location: input.location,
+        peopleInvolved: input.peopleInvolved,
+        immediateAssistanceRequired: input.immediateAssistanceRequired,
+        attachments: input.attachments,
+        additionalInfo: input.additionalInfo,
+        status: 'Submitted',
+        submittedAt: `Today, ${timestamp}`,
+        history: [
+          { at: timestamp, status: 'Submitted', note: 'Incident report logged via Guest Portal', staff: 'Guest' },
+          { at: timestamp, status: 'Received', note: input.immediateAssistanceRequired ? 'URGENT: Dispatched to Duty Manager & Security Responder' : 'Received by Front Desk & Security team', staff: 'System' },
+        ],
+      };
+
+      const taskPriority = input.immediateAssistanceRequired ? 'critical' : 'normal';
+      const taskTone = input.immediateAssistanceRequired ? 'danger' : 'warning';
+      const taskChip = input.immediateAssistanceRequired ? 'URGENT INCIDENT' : 'Incident Report';
+
+      const workItem: WorkItem = {
+        id: `wi-${id}`,
+        title: `Incident: [${input.category}] ${input.title}`,
+        meta: `Guest Incident Report · Room ${input.room} · ${input.guestName}`,
+        status: 'Submitted',
+        chip: taskChip,
+        tone: taskTone,
+        priority: taskPriority,
+        room: input.room,
+        guest: true,
+        category: 'guest_request',
+        location: input.location,
+        ref,
+        createdAt: `Today, ${timestamp}`,
+        description: `Incident Report (${ref}):\nCategory: ${input.category}\nLocation: ${input.location}\nTime: ${input.incidentDateTime}\nImmediate Assistance: ${input.immediateAssistanceRequired ? 'YES - URGENT' : 'No'}\n\nDescription:\n${input.description}${input.peopleInvolved ? `\nPeople Involved: ${input.peopleInvolved}` : ''}${input.additionalInfo ? `\nAdditional Info: ${input.additionalInfo}` : ''}`,
+        history: [{ at: timestamp, status: 'Submitted', note: `Incident filed by Room ${input.room}` }],
+      };
+
+      const notification: InAppNotification = {
+        id: uid(),
+        title: input.immediateAssistanceRequired ? `🚨 URGENT GUEST INCIDENT: Room ${input.room}` : `New Incident Report: Room ${input.room}`,
+        message: `${input.title} (${input.location}) - ${input.description.slice(0, 100)}`,
+        timestamp,
+        roleId: 'security_responder',
+        read: false,
+        type: 'alert',
+        itemId: id,
+      };
+
+      const fdNotification: InAppNotification = {
+        ...notification,
+        id: uid(),
+        roleId: 'front_desk_coordinator',
+      };
+
+      setState((prev) => ({
+        ...prev,
+        guestIncidents: [newRecord, ...(prev.guestIncidents ?? [])],
+        items: {
+          ...prev.items,
+          front_desk_coordinator: [workItem, ...(prev.items.front_desk_coordinator ?? [])],
+          security_responder: [workItem, ...(prev.items.security_responder ?? [])],
+          department_manager: [workItem, ...(prev.items.department_manager ?? [])],
+        },
+        notifications: [notification, fdNotification, ...(prev.notifications ?? [])].slice(0, 50),
+        feed: [
+          {
+            id: uid(),
+            at: timestamp,
+            role: input.immediateAssistanceRequired ? 'Security Alert' : 'Front Desk',
+            text: `Incident ${ref} (${input.category}) filed by Room ${input.room}: ${input.title}`,
+          },
+          ...prev.feed,
+        ].slice(0, 30),
+      }));
+
+      notify(input.immediateAssistanceRequired ? `🚨 Urgent incident reported! Team dispatched.` : `Incident report ${ref} submitted to Front Desk & Security.`);
+      return ref;
     },
     [notify],
   );
@@ -6134,6 +6959,14 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       removeDiningCategory,
       cancelGuestItem,
       submitGuestFeedback,
+      submitCustomDiningRequest,
+      reviewCustomDishRequest,
+      guestApproveCustomDiningQuote,
+      guestReplyCustomDiningClarification,
+      updateCustomDiningStatus,
+      submitCompensationRefundRequest,
+      reviewCompensationRefundRequest,
+      guestProvideAdditionalRefundInfo,
       disputeFolioCharge,
       claimLostItem,
       addLostFoundItem,
@@ -6221,7 +7054,9 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       updateDndStatus,
       submitGuestMessageToFrontDesk,
       replyGuestMessage,
+      submitGuestFrontDeskRequest,
       submitGuestComplaint,
+      submitGuestIncident,
       submitGuestLostItemReport,
       submitGuestFoundItemClaim,
       markGuestNotificationRead,
@@ -6254,6 +7089,14 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       removeDiningCategory,
       cancelGuestItem,
       submitGuestFeedback,
+      submitCustomDiningRequest,
+      reviewCustomDishRequest,
+      guestApproveCustomDiningQuote,
+      guestReplyCustomDiningClarification,
+      updateCustomDiningStatus,
+      submitCompensationRefundRequest,
+      reviewCompensationRefundRequest,
+      guestProvideAdditionalRefundInfo,
       disputeFolioCharge,
       claimLostItem,
       addLostFoundItem,
@@ -6341,7 +7184,9 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       updateDndStatus,
       submitGuestMessageToFrontDesk,
       replyGuestMessage,
+      submitGuestFrontDeskRequest,
       submitGuestComplaint,
+      submitGuestIncident,
       submitGuestLostItemReport,
       submitGuestFoundItemClaim,
       markGuestNotificationRead,

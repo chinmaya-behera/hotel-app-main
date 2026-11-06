@@ -4,7 +4,7 @@ import { useRef, useState, type FormEvent } from 'react';
 import { ArrowRight, BedDouble, CalendarDays, Flower2, Package, Plus, UtensilsCrossed, Wrench, X } from 'lucide-react';
 import { useDemo } from '@/lib/store';
 import { departmentId, isOpen, managerDepartment, managerTasks, type ManagerDepartmentId } from '@/lib/manager-domain';
-import type { ManagerStockItem } from '@/types/demo';
+import type { ManagerStockItem, CustomDiningRequest } from '@/types/demo';
 
 export const DESK_LABELS: Record<ManagerDepartmentId, string> = {
   housekeeping: 'Room readiness',
@@ -19,7 +19,7 @@ function localDateTime(date: Date) {
 }
 
 export function DepartmentDesk({ summary = false, onOpen, onInspect }: { summary?: boolean; onOpen: () => void; onInspect: () => void }) {
-  const { state, departmentManagerCommand } = useDemo();
+  const { state, departmentManagerCommand, reviewCustomDishRequest, updateCustomDiningStatus } = useDemo();
   const department = managerDepartment(state.managerDepartment);
   const operations = state.managerOperations;
   const [roomFilter, setRoomFilter] = useState('attention');
@@ -27,6 +27,13 @@ export function DepartmentDesk({ summary = false, onOpen, onInspect }: { summary
   const [menuLimit, setMenuLimit] = useState(6);
   const [showPast, setShowPast] = useState(false);
   const [modal, setModal] = useState<'appointment' | ManagerStockItem | null>(null);
+  const [customDishAction, setCustomDishAction] = useState<{
+    item: CustomDiningRequest;
+    action: 'quote' | 'reject' | 'clarify';
+  } | null>(null);
+  const [quotePrice, setQuotePrice] = useState<number>(650);
+  const [quotePrepTime, setQuotePrepTime] = useState<string>('30-40 mins');
+  const [quoteNote, setQuoteNote] = useState<string>('Freshly prepared by Executive Chef Anand.');
   const dialog = useRef<HTMLDialogElement>(null);
   if (!operations) return null;
 
@@ -37,13 +44,14 @@ export function DepartmentDesk({ summary = false, onOpen, onInspect }: { summary
   const assets = operations.assets;
   const today = new Date().toLocaleDateString('en-CA');
   const tasks = managerTasks(state, department.id);
+  const pendingCustomCount = (state.customDiningRequests ?? []).filter(c => ['Submitted', 'Under Kitchen Review'].includes(c.status)).length;
   const summaryText = department.id === 'housekeeping'
     ? `${rooms.filter(r => r.readiness === 'ready').length} rooms ready · ${rooms.filter(r => r.dnd || state.guestPreferences?.[r.no]?.dnd).length} do not disturb`
     : department.id === 'wellness'
       ? `${operations.appointments.filter(a => a.status === 'booked').length} appointment${operations.appointments.filter(a => a.status === 'booked').length === 1 ? '' : 's'} · ${therapists.length} available therapist${therapists.length === 1 ? '' : 's'}`
       : department.id === 'engineering'
         ? `${assets.filter(a => a.nextDue <= today).length} services due · ${assets.filter(a => a.workOrderRef).length} linked work orders`
-        : `${(state.diningMenu ?? []).filter(item => item.isAvailable).length} menu items available`;
+        : `${(state.diningMenu ?? []).filter(item => item.isAvailable).length} menu items available · ${pendingCustomCount} custom dish request${pendingCustomCount === 1 ? '' : 's'}`;
 
   const DeskIcon = department.id === 'housekeeping' ? BedDouble : department.id === 'wellness' ? Flower2 : department.id === 'engineering' ? Wrench : UtensilsCrossed;
   if (summary) return <section className="dm-panel dm-desk-summary"><div className="dm-desk-card-label"><span className="dm-attention-icon"><DeskIcon size={21}/></span><span>Department tools</span></div><h2>{DESK_LABELS[department.id]}</h2><p>{summaryText}</p><div className="dm-desk-card-detail">{department.id === 'housekeeping' ? 'Prepare arrivals, check room status and coordinate your supplies.' : department.id === 'wellness' ? 'Manage treatment schedules, room availability and therapist bookings.' : department.id === 'engineering' ? 'Stay ahead of service dates and keep work orders moving.' : 'Keep guest menus current and review listed allergens.'}</div><button className="dm-primary" onClick={onOpen}>Open department desk <ArrowRight size={16}/></button></section>;
@@ -118,13 +126,181 @@ export function DepartmentDesk({ summary = false, onOpen, onInspect }: { summary
       })}</tbody></table></div>
     </section>}
 
-    {department.id === 'food-beverages' && <section className="dm-panel">
-      <div className="dm-panel-heading"><div><h2>Menu availability & allergens</h2><p>Availability changes are shared with the guest dining menu.</p></div></div>
-      <div className="dm-toolbar"><input aria-label="Search menu or allergens" value={menuSearch} onChange={e => { setMenuSearch(e.target.value); setMenuLimit(6); }} placeholder="Search item, category or allergen…"/></div>
-      {menu.slice(0, menuLimit).map(item => <article className="dm-record" key={item.id}><div className="dm-record-title"><h3>{item.name}</h3><button className="dm-small-button" role="switch" aria-checked={item.isAvailable} aria-label={`Availability for ${item.name}`} onClick={() => departmentManagerCommand({ type: 'menu-availability', menuId: item.id, available: !item.isAvailable })}>{item.isAvailable ? 'Available' : 'Unavailable'}</button></div><p>{item.category} · ₹{item.price.toLocaleString('en-IN')}</p><small>Listed allergens: {item.allergens.length ? item.allergens.join(', ') : 'None listed — confirm with kitchen'}</small></article>)}
-      {menu.length === 0 && <p className="dm-empty">No matching menu items.</p>}
-      {menuLimit < menu.length && <div className="dm-toolbar"><button className="dm-text-button" onClick={() => setMenuLimit(value => value + 6)}>Show more items ({menu.length - menuLimit} remaining)</button></div>}
-    </section>}
+    {department.id === 'food-beverages' && <>
+      <section className="dm-panel">
+        <div className="dm-panel-heading"><div><h2>Custom Food Requests &amp; Quotes</h2><p>Review bespoke dishes requested by guests, provide price &amp; preparation quotes, or request clarification.</p></div></div>
+        {(state.customDiningRequests ?? []).length === 0 ? (
+          <p className="dm-empty">No custom food requests received yet.</p>
+        ) : (
+          <div className="dm-room-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
+            {(state.customDiningRequests ?? []).map(req => {
+              const isPendingReview = req.status === 'Submitted' || req.status === 'Under Kitchen Review';
+              const isCooking = req.status === 'In Preparation';
+              const isOutForDelivery = req.status === 'Out for Delivery';
+              return (
+                <article className="dm-room" key={req.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <strong>{req.dishName || `${req.cuisine} Dish`}</strong>
+                    <span className="dm-status">{req.status}</span>
+                  </div>
+                  <p>Room {req.room} · {req.guestName} · {req.ref}</p>
+                  <small>
+                    {req.cuisine} · {req.dietaryPreference} · Spice: {req.spiceLevel} · Servings: {req.servings}
+                    {req.allergiesToAvoid ? ` · Avoid: ${req.allergiesToAvoid}` : ''}
+                  </small>
+                  <p style={{ fontSize: '0.78rem', opacity: 0.9 }}>{req.description}</p>
+                  {req.quotedPrice !== undefined && (
+                    <small style={{ color: '#fbbf24', fontWeight: 600 }}>
+                      Quoted: ₹{req.quotedPrice.toLocaleString('en-IN')} · Est. {req.quotedPrepTime || '35 mins'}
+                      {req.guestQuoteApproved ? ' · Guest Approved' : ''}
+                    </small>
+                  )}
+                  <div className="dm-record-actions" style={{ marginTop: 'auto', paddingTop: '0.4rem', display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                    {isPendingReview && (
+                      <>
+                        <button
+                          className="dm-small-button"
+                          onClick={() => {
+                            setCustomDishAction({ item: req, action: 'quote' });
+                            setQuotePrice(650);
+                            setQuotePrepTime('30-40 mins');
+                            setQuoteNote('Freshly prepared by Executive Chef Anand.');
+                          }}
+                        >
+                          Provide Quote
+                        </button>
+                        <button
+                          className="dm-text-button"
+                          onClick={() => {
+                            setCustomDishAction({ item: req, action: 'clarify' });
+                            setQuoteNote('Please specify if you prefer white or brown rice with this preparation.');
+                          }}
+                        >
+                          Clarify
+                        </button>
+                        <button
+                          className="dm-text-button"
+                          style={{ color: '#f87171' }}
+                          onClick={() => {
+                            setCustomDishAction({ item: req, action: 'reject' });
+                            setQuoteNote('Ingredients currently unavailable during this shift.');
+                          }}
+                        >
+                          Decline
+                        </button>
+                      </>
+                    )}
+                    {isCooking && (
+                      <button
+                        className="dm-small-button"
+                        onClick={() => updateCustomDiningStatus(req.id, 'Out for Delivery')}
+                      >
+                        Dispatch (Out for Delivery)
+                      </button>
+                    )}
+                    {isOutForDelivery && (
+                      <button
+                        className="dm-small-button"
+                        onClick={() => updateCustomDiningStatus(req.id, 'Delivered')}
+                      >
+                        Mark Delivered
+                      </button>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      <section className="dm-panel">
+        <div className="dm-panel-heading"><div><h2>Menu availability &amp; allergens</h2><p>Availability changes are shared with the guest dining menu.</p></div></div>
+        <div className="dm-toolbar"><input aria-label="Search menu or allergens" value={menuSearch} onChange={e => { setMenuSearch(e.target.value); setMenuLimit(6); }} placeholder="Search item, category or allergen…"/></div>
+        {menu.slice(0, menuLimit).map(item => <article className="dm-record" key={item.id}><div className="dm-record-title"><h3>{item.name}</h3><button className="dm-small-button" role="switch" aria-checked={item.isAvailable} aria-label={`Availability for ${item.name}`} onClick={() => departmentManagerCommand({ type: 'menu-availability', menuId: item.id, available: !item.isAvailable })}>{item.isAvailable ? 'Available' : 'Unavailable'}</button></div><p>{item.category} · ₹{item.price.toLocaleString('en-IN')}</p><small>Listed allergens: {item.allergens.length ? item.allergens.join(', ') : 'None listed — confirm with kitchen'}</small></article>)}
+        {menu.length === 0 && <p className="dm-empty">No matching menu items.</p>}
+        {menuLimit < menu.length && <div className="dm-toolbar"><button className="dm-text-button" onClick={() => setMenuLimit(value => value + 6)}>Show more items ({menu.length - menuLimit} remaining)</button></div>}
+      </section>
+    </>}
+
+    {customDishAction && (
+      <dialog
+        className="dm-dialog"
+        open
+        style={{ display: 'block', position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 100 }}
+      >
+        <div className="dm-dialog-heading">
+          <h2>
+            {customDishAction.action === 'quote'
+              ? `Quote Price for ${customDishAction.item.dishName || customDishAction.item.cuisine + ' Dish'}`
+              : customDishAction.action === 'clarify'
+              ? `Ask Clarification for ${customDishAction.item.ref}`
+              : `Decline Request ${customDishAction.item.ref}`}
+          </h2>
+          <button className="dm-icon-button" type="button" onClick={() => setCustomDishAction(null)} aria-label="Close dialog">
+            <X size={19} />
+          </button>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '0.5rem 0' }}>
+          <p className="dm-dialog-description">
+            Guest: {customDishAction.item.guestName} · Room {customDishAction.item.room} · Servings: {customDishAction.item.servings}
+          </p>
+          {customDishAction.action === 'quote' && (
+            <>
+              <label className="dm-field">
+                Quoted Price (₹)
+                <input
+                  type="number"
+                  min="50"
+                  step="50"
+                  value={quotePrice}
+                  onChange={(e) => setQuotePrice(Number(e.target.value))}
+                  required
+                />
+              </label>
+              <label className="dm-field">
+                Estimated Preparation Time
+                <input
+                  type="text"
+                  value={quotePrepTime}
+                  onChange={(e) => setQuotePrepTime(e.target.value)}
+                  placeholder="e.g. 30-40 mins"
+                  required
+                />
+              </label>
+            </>
+          )}
+          <label className="dm-field">
+            {customDishAction.action === 'quote' ? 'Kitchen Note for Guest' : customDishAction.action === 'clarify' ? 'Clarification Question' : 'Reason for Declining'}
+            <textarea
+              rows={3}
+              value={quoteNote}
+              onChange={(e) => setQuoteNote(e.target.value)}
+              required
+            />
+          </label>
+        </div>
+        <div className="dm-dialog-actions">
+          <button className="dm-secondary" type="button" onClick={() => setCustomDishAction(null)}>
+            Cancel
+          </button>
+          <button
+            className="dm-primary"
+            type="button"
+            onClick={() => {
+              reviewCustomDishRequest(customDishAction.item.id, customDishAction.action, {
+                price: customDishAction.action === 'quote' ? quotePrice : undefined,
+                prepTime: customDishAction.action === 'quote' ? quotePrepTime : undefined,
+                kitchenNote: quoteNote,
+              });
+              setCustomDishAction(null);
+            }}
+          >
+            {customDishAction.action === 'quote' ? 'Send Quote to Guest' : customDishAction.action === 'clarify' ? 'Send Question' : 'Decline Request'}
+          </button>
+        </div>
+      </dialog>
+    )}
 
     <dialog ref={dialog} className="dm-dialog" onClose={() => setModal(null)} aria-labelledby="department-desk-dialog-title"><form onSubmit={submit} key={modal === 'appointment' ? 'appointment' : modal?.id}>
       <div className="dm-dialog-heading"><h2 id="department-desk-dialog-title">{modal === 'appointment' ? 'New appointment' : 'Update stock count'}</h2><button className="dm-icon-button" type="button" onClick={close} aria-label="Close department action"><X size={19}/></button></div>

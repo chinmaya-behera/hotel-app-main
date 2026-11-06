@@ -77,7 +77,9 @@ export interface WorkItem {
   history?: GuestHistoryEntry[];
   dnd?: boolean;
   photoAttached?: boolean;
-  feedback?: { rating: number; comment?: string };
+  feedback?: { rating: number; comment?: string; tags?: string[]; submittedAt?: string };
+  customDiningId?: string;
+  compensationRefundId?: string;
   orderLines?: OrderLine[];
   /** accountable owner of a guest case (Front Desk owns cases; departments own routed tasks) */
   owner?: string;
@@ -967,6 +969,9 @@ export interface DemoState {
   diningMenu?: DiningMenuItem[];
   diningCategories?: string[];
   activeDispatcherDept?: DispatcherDepartment;
+  customDiningRequests?: CustomDiningRequest[];
+  guestCompensationRefundRequests?: CompensationRefundRequest[];
+  guestIncidents?: GuestIncidentRecord[];
 }
 
 /* ---- Phase 4: Guest Reminders & Safety Alert Broadcast Engine ---- */
@@ -1060,10 +1065,14 @@ export interface GuestFrontDeskMessage {
   subject: string;
   message: string;
   instructions?: string;
-  status: 'Sent' | 'Received' | 'Responded' | 'Closed';
+  status: 'Sent' | 'Received' | 'Responded' | 'Closed' | 'Submitted' | 'In Progress' | 'Completed' | 'Resolved';
   createdAt: string;
   replies: GuestFrontDeskReply[];
   bookingRef?: string;
+  category?: string;
+  preferredDateTime?: string;
+  attachments?: Array<{ name: string; size?: string; type?: string; url?: string }>;
+  feedback?: { rating: number; comment?: string; tags?: string[]; submittedAt?: string };
 }
 
 export type ComplaintStatus =
@@ -1090,9 +1099,13 @@ export interface GuestComplaintRecord {
   guestName: string;
   bookingRef?: string;
   category: ComplaintCategory;
+  department?: string;
   title: string;
   description: string;
   photoUrl?: string;
+  preferredResolution?: string;
+  additionalInstructions?: string;
+  attachments?: Array<{ name: string; size?: string; type?: string; url?: string }>;
   submittedAt: string;
   status: ComplaintStatus;
   assignedTo?: string;
@@ -1100,6 +1113,58 @@ export interface GuestComplaintRecord {
   resolvedAt?: string;
   compensationOffered?: number;
   history: Array<{ at: string; status: string; note?: string; actor?: string }>;
+  feedback?: { rating: number; comment?: string; tags?: string[]; submittedAt?: string };
+}
+
+/* ---- Guest Incidents (Front Desk & Security Reporting) ---- */
+
+export type GuestIncidentCategory =
+  | 'Room/Property Damage'
+  | 'Lost Personal Belongings'
+  | 'Safety or Security Concern'
+  | 'Disturbance or Nuisance'
+  | 'Accident or Injury'
+  | 'Facility-Related Incident'
+  | 'Other';
+
+export type GuestIncidentStatus =
+  | 'Submitted'
+  | 'Received'
+  | 'Under Investigation'
+  | 'Action Taken'
+  | 'Resolved'
+  | 'Closed';
+
+export interface GuestIncidentAttachment {
+  name: string;
+  size?: string;
+  type?: string;
+  url?: string;
+}
+
+export interface GuestIncidentRecord {
+  id: string;
+  ref: string;
+  room: string;
+  guestName: string;
+  bookingRef?: string;
+  category: GuestIncidentCategory;
+  title: string;
+  description: string;
+  incidentDateTime: string;
+  location: string;
+  peopleInvolved?: string;
+  immediateAssistanceRequired: boolean;
+  attachments?: GuestIncidentAttachment[];
+  additionalInfo?: string;
+  status: GuestIncidentStatus;
+  submittedAt: string;
+  staffResponse?: string;
+  internalStaffNote?: string;
+  resolvedAt?: string;
+  resolvedBy?: string;
+  feedback?: { rating: number; comment?: string; tags?: string[]; submittedAt?: string };
+  history?: Array<{ at: string; status: GuestIncidentStatus; note?: string; staff?: string }>;
 }
 
 export type LostItemStatus =
@@ -1130,6 +1195,7 @@ export interface GuestLostItemRecord {
   staffNotes?: string;
   matchedFoundItemId?: string;
   history: Array<{ at: string; status: string; note?: string }>;
+  feedback?: { rating: number; comment?: string; tags?: string[]; submittedAt?: string };
 }
 
 export type GuestNotificationCategory =
@@ -1178,4 +1244,113 @@ export interface HotelAlert {
   active: boolean;
   requiresAcknowledgement?: boolean;
 }
+
+/* ---- Custom Food Requests (Guest Portal & Kitchen Workflow) ---- */
+
+export type CustomDiningStatus =
+  | 'Submitted'
+  | 'Under Kitchen Review'
+  | 'Clarification Requested'
+  | 'Price Quoted'
+  | 'Order Confirmed'
+  | 'In Preparation'
+  | 'Ready'
+  | 'Out for Delivery'
+  | 'Delivered'
+  | 'Rejected'
+  | 'Cancelled';
+
+export interface CustomDiningRequest {
+  id: string;
+  ref: string;
+  room: string;
+  guestName: string;
+  dishName?: string;
+  description: string;
+  cuisine: string;
+  specialPreferences?: string;
+  spiceLevel: 'None' | 'Mild' | 'Medium' | 'Spicy' | 'Extra Spicy';
+  dietaryPreference: 'Vegetarian' | 'Vegan' | 'Non-Vegetarian' | 'Other';
+  allergiesToAvoid?: string;
+  servings: number;
+  deliveryTimePreference: string;
+  additionalInstructions?: string;
+  imageUrl?: string;
+  status: CustomDiningStatus;
+  createdAt: string;
+  quotedPrice?: number;
+  quotedPrepTime?: string;
+  kitchenNote?: string;
+  internalKitchenNote?: string;
+  guestQuoteApproved?: boolean;
+  guestClarificationReply?: string;
+  kitchenClarificationQuestion?: string;
+  completedAt?: string;
+  feedback?: { rating: number; tags?: string[]; comment?: string; submittedAt?: string };
+  history?: Array<{ at: string; status: CustomDiningStatus; note?: string; staff?: string }>;
+}
+
+/* ---- Compensation & Refund Requests (Guest Portal & Front Desk Workflow) ---- */
+
+export type CompensationRefundCategory =
+  | 'Refund Request'
+  | 'Partial Refund'
+  | 'Compensation for Service Issues'
+  | 'Billing Dispute'
+  | 'Incorrect Charges'
+  | 'Duplicate Payment'
+  | 'Deposit Refund'
+  | 'Other Financial Concern';
+
+export type CompensationRefundStatus =
+  | 'Submitted'
+  | 'Under Review'
+  | 'Additional Information Required'
+  | 'Approved'
+  | 'Partially Approved'
+  | 'Rejected'
+  | 'Processing'
+  | 'Resolved';
+
+export interface CompensationRefundAttachment {
+  name: string;
+  size?: string;
+  type?: string;
+  url?: string;
+}
+
+export interface CompensationRefundRequest {
+  id: string;
+  ref: string;
+  room: string;
+  guestName: string;
+  bookingRef?: string;
+  bookingReference?: string;
+  category: CompensationRefundCategory;
+  relatedServiceOrTransaction?: string;
+  relatedService?: string;
+  amountRequested?: number;
+  approvedAmount?: number;
+  reason: string;
+  explanation: string;
+  detailedExplanation?: string;
+  incidentDate?: string;
+  preferredResolution?: string;
+  attachments?: CompensationRefundAttachment[];
+  additionalInstructions?: string;
+  status: CompensationRefundStatus;
+  createdAt: string;
+  updatedAt?: string;
+  staffResponse?: string;
+  staffGuestResponse?: string;
+  internalStaffNote?: string;
+  resolutionDetails?: string;
+  resolvedAt?: string;
+  resolvedBy?: string;
+  additionalInfoRequested?: string;
+  additionalInfoProvided?: string;
+  feedback?: { rating: number; tags?: string[]; comment?: string; submittedAt?: string };
+  history?: Array<{ at: string; status: CompensationRefundStatus; note?: string; staff?: string }>;
+}
+
 
