@@ -32,7 +32,7 @@ export function SecurityEscalateModal({ item, isOpen, onClose, onSubmit }: Secur
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/45 backdrop-blur-sm animate-in fade-in duration-150">
-      <div className="w-full max-w-lg bg-[var(--warm-paper)] border border-[var(--dm-line)] rounded-2xl p-6 shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto text-[var(--dm-ink)]">
+      <div className="w-full max-w-lg bg-white border border-[var(--dm-line)] rounded-2xl p-6 shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto text-[var(--dm-ink)]">
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-[var(--dm-line)]">
           <div className="flex items-center gap-3">

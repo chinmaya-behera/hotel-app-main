@@ -2,6 +2,7 @@
 .warm-theme {
   --warm-canvas: #ffffff;
   --warm-panel: #ffffff;
+  --warm-paper: #ffffff;
   --warm-sidebar: #fbfaf7;
   --warm-soft: #f6f3ec;
   --warm-highlight: #ebe2cc;
@@ -23,6 +24,7 @@
 .warm-theme[data-theme='dark'] {
   --warm-canvas: #171715;
   --warm-panel: #1e1e1b;
+  --warm-paper: #1e1e1b;
   --warm-sidebar: #1b1b18;
   --warm-soft: #282720;
   --warm-highlight: #343127;
