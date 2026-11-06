@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test:manager": "node --test tests/manager.test.mjs"
+    "test:manager": "node --test tests/manager.test.mjs tests/department-insights.test.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.60.0",
