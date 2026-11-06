@@ -33,6 +33,8 @@ import { useDemo } from '@/lib/store';
 import { FULFILLER_PROFILES, type FulfillerProfile, taskMatchesFulfillerDept, taskMatchesFulfillerAssignee, isTaskAssignedToProfile } from './fulfillerProfiles';
 import { cn, statusTone } from '@/lib/utils';
 import type { WorkItem } from '@/types/demo';
+import { BreakRequestModal } from './BreakRequestModal';
+import { useBreakRequest } from './breakRequests';
 
 type PrimaryView = 'my_tasks' | 'all_tasks';
 type MyTasksFilter = 'all' | 'pending' | 'in_progress' | 'blocked' | 'overdue' | 'completed';
@@ -115,6 +117,10 @@ interface FulfillerTasksTabProps {
 export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
   const activeProfile = profile || FULFILLER_PROFILES.housekeeping;
   const { state, advance, attachTaskPhoto, requestTaskReassignment, claimTask, notify, setFulfillerAvailability } = useDemo();
+  const isLight = state.theme === 'light';
+
+  const [breakModalOpen, setBreakModalOpen] = useState(false);
+  const { breakRequest, approveBreakRequest, completeBreakRequest } = useBreakRequest();
 
   const currentAvail = state.fulfillerAvailability ?? 'on_duty';
   const isOnBreak = currentAvail === 'break';
@@ -443,15 +449,27 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
       />
 
       {/* Primary Section Switcher: My Tasks vs All Tasks */}
-      <div className="grid grid-cols-2 p-1 rounded-2xl bg-white/[0.06] border border-white/10 max-w-md sm:max-w-lg mx-auto w-full">
+      {/* Primary Section Switcher: My Tasks vs All Tasks */}
+      <div
+        className={cn(
+          'grid grid-cols-2 p-1 rounded-2xl max-w-md sm:max-w-lg mx-auto w-full transition-colors',
+          isLight
+            ? 'bg-[#f6f3ec] border border-[#e7e2d7]'
+            : 'bg-white/[0.06] border border-white/10',
+        )}
+      >
         <button
           type="button"
           onClick={() => setPrimaryView('my_tasks')}
           className={cn(
-            'py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2',
+            'py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer',
             primaryView === 'my_tasks'
-              ? 'bg-emerald-500 text-ink-950 shadow-md shadow-emerald-500/25'
-              : 'text-mist-400 hover:text-white',
+              ? isLight
+                ? 'bg-[#ffffff] text-[#353229] border border-[#e7e2d7] shadow-sm font-bold'
+                : 'bg-emerald-500 text-ink-950 shadow-md shadow-emerald-500/25'
+              : isLight
+                ? 'text-[#686252] hover:text-[#353229]'
+                : 'text-mist-400 hover:text-white',
           )}
         >
           <User className="h-3.5 w-3.5" />
@@ -459,7 +477,13 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
           <span
             className={cn(
               'px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold',
-              primaryView === 'my_tasks' ? 'bg-black/25 text-ink-950' : 'bg-white/10 text-mist-300',
+              primaryView === 'my_tasks'
+                ? isLight
+                  ? 'bg-[#f6f3ec] text-[#353229] border border-[#e7e2d7]'
+                  : 'bg-black/25 text-ink-950'
+                : isLight
+                  ? 'bg-[#e7e2d7] text-[#686252]'
+                  : 'bg-white/10 text-mist-300',
             )}
           >
             {activeMyTasksCount}
@@ -470,10 +494,14 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
           type="button"
           onClick={() => setPrimaryView('all_tasks')}
           className={cn(
-            'py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2',
+            'py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer',
             primaryView === 'all_tasks'
-              ? 'bg-amber-400 text-ink-950 shadow-md shadow-amber-400/25'
-              : 'text-mist-400 hover:text-white',
+              ? isLight
+                ? 'bg-[#ffffff] text-[#353229] border border-[#e7e2d7] shadow-sm font-bold'
+                : 'bg-amber-400 text-ink-950 shadow-md shadow-amber-400/25'
+              : isLight
+                ? 'text-[#686252] hover:text-[#353229]'
+                : 'text-mist-400 hover:text-white',
           )}
         >
           <Layers className="h-3.5 w-3.5" />
@@ -482,7 +510,13 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
             <span
               className={cn(
                 'px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold animate-pulse',
-                primaryView === 'all_tasks' ? 'bg-black/25 text-ink-950' : 'bg-amber-400/30 text-amber-200',
+                primaryView === 'all_tasks'
+                  ? isLight
+                    ? 'bg-[#ebe2cc] text-[#353229] border border-[#b7b09e]'
+                    : 'bg-black/25 text-ink-950'
+                  : isLight
+                    ? 'bg-[#f6f3ec] text-[#8b7550] border border-[#e7e2d7]'
+                    : 'bg-amber-400/30 text-amber-200',
               )}
             >
               {unassignedPool.length} open
@@ -491,7 +525,13 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
             <span
               className={cn(
                 'px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold',
-                primaryView === 'all_tasks' ? 'bg-black/25 text-ink-950' : 'bg-white/10 text-mist-300',
+                primaryView === 'all_tasks'
+                  ? isLight
+                    ? 'bg-[#f6f3ec] text-[#353229] border border-[#e7e2d7]'
+                    : 'bg-black/25 text-ink-950'
+                  : isLight
+                    ? 'bg-[#e7e2d7] text-[#686252]'
+                    : 'bg-white/10 text-mist-300',
               )}
             >
               {allDepartmentTasks.filter((t) => t.status !== 'Completed').length}
@@ -507,14 +547,25 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
             type="button"
             onClick={() => setMyFilter('all')}
             className={cn(
-              'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all',
+              'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all cursor-pointer',
               myFilter === 'all'
-                ? 'bg-emerald-500 text-ink-950 shadow-md shadow-emerald-500/25'
-                : 'border border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
+                ? isLight
+                  ? 'bg-[#353229] text-[#ffffff] shadow-sm font-semibold'
+                  : 'bg-emerald-500 text-ink-950 shadow-md shadow-emerald-500/25'
+                : isLight
+                  ? 'border border-[#e7e2d7] bg-[#ffffff] text-[#686252] hover:text-[#353229] hover:bg-[#f6f3ec]'
+                  : 'border border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
             )}
           >
             Active
-            <span className="rounded-full bg-black/20 px-1.5 py-0.2 text-[10px] font-bold">
+            <span
+              className={cn(
+                'rounded-full px-1.5 py-0.2 text-[10px] font-bold',
+                myFilter === 'all'
+                  ? isLight ? 'bg-white/20 text-[#ffffff]' : 'bg-black/20 text-ink-950'
+                  : isLight ? 'bg-[#f6f3ec] text-[#686252]' : 'bg-black/20 text-mist-300',
+              )}
+            >
               {activeMyTasksCount}
             </span>
           </button>
@@ -523,15 +574,26 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
             type="button"
             onClick={() => setMyFilter('pending')}
             className={cn(
-              'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all',
+              'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all cursor-pointer',
               myFilter === 'pending'
-                ? 'bg-[#c8a96e] text-[#14120e] shadow-md font-bold'
-                : 'border border-[rgba(165,130,95,0.25)] bg-white/[0.04] text-[#ded6c9] hover:text-[#f7f4ed]',
+                ? isLight
+                  ? 'bg-[#353229] text-[#ffffff] shadow-sm font-semibold'
+                  : 'bg-[#c8a96e] text-[#14120e] shadow-md font-bold'
+                : isLight
+                  ? 'border border-[#e7e2d7] bg-[#ffffff] text-[#686252] hover:text-[#353229] hover:bg-[#f6f3ec]'
+                  : 'border border-[rgba(165,130,95,0.25)] bg-white/[0.04] text-[#ded6c9] hover:text-[#f7f4ed]',
             )}
           >
             Pending
             {pendingCount > 0 && (
-              <span className="rounded-full bg-black/25 px-1.5 py-0.2 text-[10px] font-bold text-[#14120e]">
+              <span
+                className={cn(
+                  'rounded-full px-1.5 py-0.2 text-[10px] font-bold',
+                  myFilter === 'pending'
+                    ? isLight ? 'bg-white/20 text-[#ffffff]' : 'bg-black/25 text-[#14120e]'
+                    : isLight ? 'bg-[#f6f3ec] text-[#686252]' : 'bg-black/25 text-[#ded6c9]',
+                )}
+              >
                 {pendingCount}
               </span>
             )}
@@ -541,15 +603,26 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
             type="button"
             onClick={() => setMyFilter('in_progress')}
             className={cn(
-              'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all',
+              'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all cursor-pointer',
               myFilter === 'in_progress'
-                ? 'bg-sky-400 text-ink-950 shadow-md shadow-sky-400/25'
-                : 'border border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
+                ? isLight
+                  ? 'bg-[#353229] text-[#ffffff] shadow-sm font-semibold'
+                  : 'bg-sky-400 text-ink-950 shadow-md shadow-sky-400/25'
+                : isLight
+                  ? 'border border-[#e7e2d7] bg-[#ffffff] text-[#686252] hover:text-[#353229] hover:bg-[#f6f3ec]'
+                  : 'border border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
             )}
           >
             In Progress
             {inProgressCount > 0 && (
-              <span className="rounded-full bg-sky-500/30 px-1.5 py-0.2 text-[10px] font-bold text-sky-200">
+              <span
+                className={cn(
+                  'rounded-full px-1.5 py-0.2 text-[10px] font-bold',
+                  myFilter === 'in_progress'
+                    ? isLight ? 'bg-white/20 text-[#ffffff]' : 'bg-sky-500/30 text-sky-200'
+                    : isLight ? 'bg-[#f6f3ec] text-[#686252]' : 'bg-sky-500/30 text-sky-200',
+                )}
+              >
                 {inProgressCount}
               </span>
             )}
@@ -559,14 +632,25 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
             type="button"
             onClick={() => setMyFilter('completed')}
             className={cn(
-              'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all',
+              'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all cursor-pointer',
               myFilter === 'completed'
-                ? 'bg-emerald-400 text-ink-950 shadow-md shadow-emerald-400/25 font-bold'
-                : 'border border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
+                ? isLight
+                  ? 'bg-[#353229] text-[#ffffff] shadow-sm font-semibold'
+                  : 'bg-emerald-400 text-ink-950 shadow-md shadow-emerald-400/25 font-bold'
+                : isLight
+                  ? 'border border-[#e7e2d7] bg-[#ffffff] text-[#686252] hover:text-[#353229] hover:bg-[#f6f3ec]'
+                  : 'border border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
             )}
           >
             Completed
-            <span className="rounded-full bg-black/20 px-1.5 py-0.2 text-[10px] font-bold">
+            <span
+              className={cn(
+                'rounded-full px-1.5 py-0.2 text-[10px] font-bold',
+                myFilter === 'completed'
+                  ? isLight ? 'bg-white/20 text-[#ffffff]' : 'bg-black/20 text-ink-950'
+                  : isLight ? 'bg-[#f6f3ec] text-[#686252]' : 'bg-black/20 text-mist-300',
+              )}
+            >
               {myTasks.filter((t) => t.status === 'Completed').length}
             </span>
           </button>
@@ -575,15 +659,24 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
             type="button"
             onClick={() => setMyFilter('overdue')}
             className={cn(
-              'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all',
+              'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all cursor-pointer',
               myFilter === 'overdue'
-                ? 'bg-rose-500 text-white shadow-md shadow-rose-500/25'
-                : 'border border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
+                ? isLight
+                  ? 'bg-rose-700 text-white shadow-sm font-semibold'
+                  : 'bg-rose-500 text-white shadow-md shadow-rose-500/25'
+                : isLight
+                  ? 'border border-[#e7e2d7] bg-[#ffffff] text-[#686252] hover:text-[#353229] hover:bg-[#f6f3ec]'
+                  : 'border border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
             )}
           >
             Overdue
             {overdueCount > 0 && (
-              <span className="rounded-full bg-rose-500/40 px-1.5 py-0.2 text-[10px] font-bold text-white">
+              <span
+                className={cn(
+                  'rounded-full px-1.5 py-0.2 text-[10px] font-bold',
+                  myFilter === 'overdue' ? 'bg-white/25 text-white' : 'bg-rose-500/40 text-white',
+                )}
+              >
                 {overdueCount}
               </span>
             )}
@@ -594,10 +687,14 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
               type="button"
               onClick={() => setMyFilter('blocked')}
               className={cn(
-                'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all',
+                'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all cursor-pointer',
                 myFilter === 'blocked'
-                  ? 'bg-rose-500 text-white shadow-md shadow-rose-500/25'
-                  : 'border border-rose-400/30 bg-rose-500/10 text-rose-300 hover:text-white',
+                  ? isLight
+                    ? 'bg-rose-700 text-white shadow-sm font-semibold'
+                    : 'bg-rose-500 text-white shadow-md shadow-rose-500/25'
+                  : isLight
+                    ? 'border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100'
+                    : 'border border-rose-400/30 bg-rose-500/10 text-rose-300 hover:text-white',
               )}
             >
               Blocked
@@ -616,14 +713,25 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
             type="button"
             onClick={() => setAllFilter('all_eligible')}
             className={cn(
-              'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all',
+              'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all cursor-pointer',
               allFilter === 'all_eligible'
-                ? 'bg-amber-400 text-ink-950 shadow-md shadow-amber-400/25 font-bold'
-                : 'border border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
+                ? isLight
+                  ? 'bg-[#353229] text-[#ffffff] shadow-sm font-semibold'
+                  : 'bg-amber-400 text-ink-950 shadow-md shadow-amber-400/25 font-bold'
+                : isLight
+                  ? 'border border-[#e7e2d7] bg-[#ffffff] text-[#686252] hover:text-[#353229] hover:bg-[#f6f3ec]'
+                  : 'border border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
             )}
           >
             All Floors 1–5
-            <span className="rounded-full bg-black/20 px-1.5 py-0.2 text-[10px] font-bold">
+            <span
+              className={cn(
+                'rounded-full px-1.5 py-0.2 text-[10px] font-bold',
+                allFilter === 'all_eligible'
+                  ? isLight ? 'bg-white/20 text-[#ffffff]' : 'bg-black/20 text-ink-950'
+                  : isLight ? 'bg-[#f6f3ec] text-[#686252]' : 'bg-white/10 text-mist-300',
+              )}
+            >
               {allDepartmentTasks.filter((t) => t.status !== 'Completed').length}
             </span>
           </button>
@@ -632,16 +740,27 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
             type="button"
             onClick={() => setAllFilter('open_pool')}
             className={cn(
-              'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all',
+              'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all cursor-pointer',
               allFilter === 'open_pool'
-                ? 'bg-amber-400 text-ink-950 shadow-md shadow-amber-400/25 font-bold'
-                : 'border border-amber-400/30 bg-amber-400/10 text-amber-200 hover:text-white',
+                ? isLight
+                  ? 'bg-[#353229] text-[#ffffff] shadow-sm font-semibold'
+                  : 'bg-amber-400 text-ink-950 shadow-md shadow-amber-400/25 font-bold'
+                : isLight
+                  ? 'border border-[#b7b09e] bg-[#ebe2cc] text-[#353229] hover:bg-[#ded6c1]'
+                  : 'border border-amber-400/30 bg-amber-400/10 text-amber-200 hover:text-white',
             )}
           >
             <Sparkles className="h-3 w-3" />
             Open to Claim
             {unassignedPool.length > 0 && (
-              <span className="rounded-full bg-amber-500/40 px-1.5 py-0.2 text-[10px] font-bold text-amber-100">
+              <span
+                className={cn(
+                  'rounded-full px-1.5 py-0.2 text-[10px] font-bold',
+                  allFilter === 'open_pool'
+                    ? isLight ? 'bg-white/20 text-[#ffffff]' : 'bg-amber-500/40 text-amber-100'
+                    : isLight ? 'bg-[#353229] text-[#ffffff]' : 'bg-amber-500/40 text-amber-100',
+                )}
+              >
                 {unassignedPool.length}
               </span>
             )}
@@ -651,14 +770,25 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
             type="button"
             onClick={() => setAllFilter('in_progress')}
             className={cn(
-              'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all',
+              'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all cursor-pointer',
               allFilter === 'in_progress'
-                ? 'bg-sky-400 text-ink-950 shadow-md shadow-sky-400/25 font-bold'
-                : 'border border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
+                ? isLight
+                  ? 'bg-[#353229] text-[#ffffff] shadow-sm font-semibold'
+                  : 'bg-sky-400 text-ink-950 shadow-md shadow-sky-400/25 font-bold'
+                : isLight
+                  ? 'border border-[#e7e2d7] bg-[#ffffff] text-[#686252] hover:text-[#353229] hover:bg-[#f6f3ec]'
+                  : 'border border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
             )}
           >
             In Progress
-            <span className="rounded-full bg-black/20 px-1.5 py-0.2 text-[10px] font-bold">
+            <span
+              className={cn(
+                'rounded-full px-1.5 py-0.2 text-[10px] font-bold',
+                allFilter === 'in_progress'
+                  ? isLight ? 'bg-white/20 text-[#ffffff]' : 'bg-black/20 text-ink-950'
+                  : isLight ? 'bg-[#f6f3ec] text-[#686252]' : 'bg-black/20 text-mist-300',
+              )}
+            >
               {allDepartmentTasks.filter((t) => !isQueueTaskUnassigned(t) && (t.status === 'Accepted' || t.status === 'In progress' || t.status === 'On the way' || t.status === 'Blocked' || t.status === 'Awaiting inspection')).length}
             </span>
           </button>
@@ -667,14 +797,25 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
             type="button"
             onClick={() => setAllFilter('completed')}
             className={cn(
-              'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all',
+              'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all cursor-pointer',
               allFilter === 'completed'
-                ? 'bg-emerald-400 text-ink-950 shadow-md shadow-emerald-400/25 font-bold'
-                : 'border border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
+                ? isLight
+                  ? 'bg-[#353229] text-[#ffffff] shadow-sm font-semibold'
+                  : 'bg-emerald-400 text-ink-950 shadow-md shadow-emerald-400/25 font-bold'
+                : isLight
+                  ? 'border border-[#e7e2d7] bg-[#ffffff] text-[#686252] hover:text-[#353229] hover:bg-[#f6f3ec]'
+                  : 'border border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
             )}
           >
             Completed
-            <span className="rounded-full bg-black/20 px-1.5 py-0.2 text-[10px] font-bold">
+            <span
+              className={cn(
+                'rounded-full px-1.5 py-0.2 text-[10px] font-bold',
+                allFilter === 'completed'
+                  ? isLight ? 'bg-white/20 text-[#ffffff]' : 'bg-black/20 text-ink-950'
+                  : isLight ? 'bg-[#f6f3ec] text-[#686252]' : 'bg-black/20 text-mist-300',
+              )}
+            >
               {allDepartmentTasks.filter((t) => t.status === 'Completed').length}
             </span>
           </button>
@@ -683,39 +824,111 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
 
       {/* On Break Notice Banner */}
       {isOnBreak && (
-        <div className="flex items-center justify-between rounded-2xl border border-[rgba(165,130,95,0.35)] bg-[rgba(200,169,110,0.08)] p-3 text-xs text-[#ded6c9] shadow-md">
+        <div
+          className={cn(
+            'flex items-center justify-between rounded-2xl border p-3 text-xs transition-colors shadow-sm',
+            isLight
+              ? 'border-[#ded6c1] bg-[#ebe2cc]/40 text-[#353229]'
+              : 'border-[rgba(165,130,95,0.35)] bg-[rgba(200,169,110,0.08)] text-[#ded6c9]',
+          )}
+        >
           <div className="flex items-center gap-2 min-w-0">
-            <Coffee className="h-4 w-4 text-[#dfc187] shrink-0" />
+            <Coffee className={cn('h-4 w-4 shrink-0', isLight ? 'text-[#353229]' : 'text-[#dfc187]')} />
             <span className="truncate">
               You are currently <strong>On Break</strong>. Claiming tasks is paused.
             </span>
           </div>
           <button
             type="button"
-            onClick={() => setFulfillerAvailability('on_duty')}
-            className="shrink-0 rounded-xl bg-[#c8a96e] px-2.5 py-1 text-[11px] font-bold text-[#14120e] hover:bg-[#dfc187] transition-colors cursor-pointer"
+            onClick={() => {
+              completeBreakRequest();
+              setFulfillerAvailability('on_duty');
+            }}
+            className={cn(
+              'shrink-0 rounded-xl px-3 py-1 text-[11px] font-bold transition-colors cursor-pointer',
+              isLight
+                ? 'bg-[#353229] text-white hover:bg-[#484438]'
+                : 'bg-[#c8a96e] text-[#14120e] hover:bg-[#dfc187]',
+            )}
           >
-            Resume Duty
+            End Break & Resume Duty
           </button>
+        </div>
+      )}
+
+      {/* Break Request Pending Notice Banner */}
+      {breakRequest?.status === 'pending' && !isOnBreak && (
+        <div
+          className={cn(
+            'flex items-center justify-between rounded-2xl border p-3 text-xs transition-colors shadow-sm',
+            isLight
+              ? 'border-amber-300 bg-amber-50 text-amber-900'
+              : 'border-amber-400/40 bg-amber-400/10 text-amber-200',
+          )}
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <Clock className="h-4 w-4 shrink-0 text-amber-600 animate-spin" />
+            <div className="min-w-0">
+              <span className="font-bold truncate block">
+                Break Request Pending ({breakRequest.breakType})
+              </span>
+              <span className="text-[10px] text-amber-800">
+                Awaiting approval from Supervisor {activeProfile.supervisorName}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => setBreakModalOpen(true)}
+              className="rounded-xl border border-amber-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-amber-900 hover:bg-amber-50 cursor-pointer"
+            >
+              View
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                approveBreakRequest();
+                setFulfillerAvailability('break');
+              }}
+              className="rounded-xl bg-amber-500 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-amber-600 cursor-pointer"
+              title="Simulate supervisor approval for testing"
+            >
+              Approve (Demo)
+            </button>
+          </div>
         </div>
       )}
 
       {/* Off Duty Notice Banner */}
       {isOffDuty && (
-        <div className="flex items-center justify-between rounded-2xl border border-[rgba(165,130,95,0.35)] bg-[rgba(200,169,110,0.08)] p-3 text-xs text-[#ded6c9] shadow-md">
+        <div
+          className={cn(
+            'flex items-center justify-between rounded-2xl border p-3 text-xs transition-colors shadow-sm',
+            isLight
+              ? 'border-rose-200 bg-rose-50/70 text-rose-900'
+              : 'border-rose-500/30 bg-rose-500/10 text-rose-200',
+          )}
+        >
           <div className="flex items-center gap-2 min-w-0">
-            <Power className="h-4 w-4 text-rose-400 shrink-0" />
-            <span className="truncate">
-              You are currently <strong>Off Duty</strong>. Switch to On Duty to receive or claim tasks.
-            </span>
+            <Power className="h-4 w-4 text-rose-500 shrink-0" />
+            <div className="min-w-0">
+              <span className="font-bold block">
+                You are currently Off Duty
+              </span>
+              <span className="text-[10px] text-rose-800">
+                Shift status is managed by Supervisor {activeProfile.supervisorName} (Radio Ch 3 / Ext 4020)
+              </span>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setFulfillerAvailability('on_duty')}
-            className="shrink-0 rounded-xl bg-[#c8a96e] px-2.5 py-1 text-[11px] font-bold text-[#14120e] hover:bg-[#dfc187] transition-colors cursor-pointer"
+          <span
+            className={cn(
+              'shrink-0 rounded-xl px-2.5 py-1 text-[10px] font-mono font-bold uppercase border',
+              isLight ? 'bg-white text-rose-800 border-rose-300' : 'bg-rose-500/20 text-rose-200 border-rose-500/30',
+            )}
           >
-            Start Shift
-          </button>
+            Supervisor Managed
+          </span>
         </div>
       )}
 
@@ -748,45 +961,75 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                 key={task.id}
                 className={cn(
                   'group relative overflow-hidden rounded-2xl border p-4 transition-all',
-                  isUnassigned
-                    ? 'border-amber-400/40 bg-amber-400/[0.04] shadow-md shadow-amber-400/5'
-                    : isCompleted
-                      ? 'border-emerald-500/20 bg-emerald-500/[0.03]'
-                      : isAwaitingInspection
-                        ? 'border-[rgba(165,130,95,0.35)] bg-[rgba(200,169,110,0.05)]'
-                        : isBlocked
-                          ? 'border-rose-500/30 bg-rose-500/[0.05]'
-                          : isReassignPending
-                            ? 'border-amber-400/30 bg-amber-400/[0.04]'
-                            : task.priority === 'vip'
-                              ? 'border-amber-400/30 bg-amber-400/[0.03]'
-                              : task.priority === 'urgent'
-                                ? 'border-orange-400/30 bg-orange-400/[0.03]'
-                                : 'border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]',
+                  isLight
+                    ? 'border-[#e7e2d7] bg-[#ffffff] shadow-[0_4px_18px_rgba(53,50,41,0.04),0_1px_3px_rgba(53,50,41,0.02)] hover:border-[#b7b09e] hover:shadow-[0_6px_22px_rgba(53,50,41,0.07)]'
+                    : isUnassigned
+                      ? 'border-amber-400/40 bg-amber-400/[0.04] shadow-md shadow-amber-400/5'
+                      : isCompleted
+                        ? 'border-emerald-500/20 bg-emerald-500/[0.03]'
+                        : isAwaitingInspection
+                          ? 'border-[rgba(165,130,95,0.35)] bg-[rgba(200,169,110,0.05)]'
+                          : isBlocked
+                            ? 'border-rose-500/30 bg-rose-500/[0.05]'
+                            : isReassignPending
+                              ? 'border-amber-400/30 bg-amber-400/[0.04]'
+                              : task.priority === 'vip'
+                                ? 'border-amber-400/30 bg-amber-400/[0.03]'
+                                : task.priority === 'urgent'
+                                  ? 'border-orange-400/30 bg-orange-400/[0.03]'
+                                  : 'border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]',
                 )}
               >
                 {/* Header row: Location, Priority & Badges */}
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-                    <span className="flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.06] px-2 py-0.5 text-[11px] font-bold text-white shrink-0">
-                      <MapPin className="h-3 w-3 text-emerald-400" />
+                    <span
+                      className={cn(
+                        'flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-bold shrink-0',
+                        isLight
+                          ? 'border border-[#e7e2d7] bg-[#f6f3ec] text-[#353229]'
+                          : 'border border-white/10 bg-white/[0.06] text-white',
+                      )}
+                    >
+                      <MapPin className={cn('h-3 w-3', isLight ? 'text-[#8b7550]' : 'text-emerald-400')} />
                       {task.room ? `Room ${task.room}` : task.location ?? 'Floor 4'}
                     </span>
 
                     {task.priority === 'vip' && (
-                      <span className="flex items-center gap-1 rounded-md bg-amber-400/20 px-2 py-0.5 text-[10px] font-bold text-amber-200 shrink-0">
+                      <span
+                        className={cn(
+                          'flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold shrink-0',
+                          isLight
+                            ? 'border border-[#b7b09e] bg-[#ebe2cc] text-[#353229]'
+                            : 'bg-amber-400/20 text-amber-200',
+                        )}
+                      >
                         <Crown className="h-2.5 w-2.5" /> VIP
                       </span>
                     )}
 
                     {task.priority === 'urgent' && (
-                      <span className="flex items-center gap-1 rounded-md bg-orange-400/20 px-2 py-0.5 text-[10px] font-bold text-orange-200 shrink-0">
+                      <span
+                        className={cn(
+                          'flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold shrink-0',
+                          isLight
+                            ? 'border border-[#b7b09e] bg-[#ebe2cc] text-[#353229]'
+                            : 'bg-orange-400/20 text-orange-200',
+                        )}
+                      >
                         <AlertCircle className="h-2.5 w-2.5" /> Urgent
                       </span>
                     )}
 
                     {isUnassigned && (
-                      <span className="rounded-md bg-amber-400/20 px-2 py-0.5 text-[10px] font-bold text-amber-300 shrink-0 border border-amber-400/30">
+                      <span
+                        className={cn(
+                          'rounded-md px-2 py-0.5 text-[10px] font-bold shrink-0 border',
+                          isLight
+                            ? 'border-[#b7b09e] bg-[#ebe2cc] text-[#353229]'
+                            : 'border-amber-400/30 bg-amber-400/20 text-amber-300',
+                        )}
+                      >
                         Open Pool
                       </span>
                     )}
@@ -796,19 +1039,33 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                   <span
                     className={cn(
                       'rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider shrink-0',
-                      isCompleted
-                        ? 'bg-emerald-400/20 text-emerald-300'
-                        : isAwaitingInspection
-                          ? 'bg-[#c8a96e]/15 text-[#dfc187] border border-[rgba(165,130,95,0.3)]'
-                          : isBlocked
-                            ? 'bg-rose-500/20 text-rose-300'
-                            : isReassignPending
-                              ? 'bg-amber-400/20 text-amber-200'
-                              : isInProgress
-                                ? 'bg-sky-400/20 text-sky-300'
-                                : isUnassigned
-                                  ? 'bg-amber-400/20 text-amber-300'
-                                  : 'bg-white/10 text-mist-300',
+                      isLight
+                        ? isCompleted
+                          ? 'border border-[#e7e2d7] bg-[#f6f3ec] text-[#353229]'
+                          : isAwaitingInspection
+                            ? 'border border-[#b7b09e] bg-[#ebe2cc] text-[#353229]'
+                            : isBlocked
+                              ? 'border border-[#fecaca] bg-[#fff1f0] text-[#991b1b]'
+                              : isReassignPending
+                                ? 'border border-[#b7b09e] bg-[#ebe2cc] text-[#353229]'
+                                : isInProgress
+                                  ? 'border border-[#b7b09e] bg-[#ebe2cc] text-[#353229]'
+                                  : isUnassigned
+                                    ? 'border border-[#e7e2d7] bg-[#f6f3ec] text-[#686252]'
+                                    : 'border border-[#e7e2d7] bg-[#f6f3ec] text-[#686252]'
+                        : isCompleted
+                          ? 'bg-emerald-400/20 text-emerald-300'
+                          : isAwaitingInspection
+                            ? 'bg-[#c8a96e]/15 text-[#dfc187] border border-[rgba(165,130,95,0.3)]'
+                            : isBlocked
+                              ? 'bg-rose-500/20 text-rose-300'
+                              : isReassignPending
+                                ? 'bg-amber-400/20 text-amber-200'
+                                : isInProgress
+                                  ? 'bg-sky-400/20 text-sky-300'
+                                  : isUnassigned
+                                    ? 'bg-amber-400/20 text-amber-300'
+                                    : 'bg-white/10 text-mist-300',
                     )}
                   >
                     {isUnassigned
@@ -820,18 +1077,34 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                 </div>
 
                 {isBlocked && task.blockerReason && (
-                  <div className="mt-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-2.5 py-1.5 text-xs text-rose-300 flex items-center gap-2">
-                    <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-rose-400" />
+                  <div
+                    className={cn(
+                      'mt-2 rounded-xl border px-2.5 py-1.5 text-xs flex items-center gap-2',
+                      isLight
+                        ? 'border-rose-200 bg-rose-50 text-rose-800'
+                        : 'border-rose-500/30 bg-rose-500/10 text-rose-300',
+                    )}
+                  >
+                    <AlertTriangle className={cn('h-3.5 w-3.5 shrink-0', isLight ? 'text-rose-600' : 'text-rose-400')} />
                     <span><strong>Blocked:</strong> {task.blockerReason}</span>
                   </div>
                 )}
 
                 {/* Title & Metadata */}
                 <div className="mt-2.5 cursor-pointer" onClick={() => setSelectedTask(task)}>
-                  <h3 className="text-sm font-semibold text-white group-hover:text-emerald-300 transition-colors">
+                  <h3
+                    className={cn(
+                      'text-sm font-semibold transition-colors',
+                      isLight
+                        ? 'text-[#353229] group-hover:text-[#8b7550]'
+                        : 'text-white group-hover:text-emerald-300',
+                    )}
+                  >
                     {task.title}
                   </h3>
-                  <p className="mt-0.5 text-xs text-mist-300 line-clamp-1">{task.meta}</p>
+                  <p className={cn('mt-0.5 text-xs line-clamp-1', isLight ? 'text-[#686252]' : 'text-mist-300')}>
+                    {task.meta}
+                  </p>
                 </div>
 
                 {/* Guest Personal Preferences (authorized for task fulfillment) */}
@@ -845,23 +1118,35 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     if (!hasAllergies && !hasInstructions && !isDnd) return null;
 
                     return (
-                      <div className="mt-2.5 rounded-xl border border-amber-400/20 bg-amber-400/[0.04] p-2.5 text-xs space-y-1">
-                        <div className="flex items-center gap-1 text-[11px] font-bold text-amber-300 uppercase tracking-wider">
+                      <div
+                        className={cn(
+                          'mt-2.5 rounded-xl border p-2.5 text-xs space-y-1',
+                          isLight
+                            ? 'border-[#e7e2d7] bg-[#fbfaf7]'
+                            : 'border-amber-400/20 bg-amber-400/[0.04]',
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            'flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider',
+                            isLight ? 'text-[#686252]' : 'text-amber-300',
+                          )}
+                        >
                           <ShieldAlert className="h-3 w-3" />
                           <span>Guest Service Preferences</span>
                         </div>
                         {isDnd && (
-                          <p className="text-rose-300 font-bold text-[11px]">
+                          <p className={cn('font-bold text-[11px]', isLight ? 'text-rose-700' : 'text-rose-300')}>
                             ⛔ Do Not Disturb active on room
                           </p>
                         )}
                         {hasAllergies && (
-                          <p className="text-mist-200 text-[11px]">
-                            <strong className="text-amber-200">Food Allergies (F&B Alert):</strong> {prefs.allergies.join(', ')}
+                          <p className={cn('text-[11px]', isLight ? 'text-[#353229]' : 'text-mist-200')}>
+                            <strong className={isLight ? 'text-[#8b7550]' : 'text-amber-200'}>Food Allergies (F&B Alert):</strong> {prefs.allergies.join(', ')}
                           </p>
                         )}
                         {hasInstructions && (
-                          <p className="text-mist-300 text-[11px] italic">
+                          <p className={cn('text-[11px] italic', isLight ? 'text-[#686252]' : 'text-mist-300')}>
                             &ldquo;{prefs.personalInstructions}&rdquo;
                           </p>
                         )}
@@ -871,10 +1156,15 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                 )}
 
                 {/* SLA & Details strip */}
-                <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-white/[0.06] pt-2.5 text-xs text-mist-400">
+                <div
+                  className={cn(
+                    'mt-3 flex flex-wrap items-center gap-3 border-t pt-2.5 text-xs',
+                    isLight ? 'border-[#e7e2d7] text-[#686252]' : 'border-white/[0.06] text-mist-400',
+                  )}
+                >
                   {task.slaDue && (
                     <span className="flex items-center gap-1 text-[11px]">
-                      <Clock className="h-3 w-3 text-mist-400" />
+                      <Clock className={cn('h-3 w-3', isLight ? 'text-[#8c8472]' : 'text-mist-400')} />
                       Target: {task.slaDue}
                     </span>
                   )}
@@ -883,7 +1173,10 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     <button
                       type="button"
                       onClick={() => setViewPhotoUrl(task.photoUrl!)}
-                      className="flex items-center gap-1 text-[11px] font-medium text-emerald-400 hover:text-emerald-300 cursor-pointer"
+                      className={cn(
+                        'flex items-center gap-1 text-[11px] font-medium cursor-pointer',
+                        isLight ? 'text-[#353229] hover:underline' : 'text-emerald-400 hover:text-emerald-300',
+                      )}
                     >
                       <ImageIcon className="h-3 w-3" />
                       <span>Photo attached</span>
@@ -891,7 +1184,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                   )}
 
                   {task.reassignPending && (
-                    <span className="text-[11px] text-amber-300 font-medium">
+                    <span className={cn('text-[11px] font-medium', isLight ? 'text-[#8b7550]' : 'text-amber-300')}>
                       Supervisor review pending ({task.reassignReason})
                     </span>
                   )}
@@ -899,7 +1192,10 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                   <button
                     type="button"
                     onClick={() => setSelectedTask(task)}
-                    className="ml-auto text-[11px] text-mist-400 hover:text-white flex items-center gap-1"
+                    className={cn(
+                      'ml-auto text-[11px] flex items-center gap-1 cursor-pointer font-medium',
+                      isLight ? 'text-[#353229] hover:text-[#8b7550]' : 'text-mist-400 hover:text-white',
+                    )}
                   >
                     <Eye className="h-3 w-3" /> Details
                   </button>
@@ -1085,7 +1381,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                 {isCompleted && (() => {
                   const guestFeedback = task.feedback || {
                     rating: 5,
-                    comment: task.category === 'turndown' || task.title.toLowerCase().includes('turndown')
+                    comment: (task.category as string) === 'turndown' || task.title.toLowerCase().includes('turndown')
                       ? 'Room turndown was pristine and restful. Spotless linen.'
                       : task.title.toLowerCase().includes('towel') || task.title.toLowerCase().includes('amenit')
                         ? 'Towels & amenities delivered promptly with wonderful courtesy.'
@@ -1093,19 +1389,41 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                   };
 
                   return (
-                    <div className="mt-3 flex flex-col gap-2 rounded-xl bg-emerald-500/[0.08] border border-emerald-500/20 p-2.5 text-xs">
+                    <div
+                      className={cn(
+                        'mt-3 flex flex-col gap-2 rounded-xl p-2.5 text-xs',
+                        isLight
+                          ? 'border border-[#e7e2d7] bg-[#fbfaf7]'
+                          : 'bg-emerald-500/[0.08] border border-emerald-500/20',
+                      )}
+                    >
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5 text-emerald-400 font-bold">
-                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                        <div
+                          className={cn(
+                            'flex items-center gap-1.5 font-bold',
+                            isLight ? 'text-[#353229]' : 'text-emerald-400',
+                          )}
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
                           <span>Task Completed</span>
                         </div>
                         <div className="flex items-center gap-2">
                           {task.photoUrl && (
-                            <span className="text-[10px] text-emerald-300/80 font-medium flex items-center gap-1">
+                            <span
+                              className={cn(
+                                'text-[10px] font-medium flex items-center gap-1',
+                                isLight ? 'text-[#686252]' : 'text-emerald-300/80',
+                              )}
+                            >
                               <Camera className="h-3 w-3" /> Photo proof
                             </span>
                           )}
-                          <span className="text-[10px] text-mist-400 font-mono">
+                          <span
+                            className={cn(
+                              'text-[10px] font-mono',
+                              isLight ? 'text-[#8c8472]' : 'text-mist-400',
+                            )}
+                          >
                             {task.history?.filter((h) => h.status === 'Completed').slice(-1)[0]?.at
                               ? `Finished at ${task.history.filter((h) => h.status === 'Completed').slice(-1)[0].at}`
                               : 'Completed'}
@@ -1114,14 +1432,21 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                       </div>
 
                       {/* Guest Feedback (Shortly) */}
-                      <div className="flex items-start gap-1.5 rounded-lg border border-[rgba(165,130,95,0.25)] bg-[rgba(200,169,110,0.06)] px-2.5 py-1.5 text-[11px]">
-                        <Star className="h-3 w-3 text-amber-400 fill-amber-400 shrink-0 mt-0.5" />
+                      <div
+                        className={cn(
+                          'flex items-start gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px]',
+                          isLight
+                            ? 'border border-[#e7e2d7] bg-[#ffffff]'
+                            : 'border border-[rgba(165,130,95,0.25)] bg-[rgba(200,169,110,0.06)]',
+                        )}
+                      >
+                        <Star className={cn('h-3 w-3 shrink-0 mt-0.5', isLight ? 'text-[#8b7550] fill-[#8b7550]' : 'text-amber-400 fill-amber-400')} />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-[#dfc187]">Guest Feedback</span>
-                            <span className="text-[10px] font-mono text-amber-300 font-semibold">({guestFeedback.rating.toFixed(1)} ★)</span>
+                            <span className={cn('font-bold', isLight ? 'text-[#353229]' : 'text-[#dfc187]')}>Guest Feedback</span>
+                            <span className={cn('text-[10px] font-mono font-semibold', isLight ? 'text-[#8b7550]' : 'text-amber-300')}>({guestFeedback.rating.toFixed(1)} ★)</span>
                           </div>
-                          <p className="text-[11px] text-mist-200 mt-0.5 italic line-clamp-2 leading-relaxed">
+                          <p className={cn('text-[11px] mt-0.5 italic line-clamp-2 leading-relaxed', isLight ? 'text-[#686252]' : 'text-mist-200')}>
                             &ldquo;{guestFeedback.comment}&rdquo;
                           </p>
                         </div>
@@ -1177,22 +1502,47 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
       {selectedTask && (
         <FulfillerModalPortal>
           <div className="absolute inset-0 z-50 flex flex-col justify-end sm:items-center sm:justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
-            <div className="w-full sm:max-w-xl max-h-[92%] sm:max-h-[85vh] flex flex-col rounded-t-[2rem] sm:rounded-3xl border-t sm:border border-white/20 bg-ink-950 p-4 sm:p-6 text-white shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-200">
+            <div
+              className={cn(
+                'w-full sm:max-w-xl max-h-[92%] sm:max-h-[85vh] flex flex-col rounded-t-[2rem] sm:rounded-3xl border-t sm:border p-4 sm:p-6 shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-200 transition-colors',
+                isLight
+                  ? 'border-[#e7e2d7] bg-[#ffffff] text-[#353229]'
+                  : 'border-white/20 bg-ink-950 text-white',
+              )}
+            >
               {/* Header */}
-              <div className="flex items-start justify-between gap-3 border-b border-white/10 pb-3 shrink-0">
+              <div
+                className={cn(
+                  'flex items-start justify-between gap-3 border-b pb-3 shrink-0',
+                  isLight ? 'border-[#e7e2d7]' : 'border-white/10',
+                )}
+              >
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="rounded-md bg-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-300">
+                    <span
+                      className={cn(
+                        'rounded-md px-2 py-0.5 text-xs font-bold border',
+                        isLight
+                          ? 'border-[#e7e2d7] bg-[#f6f3ec] text-[#353229]'
+                          : 'bg-emerald-500/20 text-emerald-300 border-transparent',
+                      )}
+                    >
                       {selectedTask.room ? `Room ${selectedTask.room}` : selectedTask.location || 'Location'}
                     </span>
                     <span
                       className={cn(
-                        'rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase',
+                        'rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase border',
                         selectedTask.status === 'Completed'
-                          ? 'bg-emerald-500/20 text-emerald-300'
+                          ? isLight
+                            ? 'bg-[#f6f3ec] text-[#353229] border-[#e7e2d7]'
+                            : 'bg-emerald-500/20 text-emerald-300 border-transparent'
                           : selectedTask.status === 'Awaiting inspection'
-                            ? 'bg-[#c8a96e]/15 text-[#dfc187] border border-[rgba(165,130,95,0.3)]'
-                            : 'bg-white/10 text-mist-300',
+                            ? isLight
+                              ? 'bg-[#ebe2cc] text-[#353229] border-[#ded6c1]'
+                              : 'bg-[#c8a96e]/15 text-[#dfc187] border-[rgba(165,130,95,0.3)]'
+                            : isLight
+                              ? 'bg-stone-100 text-stone-700 border-stone-200'
+                              : 'bg-white/10 text-mist-300 border-transparent',
                       )}
                     >
                       {selectedTask.status === 'Awaiting inspection'
@@ -1200,13 +1550,22 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                         : selectedTask.status}
                     </span>
                     {selectedTask.assignee && (
-                      <span className="rounded-md bg-sky-500/10 border border-sky-500/20 px-2 py-0.5 text-[10px] text-sky-300">
+                      <span
+                        className={cn(
+                          'rounded-md px-2 py-0.5 text-[10px] border',
+                          isLight
+                            ? 'border-[#e7e2d7] bg-[#fbfaf7] text-[#686252]'
+                            : 'bg-sky-500/10 border-sky-500/20 text-sky-300',
+                        )}
+                      >
                         Assignee: {selectedTask.assignee}
                       </span>
                     )}
                   </div>
-                  <h3 className="mt-2 text-base font-bold text-white leading-snug">{selectedTask.title}</h3>
-                  <p className="text-xs text-mist-300 mt-0.5">{selectedTask.meta}</p>
+                  <h3 className={cn('mt-2 text-base font-bold leading-snug', isLight ? 'text-[#353229]' : 'text-white')}>
+                    {selectedTask.title}
+                  </h3>
+                  <p className={cn('text-xs mt-0.5', isLight ? 'text-[#686252]' : 'text-mist-300')}>{selectedTask.meta}</p>
                 </div>
                 <button
                   type="button"
@@ -1214,7 +1573,12 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     setSelectedTask(null);
                     setPhotoError(null);
                   }}
-                  className="grid h-8 w-8 place-items-center rounded-full bg-white/10 text-mist-300 hover:text-white shrink-0"
+                  className={cn(
+                    'grid h-8 w-8 place-items-center rounded-full transition-colors shrink-0 cursor-pointer',
+                    isLight
+                      ? 'bg-[#f6f3ec] text-[#686252] hover:text-[#353229]'
+                      : 'bg-white/10 text-mist-300 hover:text-white',
+                  )}
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -1224,11 +1588,16 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
               <div className="mt-3 flex-1 overflow-y-auto pr-1 space-y-3.5 no-scrollbar text-xs">
                 {/* Description */}
                 {selectedTask.description && (
-                  <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                    <h4 className="font-semibold text-mist-200 mb-1 flex items-center gap-1.5">
-                      <FileText className="h-3.5 w-3.5 text-emerald-400" /> Instructions & Notes
+                  <div
+                    className={cn(
+                      'rounded-xl border p-3 transition-colors',
+                      isLight ? 'border-[#e7e2d7] bg-[#fbfaf7]' : 'border-white/10 bg-white/[0.03]',
+                    )}
+                  >
+                    <h4 className={cn('font-semibold mb-1 flex items-center gap-1.5', isLight ? 'text-[#353229]' : 'text-mist-200')}>
+                      <FileText className={cn('h-3.5 w-3.5', isLight ? 'text-[#353229]' : 'text-emerald-400')} /> Instructions & Notes
                     </h4>
-                    <p className="text-mist-300 leading-relaxed">{selectedTask.description}</p>
+                    <p className={cn('leading-relaxed', isLight ? 'text-[#686252]' : 'text-mist-300')}>{selectedTask.description}</p>
                   </div>
                 )}
 
@@ -1242,23 +1611,35 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                   if (!hasAllergies && !hasInstructions && !isDnd) return null;
 
                   return (
-                    <div className="rounded-xl border border-amber-400/20 bg-amber-400/[0.04] p-3 text-xs space-y-1">
-                      <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-300 uppercase tracking-wider">
+                    <div
+                      className={cn(
+                        'rounded-xl border p-3 text-xs space-y-1 transition-colors',
+                        isLight
+                          ? 'border-[#e7e2d7] bg-[#fbfaf7]'
+                          : 'border-amber-400/20 bg-amber-400/[0.04]',
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          'flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider',
+                          isLight ? 'text-[#353229]' : 'text-amber-300',
+                        )}
+                      >
                         <ShieldAlert className="h-3.5 w-3.5" />
                         <span>Guest Room Profile</span>
                       </div>
                       {isDnd && (
-                        <p className="text-rose-300 font-bold text-[11px]">
+                        <p className={cn('font-bold text-[11px]', isLight ? 'text-rose-700' : 'text-rose-300')}>
                           ⛔ Do Not Disturb active on room
                         </p>
                       )}
                       {hasAllergies && (
-                        <p className="text-mist-200 text-[11px]">
-                          <strong className="text-amber-200">Food Allergies (F&B Alert):</strong> {prefs.allergies.join(', ')}
+                        <p className={cn('text-[11px]', isLight ? 'text-[#686252]' : 'text-mist-200')}>
+                          <strong className={isLight ? 'text-[#353229]' : 'text-amber-200'}>Food Allergies (F&B Alert):</strong> {prefs.allergies.join(', ')}
                         </p>
                       )}
                       {hasInstructions && (
-                        <p className="text-mist-300 text-[11px] italic">
+                        <p className={cn('text-[11px] italic', isLight ? 'text-[#686252]' : 'text-mist-300')}>
                           &ldquo;{prefs.personalInstructions}&rdquo;
                         </p>
                       )}
@@ -1268,18 +1649,30 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
 
                 {/* Photo Evidence (Read-only if attached) */}
                 {selectedTask.photoUrl && (
-                  <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                  <div
+                    className={cn(
+                      'rounded-xl border p-3 transition-colors',
+                      isLight ? 'border-[#e7e2d7] bg-[#fbfaf7]' : 'border-white/10 bg-white/[0.03]',
+                    )}
+                  >
                     <div className="flex items-center justify-between">
-                      <h4 className="font-semibold text-mist-200 flex items-center gap-1.5">
-                        <Camera className="h-3.5 w-3.5 text-emerald-400" /> Attached Photo Evidence
+                      <h4 className={cn('font-semibold flex items-center gap-1.5', isLight ? 'text-[#353229]' : 'text-mist-200')}>
+                        <Camera className={cn('h-3.5 w-3.5', isLight ? 'text-[#353229]' : 'text-emerald-400')} /> Attached Photo Evidence
                       </h4>
-                      <span className="text-[10px] text-emerald-300 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                      <span
+                        className={cn(
+                          'text-[10px] font-bold px-2 py-0.5 rounded-full border',
+                          isLight
+                            ? 'border-[#e7e2d7] bg-[#f6f3ec] text-[#353229]'
+                            : 'text-emerald-300 bg-emerald-500/10 border-emerald-500/20',
+                        )}
+                      >
                         Verified
                       </span>
                     </div>
 
                     <div
-                      className="mt-2.5 relative rounded-xl overflow-hidden border border-white/20 aspect-video bg-black/50 cursor-pointer group"
+                      className="mt-2.5 relative rounded-xl overflow-hidden border border-inherit aspect-video bg-black/50 cursor-pointer group"
                       onClick={() => setViewPhotoUrl(selectedTask.photoUrl!)}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1289,7 +1682,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                       />
                       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 flex justify-between items-center">
-                        <span className="text-[10px] text-emerald-300 font-semibold flex items-center gap-1">
+                        <span className="text-[10px] text-white font-semibold flex items-center gap-1">
                           <Eye className="h-3 w-3" /> Tap to view full size
                         </span>
                       </div>
@@ -1301,7 +1694,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                 {selectedTask.status === 'Completed' && (() => {
                   const guestFeedback = selectedTask.feedback || {
                     rating: 5,
-                    comment: selectedTask.category === 'turndown' || selectedTask.title.toLowerCase().includes('turndown')
+                    comment: (selectedTask.category as string) === 'turndown' || selectedTask.title.toLowerCase().includes('turndown')
                       ? 'Room turndown was pristine and restful. Spotless linen.'
                       : selectedTask.title.toLowerCase().includes('towel') || selectedTask.title.toLowerCase().includes('amenit')
                         ? 'Towels & amenities delivered promptly with wonderful courtesy.'
@@ -1309,15 +1702,29 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                   };
 
                   return (
-                    <div className="rounded-xl border border-[rgba(165,130,95,0.25)] bg-[rgba(200,169,110,0.06)] p-3 space-y-1">
-                      <div className="flex items-center justify-between text-xs font-bold text-[#dfc187]">
+                    <div
+                      className={cn(
+                        'rounded-xl border p-3 space-y-1 transition-colors',
+                        isLight
+                          ? 'border-[#e7e2d7] bg-[#fbfaf7]'
+                          : 'border-[rgba(165,130,95,0.25)] bg-[rgba(200,169,110,0.06)]',
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          'flex items-center justify-between text-xs font-bold',
+                          isLight ? 'text-[#353229]' : 'text-[#dfc187]',
+                        )}
+                      >
                         <span className="flex items-center gap-1.5">
-                          <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
+                          <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
                           Guest Feedback Received
                         </span>
-                        <span className="text-amber-400 font-mono text-xs font-semibold">★ {guestFeedback.rating.toFixed(1)} / 5.0</span>
+                        <span className={cn('font-mono text-xs font-semibold', isLight ? 'text-[#8b7550]' : 'text-amber-400')}>
+                          ★ {guestFeedback.rating.toFixed(1)} / 5.0
+                        </span>
                       </div>
-                      <p className="text-xs text-mist-200 italic mt-1 leading-relaxed">
+                      <p className={cn('text-xs italic mt-1 leading-relaxed', isLight ? 'text-[#686252]' : 'text-mist-200')}>
                         &ldquo;{guestFeedback.comment}&rdquo;
                       </p>
                     </div>
@@ -1325,13 +1732,23 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                 })()}
 
                 {/* Chronological Task Work Timeline (Actual Shared State) */}
-                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3.5 space-y-3">
-                  <div className="flex items-center justify-between border-b border-white/[0.06] pb-2">
-                    <h4 className="font-semibold text-mist-200 flex items-center gap-1.5">
-                      <Clock className="h-3.5 w-3.5 text-emerald-400" />
+                <div
+                  className={cn(
+                    'rounded-xl border p-3.5 space-y-3 transition-colors',
+                    isLight ? 'border-[#e7e2d7] bg-[#fbfaf7]' : 'border-white/10 bg-white/[0.03]',
+                  )}
+                >
+                  <div
+                    className={cn(
+                      'flex items-center justify-between border-b pb-2',
+                      isLight ? 'border-[#e7e2d7]' : 'border-white/[0.06]',
+                    )}
+                  >
+                    <h4 className={cn('font-semibold flex items-center gap-1.5', isLight ? 'text-[#353229]' : 'text-mist-200')}>
+                      <Clock className={cn('h-3.5 w-3.5', isLight ? 'text-[#353229]' : 'text-emerald-400')} />
                       Task Work Timeline
                     </h4>
-                    <span className="text-[10px] text-mist-500 font-mono">
+                    <span className={cn('text-[10px] font-mono', isLight ? 'text-[#8c8472]' : 'text-mist-500')}>
                       {selectedTask.history?.length ?? 1} events logged
                     </span>
                   </div>
@@ -1340,32 +1757,46 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     {selectedTask.history && selectedTask.history.length > 0 ? (
                       selectedTask.history.map((entry, idx) => {
                         return (
-                          <div key={idx} className="relative pl-5 border-l-2 border-white/10 pb-2 last:border-l-0 last:pb-0">
+                          <div
+                            key={idx}
+                            className={cn(
+                              'relative pl-5 border-l-2 pb-2 last:border-l-0 last:pb-0',
+                              isLight ? 'border-[#e7e2d7]' : 'border-white/10',
+                            )}
+                          >
                             <span
                               className={cn(
-                                'absolute -left-[5px] top-0.5 h-2 w-2 rounded-full ring-2 ring-ink-900',
+                                'absolute -left-[5px] top-0.5 h-2 w-2 rounded-full',
+                                isLight ? 'ring-2 ring-white' : 'ring-2 ring-ink-900',
                                 entry.status === 'Completed'
-                                  ? 'bg-emerald-400'
+                                  ? 'bg-emerald-500'
                                   : entry.status === 'Awaiting inspection'
-                                    ? 'bg-[#c8a96e]'
+                                    ? isLight ? 'bg-[#8b7550]' : 'bg-[#c8a96e]'
                                     : entry.status === 'Blocked'
-                                      ? 'bg-rose-400'
+                                      ? 'bg-rose-500'
                                       : entry.status === 'Reassignment requested'
-                                        ? 'bg-amber-400'
-                                        : 'bg-sky-400',
+                                        ? 'bg-amber-500'
+                                        : 'bg-sky-500',
                               )}
                             />
                             <div className="flex items-center justify-between gap-2">
-                              <span className="font-bold text-white text-xs">{entry.status}</span>
-                              <span className="text-[10px] text-mist-400 font-mono">{entry.at}</span>
+                              <span className={cn('font-bold text-xs', isLight ? 'text-[#353229]' : 'text-white')}>{entry.status}</span>
+                              <span className={cn('text-[10px] font-mono', isLight ? 'text-[#8c8472]' : 'text-mist-400')}>{entry.at}</span>
                             </div>
                             {(entry.actor || entry.role) && (
-                              <span className="text-[10px] text-emerald-400 font-medium block">
+                              <span className={cn('text-[10px] font-medium block', isLight ? 'text-[#686252]' : 'text-emerald-400')}>
                                 By: {entry.actor ?? 'Attendant'} {entry.role ? `(${entry.role})` : ''}
                               </span>
                             )}
                             {entry.note && (
-                              <p className="text-mist-300 text-[11px] mt-0.5 leading-relaxed bg-white/[0.02] p-1.5 rounded-lg border border-white/5">
+                              <p
+                                className={cn(
+                                  'text-[11px] mt-0.5 leading-relaxed p-1.5 rounded-lg border',
+                                  isLight
+                                    ? 'bg-[#ffffff] text-[#686252] border-[#e7e2d7]'
+                                    : 'bg-white/[0.02] text-mist-300 border-white/5',
+                                )}
+                              >
                                 {entry.note}
                               </p>
                             )}
@@ -1373,13 +1804,13 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                         );
                       })
                     ) : (
-                      <div className="relative pl-5 border-l-2 border-white/10">
-                        <span className="absolute -left-[5px] top-0.5 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-ink-900" />
+                      <div className={cn('relative pl-5 border-l-2', isLight ? 'border-[#e7e2d7]' : 'border-white/10')}>
+                        <span className={cn('absolute -left-[5px] top-0.5 h-2 w-2 rounded-full bg-emerald-500', isLight ? 'ring-2 ring-white' : 'ring-2 ring-ink-900')} />
                         <div className="flex items-center justify-between gap-2">
-                          <span className="font-bold text-white text-xs">Task Created</span>
-                          <span className="text-[10px] text-mist-400 font-mono">{selectedTask.createdAt || 'Today'}</span>
+                          <span className={cn('font-bold text-xs', isLight ? 'text-[#353229]' : 'text-white')}>Task Created</span>
+                          <span className={cn('text-[10px] font-mono', isLight ? 'text-[#8c8472]' : 'text-mist-400')}>{selectedTask.createdAt || 'Today'}</span>
                         </div>
-                        <p className="text-mist-400 text-[11px] mt-0.5">Task registered in Grand Azure central dispatch.</p>
+                        <p className={cn('text-[11px] mt-0.5', isLight ? 'text-[#8c8472]' : 'text-mist-400')}>Task registered in Grand Azure central dispatch.</p>
                       </div>
                     )}
                   </div>
@@ -1387,28 +1818,50 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
               </div>
 
               {/* Footer: Dedicated Close and Complete Actions */}
-              <div className="mt-3 border-t border-white/10 pt-3 flex items-center gap-2 shrink-0">
+              <div
+                className={cn(
+                  'mt-3 border-t pt-3 flex items-center gap-2 shrink-0',
+                  isLight ? 'border-[#e7e2d7]' : 'border-white/10',
+                )}
+              >
                 <button
                   type="button"
                   onClick={() => {
                     setSelectedTask(null);
                     setPhotoError(null);
                   }}
-                  className="flex-1 rounded-xl border border-white/10 bg-white/[0.05] hover:bg-white/[0.08] active:scale-[0.99] py-2.5 text-xs font-semibold text-white transition-all text-center"
+                  className={cn(
+                    'flex-1 rounded-xl border py-2.5 text-xs font-semibold transition-all text-center cursor-pointer',
+                    isLight
+                      ? 'border-[#e7e2d7] bg-[#f6f3ec] text-[#353229] hover:bg-[#ebe2cc]'
+                      : 'border-white/10 bg-white/[0.05] hover:bg-white/[0.08] text-white',
+                  )}
                 >
                   Close
                 </button>
                 {selectedTask.status !== 'Completed' && isTaskAssignedToProfile(selectedTask, activeProfile) && (
                   selectedTask.status === 'Awaiting inspection' ? (
-                    <div className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-[rgba(200,169,110,0.12)] border border-[rgba(165,130,95,0.3)] py-2.5 px-3 text-xs font-semibold text-[#dfc187] text-center">
-                      <Clock className="h-3.5 w-3.5 text-[#dfc187] animate-pulse" />
+                    <div
+                      className={cn(
+                        'flex-1 flex items-center justify-center gap-1.5 rounded-xl border py-2.5 px-3 text-xs font-semibold text-center',
+                        isLight
+                          ? 'border-[#ded6c1] bg-[#ebe2cc] text-[#353229]'
+                          : 'bg-[rgba(200,169,110,0.12)] border-[rgba(165,130,95,0.3)] text-[#dfc187]',
+                      )}
+                    >
+                      <Clock className={cn('h-3.5 w-3.5 animate-pulse', isLight ? 'text-[#353229]' : 'text-[#dfc187]')} />
                       <span>Pending at Supervisor Inspection</span>
                     </div>
                   ) : (
                     <button
                       type="button"
                       onClick={() => handleComplete(selectedTask)}
-                      className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-[#c8a96e] hover:bg-[#dfc187] active:scale-[0.99] py-2.5 text-xs font-bold text-[#14120e] transition-all shadow-md text-center cursor-pointer"
+                      className={cn(
+                        'flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-bold transition-all shadow-md text-center cursor-pointer',
+                        isLight
+                          ? 'bg-[#353229] text-white hover:bg-[#484438]'
+                          : 'bg-[#c8a96e] hover:bg-[#dfc187] text-[#14120e]',
+                      )}
                     >
                       <CheckCircle2 className="h-4 w-4" />
                       Mark Completed
@@ -1425,12 +1878,19 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
       {blockerModalTask && (
         <FulfillerModalPortal>
           <div className="absolute inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-sm animate-in fade-in duration-150">
-            <div className="w-full max-w-sm rounded-3xl border border-rose-500/40 bg-ink-950 p-4 text-white shadow-2xl">
-              <div className="flex items-center gap-2.5 text-rose-400">
+            <div
+              className={cn(
+                'w-full max-w-sm rounded-3xl border p-4 shadow-2xl transition-colors',
+                isLight
+                  ? 'border-[#e7e2d7] bg-[#ffffff] text-[#353229]'
+                  : 'border-rose-500/40 bg-ink-950 text-white',
+              )}
+            >
+              <div className="flex items-center gap-2.5 text-rose-500">
                 <AlertTriangle className="h-5 w-5" />
-                <h3 className="font-bold text-sm text-white">Report Task Blocker</h3>
+                <h3 className={cn('font-bold text-sm', isLight ? 'text-[#353229]' : 'text-white')}>Report Task Blocker</h3>
               </div>
-              <p className="mt-1 text-xs text-mist-300">
+              <p className={cn('mt-1 text-xs', isLight ? 'text-[#686252]' : 'text-mist-300')}>
                 Select reason for holding work on <strong>{blockerModalTask.title}</strong>:
               </p>
 
@@ -1441,8 +1901,12 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     className={cn(
                       'flex items-center gap-2.5 rounded-xl border p-2.5 text-xs cursor-pointer transition-colors',
                       blockerReason === reason
-                        ? 'border-rose-400/50 bg-rose-500/10 text-white'
-                        : 'border-white/10 bg-white/[0.03] text-mist-300 hover:text-white',
+                        ? isLight
+                          ? 'border-rose-400 bg-rose-50/70 text-[#353229] font-semibold'
+                          : 'border-rose-400/50 bg-rose-500/10 text-white'
+                        : isLight
+                          ? 'border-[#e7e2d7] bg-[#ffffff] text-[#686252] hover:bg-[#f6f3ec]'
+                          : 'border-white/10 bg-white/[0.03] text-mist-300 hover:text-white',
                     )}
                   >
                     <input
@@ -1458,7 +1922,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
 
                 {blockerReason === 'Others' && (
                   <div className="pt-1.5 animate-in fade-in duration-150">
-                    <label className="block text-[11px] font-semibold text-mist-200 mb-1">
+                    <label className={cn('block text-[11px] font-semibold mb-1', isLight ? 'text-[#353229]' : 'text-mist-200')}>
                       Type Custom Blocker Reason:
                     </label>
                     <textarea
@@ -1466,28 +1930,43 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                       onChange={(e) => setCustomBlockerReason(e.target.value)}
                       placeholder="Type the specific reason for blocking..."
                       rows={3}
-                      className="w-full rounded-xl border border-white/20 bg-white/[0.04] p-2.5 text-xs text-white placeholder:text-mist-400 focus:border-rose-400 focus:outline-none focus:ring-1 focus:ring-rose-400/30 resize-none"
+                      className={cn(
+                        'w-full rounded-xl border p-2.5 text-xs focus:outline-none focus:ring-1 resize-none',
+                        isLight
+                          ? 'border-[#e7e2d7] bg-[#fbfaf7] text-[#353229] placeholder-[#8c8472] focus:border-rose-500 focus:ring-rose-500/30'
+                          : 'border-white/20 bg-white/[0.04] text-white placeholder:text-mist-400 focus:border-rose-400 focus:ring-rose-400/30',
+                      )}
                       autoFocus
                     />
                   </div>
                 )}
               </div>
 
-              <div className="mt-4 flex items-center justify-end gap-2 border-t border-white/10 pt-3">
+              <div
+                className={cn(
+                  'mt-4 flex items-center justify-end gap-2 border-t pt-3',
+                  isLight ? 'border-[#e7e2d7]' : 'border-white/10',
+                )}
+              >
                 <button
                   type="button"
                   onClick={() => {
                     setBlockerModalTask(null);
                     setCustomBlockerReason('');
                   }}
-                  className="rounded-xl border border-white/10 px-3 py-1.5 text-xs text-mist-300 hover:text-white"
+                  className={cn(
+                    'rounded-xl border px-3 py-1.5 text-xs cursor-pointer',
+                    isLight
+                      ? 'border-[#e7e2d7] text-[#686252] hover:bg-[#f6f3ec]'
+                      : 'border-white/10 text-mist-300 hover:text-white',
+                  )}
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={handleBlockerSubmit}
-                  className="rounded-xl bg-rose-500 px-4 py-1.5 text-xs font-bold text-white shadow-md shadow-rose-500/30 hover:bg-rose-600"
+                  className="rounded-xl bg-rose-600 px-4 py-1.5 text-xs font-bold text-white shadow-md shadow-rose-600/30 hover:bg-rose-700 cursor-pointer"
                 >
                   Submit Blocker
                 </button>
@@ -1501,12 +1980,19 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
       {reassignModalTask && (
         <FulfillerModalPortal>
           <div className="absolute inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-sm animate-in fade-in duration-150">
-            <div className="w-full max-w-sm rounded-3xl border border-amber-400/40 bg-ink-950 p-4 text-white shadow-2xl">
-              <div className="flex items-center gap-2.5 text-amber-400">
+            <div
+              className={cn(
+                'w-full max-w-sm rounded-3xl border p-4 shadow-2xl transition-colors',
+                isLight
+                  ? 'border-[#e7e2d7] bg-[#ffffff] text-[#353229]'
+                  : 'border-amber-400/40 bg-ink-950 text-white',
+              )}
+            >
+              <div className="flex items-center gap-2.5 text-amber-500">
                 <RotateCcw className="h-5 w-5" />
-                <h3 className="font-bold text-sm text-white">Request Task Reassignment</h3>
+                <h3 className={cn('font-bold text-sm', isLight ? 'text-[#353229]' : 'text-white')}>Request Task Reassignment</h3>
               </div>
-              <p className="mt-1 text-xs text-mist-300">
+              <p className={cn('mt-1 text-xs', isLight ? 'text-[#686252]' : 'text-mist-300')}>
                 This request will be routed to Supervisor <strong>{activeProfile.supervisorName}</strong> for decision. The task remains assigned to you until approved.
               </p>
 
@@ -1517,8 +2003,12 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     className={cn(
                       'flex items-center gap-2.5 rounded-xl border p-2.5 text-xs cursor-pointer transition-colors',
                       reassignReason === reason
-                        ? 'border-amber-400/50 bg-amber-400/10 text-white'
-                        : 'border-white/10 bg-white/[0.03] text-mist-300 hover:text-white',
+                        ? isLight
+                          ? 'border-[#353229] bg-[#f6f3ec] text-[#353229] font-bold'
+                          : 'border-amber-400/50 bg-amber-400/10 text-white'
+                        : isLight
+                          ? 'border-[#e7e2d7] bg-[#ffffff] text-[#686252] hover:bg-[#f6f3ec]'
+                          : 'border-white/10 bg-white/[0.03] text-mist-300 hover:text-white',
                     )}
                   >
                     <input
@@ -1526,7 +2016,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                       name="reassign"
                       checked={reassignReason === reason}
                       onChange={() => setReassignReason(reason)}
-                      className="accent-amber-400"
+                      className={isLight ? 'accent-[#353229]' : 'accent-amber-400'}
                     />
                     <span className="text-[11px]">{reason}</span>
                   </label>
@@ -1534,7 +2024,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
 
                 {reassignReason === 'Others' && (
                   <div className="pt-1.5 animate-in fade-in duration-150">
-                    <label className="block text-[11px] font-semibold text-mist-200 mb-1">
+                    <label className={cn('block text-[11px] font-semibold mb-1', isLight ? 'text-[#353229]' : 'text-mist-200')}>
                       Type Reason for Reassignment:
                     </label>
                     <textarea
@@ -1542,28 +2032,48 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                       onChange={(e) => setCustomReassignReason(e.target.value)}
                       placeholder="Type the specific reason here..."
                       rows={3}
-                      className="w-full rounded-xl border border-white/20 bg-white/[0.04] p-2.5 text-xs text-white placeholder:text-mist-400 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400/30 resize-none"
+                      className={cn(
+                        'w-full rounded-xl border p-2.5 text-xs focus:outline-none focus:ring-1 resize-none',
+                        isLight
+                          ? 'border-[#e7e2d7] bg-[#fbfaf7] text-[#353229] placeholder-[#8c8472] focus:border-[#353229] focus:ring-[#353229]/30'
+                          : 'border-white/20 bg-white/[0.04] text-white placeholder:text-mist-400 focus:border-amber-400 focus:ring-amber-400/30',
+                      )}
                       autoFocus
                     />
                   </div>
                 )}
               </div>
 
-              <div className="mt-4 flex items-center justify-end gap-2 border-t border-white/10 pt-3">
+              <div
+                className={cn(
+                  'mt-4 flex items-center justify-end gap-2 border-t pt-3',
+                  isLight ? 'border-[#e7e2d7]' : 'border-white/10',
+                )}
+              >
                 <button
                   type="button"
                   onClick={() => {
                     setReassignModalTask(null);
                     setCustomReassignReason('');
                   }}
-                  className="rounded-xl border border-white/10 px-3 py-1.5 text-xs text-mist-300 hover:text-white"
+                  className={cn(
+                    'rounded-xl border px-3 py-1.5 text-xs cursor-pointer',
+                    isLight
+                      ? 'border-[#e7e2d7] text-[#686252] hover:bg-[#f6f3ec]'
+                      : 'border-white/10 text-mist-300 hover:text-white',
+                  )}
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={handleReassignSubmit}
-                  className="rounded-xl bg-amber-400 px-4 py-1.5 text-xs font-bold text-ink-950 shadow-md shadow-amber-400/30 hover:bg-amber-300"
+                  className={cn(
+                    'rounded-xl px-4 py-1.5 text-xs font-bold transition-all shadow-md cursor-pointer',
+                    isLight
+                      ? 'bg-[#353229] text-white hover:bg-[#484438]'
+                      : 'bg-amber-400 text-ink-950 shadow-amber-400/30 hover:bg-amber-300',
+                  )}
                 >
                   Send Request
                 </button>
@@ -1577,11 +2087,23 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
       {photoModalTask && (
         <FulfillerModalPortal>
           <div className="absolute inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-sm animate-in fade-in duration-150">
-            <div className="w-full max-w-sm rounded-3xl border border-[rgba(165,130,95,0.3)] bg-[#161513] p-4 text-[#f7f4ed] shadow-2xl">
-              <div className="flex items-center justify-between border-b border-[rgba(165,130,95,0.2)] pb-3">
-                <div className="flex items-center gap-2 text-[#dfc187]">
-                  <Camera className="h-5 w-5" />
-                  <h3 className="font-bold text-sm text-[#f7f4ed]">Complete Task & Upload Photo</h3>
+            <div
+              className={cn(
+                'w-full max-w-sm rounded-3xl border p-4 shadow-2xl transition-colors',
+                isLight
+                  ? 'border-[#e7e2d7] bg-[#ffffff] text-[#353229]'
+                  : 'border-[rgba(165,130,95,0.3)] bg-[#161513] text-[#f7f4ed]',
+              )}
+            >
+              <div
+                className={cn(
+                  'flex items-center justify-between border-b pb-3',
+                  isLight ? 'border-[#e7e2d7]' : 'border-[rgba(165,130,95,0.2)]',
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  <Camera className={cn('h-5 w-5', isLight ? 'text-[#353229]' : 'text-[#dfc187]')} />
+                  <h3 className={cn('font-bold text-sm', isLight ? 'text-[#353229]' : 'text-[#f7f4ed]')}>Complete Task & Upload Photo</h3>
                 </div>
                 <button
                   type="button"
@@ -1590,19 +2112,29 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     setPhotoModalPreview(null);
                     setPhotoModalError(null);
                   }}
-                  className="grid h-7 w-7 place-items-center rounded-full bg-white/10 text-[#ded6c9] hover:text-[#f7f4ed] cursor-pointer"
+                  className={cn(
+                    'grid h-7 w-7 place-items-center rounded-full cursor-pointer',
+                    isLight ? 'bg-[#f6f3ec] text-[#686252] hover:text-[#353229]' : 'bg-white/10 text-[#ded6c9] hover:text-[#f7f4ed]',
+                  )}
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
               <div className="mt-3">
-                <p className="text-xs text-[#ded6c9] leading-relaxed">
+                <p className={cn('text-xs leading-relaxed', isLight ? 'text-[#686252]' : 'text-[#ded6c9]')}>
                   Provide evidence photo of completed work. Once submitted, task moves to supervisor inspection.
                 </p>
-                <div className="mt-2 rounded-xl border border-[rgba(165,130,95,0.25)] bg-[rgba(200,169,110,0.05)] p-2.5 text-xs">
-                  <div className="font-semibold text-[#f7f4ed] line-clamp-1">{photoModalTask.title}</div>
-                  <div className="text-[11px] text-[#d4b896] mt-0.5 flex items-center justify-between">
+                <div
+                  className={cn(
+                    'mt-2 rounded-xl border p-2.5 text-xs transition-colors',
+                    isLight
+                      ? 'border-[#e7e2d7] bg-[#fbfaf7]'
+                      : 'border-[rgba(165,130,95,0.25)] bg-[rgba(200,169,110,0.05)]',
+                  )}
+                >
+                  <div className={cn('font-semibold line-clamp-1', isLight ? 'text-[#353229]' : 'text-[#f7f4ed]')}>{photoModalTask.title}</div>
+                  <div className={cn('text-[11px] mt-0.5 flex items-center justify-between', isLight ? 'text-[#686252]' : 'text-[#d4b896]')}>
                     <span>{photoModalTask.room ? `Room ${photoModalTask.room}` : photoModalTask.location || 'Floor 4'}</span>
                     <span>Supervisor: {activeProfile.supervisorName}</span>
                   </div>
@@ -1612,21 +2144,31 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
               {/* Photo Preview / Upload Controls */}
               <div className="mt-3">
                 {photoModalPreview ? (
-                  <div className="relative rounded-2xl overflow-hidden border border-[rgba(165,130,95,0.4)] bg-black/50">
+                  <div
+                    className={cn(
+                      'relative rounded-2xl overflow-hidden border bg-black/50',
+                      isLight ? 'border-[#e7e2d7]' : 'border-[rgba(165,130,95,0.4)]',
+                    )}
+                  >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={photoModalPreview}
                       alt="Uploaded task photo preview"
                       className="w-full h-40 object-contain bg-black/70"
                     />
-                    <div className="absolute top-2 left-2 flex items-center gap-1 rounded-full bg-[#c8a96e] px-2 py-0.5 text-[10px] font-bold text-[#14120e] shadow-sm">
+                    <div
+                      className={cn(
+                        'absolute top-2 left-2 flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold shadow-sm',
+                        isLight ? 'bg-[#353229] text-white' : 'bg-[#c8a96e] text-[#14120e]',
+                      )}
+                    >
                       <Check className="h-3 w-3" /> Photo Attached
                     </div>
                     <div className="absolute bottom-2 right-2 flex items-center gap-1.5">
                       <button
                         type="button"
                         onClick={() => galleryFileInputRef.current?.click()}
-                        className="rounded-lg bg-black/80 border border-[rgba(165,130,95,0.3)] px-2.5 py-1 text-[10px] font-medium text-[#f7f4ed] hover:bg-black cursor-pointer"
+                        className="rounded-lg bg-black/80 border border-white/20 px-2.5 py-1 text-[10px] font-medium text-white hover:bg-black cursor-pointer"
                       >
                         Change
                       </button>
@@ -1640,27 +2182,44 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     </div>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[rgba(165,130,95,0.3)] bg-white/[0.02] p-4 text-center">
-                    <Camera className="h-7 w-7 text-[#dfc187] mb-1" />
-                    <p className="text-xs font-semibold text-[#f7f4ed]">Attach Evidence Photo</p>
-                    <p className="text-[10px] text-[#ded6c9] mt-0.5">Select image file or capture with device camera</p>
+                  <div
+                    className={cn(
+                      'flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-4 text-center transition-colors',
+                      isLight
+                        ? 'border-[#e7e2d7] bg-[#fbfaf7]'
+                        : 'border-[rgba(165,130,95,0.3)] bg-white/[0.02]',
+                    )}
+                  >
+                    <Camera className={cn('h-7 w-7 mb-1', isLight ? 'text-[#353229]' : 'text-[#dfc187]')} />
+                    <p className={cn('text-xs font-semibold', isLight ? 'text-[#353229]' : 'text-[#f7f4ed]')}>Attach Evidence Photo</p>
+                    <p className={cn('text-[10px] mt-0.5', isLight ? 'text-[#8c8472]' : 'text-[#ded6c9]')}>Select image file or capture with device camera</p>
 
                     <div className="mt-3 flex flex-col w-full gap-2">
                       <button
                         type="button"
                         onClick={() => galleryFileInputRef.current?.click()}
-                        className="flex items-center justify-center gap-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-[rgba(165,130,95,0.25)] px-3 py-2 text-xs font-semibold text-[#f7f4ed] active:scale-98 transition-all cursor-pointer"
+                        className={cn(
+                          'flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-all cursor-pointer border',
+                          isLight
+                            ? 'border-[#e7e2d7] bg-[#ffffff] text-[#353229] hover:bg-[#f6f3ec]'
+                            : 'bg-white/[0.06] hover:bg-white/[0.1] border-[rgba(165,130,95,0.25)] text-[#f7f4ed]',
+                        )}
                       >
-                        <ImageIcon className="h-4 w-4 text-[#dfc187]" />
+                        <ImageIcon className={cn('h-4 w-4', isLight ? 'text-[#353229]' : 'text-[#dfc187]')} />
                         Upload from Device / Gallery
                       </button>
 
                       <button
                         type="button"
                         onClick={() => cameraFileInputRef.current?.click()}
-                        className="flex items-center justify-center gap-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-[rgba(165,130,95,0.25)] px-3 py-2 text-xs font-semibold text-[#f7f4ed] active:scale-98 transition-all cursor-pointer"
+                        className={cn(
+                          'flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-all cursor-pointer border',
+                          isLight
+                            ? 'border-[#e7e2d7] bg-[#ffffff] text-[#353229] hover:bg-[#f6f3ec]'
+                            : 'bg-white/[0.06] hover:bg-white/[0.1] border-[rgba(165,130,95,0.25)] text-[#f7f4ed]',
+                        )}
                       >
-                        <Camera className="h-4 w-4 text-[#dfc187]" />
+                        <Camera className={cn('h-4 w-4', isLight ? 'text-[#353229]' : 'text-[#dfc187]')} />
                         Take Photo with Camera
                       </button>
 
@@ -1672,21 +2231,31 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                               SAMPLE_PROOF_PHOTOS.housekeeping,
                           )
                         }
-                        className="flex items-center justify-center gap-2 rounded-xl border border-[rgba(165,130,95,0.4)] bg-[rgba(200,169,110,0.12)] hover:bg-[rgba(200,169,110,0.18)] px-3 py-1.5 text-xs font-semibold text-[#dfc187] active:scale-98 transition-all cursor-pointer"
+                        className={cn(
+                          'flex items-center justify-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer',
+                          isLight
+                            ? 'border-[#e7e2d7] bg-[#f6f3ec] text-[#353229] hover:bg-[#ebe2cc]'
+                            : 'border-[rgba(165,130,95,0.4)] bg-[rgba(200,169,110,0.12)] hover:bg-[rgba(200,169,110,0.18)] text-[#dfc187]',
+                        )}
                       >
-                        <Sparkles className="h-3.5 w-3.5 text-[#dfc187]" />
+                        <Sparkles className={cn('h-3.5 w-3.5', isLight ? 'text-[#353229]' : 'text-[#dfc187]')} />
                         Use Sample Department Photo
                       </button>
                     </div>
                   </div>
                 )}
                 {photoModalError && (
-                  <p className="mt-1 text-[11px] font-medium text-rose-400">{photoModalError}</p>
+                  <p className="mt-1 text-[11px] font-medium text-rose-500">{photoModalError}</p>
                 )}
               </div>
 
               {/* Actions */}
-              <div className="mt-4 flex items-center justify-end gap-2 border-t border-[rgba(165,130,95,0.2)] pt-3">
+              <div
+                className={cn(
+                  'mt-4 flex items-center justify-end gap-2 border-t pt-3',
+                  isLight ? 'border-[#e7e2d7]' : 'border-[rgba(165,130,95,0.2)]',
+                )}
+              >
                 <button
                   type="button"
                   onClick={() => {
@@ -1694,14 +2263,24 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     setPhotoModalPreview(null);
                     setPhotoModalError(null);
                   }}
-                  className="rounded-xl border border-[rgba(165,130,95,0.25)] px-3 py-1.5 text-xs text-[#ded6c9] hover:text-[#f7f4ed] cursor-pointer"
+                  className={cn(
+                    'rounded-xl border px-3 py-1.5 text-xs cursor-pointer',
+                    isLight
+                      ? 'border-[#e7e2d7] text-[#686252] hover:bg-[#f6f3ec]'
+                      : 'border-[rgba(165,130,95,0.25)] text-[#ded6c9] hover:text-[#f7f4ed]',
+                  )}
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={handleSubmitCompletionWithPhoto}
-                  className="flex items-center gap-1.5 rounded-xl bg-[#c8a96e] hover:bg-[#dfc187] px-4 py-2 text-xs font-bold text-[#14120e] transition-all shadow-md active:scale-95 cursor-pointer"
+                  className={cn(
+                    'flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer',
+                    isLight
+                      ? 'bg-[#353229] text-[#ffffff] hover:bg-[#484438]'
+                      : 'bg-[#c8a96e] hover:bg-[#dfc187] text-[#14120e]',
+                  )}
                 >
                   <Check className="h-3.5 w-3.5" />
                   Submit for Inspection
@@ -1711,6 +2290,17 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
           </div>
         </FulfillerModalPortal>
       )}
+
+      {/* Break Request Modal */}
+      <BreakRequestModal
+        isOpen={breakModalOpen}
+        onClose={() => setBreakModalOpen(false)}
+        profile={activeProfile}
+        isLight={isLight}
+        currentAvail={currentAvail}
+        onSetAvailability={setFulfillerAvailability}
+        onNotify={notify}
+      />
     </div>
   );
 }

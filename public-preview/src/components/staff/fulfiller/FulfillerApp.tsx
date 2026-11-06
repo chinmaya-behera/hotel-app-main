@@ -31,12 +31,25 @@ import {
   isTaskAssignedToProfile,
 } from './fulfillerProfiles';
 import { playChime } from './chime';
+import { BreakRequestModal } from './BreakRequestModal';
+import {
+  useBreakRequest,
+  useDutyRequest,
+  getStoredBreakRequest,
+  formatCountdown,
+  DUTY_KIND_LABEL,
+} from './breakRequests';
 
 type FulfillerTab = 'tasks' | 'notifications' | 'policies' | 'performance' | 'profile';
 
 function FulfillerAppContent() {
-  const { state, setPersona, setSoundEnabled, setTheme, setActiveDispatcherDept, toasts, setFulfillerAvailability } = useDemo();
+  const { state, setPersona, setSoundEnabled, setTheme, setActiveDispatcherDept, toasts, setFulfillerAvailability, notify, notifyDepartmentSupervisor } = useDemo();
   const [activeTab, setActiveTab] = useState<FulfillerTab>('tasks');
+  const [breakModalOpen, setBreakModalOpen] = useState(false);
+  const { breakRequest, completeBreakRequest } = useBreakRequest();
+  const { dutyRequest } = useDutyRequest();
+  const [breakRemainingMs, setBreakRemainingMs] = useState<number | null>(null);
+  const prevAvailRef = useRef<'on_duty' | 'break' | 'off_duty' | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevTaskCountRef = useRef<number | null>(null);
 
@@ -70,6 +83,56 @@ function FulfillerAppContent() {
   useEffect(() => {
     setPersona('task_fulfiller');
   }, [setPersona]);
+
+  // Pending request (break / on duty / off duty) shown in the top bar status pill
+  const isRequestPending = breakRequest?.status === 'pending' || dutyRequest?.status === 'pending';
+  const requestedLabel =
+    breakRequest?.status === 'pending'
+      ? 'Break'
+      : dutyRequest
+        ? DUTY_KIND_LABEL[dutyRequest.kind]
+        : 'Break';
+
+  // While on an approved break: live countdown, and automatic return to On Duty when it ends
+  useEffect(() => {
+    if (currentAvail !== 'break') {
+      setBreakRemainingMs(null);
+      return;
+    }
+    const tick = () => {
+      const rec = getStoredBreakRequest();
+      if (!rec || rec.status !== 'approved' || !rec.endsAt) {
+        setBreakRemainingMs(null);
+        return;
+      }
+      const remaining = rec.endsAt - Date.now();
+      if (remaining <= 0) {
+        setBreakRemainingMs(null);
+        completeBreakRequest();
+        setFulfillerAvailability('on_duty');
+        notify('Your break has ended. You are back On Duty.');
+        return;
+      }
+      setBreakRemainingMs(remaining);
+    };
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, [currentAvail, completeBreakRequest, setFulfillerAvailability, notify]);
+
+  // Tell the department supervisor when the fulfiller returns from break (manual or automatic)
+  useEffect(() => {
+    const prev = prevAvailRef.current;
+    prevAvailRef.current = currentAvail;
+    if (prev === 'break' && currentAvail === 'on_duty') {
+      notifyDepartmentSupervisor({
+        department: profile.departmentName,
+        title: `Break Ended · ${profile.employeeName}`,
+        message: `${profile.employeeName} (${profile.departmentName}) is back On Duty after break and can receive tasks again.`,
+        tone: 'info',
+      });
+    }
+  }, [currentAvail, profile.departmentName, profile.employeeName, notifyDepartmentSupervisor]);
 
   // Audio chime trigger when new task enters queue
   const tasks = state.items.task_fulfiller ?? [];
@@ -111,11 +174,11 @@ function FulfillerAppContent() {
       className={cn(
         'fulfiller-root fixed inset-0 flex flex-col overflow-hidden transition-colors duration-300',
         isLight
-          ? 'fulfiller-light bg-[#f3efe8]'
+          ? 'fulfiller-light bg-[#fbfaf7] text-[#353229]'
           : 'fulfiller-dark bg-gradient-to-b from-[#0c0c0e] via-[#121215] to-[#09090b]',
       )}
     >
-      {/* Scoped Theme Styles for Task Fulfiller: Charcoal, Champagne Gold, Warm Beige, Subtle Brown, Cream */}
+      {/* Scoped Theme Styles for Task Fulfiller: Matching Department Manager warm luxury palette in Light Mode */}
       <style>{`
         .fulfiller-root.fulfiller-dark {
           --page: 12 12 14;
@@ -143,28 +206,43 @@ function FulfillerAppContent() {
         }
 
         .fulfiller-root.fulfiller-light {
-          --page: 243 239 232;
-          --ink-950: 250 248 244;
+          --warm-canvas: #fbfaf7;
+          --warm-panel: #ffffff;
+          --warm-sidebar: #fbfaf7;
+          --warm-soft: #f6f3ec;
+          --warm-highlight: #ebe2cc;
+          --warm-selected: #ded6c1;
+          --warm-line: #e7e2d7;
+          --warm-control: #b7b09e;
+          --warm-ink: #353229;
+          --warm-muted: #686252;
+          --warm-primary: #353229;
+          --warm-on-primary: #ffffff;
+          --warm-focus: #8b7550;
+          --warm-shadow: 0 4px 18px rgba(53, 50, 41, 0.04);
+
+          --page: 251 250 247;
+          --ink-950: 255 255 255;
           --ink-900: 255 255 255;
-          --ink-850: 247 244 238;
-          --ink-800: 239 233 223;
-          --ink-700: 226 218 206;
-          --ink-600: 208 198 184;
-          --white: 43 34 26; /* Deep espresso charcoal-brown */
-          --mist-100: 43 34 26;
-          --mist-200: 64 52 41;
-          --mist-300: 104 87 71;
-          --mist-400: 147 129 112;
-          --mist-500: 182 167 150;
-          --a: 191 161 95;
-          --b: 168 138 78;
+          --ink-850: 251 250 247;
+          --ink-800: 246 243 236;
+          --ink-700: 235 226 204;
+          --ink-600: 222 214 193;
+          --white: 53 50 41;
+          --mist-100: 53 50 41;
+          --mist-200: 65 60 50;
+          --mist-300: 104 98 82;
+          --mist-400: 140 132 114;
+          --mist-500: 183 176 158;
+          --a: 53 50 41;
+          --b: 183 176 158;
           --on-a: #ffffff;
-          --t-emerald: 184 150 86;
-          --t-amber: 200 169 110;
-          --t-sky: 168 140 108;
-          --t-rose: 184 102 82;
-          --t-violet: 148 120 90;
-          color: #2b221a;
+          --t-emerald: 53 50 41;
+          --t-amber: 139 117 80;
+          --t-sky: 104 98 82;
+          --t-rose: 153 27 27;
+          --t-violet: 104 98 82;
+          color: #353229;
         }
 
         /* Dark Theme Overrides */
@@ -256,18 +334,21 @@ function FulfillerAppContent() {
           border-color: rgba(165, 130, 95, 0.35) !important;
         }
 
-        /* Light Theme Overrides */
+        /* Department Manager Light Theme Overrides */
         .fulfiller-light #fulfiller-phone-shell {
-          background-color: #faf8f4 !important;
-          border-color: rgba(180, 150, 120, 0.3) !important;
+          background-color: #fbfaf7 !important;
+          border-color: #e7e2d7 !important;
+          color: #353229 !important;
         }
         .fulfiller-light header {
-          background-color: rgba(255, 255, 255, 0.96) !important;
-          border-color: rgba(180, 150, 120, 0.3) !important;
+          background-color: rgba(255, 255, 255, 0.98) !important;
+          border-color: #e7e2d7 !important;
+          box-shadow: 0 1px 3px rgba(53, 50, 41, 0.03) !important;
         }
         .fulfiller-light nav {
-          background-color: rgba(255, 255, 255, 0.96) !important;
-          border-color: rgba(180, 150, 120, 0.3) !important;
+          background-color: rgba(255, 255, 255, 0.98) !important;
+          border-color: #e7e2d7 !important;
+          box-shadow: 0 -4px 18px rgba(53, 50, 41, 0.04) !important;
         }
         .fulfiller-light .border-white\/10,
         .fulfiller-light .border-white\/20,
@@ -275,6 +356,7 @@ function FulfillerAppContent() {
         .fulfiller-light .border-white\/\[0\.06\],
         .fulfiller-light .border-white\/\[0\.04\],
         .fulfiller-light .border-white\/\[0\.03\],
+        .fulfiller-light .border-white\/\[0\.02\],
         .fulfiller-light .border-slate-300\/70,
         .fulfiller-light .border-slate-300\/80,
         .fulfiller-light .border-slate-200,
@@ -290,7 +372,7 @@ function FulfillerAppContent() {
         .fulfiller-light .border-\[rgba\(165\,130\,95\,0\.3\)\],
         .fulfiller-light .border-\[rgba\(165\,130\,95\,0\.35\)\],
         .fulfiller-light .border-\[rgba\(165\,130\,95\,0\.4\)\] {
-          border-color: rgba(180, 150, 120, 0.35) !important;
+          border-color: #e7e2d7 !important;
         }
         .fulfiller-light .bg-white\/\[0\.03\],
         .fulfiller-light .bg-white\/\[0\.04\],
@@ -310,95 +392,105 @@ function FulfillerAppContent() {
         .fulfiller-light .bg-ink-950,
         .fulfiller-light .bg-ink-900 {
           background-color: #ffffff !important;
-          color: #1c1917 !important;
+          color: #353229 !important;
+          border-color: #e7e2d7 !important;
+          box-shadow: 0 4px 18px rgba(53, 50, 41, 0.04), 0 1px 3px rgba(53, 50, 41, 0.02);
         }
 
-        /* High-Contrast Light Theme Text Visibility */
-        .fulfiller-light .text-white {
-          color: #1c1917 !important;
-        }
+        /* High-Contrast Department Manager Text Colors */
+        .fulfiller-light .text-white,
         .fulfiller-light .text-\[\#f7f4ed\],
+        .fulfiller-light .text-mist-100 {
+          color: #353229 !important;
+        }
         .fulfiller-light .text-\[\#ded6c9\],
-        .fulfiller-light .text-\[\#d9cebe\] {
-          color: #292524 !important;
+        .fulfiller-light .text-\[\#d9cebe\],
+        .fulfiller-light .text-mist-200,
+        .fulfiller-light .text-mist-300 {
+          color: #686252 !important;
         }
         .fulfiller-light .text-\[\#d4b896\],
         .fulfiller-light .text-\[\#a89f91\],
-        .fulfiller-light .text-\[\#a69886\] {
-          color: #57483b !important;
+        .fulfiller-light .text-\[\#a69886\],
+        .fulfiller-light .text-mist-400,
+        .fulfiller-light .text-mist-500 {
+          color: #8c8472 !important;
         }
         .fulfiller-light .text-\[\#dfc187\],
         .fulfiller-light .text-\[\#c8a96e\] {
-          color: #8c6b2d !important;
-        }
-        .fulfiller-light .text-mist-100,
-        .fulfiller-light .text-mist-200 {
-          color: #1c1917 !important;
-        }
-        .fulfiller-light .text-mist-300 {
-          color: #44403c !important;
-        }
-        .fulfiller-light .text-mist-400,
-        .fulfiller-light .text-mist-500 {
-          color: #57483b !important;
+          color: #8b7550 !important;
         }
         .fulfiller-light .text-emerald-600,
         .fulfiller-light .text-emerald-400,
         .fulfiller-light .text-emerald-300 {
-          color: #065f46 !important;
+          color: #353229 !important;
         }
         .fulfiller-light .text-amber-600,
         .fulfiller-light .text-amber-500,
         .fulfiller-light .text-amber-400,
         .fulfiller-light .text-amber-300 {
-          color: #854d0e !important;
+          color: #8b7550 !important;
         }
         .fulfiller-light .text-sky-600,
         .fulfiller-light .text-sky-400,
         .fulfiller-light .text-sky-300 {
-          color: #0369a1 !important;
+          color: #4a5568 !important;
         }
         .fulfiller-light .text-rose-200,
         .fulfiller-light .text-rose-200\/90,
         .fulfiller-light .text-rose-300,
         .fulfiller-light .text-rose-400 {
-          color: #9f1239 !important;
+          color: #991b1b !important;
         }
 
-        /* Light Theme Buttons & Badges */
+        /* Department Manager Style Action Buttons */
         .fulfiller-light .bg-emerald-500,
         .fulfiller-light .bg-emerald-600,
         .fulfiller-light .bg-amber-400,
         .fulfiller-light .bg-sky-500 {
-          background-color: #c8a96e !important;
-          color: #1a1612 !important;
+          background-color: #353229 !important;
+          color: #ffffff !important;
+          border: 1px solid #353229 !important;
+          font-weight: 600 !important;
         }
         .fulfiller-light button.bg-emerald-500:hover,
-        .fulfiller-light button.bg-amber-400:hover {
-          background-color: #bfa15f !important;
-          color: #1a1612 !important;
+        .fulfiller-light button.bg-amber-400:hover,
+        .fulfiller-light button.bg-sky-500:hover {
+          background-color: #484438 !important;
+          border-color: #484438 !important;
+          color: #ffffff !important;
         }
         .fulfiller-light .bg-emerald-500\/20,
         .fulfiller-light .bg-emerald-400\/20,
         .fulfiller-light .bg-amber-400\/20,
         .fulfiller-light .bg-sky-400\/20,
         .fulfiller-light .bg-purple-400\/20 {
-          background-color: rgba(200, 169, 110, 0.15) !important;
-          color: #8c6b2d !important;
-          border-color: rgba(180, 150, 120, 0.4) !important;
+          background-color: #f6f3ec !important;
+          color: #353229 !important;
+          border-color: #e7e2d7 !important;
         }
 
-        /* Light Theme Inputs, Textareas & Modals */
+        /* Department Manager Inputs, Selects & Modals */
         .fulfiller-light textarea,
         .fulfiller-light input[type="text"],
-        .fulfiller-light input[type="search"] {
+        .fulfiller-light input[type="search"],
+        .fulfiller-light select {
           background-color: #ffffff !important;
-          color: #1c1917 !important;
-          border-color: rgba(180, 150, 120, 0.45) !important;
+          color: #353229 !important;
+          border-color: #b7b09e !important;
+          border-radius: 7px !important;
+        }
+        .fulfiller-light textarea:focus,
+        .fulfiller-light input[type="text"]:focus,
+        .fulfiller-light input[type="search"]:focus,
+        .fulfiller-light select:focus {
+          border-color: #8b7550 !important;
+          outline: 2px solid #8b7550 !important;
+          outline-offset: 1px !important;
         }
         .fulfiller-light textarea::placeholder,
         .fulfiller-light input::placeholder {
-          color: #8c7b6d !important;
+          color: #8c8472 !important;
         }
       `}</style>
 
@@ -408,7 +500,7 @@ function FulfillerAppContent() {
         className={cn(
           'relative flex flex-col w-full h-full overflow-hidden transition-colors duration-300',
           isLight
-            ? 'bg-[#faf8f4] text-[#2b221a]'
+            ? 'bg-[#fbfaf7] text-[#353229]'
             : 'bg-[#141417] text-[#f7f4ed]',
         )}
       >
@@ -421,17 +513,17 @@ function FulfillerAppContent() {
                 className={cn(
                   'toast-in pointer-events-auto w-full max-w-md flex items-start gap-2.5 rounded-2xl border px-3.5 py-2.5 text-xs shadow-2xl animate-in slide-in-from-top-3 duration-200 backdrop-blur-xl',
                   isLight
-                    ? 'border-[rgba(180,150,120,0.5)] bg-white text-stone-900 shadow-[0_12px_40px_rgba(80,60,40,0.15)]'
+                    ? 'border-[#e7e2d7] bg-[#ffffff] text-[#353229] shadow-[0_12px_40px_rgba(53,50,41,0.12)]'
                     : 'border-[rgba(165,130,95,0.4)] bg-[#1c1c20]/95 text-[#f7f4ed]',
                 )}
               >
-                <CheckCircle2 className={cn('mt-0.5 h-4 w-4 shrink-0', isLight ? 'text-amber-700' : 'text-[#c8a96e]')} />
+                <CheckCircle2 className={cn('mt-0.5 h-4 w-4 shrink-0', isLight ? 'text-[#353229]' : 'text-[#c8a96e]')} />
                 <div className="min-w-0 flex-1">
-                  <p className={cn('font-bold leading-snug', isLight ? 'text-stone-900' : 'text-[#f7f4ed]')}>{t.text}</p>
+                  <p className={cn('font-bold leading-snug', isLight ? 'text-[#353229]' : 'text-[#f7f4ed]')}>{t.text}</p>
                   <p
                     className={cn(
                       'mt-0.5 text-[10px] uppercase font-mono tracking-wider font-semibold',
-                      isLight ? 'text-stone-600' : 'text-[#a69886]',
+                      isLight ? 'text-[#686252]' : 'text-[#a69886]',
                     )}
                   >
                     Task Notification
@@ -447,7 +539,7 @@ function FulfillerAppContent() {
           className={cn(
             'shrink-0 border-b px-4 sm:px-6 lg:px-8 pt-3 pb-3 sm:py-4 z-40 transition-colors duration-300',
             isLight
-              ? 'border-[rgba(180,150,120,0.3)] bg-white/95 backdrop-blur-xl text-[#2b221a] shadow-xs'
+              ? 'border-[#e7e2d7] bg-[#ffffff]/98 backdrop-blur-xl text-[#353229] shadow-xs'
               : 'border-[rgba(165,130,95,0.24)] bg-[#18181c]/95 text-[#f7f4ed] backdrop-blur-xl',
           )}
         >
@@ -471,7 +563,7 @@ function FulfillerAppContent() {
                   <h1
                     className={cn(
                       'text-xs sm:text-sm md:text-base font-bold truncate max-w-[140px] sm:max-w-xs transition-colors',
-                      isLight ? 'text-[#2b221a]' : 'text-[#f7f4ed]',
+                      isLight ? 'text-[#353229]' : 'text-[#f7f4ed]',
                     )}
                   >
                     {profile.employeeName}
@@ -481,50 +573,70 @@ function FulfillerAppContent() {
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      // Cycle through: On Duty -> On Break -> Off Duty -> On Duty
-                      const next =
-                        currentAvail === 'on_duty'
-                          ? 'break'
-                          : currentAvail === 'break'
-                            ? 'off_duty'
-                            : 'on_duty';
-                      setFulfillerAvailability(next);
+                      setBreakModalOpen(true);
                     }}
                     className={cn(
-                      'flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold border transition-colors cursor-pointer',
-                      currentAvail === 'break'
+                      'flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold border transition-all cursor-pointer',
+                      isRequestPending
                         ? isLight
-                          ? 'bg-amber-500/15 text-amber-700 border-amber-500/30'
-                          : 'bg-[#dfc187]/20 text-[#e8cf9a] border-[#dfc187]/40'
-                        : currentAvail === 'off_duty'
+                          ? 'bg-amber-50 text-amber-900 border-amber-300 shadow-2xs'
+                          : 'bg-amber-400/20 text-amber-300 border-amber-400/40'
+                        : currentAvail === 'break'
                           ? isLight
-                            ? 'bg-rose-500/15 text-rose-700 border-rose-500/30'
-                            : 'bg-rose-500/20 text-rose-300 border-rose-500/40'
-                          : isLight
-                            ? 'bg-[#c8a96e]/15 text-[#8c6b2d] border-[#c8a96e]/40'
-                            : 'bg-[#c8a96e]/20 text-[#dfc187] border-[#c8a96e]/40',
+                            ? 'bg-[#ebe2cc] text-[#353229] border-[#b7b09e]'
+                            : 'bg-[#dfc187]/20 text-[#e8cf9a] border-[#dfc187]/40'
+                          : currentAvail === 'off_duty'
+                            ? isLight
+                              ? 'bg-[#fff1f0] text-[#991b1b] border-[#fecaca]'
+                              : 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                            : isLight
+                              ? 'bg-[#f6f3ec] text-[#353229] border-[#e7e2d7] hover:border-[#b7b09e]'
+                              : 'bg-[#c8a96e]/20 text-[#dfc187] border-[#c8a96e]/40 hover:border-[#dfc187]',
                     )}
-                    title="Click to switch duty status (On Duty / On Break / Off Duty)"
+                    title={
+                      isRequestPending
+                        ? `${requestedLabel} request pending approval from Supervisor ${profile.supervisorName} (Click to view)`
+                        : currentAvail === 'break'
+                          ? 'Currently On Break (Click to end break & return to duty)'
+                          : currentAvail === 'off_duty'
+                            ? `Off Duty · Managed by Department Supervisor ${profile.supervisorName}`
+                            : `On Duty · Managed by Supervisor ${profile.supervisorName} (Click to request break)`
+                    }
                   >
                     <span
                       className={cn(
                         'h-1.5 w-1.5 rounded-full shrink-0',
-                        currentAvail === 'break'
-                          ? isLight ? 'bg-amber-600 animate-pulse' : 'bg-[#dfc187] animate-pulse'
-                          : currentAvail === 'off_duty'
-                            ? 'bg-rose-500'
-                            : isLight ? 'bg-[#8c6b2d]' : 'bg-[#c8a96e]',
+                        isRequestPending
+                          ? 'bg-amber-500 animate-pulse'
+                          : currentAvail === 'break'
+                            ? isLight ? 'bg-[#8b7550] animate-pulse' : 'bg-[#dfc187] animate-pulse'
+                            : currentAvail === 'off_duty'
+                              ? 'bg-rose-500'
+                              : isLight ? 'bg-[#353229]' : 'bg-[#c8a96e]',
                       )}
                     />
                     <span>
-                      {currentAvail === 'break' ? 'On Break' : currentAvail === 'off_duty' ? 'Off Duty' : 'On Duty'}
+                      {isRequestPending
+                        ? `${requestedLabel} Requested`
+                        : currentAvail === 'break'
+                          ? breakRemainingMs !== null
+                            ? `On Break · ${formatCountdown(breakRemainingMs)}`
+                            : 'On Break'
+                          : currentAvail === 'off_duty'
+                            ? 'Off Duty'
+                            : 'On Duty'}
                     </span>
+                    {currentAvail === 'on_duty' && !breakRequest && (
+                      <span className={cn('text-[8px] font-normal opacity-75 hidden sm:inline', isLight ? 'text-[#686252]' : 'text-mist-400')}>
+                        (Requests)
+                      </span>
+                    )}
                   </button>
                 </div>
                 <p
                   className={cn(
                     'text-[10px] sm:text-xs truncate font-medium mt-0.5',
-                    isLight ? 'text-[#685747]' : 'text-[#d9cebe]',
+                    isLight ? 'text-[#686252]' : 'text-[#d9cebe]',
                   )}
                 >
                   {profile.departmentName} · {profile.zone}
@@ -541,16 +653,16 @@ function FulfillerAppContent() {
                 className={cn(
                   'grid h-8 w-8 place-items-center rounded-lg border transition-colors',
                   isLight
-                    ? 'border-[rgba(180,150,120,0.3)] bg-[#faf8f4] text-[#685747] hover:bg-[#f0ebe1]'
+                    ? 'border-[#e7e2d7] bg-[#ffffff] text-[#353229] hover:bg-[#f6f3ec] hover:border-[#b7b09e]'
                     : 'border-[rgba(165,130,95,0.24)] bg-[#1f1f24] text-[#d9cebe] hover:text-[#f7f4ed] hover:border-[rgba(195,160,115,0.4)]',
                 )}
                 title={isSoundOn ? 'Mute task chime' : 'Enable task chime'}
                 aria-label="Toggle task chime"
               >
                 {isSoundOn ? (
-                  <Volume2 className={cn('h-3.5 w-3.5', isLight ? 'text-[#8c6b2d]' : 'text-[#dfc187]')} />
+                  <Volume2 className={cn('h-3.5 w-3.5', isLight ? 'text-[#353229]' : 'text-[#dfc187]')} />
                 ) : (
-                  <VolumeX className={cn('h-3.5 w-3.5', isLight ? 'text-[#938170]' : 'text-[#a69886]')} />
+                  <VolumeX className={cn('h-3.5 w-3.5', isLight ? 'text-[#8c8472]' : 'text-[#a69886]')} />
                 )}
               </button>
 
@@ -561,7 +673,7 @@ function FulfillerAppContent() {
                 className={cn(
                   'grid h-8 w-8 place-items-center rounded-lg border transition-colors',
                   isLight
-                    ? 'border-[rgba(180,150,120,0.3)] bg-[#faf8f4] text-[#b89656] hover:bg-[#f0ebe1]'
+                    ? 'border-[#e7e2d7] bg-[#ffffff] text-[#353229] hover:bg-[#f6f3ec] hover:border-[#b7b09e]'
                     : 'border-[rgba(165,130,95,0.24)] bg-[#1f1f24] text-[#dfc187] hover:text-[#f7f4ed] hover:border-[rgba(195,160,115,0.4)]',
                 )}
                 title={isLight ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
@@ -578,10 +690,10 @@ function FulfillerAppContent() {
                   'relative grid h-8 w-8 place-items-center rounded-lg border transition-colors',
                   activeTab === 'notifications'
                     ? isLight
-                      ? 'border-[#b89656] bg-[#c8a96e]/15 text-[#9c7836] ring-2 ring-[#c8a96e]/30'
+                      ? 'border-[#b7b09e] bg-[#ebe2cc] text-[#353229] ring-2 ring-[#ded6c1]'
                       : 'border-[#dfc187] bg-[#c8a96e]/20 text-[#dfc187] ring-2 ring-[#dfc187]/25'
                     : isLight
-                      ? 'border-[rgba(180,150,120,0.3)] bg-[#faf8f4] text-[#685747] hover:bg-[#f0ebe1]'
+                      ? 'border-[#e7e2d7] bg-[#ffffff] text-[#353229] hover:bg-[#f6f3ec] hover:border-[#b7b09e]'
                       : 'border-[rgba(165,130,95,0.24)] bg-[#1f1f24] text-[#d9cebe] hover:text-[#f7f4ed] hover:border-[rgba(195,160,115,0.4)]',
                 )}
                 title={unreadNotifCount > 0 ? `${unreadNotifCount} unread notifications` : 'Notifications & Alerts'}
@@ -589,7 +701,12 @@ function FulfillerAppContent() {
               >
                 <Bell className="h-3.5 w-3.5" />
                 {unreadNotifCount > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#c8a96e] px-1 text-[8px] font-extrabold text-[#141417] shadow-sm animate-pulse">
+                  <span
+                    className={cn(
+                      'absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[8px] font-extrabold shadow-sm animate-pulse',
+                      isLight ? 'bg-[#353229] text-[#ffffff]' : 'bg-[#c8a96e] text-[#141417]',
+                    )}
+                  >
                     {unreadNotifCount}
                   </span>
                 )}
@@ -601,7 +718,7 @@ function FulfillerAppContent() {
                 className={cn(
                   'grid h-8 w-8 place-items-center rounded-lg border transition-colors',
                   isLight
-                    ? 'border-[rgba(180,150,120,0.3)] bg-[#faf8f4] text-[#685747] hover:bg-[#f0ebe1]'
+                    ? 'border-[#e7e2d7] bg-[#ffffff] text-[#353229] hover:bg-[#f6f3ec] hover:border-[#b7b09e]'
                     : 'border-[rgba(165,130,95,0.24)] bg-[#1f1f24] text-[#d9cebe] hover:text-[#f7f4ed] hover:border-[rgba(195,160,115,0.4)]',
                 )}
                 title="Exit to staff login"
@@ -630,7 +747,7 @@ function FulfillerAppContent() {
           className={cn(
             'absolute inset-x-0 bottom-0 z-40 border-t pb-safe transition-colors duration-300 backdrop-blur-2xl',
             isLight
-              ? 'border-[rgba(180,150,120,0.3)] bg-white/95 text-[#685747] shadow-[0_-4px_25px_rgba(80,60,40,0.06)]'
+              ? 'border-[#e7e2d7] bg-[#ffffff]/98 text-[#686252] shadow-[0_-4px_18px_rgba(53,50,41,0.04)]'
               : 'border-[rgba(165,130,95,0.24)] bg-[#18181c]/95 text-[#d9cebe]',
           )}
         >
@@ -643,17 +760,22 @@ function FulfillerAppContent() {
                 'relative flex flex-col items-center gap-1 py-1 text-center transition-colors',
                 activeTab === 'tasks'
                   ? isLight
-                    ? 'text-[#8c6b2d] font-bold'
+                    ? 'text-[#353229] font-bold'
                     : 'text-[#dfc187] font-bold'
                   : isLight
-                    ? 'text-[#685747] hover:text-[#2b221a]'
+                    ? 'text-[#686252] hover:text-[#353229]'
                     : 'text-[#a69886] hover:text-[#f7f4ed]',
               )}
             >
               <span className="relative">
                 <ListChecks className="h-4 w-4" />
                 {activeTaskCount > 0 && (
-                  <span className="absolute -top-1 -right-2 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-[#c8a96e] px-0.5 text-[8px] font-bold text-[#141417]">
+                  <span
+                    className={cn(
+                      'absolute -top-1 -right-2 flex h-3.5 min-w-[14px] items-center justify-center rounded-full px-0.5 text-[8px] font-bold',
+                      isLight ? 'bg-[#353229] text-[#ffffff]' : 'bg-[#c8a96e] text-[#14120e]',
+                    )}
+                  >
                     {activeTaskCount}
                   </span>
                 )}
@@ -669,17 +791,22 @@ function FulfillerAppContent() {
                 'relative flex flex-col items-center gap-1 py-1 text-center transition-colors',
                 activeTab === 'notifications'
                   ? isLight
-                    ? 'text-[#8c6b2d] font-bold'
+                    ? 'text-[#353229] font-bold'
                     : 'text-[#dfc187] font-bold'
                   : isLight
-                    ? 'text-[#685747] hover:text-[#2b221a]'
+                    ? 'text-[#686252] hover:text-[#353229]'
                     : 'text-[#a69886] hover:text-[#f7f4ed]',
               )}
             >
               <span className="relative">
                 <Bell className="h-4 w-4" />
                 {unreadNotifCount > 0 && (
-                  <span className="absolute -top-1 -right-2 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-[#dfc187] px-0.5 text-[8px] font-bold text-[#141417] animate-pulse">
+                  <span
+                    className={cn(
+                      'absolute -top-1 -right-2 flex h-3.5 min-w-[14px] items-center justify-center rounded-full px-0.5 text-[8px] font-bold animate-pulse',
+                      isLight ? 'bg-[#353229] text-[#ffffff]' : 'bg-[#dfc187] text-[#14120e]',
+                    )}
+                  >
                     {unreadNotifCount}
                   </span>
                 )}
@@ -695,10 +822,10 @@ function FulfillerAppContent() {
                 'relative flex flex-col items-center gap-1 py-1 text-center transition-colors',
                 activeTab === 'policies'
                   ? isLight
-                    ? 'text-[#8c6b2d] font-bold'
+                    ? 'text-[#353229] font-bold'
                     : 'text-[#dfc187] font-bold'
                   : isLight
-                    ? 'text-[#685747] hover:text-[#2b221a]'
+                    ? 'text-[#686252] hover:text-[#353229]'
                     : 'text-[#a69886] hover:text-[#f7f4ed]',
               )}
             >
@@ -714,10 +841,10 @@ function FulfillerAppContent() {
                 'relative flex flex-col items-center gap-1 py-1 text-center transition-colors',
                 activeTab === 'performance'
                   ? isLight
-                    ? 'text-[#8c6b2d] font-bold'
+                    ? 'text-[#353229] font-bold'
                     : 'text-[#dfc187] font-bold'
                   : isLight
-                    ? 'text-[#685747] hover:text-[#2b221a]'
+                    ? 'text-[#686252] hover:text-[#353229]'
                     : 'text-[#a69886] hover:text-[#f7f4ed]',
               )}
             >
@@ -733,10 +860,10 @@ function FulfillerAppContent() {
                 'relative flex flex-col items-center gap-1 py-1 text-center transition-colors',
                 activeTab === 'profile'
                   ? isLight
-                    ? 'text-[#8c6b2d] font-bold'
+                    ? 'text-[#353229] font-bold'
                     : 'text-[#dfc187] font-bold'
                   : isLight
-                    ? 'text-[#685747] hover:text-[#2b221a]'
+                    ? 'text-[#686252] hover:text-[#353229]'
                     : 'text-[#a69886] hover:text-[#f7f4ed]',
               )}
             >
@@ -745,6 +872,17 @@ function FulfillerAppContent() {
             </button>
           </div>
         </nav>
+
+        {/* Break Request & Supervisor Shift Management Modal */}
+        <BreakRequestModal
+          isOpen={breakModalOpen}
+          onClose={() => setBreakModalOpen(false)}
+          profile={profile}
+          isLight={isLight}
+          currentAvail={currentAvail}
+          onSetAvailability={setFulfillerAvailability}
+          onNotify={notify}
+        />
       </div>
     </div>
   );

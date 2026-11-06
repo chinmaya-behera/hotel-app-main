@@ -220,6 +220,13 @@ interface DemoApi {
   requestTaskReassignment: (itemId: string, reason: string) => void;
   resolveReassignment: (supervisorItemId: string, fulfillerItemId: string, approved: boolean) => void;
   requestEmergencyShiftChange: (reason: string, details?: string) => void;
+  /** Fulfiller → Department Supervisor message (shows in the supervisor's Alerts & Notifications). */
+  notifyDepartmentSupervisor: (input: {
+    department: string;
+    title: string;
+    message: string;
+    tone?: 'urgent' | 'warning' | 'info';
+  }) => void;
   attachTaskPhoto: (roleId: RoleId, itemId: string, dataUrl: string) => void;
   markNotificationRead: (id: string) => void;
   clearAllNotifications: (roleId?: RoleId) => void;
@@ -1083,6 +1090,34 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     });
     notify('Emergency shift handover request logged with Duty Manager');
   }, [notify]);
+
+  const notifyDepartmentSupervisor = useCallback<DemoApi['notifyDepartmentSupervisor']>(
+    ({ department, title, message, tone }) => {
+      const timestamp = nowLabel();
+      setState((prev) => {
+        const supervisorNotif: InAppNotification = {
+          id: uid(),
+          roleId: 'department_dispatcher_supervisor',
+          targetRole: 'department_dispatcher_supervisor',
+          category: 'Operations',
+          department,
+          title,
+          message,
+          summary: message,
+          timestamp,
+          read: false,
+          type: 'alert',
+          tone: tone ?? 'info',
+        };
+        return {
+          ...prev,
+          notifications: [supervisorNotif, ...(prev.notifications ?? [])],
+          feed: [{ id: uid(), at: timestamp, role: department, text: title }, ...prev.feed].slice(0, 30),
+        };
+      });
+    },
+    [],
+  );
 
   const markNotificationRead = useCallback((id: string) => {
     setState((prev) => ({
@@ -6266,6 +6301,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       requestTaskReassignment,
       resolveReassignment,
       requestEmergencyShiftChange,
+      notifyDepartmentSupervisor,
       attachTaskPhoto,
       markNotificationRead,
       clearAllNotifications,
@@ -6386,6 +6422,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       requestTaskReassignment,
       resolveReassignment,
       requestEmergencyShiftChange,
+      notifyDepartmentSupervisor,
       attachTaskPhoto,
       markNotificationRead,
       clearAllNotifications,
