@@ -405,7 +405,7 @@ export function TopBar({ active, showRail = true }: TopBarProps) {
                             className="font-medium"
                             style={{ color: isLight ? '#0f172a' : '#e2e8f0' }}
                           >
-                            {staff.floorZone || 'Property-Wide'}
+                            {('floorZone' in staff ? staff.floorZone : undefined) || 'Property-Wide'}
                           </span>
                         </div>
 
@@ -423,7 +423,7 @@ export function TopBar({ active, showRail = true }: TopBarProps) {
                             className="font-mono text-[11px] truncate max-w-[190px] font-medium"
                             style={{ color: isLight ? '#0f172a' : '#e2e8f0' }}
                           >
-                            {staff.email || `${staff.name.toLowerCase().replace(/\s+/g, '.')}@grandazure.com`}
+                            {('email' in staff ? staff.email : undefined) || `${staff.name.toLowerCase().replace(/\s+/g, '.')}@grandazure.com`}
                           </span>
                         </div>
 
@@ -438,7 +438,7 @@ export function TopBar({ active, showRail = true }: TopBarProps) {
                             className="font-mono font-bold"
                             style={{ color: isLight ? '#047857' : '#34d399' }}
                           >
-                            {staff.financialLimit ? `₹${staff.financialLimit.toLocaleString('en-IN')}` : 'Operational Scope'}
+                            {'financialLimit' in staff && staff.financialLimit ? `₹${staff.financialLimit.toLocaleString('en-IN')}` : 'Operational Scope'}
                           </span>
                         </div>
                       </div>

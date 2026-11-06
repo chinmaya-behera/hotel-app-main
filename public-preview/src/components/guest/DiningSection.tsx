@@ -23,11 +23,14 @@ import {
   Leaf,
   Layers,
   HeartHandshake,
+  ChefHat,
+  MessageSquare,
 } from 'lucide-react';
 import { scheduledDiningTime } from '@/lib/department-insights';
 import { useDemo } from '@/lib/store';
 import { money } from '@/lib/utils';
 import { GuestSheet } from '@/components/guest/guestUi';
+import { CustomDishRequestModal } from './CustomDishRequestModal';
 import type { GuestTabProps } from '@/components/guest/types';
 import type {
   DiningMenuItem,
@@ -61,7 +64,24 @@ interface CartLineItem {
 }
 
 export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
-  const { state, placeRoomServiceOrder } = useDemo();
+  const {
+    state,
+    placeRoomServiceOrder,
+    guestApproveCustomDiningQuote,
+    guestReplyCustomDiningClarification,
+  } = useDemo();
+
+  // Custom Dish Request states
+  const [customDishModalOpen, setCustomDishModalOpen] = useState(false);
+  const [clarifyModalItem, setClarifyModalItem] = useState<{ id: string; ref: string; note: string } | null>(null);
+  const [clarifyReplyInput, setClarifyReplyInput] = useState('');
+
+  // Active custom dish requests for this room
+  const activeCustomRequests = useMemo(() => {
+    return (state.customDiningRequests ?? []).filter(
+      (r) => r.room === room && !['Delivered', 'Cancelled', 'Rejected'].includes(r.status),
+    );
+  }, [state.customDiningRequests, room]);
 
   // Search & Filtering states
   const [searchQuery, setSearchQuery] = useState('');
@@ -415,6 +435,163 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
             <X className="h-3.5 w-3.5" />
           </button>
         )}
+      </div>
+
+      {/* ACTIVE CUSTOM DISH LIVE NOTICES & QUOTE APPROVAL */}
+      {activeCustomRequests.length > 0 && (
+        <div className="space-y-3">
+          {activeCustomRequests.map((req) => {
+            const isQuoted = req.status === 'Price Quoted';
+            const isClarify = req.status === 'Clarification Requested';
+
+            return (
+              <div
+                key={req.id}
+                className="guest-card p-4 sm:p-5 border-amber-400/40 bg-gradient-to-r from-amber-500/10 via-ink-950 to-ink-900 space-y-3.5 shadow-xl animate-in fade-in"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-white/10">
+                  <div className="flex items-center gap-2.5">
+                    <span className="grid h-8 w-8 place-items-center rounded-xl bg-amber-400/20 text-amber-300">
+                      <ChefHat className="h-4 w-4" />
+                    </span>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono font-bold text-amber-400">{req.ref}</span>
+                        <h4 className="text-xs sm:text-sm font-bold text-white">
+                          {req.dishName || `${req.cuisine} Custom Dish`}
+                        </h4>
+                      </div>
+                      <p className="text-[10px] text-mist-400">
+                        {req.cuisine} · {req.dietaryPreference} · {req.servings} portion{req.servings > 1 ? 's' : ''} · Requested {req.createdAt}
+                      </p>
+                    </div>
+                  </div>
+
+                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border self-start sm:self-auto ${
+                    isQuoted
+                      ? 'bg-amber-400 text-ink-950 border-amber-400 shadow-sm animate-pulse'
+                      : isClarify
+                      ? 'bg-sky-400/20 text-sky-300 border-sky-400/40'
+                      : 'bg-white/10 text-mist-300 border-white/10'
+                  }`}>
+                    {req.status}
+                  </span>
+                </div>
+
+                {/* Quoted Price Review Box */}
+                {isQuoted && (
+                  <div className="p-3.5 rounded-xl bg-amber-400/10 border border-amber-400/30 space-y-2.5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-amber-300 tracking-wider">
+                          Kitchen Price &amp; Time Quote
+                        </span>
+                        <div className="flex items-baseline gap-2 mt-0.5">
+                          <span className="text-base sm:text-lg font-black font-mono text-white">
+                            {money(req.quotedPrice || 0)}
+                          </span>
+                          <span className="text-xs text-mist-300">
+                            · Est. Prep: <strong className="text-white">{req.quotedPrepTime || '30-40 mins'}</strong>
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => guestApproveCustomDiningQuote(req.id, false)}
+                          className="px-3 py-1.5 rounded-xl border border-rose-500/30 text-rose-300 hover:bg-rose-500/10 text-xs font-semibold transition-colors"
+                        >
+                          Decline
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => guestApproveCustomDiningQuote(req.id, true)}
+                          className="px-4 py-1.5 rounded-xl bg-amber-400 text-ink-950 font-bold text-xs hover:bg-amber-300 transition-colors shadow-md flex items-center gap-1.5"
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                          <span>Approve Price &amp; Confirm Order</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {req.kitchenNote && (
+                      <p className="text-[11px] text-mist-200 border-t border-amber-400/20 pt-2">
+                        <strong className="text-amber-300">Chef&apos;s Message:</strong> {req.kitchenNote}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Clarification Box */}
+                {isClarify && (
+                  <div className="p-3.5 rounded-xl bg-sky-400/10 border border-sky-400/30 space-y-2 text-xs">
+                    <p className="text-sky-200 text-xs">
+                      <strong className="text-white">Kitchen Question:</strong> {req.kitchenNote}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setClarifyModalItem({ id: req.id, ref: req.ref, note: req.kitchenNote || '' });
+                        setClarifyReplyInput('');
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-sky-400 text-ink-950 font-bold text-xs hover:bg-sky-300 transition-colors inline-flex items-center gap-1.5"
+                    >
+                      <MessageSquare className="h-3.5 w-3.5" />
+                      <span>Reply to Chef</span>
+                    </button>
+                  </div>
+                )}
+
+                {!isQuoted && !isClarify && (
+                  <p className="text-xs text-mist-300 flex items-center gap-2">
+                    <Clock className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                    <span>
+                      {req.status === 'Submitted' && 'Kitchen team received your custom dish request. Awaiting chef review.'}
+                      {req.status === 'Under Kitchen Review' && 'Executive Chef is verifying pantry ingredients & pricing.'}
+                      {req.status === 'In Preparation' && 'Order confirmed! Kitchen is currently cooking your custom dish.'}
+                      {req.status === 'Ready' && 'Dish is cooked and tray is being dressed for delivery.'}
+                      {req.status === 'Out for Delivery' && 'Runner is en route to Room ' + room + ' with your food.'}
+                    </span>
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* DISTINCT CUSTOMISE YOUR ORDER CARD */}
+      <div className="guest-card p-4 sm:p-5 border-amber-400/30 bg-gradient-to-r from-amber-500/10 via-amber-400/[0.04] to-ink-900/40 relative overflow-hidden shadow-lg">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2.5">
+              <span className="grid h-9 w-9 place-items-center rounded-xl bg-amber-400/20 text-amber-300 border border-amber-400/30 shrink-0">
+                <ChefHat className="h-5 w-5" />
+              </span>
+              <div>
+                <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                  <span>Customise Your Order</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-mono font-bold uppercase">
+                    Chef&apos;s Table
+                  </span>
+                </h3>
+              </div>
+            </div>
+            <p className="text-xs text-mist-300 max-w-xl pl-0 sm:pl-11">
+              Can&apos;t find what you&apos;re craving? Tell us what you&apos;d like, and we&apos;ll check if we can prepare it.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setCustomDishModalOpen(true)}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-400 text-ink-950 text-xs font-bold hover:bg-amber-300 shadow-md transition-all shrink-0 cursor-pointer self-start sm:self-auto"
+          >
+            <UtensilsCrossed className="h-3.5 w-3.5" />
+            <span>Request a Custom Dish</span>
+          </button>
+        </div>
       </div>
 
       {/* 2. COMPACT FOOD FILTERS & ALLERGENS */}
@@ -1367,6 +1544,53 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
               >
                 Close
               </button>
+            </div>
+          </div>
+        </GuestSheet>
+      )}
+
+      {/* CUSTOM DISH REQUEST MODAL */}
+      <CustomDishRequestModal
+        isOpen={customDishModalOpen}
+        onClose={() => setCustomDishModalOpen(false)}
+        room={room}
+        guestName={guestName}
+      />
+
+      {/* CLARIFICATION REPLY SHEET */}
+      {clarifyModalItem && (
+        <GuestSheet
+          title={`Reply to Kitchen · ${clarifyModalItem.ref}`}
+          onClose={() => setClarifyModalItem(null)}
+          footer={
+            <button
+              type="button"
+              disabled={!clarifyReplyInput.trim()}
+              onClick={() => {
+                guestReplyCustomDiningClarification(clarifyModalItem.id, clarifyReplyInput.trim());
+                setClarifyModalItem(null);
+                setClarifyReplyInput('');
+              }}
+              className="w-full py-2.5 px-3 rounded-xl bg-amber-400 text-ink-950 text-xs font-bold hover:bg-amber-300 shadow-md disabled:opacity-40"
+            >
+              Send Answer to Chef
+            </button>
+          }
+        >
+          <div className="space-y-3 text-xs">
+            <div className="p-3 rounded-xl bg-sky-500/10 border border-sky-500/20 text-sky-200">
+              <span className="text-[10px] font-bold uppercase block text-sky-400">Chef&apos;s Inquiry</span>
+              <p className="mt-0.5">{clarifyModalItem.note}</p>
+            </div>
+            <div className="space-y-1">
+              <label className="font-semibold text-mist-200">Your Answer / Clarification</label>
+              <textarea
+                rows={3}
+                value={clarifyReplyInput}
+                onChange={(e) => setClarifyReplyInput(e.target.value)}
+                placeholder="Type your clarification for the kitchen..."
+                className="w-full px-3 py-2 rounded-xl bg-ink-900 border border-white/15 text-white text-xs outline-none focus:border-amber-400"
+              />
             </div>
           </div>
         </GuestSheet>
