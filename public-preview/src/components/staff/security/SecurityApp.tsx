@@ -141,6 +141,7 @@ export function SecurityApp() {
   }, [setPersona]);
 
   // Initialize Lenis smooth scroll
+  const lenisRef = useRef<Lenis | null>(null);
   useEffect(() => {
     const lenis = new Lenis({
       duration: 1.15,
@@ -148,6 +149,7 @@ export function SecurityApp() {
       smoothWheel: true,
       touchMultiplier: 1.5,
     });
+    lenisRef.current = lenis;
 
     let rafId: number;
     function raf(time: number) {
@@ -159,8 +161,20 @@ export function SecurityApp() {
     return () => {
       cancelAnimationFrame(rafId);
       lenis.destroy();
+      lenisRef.current = null;
     };
   }, []);
+
+  // Pause Lenis smooth scroll whenever an interactive modal dialog is open
+  useEffect(() => {
+    const isAnyModalOpen = Boolean(selectedIncident || showLogModal || modal);
+
+    if (isAnyModalOpen) {
+      lenisRef.current?.stop();
+    } else {
+      lenisRef.current?.start();
+    }
+  }, [selectedIncident, showLogModal, modal]);
 
   // GSAP Text & UI entrance animations
   useEffect(() => {

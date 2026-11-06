@@ -72,6 +72,21 @@
 .security-modal-scroll::-webkit-scrollbar-thumb:hover {
   background: rgba(120, 113, 108, 0.65);
 }
+
+/* Ensure all select dropdown option text is crisp, high-contrast, and 100% visible */
+.department-manager-page select,
+.dm-dialog select,
+.dm-dialog-card select {
+  color: #0f172a !important;
+}
+.department-manager-page option,
+.dm-dialog option,
+.dm-dialog-card option,
+.dm-workspace option,
+select option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
 .department-manager-page {
   --dm-paper: var(--warm-panel);
   --dm-surface: var(--warm-highlight);

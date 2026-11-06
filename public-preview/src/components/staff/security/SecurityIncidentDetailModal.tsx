@@ -77,6 +77,18 @@ export function SecurityIncidentDetailModal({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const postFileInputRef = useRef<HTMLInputElement>(null);
+  const scrollBodyRef = useRef<HTMLDivElement>(null);
+
+  // Allow mouse-wheel scrolling even if cursor is over pinned header or footer
+  const handleModalWheel = (e: React.WheelEvent) => {
+    e.stopPropagation();
+    if (scrollBodyRef.current) {
+      const isOverBody = scrollBodyRef.current.contains(e.target as Node);
+      if (!isOverBody) {
+        scrollBodyRef.current.scrollTop += e.deltaY;
+      }
+    }
+  };
 
   if (!isOpen || !item) return null;
 
@@ -230,8 +242,15 @@ export function SecurityIncidentDetailModal({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-stone-900/60 backdrop-blur-sm animate-in fade-in duration-150">
-        <div className="dm-dialog-card w-full max-w-3xl h-[92vh] max-h-[860px] bg-white border border-[var(--dm-line)] rounded-2xl shadow-2xl flex flex-col overflow-hidden text-[var(--dm-ink)]">
+      <div
+        data-lenis-prevent
+        className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-stone-900/60 backdrop-blur-sm animate-in fade-in duration-150"
+      >
+        <div
+          data-lenis-prevent
+          onWheel={handleModalWheel}
+          className="dm-dialog-card w-full max-w-3xl h-[92vh] max-h-[860px] bg-white border border-[var(--dm-line)] rounded-2xl shadow-2xl flex flex-col overflow-hidden text-[var(--dm-ink)]"
+        >
           {/* ================= MODAL HEADER (PINNED) ================= */}
           <div className="shrink-0 p-5 sm:p-6 border-b border-[var(--dm-line)] bg-white">
             {/* Row 1: Badges, Incident Ref, Status Chip, Close */}
@@ -300,7 +319,7 @@ export function SecurityIncidentDetailModal({
                 </p>
               </div>
 
-              {/* Status Select dropdown */}
+              {/* Status Select dropdown with high-contrast text */}
               <div className="flex items-center gap-1.5 shrink-0 self-start sm:self-auto">
                 <span className="text-[11px] text-[var(--dm-muted)] font-medium">Status:</span>
                 <select
@@ -314,14 +333,15 @@ export function SecurityIncidentDetailModal({
                     else if (next === 'Resolved') setIsSolvingInline(true);
                   }}
                   aria-label="Change incident status"
-                  className="text-xs font-semibold rounded-lg px-2.5 py-1.5 border border-[var(--dm-line)] bg-white text-[var(--dm-ink)] shadow-sm focus:outline-none cursor-pointer"
+                  className="text-xs font-semibold rounded-lg px-2.5 py-1.5 border border-[var(--dm-line)] bg-white text-stone-900 shadow-sm focus:outline-none cursor-pointer"
+                  style={{ backgroundColor: '#ffffff', color: '#0f172a' }}
                 >
-                  <option value="New">1. Triggered (New)</option>
-                  <option value="Acknowledged">2. Responding (En Route)</option>
-                  <option value="On scene">3. On Scene (Investigating)</option>
-                  <option value="Backup requested">3b. Backup Requested</option>
-                  <option value="Escalated">3c. Escalated to DM</option>
-                  <option value="Resolved">4. Solved (Secured)</option>
+                  <option value="New" style={{ backgroundColor: '#ffffff', color: '#0f172a' }}>1. Triggered (New)</option>
+                  <option value="Acknowledged" style={{ backgroundColor: '#ffffff', color: '#0f172a' }}>2. Responding (En Route)</option>
+                  <option value="On scene" style={{ backgroundColor: '#ffffff', color: '#0f172a' }}>3. On Scene (Investigating)</option>
+                  <option value="Backup requested" style={{ backgroundColor: '#ffffff', color: '#0f172a' }}>3b. Backup Requested</option>
+                  <option value="Escalated" style={{ backgroundColor: '#ffffff', color: '#0f172a' }}>3c. Escalated to DM</option>
+                  <option value="Resolved" style={{ backgroundColor: '#ffffff', color: '#0f172a' }}>4. Solved (Secured)</option>
                 </select>
               </div>
             </div>
@@ -445,8 +465,13 @@ export function SecurityIncidentDetailModal({
             </div>
           </div>
 
-          {/* ================= MODAL SCROLLABLE BODY ================= */}
-          <div className="flex-1 min-h-0 overflow-y-auto security-modal-scroll p-5 sm:p-6 space-y-4">
+          {/* ================= MODAL SCROLLABLE BODY (LENIS-PREVENTED & SMOOTH WHEEL) ================= */}
+          <div
+            ref={scrollBodyRef}
+            data-lenis-prevent
+            onWheel={(e) => e.stopPropagation()}
+            className="flex-1 min-h-0 overflow-y-auto security-modal-scroll p-5 sm:p-6 space-y-4"
+          >
             {/* ================= 1. LOCATION & ORIENTATION ================= */}
             <div className="p-4 rounded-xl bg-[var(--dm-surface)] border border-[var(--dm-line)] flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
@@ -591,13 +616,14 @@ export function SecurityIncidentDetailModal({
                     <select
                       value={solveOutcome}
                       onChange={(e) => setSolveOutcome(e.target.value)}
-                      className="w-full rounded-xl bg-white border border-emerald-300 px-3 py-2 text-xs text-[var(--dm-ink)] focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full rounded-xl bg-white border border-emerald-300 px-3 py-2 text-xs text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                      style={{ backgroundColor: '#ffffff', color: '#0f172a' }}
                     >
-                      <option value="Secured & Stabilized">Secured &amp; Stabilized</option>
-                      <option value="False Alarm - Sensor Reset">False Alarm - Sensor Reset</option>
-                      <option value="Guest Reassured & Closed">Guest Reassured &amp; Closed</option>
-                      <option value="Maintenance Work Order Dispatched">Maintenance Work Order Dispatched</option>
-                      <option value="Police / External Handover">Police / External Handover</option>
+                      <option value="Secured & Stabilized" style={{ backgroundColor: '#ffffff', color: '#0f172a' }}>Secured &amp; Stabilized</option>
+                      <option value="False Alarm - Sensor Reset" style={{ backgroundColor: '#ffffff', color: '#0f172a' }}>False Alarm - Sensor Reset</option>
+                      <option value="Guest Reassured & Closed" style={{ backgroundColor: '#ffffff', color: '#0f172a' }}>Guest Reassured &amp; Closed</option>
+                      <option value="Maintenance Work Order Dispatched" style={{ backgroundColor: '#ffffff', color: '#0f172a' }}>Maintenance Work Order Dispatched</option>
+                      <option value="Police / External Handover" style={{ backgroundColor: '#ffffff', color: '#0f172a' }}>Police / External Handover</option>
                     </select>
                   </div>
 
