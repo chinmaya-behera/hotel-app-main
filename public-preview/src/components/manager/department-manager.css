@@ -50,6 +50,28 @@
 .dm-dialog-card .dm-icon-button:hover {
   background: var(--dm-surface) !important;
 }
+
+/* Security incident modal custom scrollbar & responsive layout */
+.security-modal-scroll {
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(120, 113, 108, 0.45) rgba(0, 0, 0, 0.05);
+}
+.security-modal-scroll::-webkit-scrollbar {
+  width: 7px;
+}
+.security-modal-scroll::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 4px;
+}
+.security-modal-scroll::-webkit-scrollbar-thumb {
+  background: rgba(120, 113, 108, 0.4);
+  border-radius: 4px;
+}
+.security-modal-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(120, 113, 108, 0.65);
+}
 .department-manager-page {
   --dm-paper: var(--warm-panel);
   --dm-surface: var(--warm-highlight);

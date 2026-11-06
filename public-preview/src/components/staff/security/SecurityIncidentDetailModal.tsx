@@ -230,12 +230,13 @@ export function SecurityIncidentDetailModal({
 
   return (
     <>
-      <div className="fixed inset-0 z-40 flex items-center justify-center p-3 sm:p-4 bg-stone-900/60 backdrop-blur-md animate-in fade-in duration-150">
-        <div className="dm-dialog-card w-full max-w-2xl bg-white border border-[var(--dm-line)] rounded-2xl shadow-2xl flex flex-col max-h-[94vh] overflow-hidden text-[var(--dm-ink)]">
-          {/* ================= MODAL HEADER ================= */}
-          <div className="p-5 sm:p-6 border-b border-[var(--dm-line)] bg-white">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-stone-900/60 backdrop-blur-sm animate-in fade-in duration-150">
+        <div className="dm-dialog-card w-full max-w-3xl h-[92vh] max-h-[860px] bg-white border border-[var(--dm-line)] rounded-2xl shadow-2xl flex flex-col overflow-hidden text-[var(--dm-ink)]">
+          {/* ================= MODAL HEADER (PINNED) ================= */}
+          <div className="shrink-0 p-5 sm:p-6 border-b border-[var(--dm-line)] bg-white">
+            {/* Row 1: Badges, Incident Ref, Status Chip, Close */}
             <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span
                   className={
                     item.priority === 'critical' || item.priority === 'urgent'
@@ -255,22 +256,42 @@ export function SecurityIncidentDetailModal({
                 )}
               </div>
 
-              <button
-                onClick={onClose}
-                className="dm-icon-button"
-                aria-label="Close dialog"
-                title="Close dialog"
-              >
-                <X size={18} />
-              </button>
+              <div className="flex items-center gap-2">
+                <span
+                  className={
+                    isResolved
+                      ? 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-sm'
+                      : isEscalated || isBackup
+                      ? 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300 shadow-sm animate-pulse'
+                      : isOnScene
+                      ? 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300 shadow-sm'
+                      : isAck
+                      ? 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-sky-100 text-sky-800 border border-sky-300 shadow-sm'
+                      : 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300'
+                  }
+                >
+                  <span className="h-2 w-2 rounded-full bg-current" />
+                  {item.chip || item.status}
+                </span>
+
+                <button
+                  onClick={onClose}
+                  className="dm-icon-button"
+                  aria-label="Close dialog"
+                  title="Close dialog"
+                >
+                  <X size={18} />
+                </button>
+              </div>
             </div>
 
-            <div className="mt-3.5 flex items-start justify-between gap-4">
+            {/* Row 2: Title & Location */}
+            <div className="mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <h2 className="text-xl sm:text-2xl font-bold text-[var(--dm-ink)] tracking-tight leading-tight">
                   {item.title}
                 </h2>
-                <p className="mt-1 text-xs text-[var(--dm-muted)] flex items-center gap-2 flex-wrap">
+                <p className="mt-0.5 text-xs text-[var(--dm-muted)] flex items-center gap-2 flex-wrap">
                   <span>Triggered {item.createdAt || 'Recent'}</span>
                   <span>•</span>
                   <span className="font-semibold text-[var(--dm-ink)]">{protocol.code}</span>
@@ -279,51 +300,39 @@ export function SecurityIncidentDetailModal({
                 </p>
               </div>
 
-              {/* Status Badge & Direct Status Selector */}
-              <div className="shrink-0 flex items-center gap-2">
-                <span
-                  className={
-                    isResolved
-                      ? 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-sm'
-                      : isEscalated || isBackup
-                      ? 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300 shadow-sm animate-pulse'
-                      : isOnScene
-                      ? 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300 shadow-sm'
-                      : isAck
-                      ? 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-sky-100 text-sky-800 border border-sky-300 shadow-sm'
-                      : 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300'
-                  }
-                >
-                  <span className="h-2 w-2 rounded-full bg-current" />
-                  {item.chip || item.status}
-                </span>
-
+              {/* Status Select dropdown */}
+              <div className="flex items-center gap-1.5 shrink-0 self-start sm:self-auto">
+                <span className="text-[11px] text-[var(--dm-muted)] font-medium">Status:</span>
                 <select
-                  value={isResolved ? 'Resolved' : isOnScene ? 'On scene' : isAck ? 'Acknowledged' : 'New'}
+                  value={item.status}
                   onChange={(e) => {
                     const next = e.target.value;
                     if (next === 'Acknowledged') onAcknowledge(item.id);
                     else if (next === 'On scene') onArrive(item.id);
+                    else if (next === 'Backup requested') onRequestBackup(item.id, 'Additional officer requested');
+                    else if (next === 'Escalated') onEscalate(item.id, 'Escalated to operations');
                     else if (next === 'Resolved') setIsSolvingInline(true);
                   }}
                   aria-label="Change incident status"
                   className="text-xs font-semibold rounded-lg px-2.5 py-1.5 border border-[var(--dm-line)] bg-white text-[var(--dm-ink)] shadow-sm focus:outline-none cursor-pointer"
                 >
-                  <option value="New">1. Triggered</option>
-                  <option value="Acknowledged">2. Responding</option>
-                  <option value="On scene">3. On Scene</option>
-                  <option value="Resolved">4. Solved</option>
+                  <option value="New">1. Triggered (New)</option>
+                  <option value="Acknowledged">2. Responding (En Route)</option>
+                  <option value="On scene">3. On Scene (Investigating)</option>
+                  <option value="Backup requested">3b. Backup Requested</option>
+                  <option value="Escalated">3c. Escalated to DM</option>
+                  <option value="Resolved">4. Solved (Secured)</option>
                 </select>
               </div>
             </div>
 
-            {/* ================= INTERACTIVE STATUS PIPELINE TRACKER ================= */}
-            <div className="mt-5 pt-4 border-t border-[var(--dm-line)]">
-              <div className="flex items-center justify-between relative">
+            {/* Status Stepper */}
+            <div className="mt-4 pt-3.5 border-t border-[var(--dm-line)]">
+              <div className="flex items-center justify-between relative px-2 sm:px-6">
                 {/* Connecting Line */}
-                <div className="absolute left-6 right-6 top-3 h-0.5 bg-[var(--dm-line)] -z-0" />
+                <div className="absolute left-6 right-6 top-4 -translate-y-1/2 h-0.5 bg-[var(--dm-line)] -z-0" />
                 <div
-                  className="absolute left-6 top-3 h-0.5 bg-emerald-600 transition-all duration-300 -z-0"
+                  className="absolute left-6 top-4 -translate-y-1/2 h-0.5 bg-emerald-600 transition-all duration-300 -z-0"
                   style={{ width: `${(currentStep / 3) * 100}%` }}
                 />
 
@@ -344,16 +353,16 @@ export function SecurityIncidentDetailModal({
                       <div
                         className={
                           isDone
-                            ? 'w-7 h-7 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shadow-md transition-transform group-hover:scale-110'
+                            ? 'w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shadow-md transition-transform group-hover:scale-110'
                             : isCurrent
-                            ? 'w-7 h-7 rounded-full bg-[var(--dm-ink)] text-white flex items-center justify-center font-bold text-xs shadow-md ring-4 ring-[var(--warm-highlight)] transition-transform group-hover:scale-110'
-                            : 'w-7 h-7 rounded-full bg-[var(--dm-surface)] border border-[var(--dm-line)] text-[var(--dm-muted)] flex items-center justify-center font-semibold text-xs transition-transform group-hover:scale-110'
+                            ? 'w-8 h-8 rounded-full bg-[var(--dm-ink)] text-white flex items-center justify-center font-bold text-xs shadow-md ring-4 ring-[var(--warm-highlight)] transition-transform group-hover:scale-110'
+                            : 'w-8 h-8 rounded-full bg-[var(--dm-surface)] border border-[var(--dm-line)] text-[var(--dm-muted)] flex items-center justify-center font-semibold text-xs transition-transform group-hover:scale-110'
                         }
                       >
                         {isDone ? <Check size={14} strokeWidth={2.5} /> : idx + 1}
                       </div>
                       <span
-                        className={`text-[11px] font-semibold mt-1.5 ${
+                        className={`text-[11px] font-semibold mt-1 ${
                           isCurrent ? 'text-[var(--dm-ink)] font-bold' : 'text-[var(--dm-muted)]'
                         }`}
                       >
@@ -366,13 +375,17 @@ export function SecurityIncidentDetailModal({
               </div>
 
               {/* Status Action Quick Bar */}
-              <div className="mt-4 flex items-center justify-between gap-3 p-2.5 rounded-xl bg-[var(--warm-soft)] border border-[var(--dm-line)]">
+              <div className="mt-3 flex items-center justify-between gap-3 p-2.5 rounded-xl bg-[var(--warm-soft)] border border-[var(--dm-line)]">
                 <div className="flex items-center gap-2 text-xs">
-                  <Activity size={15} className="text-[var(--dm-muted)]" />
+                  <Activity size={15} className="text-[var(--dm-muted)] shrink-0" />
                   <span className="text-[var(--dm-muted)]">Current Phase:</span>
                   <strong className="text-[var(--dm-ink)] font-semibold">
                     {isResolved
                       ? 'Case Solved & Archived'
+                      : isBackup
+                      ? 'Backup Requested — Officer Support Dispatched'
+                      : isEscalated
+                      ? 'Escalated to Duty Manager'
                       : isOnScene
                       ? 'Officer On Scene Assessment'
                       : isAck
@@ -402,7 +415,7 @@ export function SecurityIncidentDetailModal({
                     </button>
                   )}
 
-                  {isOnScene && !isSolvingInline && (
+                  {(isOnScene || isBackup) && !isSolvingInline && (
                     <button
                       onClick={() => setIsSolvingInline(true)}
                       className="dm-primary text-xs py-1.5 px-3.5 rounded-lg flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-800 border-emerald-700 text-white"
@@ -412,7 +425,7 @@ export function SecurityIncidentDetailModal({
                     </button>
                   )}
 
-                  {!isResolved && !isOnScene && !isSolvingInline && (
+                  {!isResolved && !isOnScene && !isBackup && !isSolvingInline && (
                     <button
                       onClick={() => setIsSolvingInline(true)}
                       className="dm-secondary text-xs py-1.5 px-3 rounded-lg flex items-center gap-1.5"
@@ -433,7 +446,7 @@ export function SecurityIncidentDetailModal({
           </div>
 
           {/* ================= MODAL SCROLLABLE BODY ================= */}
-          <div className="p-5 sm:p-6 overflow-y-auto space-y-4 max-h-[calc(94vh-180px)]">
+          <div className="flex-1 min-h-0 overflow-y-auto security-modal-scroll p-5 sm:p-6 space-y-4">
             {/* ================= 1. LOCATION & ORIENTATION ================= */}
             <div className="p-4 rounded-xl bg-[var(--dm-surface)] border border-[var(--dm-line)] flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
@@ -943,8 +956,8 @@ export function SecurityIncidentDetailModal({
             </div>
           </div>
 
-          {/* ================= MODAL FOOTER ACTIONS ================= */}
-          <div className="p-4 sm:p-5 border-t border-[var(--dm-line)] bg-[var(--warm-soft)] flex items-center justify-between gap-3">
+          {/* ================= MODAL FOOTER ACTIONS (PINNED) ================= */}
+          <div className="shrink-0 p-4 sm:p-5 border-t border-[var(--dm-line)] bg-[var(--warm-soft)] flex items-center justify-between gap-3">
             <button
               onClick={onClose}
               className="dm-secondary text-xs px-4 py-2.5 rounded-xl cursor-pointer"
@@ -977,7 +990,7 @@ export function SecurityIncidentDetailModal({
                 </button>
               )}
 
-              {isOnScene && !isSolvingInline && (
+              {(isOnScene || isBackup || isEscalated || (!isNew && !isAck && !isResolved)) && !isSolvingInline && (
                 <button
                   onClick={() => setIsSolvingInline(true)}
                   className="dm-primary text-xs px-5 py-2.5 rounded-xl font-bold flex items-center gap-1.5 cursor-pointer shadow-md bg-emerald-700 hover:bg-emerald-800 border-emerald-700 text-white"
