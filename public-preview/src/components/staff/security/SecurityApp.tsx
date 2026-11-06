@@ -45,14 +45,11 @@ import '../../manager/department-manager.css';
 
 const NAV = [
   ['overview', 'Overview', Gauge, 'Workspace'],
-  ['plan', 'Security Patrol Plan', ClipboardCheck, 'Workspace'],
   ['incidents', 'Incident Monitoring', Activity, 'Workspace'],
-  ['inspections', 'Inspections & Sweeps', ClipboardCheck, 'Workspace'],
   ['recovery', 'Escalations & Recovery', Handshake, 'Workspace'],
   ['staff', 'Officers & Workload', Users, 'Management'],
   ['policies', 'Policies & SOPs', BookOpen, 'Management'],
   ['handover', 'Shift Handover', Send, 'Management'],
-  ['analytics', 'Security Analytics', BarChart3, 'Management'],
   ['notifications', 'Notifications', Bell, 'Personal'],
   ['profile', 'Profile', UserRound, 'Personal'],
 ] as const satisfies readonly (readonly [string, string, LucideIcon, string])[];
@@ -598,7 +595,7 @@ export function SecurityApp() {
                       </div>
                       <p>Quality checks and General Manager directives.</p>
                     </div>
-                    <button className="dm-text-button" onClick={() => navigate('inspections')}>
+                    <button className="dm-text-button" onClick={() => navigate('incidents')}>
                       View all <ArrowUpRight size={14} />
                     </button>
                   </div>
@@ -662,22 +659,22 @@ export function SecurityApp() {
                   </div>
                 </section>
 
-                {/* 2. Security Patrol Plan / Department Tools Card */}
+                {/* 2. Policies & SOPs / Department Tools Card */}
                 <section className="dm-panel dm-desk-summary">
                   <div className="dm-desk-card-label">
                     <Shield size={16} />
                     <span>Department tools</span>
                   </div>
-                  <h2>Security patrol plan</h2>
-                  <p>2 sweeps active · 0 breaches reported</p>
-                  <small>Stay ahead of critical incidents and keep patrol checkpoints moving.</small>
+                  <h2>Policies &amp; SOPs</h2>
+                  <p>Emergency playbooks &amp; response protocols</p>
+                  <small>Stay ahead of critical incidents and keep emergency protocols ready.</small>
                   <div style={{ marginTop: 'auto', paddingTop: '18px' }}>
                     <button
                       className="dm-primary"
                       style={{ width: '100%' }}
-                      onClick={() => navigate('plan')}
+                      onClick={() => navigate('policies')}
                     >
-                      Open security desk &rarr;
+                      Open emergency playbooks &rarr;
                     </button>
                   </div>
                 </section>
@@ -746,87 +743,6 @@ export function SecurityApp() {
               </div>
             </section>
           </>
-        )}
-
-        {/* ===================== TAB: PATROL PLAN ===================== */}
-        {tab === 'plan' && (
-          <section className="dm-panel">
-            <div className="dm-panel-heading">
-              <div>
-                <h2>Security Patrol &amp; Perimeter Plan</h2>
-                <p>Scheduled checkpoint rounds, sector coverage, and active surveillance zones.</p>
-              </div>
-              <button
-                className="dm-primary"
-                onClick={() => openModal({ kind: 'inspection', sector: 'Perimeter Grounds' })}
-              >
-                + Schedule Patrol Sweep
-              </button>
-            </div>
-
-            <div className="dm-kpis" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', marginBottom: '24px' }}>
-              <div className="dm-kpi">
-                <span className="dm-kpi-label">
-                  Lobby &amp; Entrance
-                  <span className="dm-kpi-icon">
-                    <CheckCheck size={19} />
-                  </span>
-                </span>
-                <strong>100%</strong>
-                <span className="dm-kpi-bottom">
-                  <small>Night check completed at 00:15</small>
-                </span>
-              </div>
-              <div className="dm-kpi">
-                <span className="dm-kpi-label">
-                  Pool Deck &amp; Cabanas
-                  <span className="dm-kpi-icon">
-                    <Activity size={19} />
-                  </span>
-                </span>
-                <strong>60%</strong>
-                <span className="dm-kpi-bottom">
-                  <small>Checkpoint 2 in progress by Officer Marcus</small>
-                </span>
-              </div>
-              <div className="dm-kpi">
-                <span className="dm-kpi-label">
-                  Basement &amp; Garages
-                  <span className="dm-kpi-icon">
-                    <ShieldAlert size={19} />
-                  </span>
-                </span>
-                <strong>90%</strong>
-                <span className="dm-kpi-bottom">
-                  <small>Service Corridor B access secured</small>
-                </span>
-              </div>
-            </div>
-
-            <div className="dm-panel-heading" style={{ borderTop: '1px solid var(--dm-line)', paddingTop: '20px' }}>
-              <div>
-                <h3>Emergency Direct Access Hotlines</h3>
-                <p>Speed-dial extensions for internal dispatch and city services.</p>
-              </div>
-            </div>
-            <div className="dm-staff-grid" style={{ marginBottom: '20px' }}>
-              <article className="dm-staff-card">
-                <div className="dm-avatar"><PhoneCall size={16} /></div>
-                <h3>Front Desk Lead</h3>
-                <small>Extension 101 · Radio CH-1</small>
-              </article>
-              <article className="dm-staff-card">
-                <div className="dm-avatar"><PhoneCall size={16} /></div>
-                <h3>Engineering &amp; Facilities</h3>
-                <small>Extension 204 · Radio CH-2</small>
-              </article>
-              <article className="dm-staff-card">
-                <div className="dm-avatar"><ShieldAlert size={16} /></div>
-                <h3 style={{ color: 'var(--dm-ink)' }}>Police / 911 Emergency</h3>
-                <small style={{ color: '#dc2626', fontWeight: 'bold' }}>Direct line: 911</small>
-              </article>
-            </div>
-          </section>
         )}
 
         {/* ===================== TAB: INCIDENT MONITORING ===================== */}
@@ -925,58 +841,7 @@ export function SecurityApp() {
           </section>
         )}
 
-        {/* ===================== TAB: INSPECTIONS & AUDITS ===================== */}
-        {tab === 'inspections' && (
-          <section className="dm-panel">
-            <div className="dm-panel-heading">
-              <div>
-                <h2>Inspections &amp; Security Audits</h2>
-                <p>Daily physical security audits, keycard audits, and fire door compliance.</p>
-              </div>
-              <button
-                className="dm-primary"
-                onClick={() => openModal({ kind: 'inspection', sector: 'Sector 402' })}
-              >
-                Create inspection
-              </button>
-            </div>
 
-            <article className="dm-record">
-              <div className="dm-record-title">
-                <h3>402 Perimeter &amp; Service Corridors sweep</h3>
-                <span className="dm-status urgent">Pending assignment</span>
-              </div>
-              <p>Verify that service staircase emergency exit doors remain unblocked and alarm switches engage properly.</p>
-              <small>Scheduled: Daily Night Sweep · Assigned: Unassigned</small>
-              <div style={{ marginTop: '10px' }}>
-                <button
-                  className="dm-small-button"
-                  onClick={() => openModal({ kind: 'inspection', sector: 'Sector 402' })}
-                >
-                  Assign officer
-                </button>
-              </div>
-            </article>
-
-            <article className="dm-record">
-              <div className="dm-record-title">
-                <h3>Pool Deck &amp; Cabanas Night Lockout</h3>
-                <span className="dm-status good">Completed</span>
-              </div>
-              <p>Perimeter gates locked at 22:00. Safety lighting active. No unauthorized swimmers observed.</p>
-              <small>Inspected by Officer Marcus · 22:15</small>
-            </article>
-
-            <article className="dm-record">
-              <div className="dm-record-title">
-                <h3>Executive Floor Master Key Card Audit</h3>
-                <span className="dm-status good">Completed</span>
-              </div>
-              <p>All emergency key fobs verified in the key safe. Audit trail logged in system.</p>
-              <small>Inspected by Inspector Roy · 21:00</small>
-            </article>
-          </section>
-        )}
 
         {/* ===================== TAB: ESCALATIONS & RECOVERY ===================== */}
         {tab === 'recovery' && (
@@ -1161,51 +1026,7 @@ export function SecurityApp() {
           </section>
         )}
 
-        {/* ===================== TAB: SECURITY ANALYTICS ===================== */}
-        {tab === 'analytics' && (
-          <section className="dm-panel">
-            <div className="dm-panel-heading">
-              <div>
-                <h2>Security Analytics &amp; Reports</h2>
-                <p>Audits include incidents logged with timestamps in the selected rolling period.</p>
-              </div>
-              <div className="dm-heading-actions">
-                <select
-                  aria-label="Report period"
-                  value={period}
-                  onChange={(e) => setPeriod(e.target.value)}
-                >
-                  <option value="day">Day · 24 hours</option>
-                  <option value="week">Week · 7 days</option>
-                  <option value="month">Month · 30 days</option>
-                </select>
-                <button className="dm-secondary" onClick={exportReport}>
-                  <Download size={15} /> Export CSV
-                </button>
-              </div>
-            </div>
 
-            <div className="dm-report-bars">
-              {[
-                ['Total recorded incidents', items.length],
-                ['Active & In-Progress', activeIncidents.length],
-                ['Resolved on Shift', items.filter((i) => i.status === 'Resolved').length],
-              ].map(([lbl, val]) => (
-                <div key={lbl as string}>
-                  <div className="dm-progress-label">
-                    <span>{lbl}</span>
-                    <strong>{val}</strong>
-                  </div>
-                  <progress max={Math.max(items.length, 1)} value={Number(val)} />
-                </div>
-              ))}
-            </div>
-
-            <p className="dm-report-note" style={{ padding: '0 24px 16px' }}>
-              Historical data is preserved for security audit compliance and insurance verification.
-            </p>
-          </section>
-        )}
 
         {/* ===================== TAB: NOTIFICATIONS / ALERTS ===================== */}
         {tab === 'notifications' && (
