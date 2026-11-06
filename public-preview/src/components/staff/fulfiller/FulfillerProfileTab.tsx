@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import {
   AlertTriangle,
@@ -18,6 +19,7 @@ import {
   VolumeX,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
+import { FULFILLER_PROFILES, type FulfillerProfile } from './fulfillerProfiles';
 import { cn } from '@/lib/utils';
 import { playChime } from './chime';
 
@@ -28,7 +30,26 @@ const EMERGENCY_REASONS = [
   'Extended shift relief / handover needed',
 ];
 
-export function FulfillerProfileTab() {
+
+function FulfillerModalPortal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  const [target, setTarget] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+    setTarget(document.getElementById('fulfiller-phone-shell') || (typeof document !== 'undefined' ? document.body : null));
+  }, []);
+
+  if (!mounted || !target) return null;
+  return createPortal(children, target);
+}
+
+interface FulfillerProfileTabProps {
+  profile?: FulfillerProfile;
+}
+
+export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
+  const activeProfile = profile || FULFILLER_PROFILES.housekeeping;
   const router = useRouter();
   const {
     state,
@@ -64,29 +85,45 @@ export function FulfillerProfileTab() {
       {/* Profile Card */}
       <div className="rounded-3xl border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] p-5 shadow-lg">
         <div className="flex items-center gap-4">
-          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 font-display text-lg font-bold text-ink-950 shadow-md shadow-emerald-500/30">
-            VS
+          <div className={cn('grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br font-display text-lg font-bold text-ink-950 shadow-md', activeProfile.colorGradient)}>
+            {activeProfile.avatarInitials}
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-bold text-white">Vikram Singh</h2>
-              <span className="rounded-md bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
-                EMP-0103
+              <h2 className="text-base font-bold text-white">{activeProfile.employeeName}</h2>
+              <span className="rounded-md bg-white/15 px-2 py-0.5 text-[10px] font-bold text-white font-mono">
+                {activeProfile.employeeId}
               </span>
             </div>
-            <p className="text-xs text-mist-300 mt-0.5">Task Fulfiller · Housekeeping</p>
-            <p className="text-[11px] text-mist-400">Floors 1–5 · Level 4 Primary Attendant</p>
+            <p className="text-xs text-mist-200 mt-0.5 font-medium">{activeProfile.roleTitle}</p>
+            <p className="text-[11px] text-mist-400">{activeProfile.zone}</p>
+          </div>
+        </div>
+
+        {/* Assigned Work Callout */}
+        <div className="mt-3.5 rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.04] p-3 text-xs space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold text-emerald-300 uppercase tracking-wider">Documented Assigned Work</span>
+            <span className="text-[10px] text-mist-400">{activeProfile.departmentName}</span>
+          </div>
+          <p className="text-xs font-semibold text-white">{activeProfile.assignedWork}</p>
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {activeProfile.assignedWorkTags.map((tag) => (
+              <span key={tag} className="rounded-md bg-white/10 px-2 py-0.5 text-[10px] text-mist-200">
+                {tag}
+              </span>
+            ))}
           </div>
         </div>
 
         {/* Supervisor & Shift Details */}
-        <div className="mt-4 grid grid-cols-2 gap-2 border-t border-white/10 pt-3 text-xs">
+        <div className="mt-3 grid grid-cols-2 gap-2 border-t border-white/10 pt-3 text-xs">
           <div className="rounded-xl border border-white/5 bg-white/[0.02] p-2.5">
             <span className="text-[10px] text-mist-400 flex items-center gap-1">
               <UserCheck className="h-3 w-3 text-emerald-400" /> Department Supervisor
             </span>
-            <p className="mt-1 font-semibold text-white">Meera Nambiar</p>
-            <p className="text-[10px] text-mist-400">EMP-0105 · Housekeeping</p>
+            <p className="mt-1 font-semibold text-white">{activeProfile.supervisorName}</p>
+            <p className="text-[10px] text-mist-400">{activeProfile.supervisorCode} · {activeProfile.departmentName}</p>
           </div>
 
           <div className="rounded-xl border border-white/5 bg-white/[0.02] p-2.5">
@@ -255,7 +292,8 @@ export function FulfillerProfileTab() {
 
       {/* Emergency Shift Relief Modal */}
       {emergencyModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-150">
+        <FulfillerModalPortal>
+          <div className="absolute inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-sm animate-in fade-in duration-150">
           <div className="w-full max-w-md rounded-3xl border border-amber-400/30 bg-ink-900 p-5 text-white shadow-2xl">
             <div className="flex items-center gap-2 text-amber-400">
               <AlertTriangle className="h-5 w-5" />
@@ -315,19 +353,21 @@ export function FulfillerProfileTab() {
               </button>
             </div>
           </div>
-        </div>
+          </div>
+        </FulfillerModalPortal>
       )}
 
       {/* Logout Confirmation Modal */}
       {logoutModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-150">
+        <FulfillerModalPortal>
+          <div className="absolute inset-0 z-50 flex items-center justify-center p-3 bg-black/85 backdrop-blur-sm animate-in fade-in duration-150">
           <div className="w-full max-w-sm rounded-3xl border border-rose-500/30 bg-ink-900 p-5 text-white shadow-2xl">
             <div className="flex items-center gap-3 text-rose-400">
               <LogOut className="h-5 w-5" />
               <h3 className="font-bold text-base text-white">Sign out of session?</h3>
             </div>
             <p className="mt-2 text-xs text-mist-300">
-              You are signed in as <strong>Vikram Singh</strong> (Housekeeping). You will return to the Portal login screen.
+              You are signed in as <strong>{activeProfile.employeeName}</strong> ({activeProfile.departmentName}). You will return to the Portal login screen.
             </p>
             <div className="mt-4 flex items-center justify-end gap-2 border-t border-white/10 pt-3">
               <button
@@ -346,7 +386,8 @@ export function FulfillerProfileTab() {
               </button>
             </div>
           </div>
-        </div>
+          </div>
+        </FulfillerModalPortal>
       )}
     </div>
   );

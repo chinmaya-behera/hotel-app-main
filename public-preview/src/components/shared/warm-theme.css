@@ -1,0 +1,45 @@
+/* Shared by portal sign-in and every department manager workspace. */
+.warm-theme {
+  --warm-canvas: #ffffff;
+  --warm-panel: #ffffff;
+  --warm-paper: #ffffff;
+  --warm-sidebar: #fbfaf7;
+  --warm-soft: #f6f3ec;
+  --warm-highlight: #ebe2cc;
+  --warm-selected: #ded6c1;
+  --warm-line: #e7e2d7;
+  --warm-control: #b7b09e;
+  --warm-ink: #353229;
+  --warm-muted: #686252;
+  --warm-primary: #353229;
+  --warm-on-primary: #ffffff;
+  --warm-focus: #8b7550;
+  --warm-shadow: 0 4px 20px -2px rgba(44, 36, 25, 0.08), 0 2px 6px -1px rgba(44, 36, 25, 0.04);
+  --warm-shadow-hover: 0 16px 34px -4px rgba(44, 36, 25, 0.14), 0 6px 14px -2px rgba(44, 36, 25, 0.08);
+  --warm-shadow-panel: 0 4px 24px -3px rgba(44, 36, 25, 0.07), 0 2px 8px -1px rgba(44, 36, 25, 0.04);
+  --warm-shadow-panel-hover: 0 14px 32px -4px rgba(44, 36, 25, 0.12), 0 4px 10px -2px rgba(44, 36, 25, 0.06);
+  --warm-overlay: #1b191866;
+  color-scheme: light;
+}
+.warm-theme[data-theme='dark'] {
+  --warm-canvas: #171715;
+  --warm-panel: #1e1e1b;
+  --warm-paper: #1e1e1b;
+  --warm-sidebar: #1b1b18;
+  --warm-soft: #282720;
+  --warm-highlight: #343127;
+  --warm-selected: #403b2f;
+  --warm-line: #3d3a32;
+  --warm-control: #867e6c;
+  --warm-ink: #eee8dc;
+  --warm-muted: #b7b0a1;
+  --warm-primary: #ded6c1;
+  --warm-on-primary: #28261f;
+  --warm-focus: #d4c5a4;
+  --warm-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.45), 0 2px 6px -1px rgba(0, 0, 0, 0.3);
+  --warm-shadow-hover: 0 16px 34px -4px rgba(0, 0, 0, 0.65), 0 6px 14px -2px rgba(0, 0, 0, 0.4);
+  --warm-shadow-panel: 0 4px 24px -3px rgba(0, 0, 0, 0.42), 0 2px 8px -1px rgba(0, 0, 0, 0.28);
+  --warm-shadow-panel-hover: 0 14px 32px -4px rgba(0, 0, 0, 0.6), 0 4px 10px -2px rgba(0, 0, 0, 0.35);
+  --warm-overlay: #080807b3;
+  color-scheme: dark;
+}

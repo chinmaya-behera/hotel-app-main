@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   BedDouble,
   Compass,
@@ -10,6 +11,7 @@ import {
   House,
   Image as ImageIcon,
   KeyRound,
+  Loader2,
   LogIn,
   MapPin,
   Menu,
@@ -32,6 +34,12 @@ interface HotelNavbarProps {
 export function HotelNavbar({ onOpenBooking, onOpenManage, activeSection }: HotelNavbarProps) {
   const { state } = useDemo();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isNavigatingToLogin, setIsNavigatingToLogin] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    router.prefetch('/login');
+  }, [router]);
   const bookingCount = state.bookings.filter((b) => b.status !== 'cancelled').length;
 
   const navLinks = [
@@ -100,11 +108,23 @@ export function HotelNavbar({ onOpenBooking, onOpenManage, activeSection }: Hote
 
           <Link
             href="/login"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300/30 bg-amber-300/10 px-3 py-1.5 text-xs font-semibold text-amber-200 hover:text-white hover:bg-amber-300/20 transition shadow-sm"
+            prefetch={true}
+            onClick={() => setIsNavigatingToLogin(true)}
+            onMouseEnter={() => router.prefetch('/login')}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300/30 bg-amber-300/10 px-3 py-1.5 text-xs font-semibold text-amber-200 hover:text-white hover:bg-amber-300/20 transition shadow-sm active:scale-95 cursor-pointer"
             title="Open Staff Portals & Simulated Demo Login"
           >
-            <LogIn className="h-3.5 w-3.5 text-amber-300" aria-hidden />
-            <span>Staff Login</span>
+            {isNavigatingToLogin ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-300" aria-hidden />
+                <span>Opening...</span>
+              </>
+            ) : (
+              <>
+                <LogIn className="h-3.5 w-3.5 text-amber-300" aria-hidden />
+                <span>Staff Login</span>
+              </>
+            )}
           </Link>
         </div>
 

@@ -19,11 +19,14 @@ import {
   ShieldCheck,
   ChevronRight,
   Layers,
+  PartyPopper,
+  Scale,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
 import { money } from '@/lib/utils';
 import { GuestSectionHeader } from '@/components/guest/guestUi';
 import type { GuestTabProps, GuestTabId, GuestServicesSubtab } from '@/components/guest/types';
+import { DEFAULT_EVENTS_CARD_IMAGE } from './eventsData';
 
 // Specialized views for deep navigation when a service is opened
 import { DiningSection } from './DiningSection';
@@ -38,6 +41,7 @@ import { BookServiceSubtab } from './BookServiceSubtab';
 import { HousekeepingCatalogueSection } from './HousekeepingCatalogueSection';
 import { MaintenanceTab } from './MaintenanceTab';
 import { SpaConciergeTab } from './SpaConciergeTab';
+import { EventsCelebrationsSection } from './EventsCelebrationsSection';
 
 export function AllServicesSection({ room, guestName, onNavigate, initialSubtab }: GuestTabProps) {
   const { state, updateDndStatus } = useDemo();
@@ -47,17 +51,37 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<'all' | 'room' | 'dining' | 'desk' | 'finance'>('all');
-    useEffect(() => {
+  const [activeSubView, setActiveSubView] = useState<GuestServicesSubtab | null>(
+    (initialSubtab as GuestServicesSubtab) && initialSubtab !== 'all' ? (initialSubtab as GuestServicesSubtab) : null,
+  );
+
+  useEffect(() => {
     setActiveSubView(
       initialSubtab && initialSubtab !== 'all' ? (initialSubtab as GuestServicesSubtab) : null
     );
   }, [initialSubtab]);
 
-  const [activeSubView, setActiveSubView] = useState<GuestServicesSubtab | null>(
-    (initialSubtab as GuestServicesSubtab) && initialSubtab !== 'all' ? (initialSubtab as GuestServicesSubtab) : null,
-  );
+  const isEventsEnabled = state.eventsConfig?.enabled !== false;
+  const eventsCardImage = state.eventsConfig?.cardImage || DEFAULT_EVENTS_CARD_IMAGE;
+  const eventsSubtitle = state.eventsConfig?.subtitle || 'Plan your special moments with us.';
 
   const SERVICES = [
+    ...(isEventsEnabled
+      ? [
+          {
+            id: 'events_celebrations' as const,
+            name: 'Events & Celebrations 🎉',
+            category: 'dining' as const,
+            categoryBadge: 'Banquets & Celebrations',
+            bannerImage: eventsCardImage,
+            icon: PartyPopper,
+            color: 'bg-amber-400/15 text-amber-300 border-amber-400/30',
+            tagline: eventsSubtitle,
+            highlights: ['Weddings & Galas', 'Birthday & Anniversaries', 'Theme Decor & Catering', 'Dedicated Event Butler'],
+            actionText: 'Plan an Event 🎉',
+          },
+        ]
+      : []),
     {
       id: 'room_service' as const,
       name: 'Room Service',
@@ -108,15 +132,15 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
     },
     {
       id: 'front_desk' as const,
-      name: 'Front Desk Direct Channel',
-      category: 'desk',
+      name: 'Front Desk & Guest Support',
+      category: 'desk' as const,
       categoryBadge: '24/7 Front Office',
       bannerImage: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80',
       icon: MessageSquare,
       color: 'bg-indigo-400/15 text-indigo-300 border-indigo-400/30',
-      tagline: '24/7 direct communication with Front Desk team',
-      highlights: ['Luggage & bell assistance', 'Document printing', 'Late checkout inquiries', 'Two-way message replies'],
-      actionText: 'Message Front Desk',
+      tagline: '24/7 unified guest support: Complaints, Financial issues, Requests & Incidents',
+      highlights: ['Formal complaints & resolution', 'Refund & compensation claims', 'Special requests & assistance', 'Incident reporting & safety'],
+      actionText: 'Open Front Desk & Support',
     },
     {
       id: 'reminders' as const,
@@ -143,18 +167,6 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
       tagline: 'Communicate privacy preferences directly to all staff',
       highlights: ['Instant activation/deactivation', 'Custom duration schedule', 'Special delivery notes', 'Front Desk live sync'],
       actionText: prefs?.dnd ? 'Manage DND (Active)' : 'Activate DND',
-    },
-    {
-      id: 'complaints' as const,
-      name: 'Complaints & Service Recovery',
-      category: 'desk',
-      categoryBadge: 'Guest Relations',
-      bannerImage: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=800&q=80',
-      icon: HeartHandshake,
-      color: 'bg-rose-400/15 text-rose-300 border-rose-400/30',
-      tagline: 'Formal case registration escalated directly to Duty Manager',
-      highlights: ['7 issue categories', 'Photo attachments', 'Resolution tracking & credits', 'Marcus Vance direct escalation'],
-      actionText: 'Register Complaint',
     },
     {
       id: 'lost_found' as const,
@@ -195,6 +207,13 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
 
   // If a subview is currently open, render it with a back button
   if (activeSubView) {
+    // Events & Celebrations renders cleanly without duplicated back banner
+    if (activeSubView === 'events_celebrations') {
+      return (
+        <EventsCelebrationsSection room={room} guestName={guestName} onNavigate={onNavigate} />
+      );
+    }
+
     return (
       <div className="space-y-4">
         {/* Sub-view rendered without top pill bar per specification */}
@@ -206,14 +225,16 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
         {(activeSubView === 'room_service' || activeSubView === 'housekeeping') && (
           <HousekeepingCatalogueSection room={room} guestName={guestName} onNavigate={onNavigate} />
         )}
-        {activeSubView === 'complaints' && (
-          <ComplaintsSection room={room} guestName={guestName} onNavigate={onNavigate} />
-        )}
         {activeSubView === 'lost_found' && (
           <LostFoundSection room={room} guestName={guestName} onNavigate={onNavigate} />
         )}
-        {activeSubView === 'front_desk' && (
-          <ToFrontDeskSubtab room={room} guestName={guestName} onNavigate={onNavigate} />
+        {(activeSubView === 'front_desk' || activeSubView === 'compensation' || activeSubView === 'complaints') && (
+          <ToFrontDeskSubtab
+            room={room}
+            guestName={guestName}
+            onNavigate={onNavigate}
+            initialSubtab={activeSubView}
+          />
         )}
         {activeSubView === 'reminders' && (
           <RemindersSubtab room={room} guestName={guestName} onNavigate={onNavigate} />
@@ -307,7 +328,7 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
                 : 'bg-white/5 text-mist-300 hover:text-white hover:bg-white/10'
             }`}
           >
-            Room Comfort (3)
+            Room Comfort ({SERVICES.filter((s) => s.category === 'room').length})
           </button>
           <button
             type="button"
@@ -318,7 +339,7 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
                 : 'bg-white/5 text-mist-300 hover:text-white hover:bg-white/10'
             }`}
           >
-            Dining &amp; Spa (2)
+            Dining &amp; Celebrations ({SERVICES.filter((s) => s.category === 'dining').length})
           </button>
           <button
             type="button"
@@ -329,7 +350,7 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
                 : 'bg-white/5 text-mist-300 hover:text-white hover:bg-white/10'
             }`}
           >
-            Front Desk &amp; Care (4)
+            Front Desk &amp; Care ({SERVICES.filter((s) => s.category === 'desk').length})
           </button>
           <button
             type="button"
@@ -340,7 +361,7 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
                 : 'bg-white/5 text-mist-300 hover:text-white hover:bg-white/10'
             }`}
           >
-            Billing &amp; Folio (1)
+            Billing &amp; Folio ({SERVICES.filter((s) => s.category === 'finance').length})
           </button>
         </div>
       </div>

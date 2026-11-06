@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   BarChart3,
   Bell,
@@ -42,7 +42,7 @@ import { GeneralManagerVipTab } from '@/components/executive/GeneralManagerVipTa
 import { GeneralManagerRoomsTab } from '@/components/executive/GeneralManagerRoomsTab';
 import { GeneralManagerInspectionsTab } from '@/components/executive/GeneralManagerInspectionsTab';
 import { useDemo } from '@/lib/store';
-import type { WorkItem } from '@/types/demo';
+import type { WorkItem, IncidentRecord, InAppNotification } from '@/types/demo';
 
 export type ExecutiveTabId =
   | 'inspections'
@@ -76,15 +76,21 @@ interface NavItem {
 }
 
 export function ExecutiveConsole() {
-  const { state } = useDemo();
+  const { state, markNotificationRead } = useDemo();
   const [activeTab, setActiveTab] = useState<ExecutiveTabId>('overview');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Permission mode: 'approver' (full decision authority) vs 'viewer' (read-only audit)
   const [permissionMode, setPermissionMode] = useState<'viewer' | 'approver'>('approver');
 
-  // Selected item passed into approvals drawer
+  // Selected items passed into tabs
   const [selectedApprovalItem, setSelectedApprovalItem] = useState<WorkItem | null>(null);
+  const [selectedSafetyAlertId, setSelectedSafetyAlertId] = useState<string | null>(null);
+  const [selectedCompensationId, setSelectedCompensationId] = useState<string | null>(null);
+  const [selectedIncident, setSelectedIncident] = useState<IncidentRecord | null>(null);
+  const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [approvalInitialFilter, setApprovalInitialFilter] = useState<string>('all');
 
   // Counts for sidebar badges
   const pendingApprovalsCount = [
@@ -95,14 +101,41 @@ export function ExecutiveConsole() {
   const unresolvedComplaintsCount = (state.frontDesk?.complaints ?? []).filter(
     (c) => !c.compApplied,
   ).length;
+  const escalatedTasksCount = useMemo(() => {
+    const roles = ['department_manager', 'department_dispatcher_supervisor', 'department_dispatcher', 'task_fulfiller'] as const;
+    const seen = new Set<string>();
+    let count = 0;
+    roles.forEach((r) => {
+      (state.items[r] ?? []).forEach((item) => {
+        if (item.status === 'Escalated' || item.priority === 'critical' || item.priority === 'vip') {
+          const key = item.ref || item.id;
+          if (!seen.has(key)) {
+            seen.add(key);
+            count++;
+          }
+        }
+      });
+    });
+    return count;
+  }, [state.items]);
   const pendingResourcesCount = (state.resourceRequests ?? []).filter(
     (r) => r.status === 'pending',
+  ).length;
+  const dueInspectionsCount = (state.inspections ?? []).filter(
+    (i) => i.status !== 'passed',
   ).length;
   const vipCount = (state.frontDesk?.stays ?? []).filter((s) => s.vip).length;
   const unreadNotificationsCount = (state.notifications ?? []).filter((n) => !n.read).length;
 
   const navItems: NavItem[] = [
-    { id: 'inspections', label: 'Department Inspections', shortLabel: 'Inspections', icon: ShieldCheck, group: 'Operations' },
+    {
+      id: 'inspections',
+      label: 'Department Inspections',
+      shortLabel: 'Inspections',
+      icon: ShieldCheck,
+      group: 'Operations',
+      badgeCount: dueInspectionsCount,
+    },
     // Group 1: Overview
     {
       id: 'overview',
@@ -119,22 +152,8 @@ export function ExecutiveConsole() {
       shortLabel: 'Approvals',
       icon: Stamp,
       group: 'Approvals',
-    },
-    {
-      id: 'approvals-pending',
-      label: 'Pending Approvals',
-      shortLabel: 'Pending',
-      icon: Clock,
-      group: 'Approvals',
       badgeCount: pendingApprovalsCount,
       badgeTone: 'warning',
-    },
-    {
-      id: 'approvals-history',
-      label: 'Approval History',
-      shortLabel: 'History',
-      icon: History,
-      group: 'Approvals',
     },
 
     // Group 3: Operations
@@ -147,14 +166,16 @@ export function ExecutiveConsole() {
     },
     {
       id: 'escalations',
-      label: 'Escalations',
+      label: 'High Escalations',
       shortLabel: 'Escalations',
       icon: Siren,
       group: 'Operations',
+      badgeCount: escalatedTasksCount,
+      badgeTone: 'warning',
     },
     {
       id: 'incidents',
-      label: 'Critical Incidents',
+      label: 'Property Incidents',
       shortLabel: 'Incidents',
       icon: ShieldAlert,
       group: 'Operations',
@@ -262,12 +283,114 @@ export function ExecutiveConsole() {
   }, {} as Record<NavItem['group'], NavItem[]>);
 
   const handleNavigateTab = (tabId: string, filter?: Record<string, string>) => {
+    if (tabId === 'approvals-pending') {
+      setActiveTab('approvals');
+      setApprovalInitialFilter('pending');
+      return;
+    }
+    if (tabId === 'approvals-history') {
+      setActiveTab('approvals');
+      setApprovalInitialFilter('approved');
+      return;
+    }
+    if (tabId === 'approvals') {
+      if (filter?.status) {
+        setApprovalInitialFilter(filter.status);
+      }
+      setActiveTab('approvals');
+      return;
+    }
     setActiveTab(tabId as ExecutiveTabId);
   };
 
   const handleOpenApprovalDetail = (item: WorkItem) => {
     setSelectedApprovalItem(item);
     setActiveTab('approvals');
+  };
+
+  const handleNavigateToNotificationItem = (notification: InAppNotification) => {
+    markNotificationRead(notification.id);
+    const { itemId } = notification;
+
+    if (!itemId) {
+      setActiveTab('approvals');
+      return;
+    }
+
+    // 1. Approvals check
+    const allApprovals = [
+      ...(state.items.general_manager ?? []),
+      ...(state.items.executive_viewer ?? []),
+    ];
+    const approvalMatch = allApprovals.find((i) => i.id === itemId || i.ref === itemId);
+    if (approvalMatch) {
+      setSelectedApprovalItem(approvalMatch);
+      setSelectedSafetyAlertId(null);
+      setSelectedCompensationId(null);
+      setActiveTab('approvals');
+      return;
+    }
+
+    // 2. Safety Alert check
+    const safetyMatch = (state.safetyAlerts ?? []).find((a) => a.id === itemId || a.ref === itemId);
+    if (safetyMatch) {
+      setSelectedSafetyAlertId(safetyMatch.id);
+      setSelectedApprovalItem(null);
+      setSelectedCompensationId(null);
+      setActiveTab('approvals');
+      return;
+    }
+
+    // 3. Compensation check
+    const compMatch = (state.compensationRequests ?? []).find((c) => c.id === itemId || c.ref === itemId);
+    if (compMatch) {
+      setSelectedCompensationId(compMatch.id);
+      setSelectedApprovalItem(null);
+      setSelectedSafetyAlertId(null);
+      setActiveTab('approvals');
+      return;
+    }
+
+    // 4. Incident check
+    const incidentMatch = (state.incidents ?? []).find((i) => i.id === itemId || i.ref === itemId);
+    if (incidentMatch) {
+      setSelectedIncident(incidentMatch);
+      setActiveTab('incidents');
+      return;
+    }
+
+    // 5. Inspection check
+    const inspectionMatch = (state.inspections ?? []).find((i) => i.id === itemId);
+    if (inspectionMatch) {
+      setSelectedInspectionId(inspectionMatch.id);
+      setActiveTab('inspections');
+      return;
+    }
+
+    // 6. Escalated tasks check
+    const allTasks: WorkItem[] = [];
+    (['department_manager', 'department_dispatcher_supervisor', 'department_dispatcher', 'task_fulfiller'] as const).forEach((r) => {
+      (state.items[r] ?? []).forEach((item) => allTasks.push(item));
+    });
+    const taskMatch = allTasks.find((t) => t.id === itemId || t.ref === itemId);
+    if (taskMatch) {
+      setSelectedTaskId(taskMatch.id);
+      setActiveTab('escalations');
+      return;
+    }
+
+    // 7. General Fallbacks
+    const lowerTitle = notification.title.toLowerCase();
+    const lowerMsg = (notification.message ?? '').toLowerCase();
+    if (lowerTitle.includes('incident') || lowerMsg.includes('incident') || notification.link?.includes('incident')) {
+      setActiveTab('incidents');
+    } else if (lowerTitle.includes('inspection') || lowerMsg.includes('inspection')) {
+      setActiveTab('inspections');
+    } else if (lowerTitle.includes('escalat') || lowerMsg.includes('escalat')) {
+      setActiveTab('escalations');
+    } else {
+      setActiveTab('approvals');
+    }
   };
 
   return (
@@ -417,7 +540,12 @@ export function ExecutiveConsole() {
 
         {/* Dynamic Tab Content Area */}
         <main className="flex-1 min-w-0 w-full">
-          {activeTab === 'inspections' && <GeneralManagerInspectionsTab />}
+          {activeTab === 'inspections' && (
+            <GeneralManagerInspectionsTab
+              selectedInspectionId={selectedInspectionId}
+              onClearSelectedInspection={() => setSelectedInspectionId(null)}
+            />
+          )}
           {activeTab === 'overview' && (
             <ExecutiveOverviewTab
               permissionMode={permissionMode}
@@ -429,8 +557,13 @@ export function ExecutiveConsole() {
           {activeTab === 'approvals' && (
             <ExecutiveApprovalsTab
               permissionMode={permissionMode}
+              initialStatusFilter={approvalInitialFilter}
               selectedItemFromParent={selectedApprovalItem}
               onClearSelectedItem={() => setSelectedApprovalItem(null)}
+              selectedSafetyAlertId={selectedSafetyAlertId}
+              onClearSelectedSafetyAlert={() => setSelectedSafetyAlertId(null)}
+              selectedCompensationId={selectedCompensationId}
+              onClearSelectedCompensation={() => setSelectedCompensationId(null)}
             />
           )}
 
@@ -440,6 +573,10 @@ export function ExecutiveConsole() {
               initialStatusFilter="pending"
               selectedItemFromParent={selectedApprovalItem}
               onClearSelectedItem={() => setSelectedApprovalItem(null)}
+              selectedSafetyAlertId={selectedSafetyAlertId}
+              onClearSelectedSafetyAlert={() => setSelectedSafetyAlertId(null)}
+              selectedCompensationId={selectedCompensationId}
+              onClearSelectedCompensation={() => setSelectedCompensationId(null)}
             />
           )}
 
@@ -449,6 +586,10 @@ export function ExecutiveConsole() {
               initialStatusFilter="approved"
               selectedItemFromParent={selectedApprovalItem}
               onClearSelectedItem={() => setSelectedApprovalItem(null)}
+              selectedSafetyAlertId={selectedSafetyAlertId}
+              onClearSelectedSafetyAlert={() => setSelectedSafetyAlertId(null)}
+              selectedCompensationId={selectedCompensationId}
+              onClearSelectedCompensation={() => setSelectedCompensationId(null)}
             />
           )}
 
@@ -458,6 +599,9 @@ export function ExecutiveConsole() {
             <ExecutiveIncidentsTab
               permissionMode={permissionMode}
               initialView="escalations"
+              selectedIncidentFromParent={selectedIncident}
+              onClearSelectedIncident={() => setSelectedIncident(null)}
+              selectedTaskIdFromParent={selectedTaskId}
             />
           )}
 
@@ -465,6 +609,9 @@ export function ExecutiveConsole() {
             <ExecutiveIncidentsTab
               permissionMode={permissionMode}
               initialView="incidents"
+              selectedIncidentFromParent={selectedIncident}
+              onClearSelectedIncident={() => setSelectedIncident(null)}
+              selectedTaskIdFromParent={selectedTaskId}
             />
           )}
 
@@ -472,6 +619,9 @@ export function ExecutiveConsole() {
             <ExecutiveIncidentsTab
               permissionMode={permissionMode}
               initialView="complaints"
+              selectedIncidentFromParent={selectedIncident}
+              onClearSelectedIncident={() => setSelectedIncident(null)}
+              selectedTaskIdFromParent={selectedTaskId}
             />
           )}
 
@@ -513,6 +663,7 @@ export function ExecutiveConsole() {
               initialSubTab="notifications"
               onTogglePermissionMode={setPermissionMode}
               onNavigateTab={handleNavigateTab}
+              onNavigateToItem={handleNavigateToNotificationItem}
             />
           )}
 
@@ -522,6 +673,7 @@ export function ExecutiveConsole() {
               initialSubTab="profile"
               onTogglePermissionMode={setPermissionMode}
               onNavigateTab={handleNavigateTab}
+              onNavigateToItem={handleNavigateToNotificationItem}
             />
           )}
 
@@ -531,6 +683,7 @@ export function ExecutiveConsole() {
               initialSubTab="settings"
               onTogglePermissionMode={setPermissionMode}
               onNavigateTab={handleNavigateTab}
+              onNavigateToItem={handleNavigateToNotificationItem}
             />
           )}
         </main>

@@ -1,0 +1,339 @@
+/* Portal Login Styles - Matching Exact Modern Minimal Dark/Light UI from Reference HTML Template */
+
+/* Root background and variables enforcement */
+.portal-login-root {
+  --portal-pure-white: 255 255 255;
+  --white: 255 255 255 !important;
+}
+
+.portal-login-root.light-mode,
+.portal-login-root[data-theme='light'],
+[data-theme='light'] .portal-login-root {
+  --white: 255 255 255 !important;
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+.portal-login-root.dark-mode,
+.portal-login-root[data-theme='dark'],
+[data-theme='dark'] .portal-login-root {
+  background-color: #080d1a !important;
+  color: #f8fafc !important;
+}
+
+/* Ambient Background Glows */
+.portal-login-root .glow-sphere-1 {
+  position: fixed;
+  top: -15%;
+  left: 10%;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.12) 0%, rgba(56, 189, 248, 0) 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.portal-login-root .glow-sphere-2 {
+  position: fixed;
+  bottom: -15%;
+  right: 5%;
+  width: 650px;
+  height: 650px;
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.12) 0%, rgba(168, 85, 247, 0) 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Light mode ambient glows exactly as specified in template */
+.portal-login-root.light-mode .glow-sphere-1,
+[data-theme='light'] .portal-login-root .glow-sphere-1 {
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.15) 0%, rgba(14, 165, 233, 0) 70%) !important;
+  display: block !important;
+}
+
+.portal-login-root.light-mode .glow-sphere-2,
+[data-theme='light'] .portal-login-root .glow-sphere-2 {
+  background: radial-gradient(circle, rgba(244, 114, 182, 0.13) 0%, rgba(244, 114, 182, 0) 70%) !important;
+  display: block !important;
+}
+
+/* Header bar */
+.portal-login-root.light-mode .portal-login-header,
+[data-theme='light'] .portal-login-root .portal-login-header {
+  background: rgba(255, 255, 255, 0.72) !important;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.75) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+
+.portal-login-root.dark-mode .portal-login-header,
+[data-theme='dark'] .portal-login-root .portal-login-header {
+  background: rgba(7, 12, 23, 0.8) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+
+/* Header action buttons (Reset, Theme toggle, Public site) */
+.portal-login-root.light-mode .portal-header-btn,
+[data-theme='light'] .portal-login-root .portal-header-btn {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #475569 !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+}
+.portal-login-root.light-mode .portal-header-btn:hover,
+[data-theme='light'] .portal-login-root .portal-header-btn:hover {
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+.portal-login-root.dark-mode .portal-header-btn,
+[data-theme='dark'] .portal-login-root .portal-header-btn {
+  background: transparent !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #94a3b8 !important;
+}
+.portal-login-root.dark-mode .portal-header-btn:hover,
+[data-theme='dark'] .portal-login-root .portal-header-btn:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: #ffffff !important;
+}
+
+/* Left Card (SIGN IN) */
+.portal-login-root.light-mode .portal-card-left,
+[data-theme='light'] .portal-login-root .portal-card-left {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border: 1px solid rgba(226, 232, 240, 0.85) !important;
+  box-shadow: 0 20px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+}
+
+.portal-login-root.dark-mode .portal-card-left,
+[data-theme='dark'] .portal-login-root .portal-card-left {
+  background: rgba(12, 20, 36, 0.9) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+}
+
+/* Right Card (QUICK ROLE FILL) */
+.portal-login-root.light-mode .portal-card-right,
+[data-theme='light'] .portal-login-root .portal-card-right {
+  background: rgba(255, 255, 255, 0.82) !important;
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
+  box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.05), 0 4px 6px -4px rgba(15, 23, 42, 0.03) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+}
+
+.portal-login-root.dark-mode .portal-card-right,
+[data-theme='dark'] .portal-login-root .portal-card-right {
+  background: rgba(12, 20, 36, 0.7) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+}
+
+/* Active Role Pill in Sign In card */
+.portal-login-root.light-mode .portal-active-role-tag,
+[data-theme='light'] .portal-login-root .portal-active-role-tag {
+  background-color: #f1f5f9 !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #475569 !important;
+}
+
+.portal-login-root.dark-mode .portal-active-role-tag,
+[data-theme='dark'] .portal-login-root .portal-active-role-tag {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #cbd5e1 !important;
+}
+
+/* Form inputs */
+.portal-login-root.light-mode .portal-input,
+[data-theme='light'] .portal-login-root .portal-input {
+  background-color: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+.portal-login-root.light-mode .portal-input::placeholder,
+[data-theme='light'] .portal-login-root .portal-input::placeholder {
+  color: #94a3b8 !important;
+}
+
+.portal-login-root.light-mode .portal-input:focus,
+[data-theme='light'] .portal-login-root .portal-input:focus {
+  border-color: #fbbf24 !important;
+  box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.7) !important;
+}
+
+.portal-login-root.dark-mode .portal-input,
+[data-theme='dark'] .portal-login-root .portal-input {
+  background-color: #070d18 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+}
+
+.portal-login-root.dark-mode .portal-input::placeholder,
+[data-theme='dark'] .portal-login-root .portal-input::placeholder {
+  color: #64748b !important;
+}
+
+/* Role buttons */
+.portal-login-root.light-mode .portal-role-btn,
+[data-theme='light'] .portal-login-root .portal-role-btn {
+  background: rgba(255, 255, 255, 0.75) !important;
+  border: 1px solid rgba(226, 232, 240, 0.85) !important;
+  color: #334155 !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03) !important;
+}
+
+.portal-login-root.light-mode .portal-role-btn:hover,
+[data-theme='light'] .portal-login-root .portal-role-btn:hover {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+}
+
+.portal-login-root.dark-mode .portal-role-btn,
+[data-theme='dark'] .portal-login-root .portal-role-btn {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  color: #cbd5e1 !important;
+}
+
+.portal-login-root.dark-mode .portal-role-btn:hover,
+[data-theme='dark'] .portal-login-root .portal-role-btn:hover {
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: #ffffff !important;
+}
+
+/* Selected Role button */
+.portal-login-root.light-mode .portal-role-btn.portal-role-selected,
+[data-theme='light'] .portal-login-root .portal-role-btn.portal-role-selected {
+  background: rgba(251, 191, 36, 0.14) !important;
+  border: 1px solid rgba(251, 191, 36, 0.8) !important;
+  color: #0f172a !important;
+  box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.3) !important;
+}
+
+.portal-login-root.dark-mode .portal-role-btn.portal-role-selected,
+[data-theme='dark'] .portal-login-root .portal-role-btn.portal-role-selected {
+  background: rgba(251, 191, 36, 0.1) !important;
+  border: 1px solid rgba(251, 191, 36, 0.7) !important;
+  color: #ffffff !important;
+}
+
+/* Department dropdown container */
+.portal-login-root.light-mode .portal-subdept-container,
+[data-theme='light'] .portal-login-root .portal-subdept-container {
+  background: rgba(241, 245, 249, 0.9) !important;
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+}
+
+.portal-login-root.dark-mode .portal-subdept-container,
+[data-theme='dark'] .portal-login-root .portal-subdept-container {
+  background: rgba(7, 13, 24, 0.9) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Department item button */
+.portal-login-root.light-mode .portal-subdept-btn,
+[data-theme='light'] .portal-login-root .portal-subdept-btn {
+  background: #ffffff !important;
+  border: 1px solid rgba(226, 232, 240, 0.85) !important;
+  color: #334155 !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03) !important;
+}
+
+.portal-login-root.light-mode .portal-subdept-btn:hover,
+[data-theme='light'] .portal-login-root .portal-subdept-btn:hover {
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+.portal-login-root.dark-mode .portal-subdept-btn,
+[data-theme='dark'] .portal-login-root .portal-subdept-btn {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  color: #cbd5e1 !important;
+}
+
+.portal-login-root.dark-mode .portal-subdept-btn:hover,
+[data-theme='dark'] .portal-login-root .portal-subdept-btn:hover {
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: #ffffff !important;
+}
+
+/* Active department item button */
+.portal-login-root.light-mode .portal-subdept-btn.portal-subdept-active,
+[data-theme='light'] .portal-login-root .portal-subdept-btn.portal-subdept-active {
+  background: rgba(251, 191, 36, 0.14) !important;
+  border: 1px solid rgba(251, 191, 36, 0.8) !important;
+  color: #0f172a !important;
+}
+
+.portal-login-root.dark-mode .portal-subdept-btn.portal-subdept-active,
+[data-theme='dark'] .portal-login-root .portal-subdept-btn.portal-subdept-active {
+  background: rgba(251, 191, 36, 0.1) !important;
+  border: 1px solid rgba(251, 191, 36, 0.7) !important;
+  color: #ffffff !important;
+}
+
+/* Input autofill styling override */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: inherit;
+  -webkit-box-shadow: 0 0 0px 1000px transparent inset;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* Demo credentials trigger override */
+.demo-credentials-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 12.5px;
+  font-weight: 500;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: rgba(241, 245, 249, 0.8);
+  color: #475569;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.demo-credentials-trigger:hover {
+  border-color: #cbd5e1;
+  color: #0f172a;
+  background: #ffffff;
+  box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.06);
+}
+
+.dark .demo-credentials-trigger,
+[data-theme='dark'] .demo-credentials-trigger,
+.dark-mode .demo-credentials-trigger {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: #94a3b8;
+}
+
+.dark .demo-credentials-trigger:hover,
+[data-theme='dark'] .demo-credentials-trigger:hover,
+.dark-mode .demo-credentials-trigger:hover {
+  border-color: rgba(251, 191, 36, 0.5);
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.06);
+}

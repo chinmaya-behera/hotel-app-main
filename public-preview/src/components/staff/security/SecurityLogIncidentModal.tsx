@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X, ShieldPlus, AlertCircle, MapPin } from 'lucide-react';
+import { X, ShieldPlus, AlertCircle } from 'lucide-react';
 
 interface SecurityLogIncidentModalProps {
   isOpen: boolean;
@@ -52,55 +52,56 @@ export function SecurityLogIncidentModal({ isOpen, onClose, onSubmit }: Security
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full sm:max-w-md bg-ink-900 border border-white/10 rounded-t-3xl sm:rounded-2xl p-5 shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/45 backdrop-blur-sm animate-in fade-in duration-150">
+      <div className="dm-dialog-card w-full max-w-lg bg-white border border-[var(--dm-line)] rounded-2xl p-6 shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto text-[var(--dm-ink)]">
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-white/10">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center">
-              <ShieldPlus className="h-4 w-4" />
-            </div>
+        <div className="flex items-center justify-between pb-4 border-b border-[var(--dm-line)]">
+          <div className="flex items-center gap-3">
+            <span className="dm-attention-icon">
+              <ShieldPlus size={18} />
+            </span>
             <div>
-              <h3 className="text-sm font-semibold text-white">Log Field Security Incident</h3>
-              <p className="text-[11px] text-mist-400">Patrol observation · Inspector Roy</p>
+              <h3 className="text-base font-semibold text-[var(--dm-ink)]">Log Field Security Incident</h3>
+              <p className="text-xs text-[var(--dm-muted)]">Patrol observation · Inspector Roy</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-mist-400 hover:text-white hover:bg-white/10 transition-colors"
+            className="dm-icon-button"
+            aria-label="Close dialog"
           >
-            <X className="h-4 w-4" />
+            <X size={18} />
           </button>
         </div>
 
         {error && (
-          <div className="mt-3 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 shrink-0" />
+          <div className="mt-3.5 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+            <AlertCircle size={16} className="shrink-0 text-rose-600" />
             <span>{error}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="mt-4 space-y-3.5 text-xs">
+        <form onSubmit={handleSubmit} className="mt-4 space-y-4 text-xs">
           <div>
-            <label className="block text-mist-300 font-medium mb-1">
-              Incident Title <span className="text-rose-400">*</span>
+            <label className="block text-[var(--dm-ink)] font-medium mb-1.5">
+              Incident Title <span className="text-rose-500">*</span>
             </label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Propped fire door observed"
-              className="w-full rounded-xl bg-ink-950 border border-white/10 px-3 py-2 text-white placeholder-mist-500 focus:outline-none focus:border-sky-500"
+              placeholder="e.g. Propped fire door observed in corridor"
+              className="w-full rounded-xl bg-[var(--dm-surface)] border border-[var(--dm-line)] px-3.5 py-2.5 text-xs text-[var(--dm-ink)] placeholder-[var(--dm-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--dm-accent)]"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3.5">
             <div>
-              <label className="block text-mist-300 font-medium mb-1">Category</label>
+              <label className="block text-[var(--dm-ink)] font-medium mb-1.5">Category</label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full rounded-xl bg-ink-950 border border-white/10 px-3 py-2 text-white focus:outline-none focus:border-sky-500"
+                className="w-full rounded-xl bg-[var(--dm-surface)] border border-[var(--dm-line)] px-3 py-2.5 text-xs text-[var(--dm-ink)] focus:outline-none focus:ring-1 focus:ring-[var(--dm-accent)]"
               >
                 <option value="Suspicious Activity">Suspicious Activity</option>
                 <option value="Access Violation">Access Violation</option>
@@ -111,81 +112,81 @@ export function SecurityLogIncidentModal({ isOpen, onClose, onSubmit }: Security
               </select>
             </div>
             <div>
-              <label className="block text-mist-300 font-medium mb-1">Severity</label>
+              <label className="block text-[var(--dm-ink)] font-medium mb-1.5">Severity</label>
               <select
                 value={severity}
                 onChange={(e) => setSeverity(e.target.value as any)}
-                className="w-full rounded-xl bg-ink-950 border border-white/10 px-3 py-2 text-white focus:outline-none focus:border-sky-500"
+                className="w-full rounded-xl bg-[var(--dm-surface)] border border-[var(--dm-line)] px-3 py-2.5 text-xs text-[var(--dm-ink)] focus:outline-none focus:ring-1 focus:ring-[var(--dm-accent)]"
               >
-                <option value="critical">Critical (Immediate)</option>
-                <option value="major">Major (High Priority)</option>
+                <option value="critical">Critical (Immediate response)</option>
+                <option value="major">Major (High priority)</option>
                 <option value="moderate">Moderate (Standard)</option>
-                <option value="minor">Minor (Observation)</option>
+                <option value="minor">Minor (Field observation)</option>
               </select>
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2">
-              <label className="block text-mist-300 font-medium mb-1">Location Area</label>
+              <label className="block text-[var(--dm-ink)] font-medium mb-1.5">Location Area</label>
               <input
                 type="text"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 placeholder="e.g. Service Corridor B"
-                className="w-full rounded-xl bg-ink-950 border border-white/10 px-3 py-2 text-white placeholder-mist-500 focus:outline-none focus:border-sky-500"
+                className="w-full rounded-xl bg-[var(--dm-surface)] border border-[var(--dm-line)] px-3 py-2.5 text-xs text-[var(--dm-ink)] placeholder-[var(--dm-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--dm-accent)]"
               />
             </div>
             <div>
-              <label className="block text-mist-300 font-medium mb-1">Floor Level</label>
+              <label className="block text-[var(--dm-ink)] font-medium mb-1.5">Floor Level</label>
               <input
                 type="number"
                 value={floor}
                 onChange={(e) => setFloor(Number(e.target.value))}
                 min={-2}
                 max={15}
-                className="w-full rounded-xl bg-ink-950 border border-white/10 px-3 py-2 text-white focus:outline-none focus:border-sky-500"
+                className="w-full rounded-xl bg-[var(--dm-surface)] border border-[var(--dm-line)] px-3 py-2.5 text-xs text-[var(--dm-ink)] focus:outline-none focus:ring-1 focus:ring-[var(--dm-accent)]"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-mist-300 font-medium mb-1">Room (Optional)</label>
+            <label className="block text-[var(--dm-ink)] font-medium mb-1.5">Room / Zone (Optional)</label>
             <input
               type="text"
               value={room}
               onChange={(e) => setRoom(e.target.value)}
-              placeholder="e.g. 509"
-              className="w-full rounded-xl bg-ink-950 border border-white/10 px-3 py-2 text-white placeholder-mist-500 focus:outline-none focus:border-sky-500"
+              placeholder="e.g. Suite 509 or West Wing Deck"
+              className="w-full rounded-xl bg-[var(--dm-surface)] border border-[var(--dm-line)] px-3.5 py-2.5 text-xs text-[var(--dm-ink)] placeholder-[var(--dm-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--dm-accent)]"
             />
           </div>
 
           <div>
-            <label className="block text-mist-300 font-medium mb-1">
-              Field Observations & Description <span className="text-rose-400">*</span>
+            <label className="block text-[var(--dm-ink)] font-medium mb-1.5">
+              Field Observations &amp; Description <span className="text-rose-500">*</span>
             </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
-              placeholder="Detailed description of what you observed on patrol..."
-              className="w-full rounded-xl bg-ink-950 border border-white/10 px-3 py-2 text-white placeholder-mist-500 focus:outline-none focus:border-sky-500"
+              placeholder="Detailed description of physical observations, persons involved, and immediate hazard status..."
+              className="w-full rounded-xl bg-[var(--dm-surface)] border border-[var(--dm-line)] px-3.5 py-2.5 text-xs text-[var(--dm-ink)] placeholder-[var(--dm-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--dm-accent)]"
             />
           </div>
 
-          <div className="pt-2 flex gap-2">
+          <div className="pt-3 border-t border-[var(--dm-line)] flex items-center justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-semibold transition-colors"
+              className="dm-secondary px-5 py-2.5 rounded-xl text-xs font-medium cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 py-2.5 px-4 rounded-xl bg-sky-500 hover:bg-sky-600 text-ink-950 text-xs font-bold transition-colors shadow-lg shadow-sky-500/20"
+              className="dm-primary px-5 py-2.5 rounded-xl text-xs font-medium cursor-pointer"
             >
-              Log Incident
+              Log incident
             </button>
           </div>
         </form>

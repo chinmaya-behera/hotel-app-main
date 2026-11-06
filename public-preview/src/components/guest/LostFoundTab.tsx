@@ -68,7 +68,7 @@ export function LostFoundTab({ room }: GuestTabProps) {
                   onClick={() => claimLostItem(room, item.id)}
                   className="guest-chip-btn mt-2 w-full rounded-lg py-1.5 text-[11px] font-semibold disabled:opacity-50"
                 >
-                  {item.claimed ? 'Claim submitted' : 'This is mine'}
+                  {item.claimed ? 'Claim submitted' : 'Claim Item'}
                 </button>
               </div>
             </li>
