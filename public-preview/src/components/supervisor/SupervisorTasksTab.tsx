@@ -67,7 +67,7 @@ export function SupervisorTasksTab({
 
   const handleExecuteReassignment = (action: 'reassign' | 'reject') => {
     if (!selectedTaskForReassign) return;
-    onReviewReassignment(
+    onReviewReassignment?.(
       selectedTaskForReassign.id,
       action,
       action === 'reassign' ? targetStaffId : undefined,
@@ -137,7 +137,7 @@ export function SupervisorTasksTab({
                   <div className="flex items-center gap-2 shrink-0">
                     <button
                       type="button"
-                      onClick={() => onReviewReassignment(t.id, 'reject', undefined, 'Declined: Attendant retained')}
+                      onClick={() => onReviewReassignment?.(t.id, 'reject', undefined, 'Declined: Attendant retained')}
                       className="px-3 py-1.5 rounded-xl border border-white/10 bg-white/[0.04] text-xs font-semibold text-mist-300 hover:text-white transition flex items-center gap-1.5"
                     >
                       <UserX className="h-3.5 w-3.5" />
@@ -320,7 +320,7 @@ export function SupervisorTasksTab({
                     </span>
                   </td>
                   <td className="py-3.5 px-4 text-mist-400 font-mono text-[11px]">
-                    {t.slaDue || t.at}
+                    {t.slaDue || t.meta || "—"}
                   </td>
                   <td className="py-3.5 px-4 text-mist-400 max-w-xs truncate text-[11px]">
                     {t.notes || '—'}

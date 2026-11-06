@@ -1,13 +1,16 @@
 'use client';
 
-import { useRef, useState, type FormEvent } from 'react';
-import { Activity, ArrowUpRight, BarChart3, Bell, BookOpen, CheckCheck, ChevronRight, ClipboardCheck, Download, Gauge, Handshake, LockKeyhole, LogOut, Search, Send, UserRound, Users, X, type LucideIcon } from 'lucide-react';
+import { Fragment, useEffect, useRef, useState, type FormEvent } from 'react';
+import { Activity, ArrowRight, ArrowUpRight, BarChart3, Bell, BookOpen, CalendarDays, CheckCheck, ChevronRight, ClipboardCheck, Download, Gauge, Handshake, LockKeyhole, LogOut, Menu, Moon, Search, Sun, Send, UserRound, Users, X, type LucideIcon } from 'lucide-react';
 import { useDemo } from '@/lib/store';
 import { departmentId, isOpen, managerDepartment, managerInspections, managerNotifications, managerTasks } from '@/lib/manager-domain';
 import type { SupervisorInspection, WorkItem } from '@/types/demo';
+import { DepartmentDesk, DESK_LABELS } from './DepartmentDesk';
+import '../shared/warm-theme.css';
 import './department-manager.css';
 
 const NAV = [
+  ['department', 'Department desk', ClipboardCheck],
   ['overview', 'Overview', Gauge], ['tasks', 'Task Monitoring', Activity],
   ['inspections', 'Inspections', ClipboardCheck], ['recovery', 'Escalations & Recovery', Handshake],
   ['staff', 'Staff & Workload', Users], ['policies', 'Policies', BookOpen],
@@ -20,7 +23,7 @@ const dateLabel = (value?: string) => { if (!value) return 'Not recorded'; const
 const statusClass = (status: string) => /resolved|completed|passed|acknowledged/i.test(status) ? 'dm-status good' : /escalat|blocked|reopened/i.test(status) ? 'dm-status urgent' : 'dm-status';
 
 export function DepartmentManagerConsole() {
-  const { state, departmentManagerCommand } = useDemo();
+  const { state, hydrated, setTheme, departmentManagerCommand } = useDemo();
   const d = managerDepartment(state.managerDepartment), profile = state.managerProfiles?.[d.id];
   const person = profile?.name || d.person;
   const [tab, setTab] = useState<Tab>('overview');
@@ -28,7 +31,17 @@ export function DepartmentManagerConsole() {
   const [status, setStatus] = useState('all');
   const [period, setPeriod] = useState('week');
   const [modal, setModal] = useState<Modal>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
+  const navigationTrigger = useRef<HTMLButtonElement>(null);
+  const navigationClose = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    navigationClose.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') setSidebarOpen(false); };
+    window.addEventListener('keydown', onKeyDown);
+    return () => { window.removeEventListener('keydown', onKeyDown); navigationTrigger.current?.focus(); };
+  }, [sidebarOpen]);
   const tasks = managerTasks(state, d.id), active = tasks.filter(t => isOpen(t.status));
   const inspections = managerInspections(state, d.id);
   const staff = state.staffAccounts.filter(s => departmentId(s.department) === d.id);
@@ -40,10 +53,10 @@ export function DepartmentManagerConsole() {
   const pending = inspections.filter(i => i.status === 'pending');
   const completed = tasks.filter(t => !isOpen(t.status));
   const visibleTasks = tasks.filter(t => (status === 'all' || (status === 'open' ? isOpen(t.status) : !isOpen(t.status))) && `${t.title} ${t.ref} ${t.room} ${t.assignee}`.toLowerCase().includes(search.toLowerCase()));
-  const navigate = (next: Tab) => { setTab(next); setSearch(''); setStatus('all'); };
+  const navigate = (next: Tab) => { setTab(next); setSearch(''); setStatus('all'); setSidebarOpen(false); };
   const openModal = (next: NonNullable<Modal>) => { setModal(next); dialog.current?.showModal(); };
   const closeModal = () => { dialog.current?.close(); setModal(null); };
-  const title = NAV.find(n => n[0] === tab)?.[1];
+  const title = tab === 'department' ? DESK_LABELS[d.id] : NAV.find(n => n[0] === tab)?.[1];
   const submitModal = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault(); const form = new FormData(event.currentTarget), text = (key: string) => String(form.get(key) || '').trim();
     const command = modal?.kind === 'inspection' ? { type: 'inspection' as const, location: text('location'), instructions: text('instructions'), supervisorId: text('supervisor'), inspectionId: modal.inspection?.id }
@@ -62,17 +75,63 @@ export function DepartmentManagerConsole() {
   };
   const taskRows = (rows: WorkItem[]) => rows.length ? <div className="dm-table-wrap"><table className="dm-table"><thead><tr><th>Request / location</th><th>Owner</th><th>Priority</th><th>Status</th><th>Follow-up</th></tr></thead><tbody>{rows.map(t => <tr key={t.id}><td><strong>{t.title}</strong><small>{t.ref || t.id}{t.room ? ` · Room ${t.room}` : ''}</small></td><td>{t.assignee || 'Awaiting assignment'}</td><td>{t.priority || 'normal'}</td><td><span className={statusClass(t.status)}>{t.status}</span></td><td>{isOpen(t.status) ? <button className="dm-text-button" onClick={() => openModal({ kind: 'recovery', task: t })}>Review <ChevronRight size={14}/></button> : 'Complete'}</td></tr>)}</tbody></table></div> : <div className="dm-empty"><CheckCheck size={26}/><h3>All clear here</h3><p>No matching department requests.</p></div>;
 
-  return <div className="dm-workspace">
-    <aside className="dm-sidebar"><div className="dm-sidebar-brand"><span className="dm-monogram">G</span><div><strong>THE GRAND ADP</strong><small>Department operations</small></div></div><div className="dm-department-label"><LockKeyhole size={14}/><span>{d.name}</span></div><nav aria-label="Department manager navigation">{NAV.map(([id, label, Icon]) => <button key={id} aria-current={tab === id ? 'page' : undefined} onClick={() => navigate(id)}><Icon size={17}/><span>{label}</span>{id === 'notifications' && unread > 0 ? <b>{unread}</b> : id === 'recovery' && recovery.length > 0 ? <b>{recovery.length}</b> : null}</button>)}</nav><div className="dm-sidebar-footer"><div className="dm-avatar">{person.split(' ').map(p => p[0]).slice(0, 2).join('')}</div><div><strong>{person}</strong><small>Department Manager</small></div><a href="/login" aria-label="Change demo account"><LogOut size={17}/></a></div></aside>
-    <main className="dm-main"><header className="dm-topline"><span>OPERATIONS <ChevronRight size={12}/> {d.name.toUpperCase()}</span><span className="dm-live"><i/> Department access</span></header>
-      <div className="dm-page-heading"><div><p className="dm-eyebrow">YOUR DEPARTMENT, AT A GLANCE</p><h1>{title === 'Overview' ? `${d.name} overview` : title}</h1><p>{d.focus}</p></div><div className="dm-heading-actions"><button className="dm-icon-button" aria-label={`Notifications, ${unread} unread`} onClick={() => navigate('notifications')}><Bell size={19}/>{unread > 0 && <b>{unread}</b>}</button><span className="dm-date">{new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span></div></div>
-      <div className="dm-access-note"><LockKeyhole size={14}/><span>You are viewing {d.name} only.</span><a href="/login">Change demo account <ArrowUpRight size={13}/></a></div>
+  const navigation = [NAV.find(n => n[0] === 'overview')!, ...NAV.filter(n => n[0] !== 'overview')];
+  const completionRate = tasks.length ? Math.round(completed.length / tasks.length * 100) : 0;
+  const onDuty = staff.filter(member => member.status === 'active' && !['break', 'off_duty'].includes(member.availability || 'on_duty')).length;
+  const kpis = [
+    { label: 'Active requests', value: active.length, detail: 'Across your department', icon: Activity, next: 'tasks' as Tab },
+    { label: 'Pending inspections', value: pending.length, detail: `${pending.filter(i => !i.assignedSupervisorId).length} awaiting assignment`, icon: ClipboardCheck, next: 'inspections' as Tab },
+    { label: 'Open escalations', value: recovery.length, detail: 'Ready for your review', icon: Handshake, next: 'recovery' as Tab },
+    { label: 'Team on duty', value: onDuty, detail: `of ${staff.filter(s => s.status === 'active').length} active team members`, icon: Users, next: 'staff' as Tab },
+  ];
+
+  if (!hydrated) return <div className="dm-loading" role="status"><span className="dm-monogram">G</span><p>Opening your department workspace…</p></div>;
+
+  return <div className="dm-workspace" data-sidebar-open={sidebarOpen}>
+    {sidebarOpen && <button className="dm-nav-scrim" aria-label="Close navigation" onClick={() => setSidebarOpen(false)}/>}
+    <aside className="dm-sidebar" id="manager-navigation">
+      <div className="dm-sidebar-brand"><span className="dm-monogram">G</span><div><strong>THE GRAND ADP</strong><small>Manager workspace</small></div><button ref={navigationClose} className="dm-mobile-close dm-icon-button" aria-label="Close sidebar" onClick={() => setSidebarOpen(false)}><X size={18}/></button></div>
+      <div className="dm-department-label"><span className="dm-department-icon"><LockKeyhole size={17}/></span><div><small>Your department</small><strong>{d.name}</strong></div></div>
+      <nav aria-label="Department manager navigation">
+        {navigation.map(([id, label, Icon]) => {
+          const displayLabel = id === 'department' ? DESK_LABELS[d.id] : label;
+          const badge = id === 'notifications' ? unread : id === 'recovery' ? recovery.length : 0;
+          return <Fragment key={id}>
+            {['overview', 'staff', 'notifications'].includes(id) && <p className="dm-nav-group-label">{id === 'overview' ? 'Workspace' : id === 'staff' ? 'Management' : 'Personal'}</p>}
+            <button aria-label={badge > 0 ? `${displayLabel} ${badge}` : displayLabel} aria-current={tab === id ? 'page' : undefined} title={displayLabel} onClick={() => navigate(id)}><Icon size={19}/><span>{displayLabel}</span>{badge > 0 && <b>{badge}</b>}</button>
+          </Fragment>;
+        })}
+      </nav>
+      <div className="dm-sidebar-footer"><button className="dm-user-button" onClick={() => navigate('profile')} aria-label="Open manager profile"><span className="dm-avatar">{person.split(' ').map(p => p[0]).slice(0, 2).join('')}</span><span><strong>{person}</strong><small>Department Manager</small></span></button><a href="/login" aria-label="Change demo account" title="Change demo account"><LogOut size={18}/></a></div>
+    </aside>
+
+    <main className="dm-main" inert={sidebarOpen}>
+      <header className="dm-topline"><div className="dm-breadcrumb"><button ref={navigationTrigger} className="dm-menu-toggle dm-icon-button" aria-label="Open navigation" aria-expanded={sidebarOpen} aria-controls="manager-navigation" onClick={() => setSidebarOpen(true)}><Menu size={20}/></button><span>{d.name}</span><ChevronRight size={14}/><strong>{title === 'Overview' ? 'Overview' : title}</strong></div><div className="dm-topline-tools"><span className="dm-live"><i/> Department access</span><button className="dm-icon-button" aria-label={state.theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'} title={state.theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'} onClick={() => setTheme(state.theme === 'light' ? 'dark' : 'light')}>{state.theme === 'light' ? <Moon size={18}/> : <Sun size={18}/>}</button><button className="dm-icon-button" aria-label={`Notifications, ${unread} unread`} onClick={() => navigate('notifications')}><Bell size={19}/>{unread > 0 && <b>{unread}</b>}</button><button className="dm-avatar" aria-label="View your profile" onClick={() => navigate('profile')}>{person.split(' ').map(p => p[0]).slice(0, 2).join('')}</button></div></header>
+
+      <div className="dm-page-heading"><div><p className="dm-eyebrow">DEPARTMENT OPERATIONS</p><h1>{title === 'Overview' ? `${d.name} overview` : title}</h1><p>{d.focus}</p></div><div className="dm-heading-actions">{tab === 'overview' ? <button className="dm-primary" onClick={() => openModal({kind:'inspection'})}><ClipboardCheck size={17}/> New inspection</button> : <span className="dm-date"><CalendarDays size={16}/>{new Date().toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'})}</span>}</div></div>
+
+      {tab === 'department' && <DepartmentDesk onOpen={() => navigate('department')} onInspect={() => navigate('inspections')}/>}
 
       {tab === 'overview' && <>
-        <div className="dm-kpis">{[{ label: 'Active requests', value: active.length, detail: `${completed.length} completed in this demo`, icon: Activity, next: 'tasks' as Tab }, { label: 'Pending inspections', value: pending.length, detail: `${pending.filter(i => !i.assignedSupervisorId).length} need a supervisor`, icon: ClipboardCheck, next: 'inspections' as Tab }, { label: 'Escalations to review', value: recovery.length, detail: 'Supervisor cases & guest recovery', icon: Handshake, next: 'recovery' as Tab }, { label: 'Team on duty', value: staff.filter(s => s.status === 'active' && s.availability !== 'off_duty' && s.availability !== 'break').length, detail: `${staff.length} department team members`, icon: Users, next: 'staff' as Tab }].map(k => <button key={k.label} className="dm-kpi" onClick={() => navigate(k.next)}><span><span>{k.label}</span><k.icon size={18}/></span><strong>{k.value.toString().padStart(2, '0')}</strong><small>{k.detail}</small></button>)}</div>
-        <div className="dm-overview-grid"><section className="dm-panel"><div className="dm-panel-heading"><div><p className="dm-eyebrow">PRIORITY DESK</p><h2>Needs your attention</h2></div><button className="dm-text-button" onClick={() => navigate('recovery')}>View all <ArrowUpRight size={15}/></button></div>{recovery.slice(0, 3).map(t => <div key={t.id} className="dm-attention-row"><span className="dm-attention-dot"/><div><strong>{t.title}</strong><small>{t.meta}</small></div><button className="dm-small-button" onClick={() => openModal({ kind: 'recovery', task: t })}>Review</button></div>)}{recovery.length === 0 && <p className="dm-empty">No open recovery cases.</p>}<div className="dm-panel-heading dm-inner-divider"><h2>Inspection inbox</h2><button className="dm-text-button" onClick={() => navigate('inspections')}>Open inbox <ArrowUpRight size={15}/></button></div>{pending.slice(0, 2).map(i => <div className="dm-attention-row" key={i.id}><ClipboardCheck size={19}/><div><strong>{i.roomNumber} · {i.roomType}</strong><small>From {i.initiatedBy || 'Supervisor'} · {i.assignedSupervisorName || 'Supervisor assignment needed'}</small></div><button className="dm-text-button" onClick={() => openModal({ kind: 'inspection', inspection: i })}>Assign</button></div>)}</section>
-        <section className="dm-panel dm-shift-card"><p className="dm-eyebrow">SERVICE PULSE</p><h2>Care in every detail.</h2><p>{d.standard}</p><div className="dm-progress-label"><span>Request completion</span><strong>{tasks.length ? Math.round(completed.length / tasks.length * 100) : 0}%</strong></div><progress max={Math.max(tasks.length, 1)} value={completed.length}/><small>Calculated from this department’s current demo requests.</small><div className="dm-shift-actions"><button className="dm-primary" onClick={() => openModal({ kind: 'inspection' })}><ClipboardCheck size={16}/> Create inspection</button><button className="dm-secondary" onClick={() => openModal({ kind: 'handover' })}>Prepare handover <ArrowUpRight size={15}/></button></div></section></div>
-        <section className="dm-panel"><div className="dm-panel-heading"><div><p className="dm-eyebrow">LIVE WORKBOARD</p><h2>Department requests</h2></div><button className="dm-text-button" onClick={() => navigate('tasks')}>All requests <ArrowUpRight size={15}/></button></div>{taskRows(active.slice(0, 5))}</section>
+        <div className="dm-overview-meta"><span><CalendarDays size={15}/>{new Date().toLocaleDateString('en-IN', {weekday:'long',day:'numeric',month:'long'})}</span><span><LockKeyhole size={14}/>{d.name} only</span></div>
+        <div className="dm-kpis">{kpis.map(k => <button key={k.label} className="dm-kpi" onClick={() => navigate(k.next)}><span className="dm-kpi-label">{k.label}<span className="dm-kpi-icon"><k.icon size={19}/></span></span><strong>{k.value}</strong><span className="dm-kpi-bottom"><small>{k.detail}</small><ArrowUpRight size={15}/></span></button>)}</div>
+
+        <div className="dm-overview-grid">
+          <section className="dm-panel dm-priority-panel"><div className="dm-panel-heading"><div><div className="dm-section-title"><h2>Attention required</h2><span className="dm-count">{recovery.length}</span></div><p>Supervisor escalations waiting for a decision.</p></div><button className="dm-text-button" onClick={() => navigate('recovery')}>View all <ArrowUpRight size={15}/></button></div>
+            {recovery.slice(0, 3).map(t => <article key={t.id} className="dm-attention-row"><span className="dm-attention-icon"><Handshake size={19}/></span><div><strong>{t.title}</strong><small>{t.meta}</small><span className="dm-status urgent">Needs review</span></div><button className="dm-small-button" onClick={() => openModal({kind:'recovery',task:t})}>Review <ArrowRight size={14}/></button></article>)}
+            {recovery.length === 0 && <div className="dm-empty"><CheckCheck size={28}/><h3>Everything is in hand</h3><p>No escalations need your review.</p></div>}
+            <div className="dm-panel-footnote"><LockKeyhole size={13}/><span>Cases are limited to your department.</span></div>
+          </section>
+
+          <section className="dm-panel dm-shift-card"><div className="dm-section-title"><h2>Shift snapshot</h2><span className="dm-shift-label">Day shift</span></div><div className="dm-completion"><strong>{completionRate}<span>%</span></strong><div><b>Request completion</b><small>{completed.length} of {tasks.length} requests complete</small></div></div><progress aria-label="Department request completion" max={Math.max(tasks.length,1)} value={completed.length}/><div className="dm-snapshot-details"><span>Team on duty<strong>{onDuty}</strong></span><span>Open requests<strong>{active.length}</strong></span></div><div className="dm-shift-actions"><button className="dm-secondary" onClick={() => openModal({kind:'handover'})}><Send size={16}/> Prepare handover <ArrowUpRight size={15}/></button></div></section>
+        </div>
+
+        <div className="dm-overview-grid dm-secondary-grid">
+          <section className="dm-panel"><div className="dm-panel-heading"><div><div className="dm-section-title"><h2>Inspection queue</h2><span className="dm-count">{pending.length}</span></div><p>Quality checks and General Manager directives.</p></div><button className="dm-text-button" onClick={() => navigate('inspections')}>View all <ArrowUpRight size={15}/></button></div>{pending.slice(0,3).map(i => <article key={i.id} className="dm-attention-row dm-inspection-row"><span className="dm-attention-icon"><ClipboardCheck size={19}/></span><div><strong>{i.roomNumber} · {i.roomType}</strong><small>{i.assignedSupervisorName || 'Awaiting supervisor assignment'}</small></div><button className="dm-text-button" onClick={() => openModal({kind:'inspection',inspection:i})}>{i.assignedSupervisorId ? 'Manage' : 'Assign'} <ChevronRight size={15}/></button></article>)}{pending.length === 0 && <div className="dm-empty"><CheckCheck size={26}/><p>No inspections are waiting.</p></div>}</section>
+          <DepartmentDesk summary onOpen={() => navigate('department')} onInspect={() => navigate('inspections')}/>
+        </div>
+
+        <section className="dm-panel"><div className="dm-panel-heading"><div><h2>Active requests</h2><p>The latest work across {d.name.toLowerCase()}.</p></div><button className="dm-text-button" onClick={() => navigate('tasks')}>All requests <ArrowUpRight size={15}/></button></div>{taskRows(active.slice(0,5))}</section>
       </>}
 
       {tab === 'tasks' && <section className="dm-panel"><div className="dm-toolbar"><label className="dm-search"><Search size={16}/><input aria-label="Search department tasks" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search request, room or staff…"/></label><select aria-label="Filter task status" value={status} onChange={e => setStatus(e.target.value)}><option value="all">All requests</option><option value="open">Open requests</option><option value="complete">Completed requests</option></select></div>{taskRows(visibleTasks)}</section>}
@@ -81,7 +140,7 @@ export function DepartmentManagerConsole() {
 
       {tab === 'recovery' && <section className="dm-panel"><div className="dm-panel-heading"><div><h2>Supervisor escalations & service recovery</h2><p>Record a resolution or send the case to the General Manager with context.</p></div></div>{taskRows(recovery)}</section>}
 
-      {tab === 'staff' && <section className="dm-panel"><div className="dm-panel-heading"><div><h2>Staff & workload</h2><p>Live assignments and availability within {d.name}.</p></div></div><div className="dm-staff-grid">{staff.map(member => { const load = active.filter(t => t.assigneeId === member.id || t.assignee === member.name).length; return <article key={member.id} className="dm-staff-card"><div className="dm-avatar">{member.name.split(' ').map(p => p[0]).slice(0, 2).join('')}</div><h3>{member.name}</h3><small>{member.roleId.replaceAll('_', ' ')} · {member.shift}</small><div className="dm-progress-label"><span>Active workload</span><strong>{load} / {member.maxWorkload || 5}</strong></div><progress value={load} max={Math.max(load, member.maxWorkload || 5)}/><label className="dm-field">Availability<select aria-label={`Availability for ${member.name}`} value={member.availability || 'on_duty'} onChange={e => departmentManagerCommand({ type: 'availability', staffId: member.id, value: e.target.value as 'on_duty' | 'break' | 'off_duty' })}><option value="on_duty">On duty</option><option value="break">On break</option><option value="off_duty">Off duty</option></select></label></article>; })}</div></section>}
+      {tab === 'staff' && <section className="dm-panel"><div className="dm-panel-heading"><div><h2>Staff & workload</h2><p>Live assignments and availability within {d.name}.</p></div></div><div className="dm-staff-grid">{staff.map(member => { const load = active.filter(t => t.assigneeId === member.id || t.assignee === member.name).length; return <article key={member.id} className="dm-staff-card"><div className="dm-avatar">{member.name.split(' ').map(p => p[0]).slice(0, 2).join('')}</div><h3>{member.name}</h3><small>{member.roleId.replaceAll('_', ' ')} · {member.shift}{member.status !== 'active' ? ' · Inactive account' : ''}</small><div className="dm-progress-label"><span>Active workload</span><strong>{load} / {member.maxWorkload || 5}</strong></div><progress value={load} max={Math.max(load, member.maxWorkload || 5)}/><label className="dm-field">Availability<select aria-label={`Availability for ${member.name}`} disabled={member.status !== 'active'} value={member.availability || 'on_duty'} onChange={e => departmentManagerCommand({ type: 'availability', staffId: member.id, value: e.target.value as 'on_duty' | 'break' | 'off_duty' })}><option value="on_duty">On duty</option><option value="break">On break</option><option value="off_duty">Off duty</option></select></label></article>; })}</div></section>}
 
       {tab === 'policies' && <section className="dm-panel"><div className="dm-panel-heading"><div><h2>Department policies</h2><p>Service standards, procedures and escalation ownership.</p></div><button className="dm-primary" onClick={() => openModal({ kind: 'policy' })}>Add policy</button></div><article className="dm-record"><h3>Department quality standard</h3><p>{d.standard}</p><small>Owner: {person} · Escalation: General Manager</small></article>{policies.map(p => <article className="dm-record" key={p.id}><h3>{p.title}</h3><p>{p.content || p.summary}</p><small>{p.category} · {p.policyOwner} · Effective {p.effectiveDate}</small></article>)}</section>}
 

@@ -16,20 +16,19 @@ import {
   Bell,
   ChevronLeft,
   ChevronRight,
-  Flame,
   CheckCircle2,
   AlertTriangle,
-  ArrowUpRight,
-  Plus,
   MessageSquare,
+  HeartPulse,
+  Wrench,
+  UtensilsCrossed,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
-import type { SupervisorInspection, RoleId } from '@/types/demo';
+import type { SupervisorInspection, RoleId, DispatcherDepartment, WorkItem, StaffAccount } from '@/types/demo';
 import { ROLE_AUTHORITY_PROFILES, SHARED_SERVICE_POLICIES } from '@/lib/policies';
 
 // Dispatcher Tabs
-// Unified Operations Desktop
-import { UnifiedOperationsDesktop } from './UnifiedOperationsDesktop';
+import { DispatcherSupervisorOverviewTab } from './DispatcherSupervisorOverviewTab';
 import { DispatcherQueueTab } from '@/components/dispatcher/DispatcherQueueTab';
 import { DispatcherWorkloadTab } from '@/components/dispatcher/DispatcherWorkloadTab';
 import { DispatcherRoutingTab } from '@/components/dispatcher/DispatcherRoutingTab';
@@ -39,6 +38,7 @@ import { DispatcherBlockersTab } from '@/components/dispatcher/DispatcherBlocker
 import { DispatcherGuestMessagesTab } from '@/components/dispatcher/DispatcherGuestMessagesTab';
 
 // Supervisor Tabs
+
 import { SupervisorInspectionsTab } from '@/components/supervisor/SupervisorInspectionsTab';
 import { SupervisorRoomsTab } from '@/components/supervisor/SupervisorRoomsTab';
 import { SupervisorHandoverTab } from '@/components/supervisor/SupervisorHandoverTab';
@@ -76,11 +76,10 @@ interface NavItem {
   badgeTone?: 'neutral' | 'danger' | 'warning' | 'success';
 }
 
-
-
 export function DispatcherSupervisorConsole() {
   const {
     state,
+    setActiveDispatcherDept,
     approveInspection,
     reopenInspection,
     reviewFulfillerReassignment,
@@ -94,30 +93,7 @@ export function DispatcherSupervisorConsole() {
   } = useDemo();
 
   const [activeTab, setActiveTab] = useState<DispatcherSupervisorTab>('overview');
-  const [activeDept, setActiveDept] = useState<string>('all');
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const d = params.get('dept');
-      if (d) setActiveDept(d.toLowerCase());
-      const t = params.get('tab');
-      if (t) setActiveTab(t as DispatcherSupervisorTab);
-    }
-  }, []);
-
-  const handleSelectDept = (dept: string) => {
-    setActiveDept(dept);
-    if (typeof window !== 'undefined') {
-      const url = new URL(window.location.href);
-      if (dept === 'all') {
-        url.searchParams.delete('dept');
-      } else {
-        url.searchParams.set('dept', dept);
-      }
-      window.history.replaceState({}, '', url.toString());
-    }
-  };
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Modals state
@@ -128,19 +104,182 @@ export function DispatcherSupervisorConsole() {
   const [isEscalateModalOpen, setIsEscalateModalOpen] = useState(false);
   const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
 
-  // Unified items
+  // Department state & URL query synchronization
+  const currentDept: DispatcherDepartment = state.activeDispatcherDept || 'Housekeeping';
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const deptParam = params.get('dept')?.toLowerCase();
+      if (deptParam === 'wellness' || deptParam === 'spa') {
+        setActiveDispatcherDept('Wellness');
+      } else if (deptParam === 'maintenance' || deptParam === 'engineering') {
+        setActiveDispatcherDept('Maintenance & Engineering');
+      } else if (deptParam === 'fnb' || deptParam === 'food' || deptParam === 'beverage') {
+        setActiveDispatcherDept('Food & Beverages');
+      } else if (deptParam === 'housekeeping' || deptParam === 'hk') {
+        setActiveDispatcherDept('Housekeeping');
+      }
+    }
+  }, [setActiveDispatcherDept]);
+
+  // Department-specific task filter
+  const isTaskInActiveDept = (t: WorkItem) => {
+    const deptStr = (t.department || '').toLowerCase();
+    const catStr = (t.category || '').toLowerCase();
+    if (currentDept === 'Housekeeping') {
+      return (
+        deptStr.includes('housekeeping') ||
+        ['housekeeping', 'lost_found', 'turnover', 'linen'].includes(catStr)
+      );
+    }
+    if (currentDept === 'Wellness') {
+      return (
+        deptStr.includes('spa') ||
+        deptStr.includes('wellness') ||
+        ['spa', 'wellness', 'massage', 'hydrotherapy'].includes(catStr)
+      );
+    }
+    if (currentDept === 'Maintenance & Engineering') {
+      return (
+        deptStr.includes('maintenance') ||
+        deptStr.includes('engineering') ||
+        ['maintenance', 'hvac', 'plumbing', 'electrical', 'repair'].includes(catStr)
+      );
+    }
+    if (currentDept === 'Food & Beverages') {
+      return (
+        deptStr.includes('food') ||
+        deptStr.includes('beverage') ||
+        deptStr.includes('f&b') ||
+        ['room_service', 'dining', 'fnb', 'kitchen', 'restaurant', 'bar'].includes(catStr)
+      );
+    }
+    return true;
+  };
+
+  // Department-specific staff filter
+  const isStaffInActiveDept = (s: StaffAccount) => {
+    const d = s.department.toLowerCase();
+    if (currentDept === 'Housekeeping') return d.includes('house');
+    if (currentDept === 'Wellness') return d.includes('spa') || d.includes('wellness');
+    if (currentDept === 'Maintenance & Engineering') return d.includes('maint') || d.includes('eng');
+    if (currentDept === 'Food & Beverages') return d.includes('food') || d.includes('bev');
+    return true;
+  };
+
+  // Department-specific inspection filter
+  const isInspectionInActiveDept = (i: SupervisorInspection) => {
+    if (i.department) {
+      const d = i.department.toLowerCase();
+      if (currentDept === 'Housekeeping') return d.includes('house');
+      if (currentDept === 'Wellness') return d.includes('spa') || d.includes('wellness');
+      if (currentDept === 'Maintenance & Engineering') return d.includes('maint') || d.includes('eng');
+      if (currentDept === 'Food & Beverages') return d.includes('food') || d.includes('bev');
+    }
+    const att = (i.attendantName || '').toLowerCase();
+    const rType = (i.roomType || '').toLowerCase();
+    const rNo = (i.roomNumber || '').toLowerCase();
+    if (currentDept === 'Housekeeping') {
+      return (
+        !att.includes('wayne') &&
+        !att.includes('rohan') &&
+        !att.includes('leila') &&
+        !att.includes('brandt') &&
+        !att.includes('malhotra') &&
+        !rType.includes('spa') &&
+        !rType.includes('engineering') &&
+        !rType.includes('f&b')
+      );
+    }
+    if (currentDept === 'Wellness') {
+      return (
+        att.includes('leila') ||
+        att.includes('brandt') ||
+        att.includes('ananya') ||
+        rType.includes('spa') ||
+        rType.includes('wellness') ||
+        rNo.includes('spa')
+      );
+    }
+    if (currentDept === 'Maintenance & Engineering') {
+      return (
+        att.includes('wayne') ||
+        att.includes('rohan') ||
+        att.includes('arjun') ||
+        rType.includes('engineering') ||
+        rType.includes('maint')
+      );
+    }
+    if (currentDept === 'Food & Beverages') {
+      return (
+        att.includes('kabir') ||
+        att.includes('dev') ||
+        att.includes('malhotra') ||
+        att.includes('rossi') ||
+        rType.includes('f&b') ||
+        rType.includes('dining')
+      );
+    }
+    return true;
+  };
+
+  // Unified department items
   const allTasks = useMemo(
-    () => [
-      ...(state.items.department_dispatcher_supervisor ?? []),
-      ...(state.items.department_dispatcher ?? []),
-    ].filter((t, i, arr) => arr.findIndex((x) => x.id === t.id) === i),
-    [state.items.department_dispatcher_supervisor, state.items.department_dispatcher],
+    () =>
+      [
+        ...(state.items.department_dispatcher_supervisor ?? []),
+        ...(state.items.department_dispatcher ?? []),
+      ]
+        .filter((t, i, arr) => arr.findIndex((x) => x.id === t.id) === i)
+        .filter(isTaskInActiveDept),
+    [state.items.department_dispatcher_supervisor, state.items.department_dispatcher, currentDept],
   );
 
-  const inspections = useMemo(() => state.inspections ?? [], [state.inspections]);
-  const rooms = useMemo(() => state.frontDesk?.rooms ?? [], [state.frontDesk?.rooms]);
-  const staffList = useMemo(() => state.staffAccounts ?? [], [state.staffAccounts]);
-  const incidents = useMemo(() => state.incidents ?? [], [state.incidents]);
+  const inspections = useMemo(
+    () => (state.inspections ?? []).filter(isInspectionInActiveDept),
+    [state.inspections, currentDept],
+  );
+
+  const staffList = useMemo(
+    () => (state.staffAccounts ?? []).filter(isStaffInActiveDept),
+    [state.staffAccounts, currentDept],
+  );
+
+  const incidents = useMemo(
+    () =>
+      (state.incidents ?? []).filter((inc) => {
+        const d = (inc.department || inc.title || '').toLowerCase();
+        if (currentDept === 'Housekeeping') return d.includes('house');
+        if (currentDept === 'Wellness') return d.includes('spa') || d.includes('wellness');
+        if (currentDept === 'Maintenance & Engineering') return d.includes('maint') || d.includes('eng') || d.includes('safety');
+        if (currentDept === 'Food & Beverages') return d.includes('food') || d.includes('bev') || d.includes('dining');
+        return true;
+      }),
+    [state.incidents, currentDept],
+  );
+
+  const departmentRooms = useMemo(() => {
+    const allRooms = state.frontDesk?.rooms ?? [];
+    if (currentDept === 'Housekeeping') return allRooms;
+    if (currentDept === 'Maintenance & Engineering') {
+      return allRooms.filter(
+        (r) =>
+          r.readiness === 'out_of_order' ||
+          r.readiness === 'inspection_failed' ||
+          ['305', '412', '502', '108'].includes(r.no),
+      );
+    }
+    if (currentDept === 'Wellness') {
+      return allRooms.filter(
+        (r) => r.floor === 2 || r.note?.toLowerCase().includes('suite') || ['202', '204', '210', '518'].includes(r.no),
+      );
+    }
+    if (currentDept === 'Food & Beverages') {
+      return allRooms.filter((r) => ['518', '402', '301', '305', '501'].includes(r.no));
+    }
+    return allRooms;
+  }, [state.frontDesk?.rooms, currentDept]);
 
   const unassignedCount = allTasks.filter((t) => t.status === 'Unassigned' || t.status === 'Received').length;
   const pendingInspections = inspections.filter((i) => i.status === 'pending').length;
@@ -191,7 +330,7 @@ export function DispatcherSupervisorConsole() {
     },
     {
       id: 'inspections',
-      label: 'Quality Inspections',
+      label: 'Inspections',
       shortLabel: 'Inspections',
       icon: ClipboardCheck,
       badge: pendingInspections > 0 ? pendingInspections : undefined,
@@ -255,56 +394,99 @@ export function DispatcherSupervisorConsole() {
     },
   ];
 
+  // Visual details for active department
+  const deptMeta = {
+    'Housekeeping': {
+      title: 'Housekeeping Operations',
+      subtitle: 'Turnover readiness, room cleaning, deep clean sanitization & linen logistics',
+      gradient: 'from-emerald-500 to-teal-600',
+      icon: Sparkles,
+      colorClass: 'text-emerald-400',
+      bgClass: 'bg-emerald-500/10 border-emerald-500/30',
+    },
+    'Wellness': {
+      title: 'Wellness & Spa Operations',
+      subtitle: 'Ayurvedic treatments, hydrotherapy pools, wellness suites & therapy appointments',
+      gradient: 'from-teal-500 to-cyan-600',
+      icon: HeartPulse,
+      colorClass: 'text-cyan-400',
+      bgClass: 'bg-cyan-500/10 border-cyan-500/30',
+    },
+    'Maintenance & Engineering': {
+      title: 'Maintenance & Engineering Operations',
+      subtitle: 'HVAC climate systems, plumbing, electrical repairs & IoT asset alerts',
+      gradient: 'from-amber-500 to-orange-600',
+      icon: Wrench,
+      colorClass: 'text-amber-400',
+      bgClass: 'bg-amber-500/10 border-amber-500/30',
+    },
+    'Food & Beverages': {
+      title: 'Food & Beverages Operations',
+      subtitle: 'In-room dining orders, kitchen expediting, tray presentation & minibar replenishment',
+      gradient: 'from-purple-500 to-pink-600',
+      icon: UtensilsCrossed,
+      colorClass: 'text-purple-400',
+      bgClass: 'bg-purple-500/10 border-purple-500/30',
+    },
+  }[currentDept];
+
+  const DeptIcon = deptMeta.icon;
+
   return (
     <div className="w-full pb-16">
-
-      {/* Top Banner / Role Notification Bar */}
-      <div className="mb-6 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 backdrop-blur-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-base font-bold text-white font-display">
-                {activeDept === 'maintenance' || activeDept === 'engineering'
-                  ? 'Maintenance & Engineering Operations Desk'
-                  : activeDept === 'housekeeping'
-                  ? 'Housekeeping Operations Desk'
-                  : activeDept === 'food_beverage'
-                  ? 'Food & Beverage Operations Desk'
-                  : 'Department Dispatcher / Supervisor Console'}
-              </h1>
-              <span className="px-2 py-0.5 rounded-full bg-amber-400/20 border border-amber-400/30 text-[10px] font-bold text-amber-300 uppercase tracking-wider">
-                {activeDept === 'maintenance' || activeDept === 'engineering'
-                  ? 'Engineering Stream'
-                  : activeDept !== 'all'
-                  ? activeDept.toUpperCase()
-                  : 'Phase 2 Combined'}
-              </span>
+      {/* Active Department Header Banner & Interactive Switcher */}
+      <div className="rounded-3xl border border-white/10 bg-ink-900/90 p-4 sm:p-5 backdrop-blur-xl shadow-2xl mb-6">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div className="flex items-center gap-3.5 min-w-0">
+            <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${deptMeta.gradient} flex items-center justify-center text-white shadow-lg shadow-black/40 shrink-0`}>
+              <DeptIcon className="w-6 h-6" />
             </div>
-            <p className="text-xs text-mist-300">
-              {activeDept === 'maintenance' || activeDept === 'engineering'
-                ? 'Field technician dispatch, equipment & asset work orders, critical repairs & SLA tracking'
-                : 'Unified field orchestration, request auto-routing, quality inspections, shift handovers & SLA monitor'}
-            </p>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono uppercase tracking-wider border ${deptMeta.bgClass} ${deptMeta.colorClass}`}>
+                  {currentDept} Portal
+                </span>
+                <span className="text-xs text-mist-400 font-mono">
+                  {allTasks.length} {currentDept} Tasks · {staffList.length} Staff on Roster
+                </span>
+              </div>
+              <h1 className="text-lg sm:text-xl font-bold font-display text-white mt-0.5 truncate">
+                {deptMeta.title}
+              </h1>
+              <p className="text-xs text-mist-400 line-clamp-1">
+                {deptMeta.subtitle}
+              </p>
+            </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-2 self-stretch sm:self-auto justify-end">
-          <button
-            type="button"
-            onClick={() => setIsCreateTaskModalOpen(true)}
-            className="px-3.5 py-1.5 rounded-xl bg-amber-400 text-ink-950 hover:bg-amber-300 text-xs font-bold transition shadow-md shadow-amber-400/20"
-          >
-            + Create Task
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setIsEscalateModalOpen(true)}
-            className="px-3 py-1.5 rounded-xl border border-rose-500/30 bg-rose-500/20 text-rose-200 hover:bg-rose-500/30 text-xs font-bold transition flex items-center gap-1.5"
-          >
-            <Flame className="h-3.5 w-3.5" />
-            <span>Escalate Issue</span>
-          </button>
+          {/* Department Switcher Tabs */}
+          <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-2xl border border-white/10 bg-ink-950/80 shrink-0">
+            {(['Housekeeping', 'Wellness', 'Maintenance & Engineering', 'Food & Beverages'] as DispatcherDepartment[]).map((d) => {
+              const isCurrent = d === currentDept;
+              const icons = {
+                'Housekeeping': Sparkles,
+                'Wellness': HeartPulse,
+                'Maintenance & Engineering': Wrench,
+                'Food & Beverages': UtensilsCrossed,
+              };
+              const PIcon = icons[d];
+              return (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setActiveDispatcherDept(d)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                    isCurrent
+                      ? 'bg-amber-400 text-ink-950 shadow-md font-extrabold'
+                      : 'text-mist-300 hover:text-white hover:bg-white/[0.06]'
+                  }`}
+                >
+                  <PIcon className="w-3.5 h-3.5 shrink-0" />
+                  <span>{d}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -312,11 +494,11 @@ export function DispatcherSupervisorConsole() {
       <div className="flex flex-col lg:flex-row items-start gap-6">
         {/* Sidebar */}
         <aside
-          className={`shrink-0 transition-all duration-300 ease-in-out ${
+          className={`shrink-0 transition-all duration-300 ease-in-out lg:sticky lg:top-20 z-20 self-start ${
             sidebarCollapsed ? 'w-full lg:w-20' : 'w-full lg:w-72'
           }`}
         >
-          <div className="sticky top-20 rounded-3xl border border-white/10 bg-ink-900/90 p-3 backdrop-blur-xl shadow-2xl space-y-2">
+          <div className="rounded-3xl border border-white/10 bg-ink-900/90 p-3 backdrop-blur-xl shadow-2xl space-y-2 max-h-[calc(100vh-6rem)] overflow-y-auto no-scrollbar">
             <div className="flex items-center justify-between px-3 py-2 border-b border-white/[0.06]">
               {!sidebarCollapsed && (
                 <span className="text-[10px] font-bold uppercase tracking-wider text-mist-400">
@@ -346,11 +528,10 @@ export function DispatcherSupervisorConsole() {
                     key={item.id}
                     type="button"
                     onClick={() => setActiveTab(item.id)}
-                    className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition ${
-                      isActive
-                        ? 'bg-amber-400 text-ink-950 shadow-lg shadow-amber-400/20 font-bold'
-                        : 'text-mist-300 hover:text-white hover:bg-white/[0.04]'
-                    } ${sidebarCollapsed ? 'justify-center px-0' : 'justify-between'}`}
+                    className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-semibold transition ${isActive
+                      ? 'bg-amber-400 text-ink-950 shadow-lg shadow-amber-400/20 font-bold'
+                      : 'text-mist-300 hover:text-white hover:bg-white/[0.04]'
+                      } ${sidebarCollapsed ? 'justify-center px-0' : 'justify-between'}`}
                     title={sidebarCollapsed ? item.label : undefined}
                   >
                     <div className="flex items-center gap-3 min-w-0">
@@ -360,19 +541,18 @@ export function DispatcherSupervisorConsole() {
 
                     {!sidebarCollapsed && item.badge !== undefined && (
                       <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase ${
-                          item.badgeTone === 'danger'
-                            ? isActive
-                              ? 'bg-ink-950 text-rose-300'
-                              : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                            : item.badgeTone === 'warning'
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase ${item.badgeTone === 'danger'
+                          ? isActive
+                            ? 'bg-ink-950 text-rose-300'
+                            : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                          : item.badgeTone === 'warning'
                             ? isActive
                               ? 'bg-ink-950 text-amber-300'
                               : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
                             : isActive
-                            ? 'bg-ink-950 text-emerald-300'
-                            : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                        }`}
+                              ? 'bg-ink-950 text-emerald-300'
+                              : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                          }`}
                       >
                         {item.badge}
                       </span>
@@ -387,19 +567,23 @@ export function DispatcherSupervisorConsole() {
         {/* Dynamic Tab Content Area */}
         <div className="flex-1 min-w-0 w-full space-y-6">
           {activeTab === 'overview' && (
-            <UnifiedOperationsDesktop
-              activeDept={activeDept}
-              onSelectDept={handleSelectDept}
-              onNavigateTab={(tab) => setActiveTab(tab as DispatcherSupervisorTab)}
+            <DispatcherSupervisorOverviewTab
+              activeDept={currentDept}
+              inspections={inspections}
+              rooms={departmentRooms}
+              staffList={staffList}
+              tasks={allTasks}
+              incidents={incidents}
               onSelectInspection={(insp) => {
                 setSelectedInspection(insp);
                 setIsInspectionModalOpen(true);
               }}
-              onOpenCreateTask={() => setIsCreateTaskModalOpen(true)}
+              onNavigateTab={(tab) => setActiveTab(tab as DispatcherSupervisorTab)}
               onOpenEscalate={() => setIsEscalateModalOpen(true)}
             />
           )}
-          {activeTab === 'queue' && <DispatcherQueueTab />}
+
+          {activeTab === 'queue' && <DispatcherQueueTab tasks={allTasks} activeDept={currentDept} />}
 
           {activeTab === 'inspections' && (
             <SupervisorInspectionsTab
@@ -413,7 +597,7 @@ export function DispatcherSupervisorConsole() {
 
           {activeTab === 'rooms' && (
             <SupervisorRoomsTab
-              rooms={rooms}
+              rooms={departmentRooms}
               inspections={inspections}
               onSelectInspectionByRoom={(roomNo) => {
                 const existing = (inspections ?? []).find((i) => i.roomNumber === roomNo);
@@ -430,15 +614,15 @@ export function DispatcherSupervisorConsole() {
             />
           )}
 
-          {activeTab === 'workload' && <DispatcherWorkloadTab />}
+          {activeTab === 'workload' && <DispatcherWorkloadTab staffList={staffList} department={currentDept} />}
 
           {activeTab === 'blockers' && (
-            <DispatcherBlockersTab onOpenEscalate={() => setIsEscalateModalOpen(true)} />
+            <DispatcherBlockersTab onOpenEscalate={() => setIsEscalateModalOpen(true)} tasks={allTasks} />
           )}
 
           {activeTab === 'routing' && <DispatcherRoutingTab />}
 
-          {activeTab === 'sla' && <DispatcherSlaTab />}
+          {activeTab === 'sla' && <DispatcherSlaTab tasks={allTasks} />}
 
           {activeTab === 'guest_messages' && <DispatcherGuestMessagesTab />}
 
@@ -515,7 +699,7 @@ export function DispatcherSupervisorConsole() {
                               {p.category}
                             </span>
                           </div>
-                          <p className="text-xs text-mist-300">{p.summary || p.content}</p>
+                          <p className="text-xs text-mist-300">{p.summary}</p>
                           <div className="flex items-center justify-between text-[11px] pt-1 text-mist-400">
                             <span className="text-amber-300 font-mono">Limit: {p.authorityLimit}</span>
                             <span>Owner: {p.policyOwner}</span>

@@ -19,11 +19,15 @@ import {
   Send,
   AlertTriangle,
   CheckCircle2,
+  Check,
+  X,
   Hotel,
   Compass,
   Palmtree,
+  PartyPopper,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
+import { useEmergencyBroadcast } from '@/lib/emergencyBroadcast';
 import { cn } from '@/lib/utils';
 import { GuestSheet } from '@/components/guest/guestUi';
 import type { GuestTabProps } from '@/components/guest/types';
@@ -105,12 +109,9 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
 
   const prefs = state.guestPreferences?.[room];
 
-  // Critical Safety Alerts
-  const safetyAlerts = state.safetyAlerts ?? [];
-  const hotelAlerts = state.hotelAlerts ?? [];
-  const criticalAlert =
-    safetyAlerts.find((a) => a.priority === 'critical') ||
-    hotelAlerts.find((a) => a.severity === 'Critical');
+  // Front Desk Emergency Broadcast (Default active, dismissed upon guest acknowledgement)
+  const { alert: emergencyAlert, isBroadcastActive, isAcknowledged, acknowledge } = useEmergencyBroadcast();
+  const [alertDetailModalOpen, setAlertDetailModalOpen] = useState(false);
 
   // Interactive Quick Action Sheet states
   const [dndSheetOpen, setDndSheetOpen] = useState(false);
@@ -302,7 +303,7 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
   ]);
 
   return (
-    <div className="space-y-6 sm:space-y-8 max-w-6xl xl:max-w-7xl mx-auto pb-12">
+    <div className="space-y-6 sm:space-y-8 max-w-6xl xl:max-w-7xl mx-auto pb-12 w-full max-w-full min-w-0 overflow-x-hidden box-border">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="guest-card flex items-start gap-2.5 border-emerald-400/40 bg-emerald-400/10 px-4 py-3 text-xs text-white shadow-lg animate-in fade-in duration-200">
@@ -311,32 +312,49 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
         </div>
       )}
 
-      {/* CRITICAL SAFETY ADVISORY (If active) */}
-      {criticalAlert && (
-        <div className="guest-card p-3.5 sm:p-4.5 border-rose-500/50 bg-rose-500/15 flex items-center justify-between gap-3 sm:gap-4 shadow-md">
-          <div className="flex items-center gap-3 sm:gap-3.5 min-w-0">
+      {/* CONDITIONAL FRONT DESK EMERGENCY BROADCAST BANNER (Default active, dismissed upon guest acknowledgement) */}
+      {isBroadcastActive && emergencyAlert && !isAcknowledged && (
+        <div className="guest-card p-3 sm:p-4 border-rose-500/50 bg-rose-500/15 flex items-center justify-between gap-2.5 sm:gap-4 shadow-md transition-all animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0 flex-1">
             <span className="grid h-8 w-8 sm:h-9 sm:w-9 place-items-center rounded-xl bg-rose-500/25 text-rose-400 shrink-0">
-              <AlertTriangle className="h-5 w-5 sm:h-5.5 sm:w-5.5 lg:h-6 lg:w-6" />
+              <AlertTriangle className="h-4.5 w-4.5 sm:h-5 sm:w-5" />
             </span>
-            <div className="min-w-0">
-              <p className="text-xs sm:text-sm font-bold text-white truncate">{criticalAlert.title}</p>
-              <p className="text-[11px] sm:text-xs text-mist-300 truncate">{criticalAlert.description}</p>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="px-1.5 py-0.2 rounded text-[9px] sm:text-[10px] font-extrabold uppercase bg-rose-500 text-white tracking-wider shrink-0">
+                  {emergencyAlert.severity || 'Urgent'}
+                </span>
+                <p className="text-xs sm:text-sm font-bold text-white truncate">{emergencyAlert.title}</p>
+              </div>
+              <p className="text-[11px] sm:text-xs text-rose-200/90 truncate mt-0.5">{emergencyAlert.description}</p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => onNavigate('notifications', 'alerts')}
-            className="px-3.5 py-1.5 rounded-lg bg-rose-500 text-white text-xs font-bold hover:bg-rose-400 shrink-0 transition-colors shadow-sm"
-          >
-            View
-          </button>
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setAlertDetailModalOpen(true)}
+              className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-rose-500 text-white text-xs font-bold hover:bg-rose-400 transition-colors shadow-sm"
+            >
+              View
+            </button>
+            <button
+              type="button"
+              onClick={() => acknowledge(emergencyAlert.id)}
+              className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-lg bg-white/10 hover:bg-emerald-500 text-mist-200 hover:text-white border border-white/15 text-xs font-bold transition-all shadow-sm"
+              title="Acknowledge and dismiss notice"
+              aria-label="Acknowledge and dismiss notice"
+            >
+              <Check className="h-3.5 w-3.5 text-emerald-400 hover:text-white" />
+              <span className="hidden sm:inline">Acknowledge</span>
+            </button>
+          </div>
         </div>
       )}
 
       {/* 1. COMPACT LUXURY HOTEL HEADER */}
       <div
-        data-tour="tour-home"
-        className="guest-card p-4 sm:p-6 lg:p-7 flex flex-row items-center justify-between gap-3 sm:gap-6 border border-cyan-500/25 bg-gradient-to-r from-ink-900/95 via-ink-900/80 to-ink-900/95 shadow-[0_8px_32px_rgba(0,0,0,0.4)] relative overflow-hidden"
+        data-tour="tour-welcome-card"
+        className="guest-card p-4 sm:p-6 lg:p-7 flex flex-row items-center justify-between gap-3 sm:gap-6 border border-cyan-500/20 shadow-sm relative overflow-hidden"
       >
         <div className="flex items-center gap-3 sm:gap-5 min-w-0">
           <div className="grid h-11 w-11 sm:h-14 sm:w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-cyan-400/25 to-cyan-600/10 border border-cyan-400/35 text-cyan-300 shadow-[0_0_20px_rgba(34,211,238,0.25)]">
@@ -397,24 +415,31 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
           </button>
         </div>
 
-        {/* 6 Essential Quick Services in an Evenly Balanced Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-4.5">
+        {/* 6 Essential Quick Services in a 2-Column Mobile Grid (3 rows x 2 cols on mobile, 6 cols on desktop) */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3.5 lg:gap-4">
           {/* 1. Dining */}
           <button
             data-tour="tour-quick-dining"
             type="button"
             onClick={() => onNavigate('services', 'dining')}
-            className="guest-tile p-4 sm:p-4.5 lg:p-5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_24px_rgba(34,211,238,0.15)] transition-all group min-h-[136px] sm:min-h-[148px] lg:min-h-[156px]"
+            className="relative overflow-hidden guest-tile p-3 sm:p-3.5 lg:p-4 text-left flex flex-row items-center gap-2.5 sm:gap-3 hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_20px_rgba(34,211,238,0.12)] transition-all group min-w-0 w-full box-border min-h-[72px] sm:min-h-[78px] lg:min-h-[82px]"
           >
-            <div className="flex items-start justify-between">
-              <span className="grid h-12 w-12 sm:h-14 sm:w-14 place-items-center rounded-2xl shadow-sm bg-amber-400/15 text-amber-300 border border-amber-400/20 group-hover:scale-105 transition-transform p-2.5">
-                <UtensilsCrossed className="h-7 w-7 sm:h-8 sm:w-8" />
-              </span>
-              <span className="text-xs text-mist-400 group-hover:text-cyan-300 group-hover:translate-x-1 transition-all">&rarr;</span>
+            {/* Subtle oversized faded background watermark icon in bottom-right corner */}
+            <div className="absolute -right-2 -bottom-2 opacity-[0.05] group-hover:opacity-[0.12] group-hover:scale-105 transition-all text-white pointer-events-none">
+              <UtensilsCrossed className="h-16 w-16 sm:h-18 sm:w-18 lg:h-20 lg:w-20 transform -rotate-12" />
             </div>
-            <div className="mt-2">
-              <p className="text-xs sm:text-sm lg:text-base font-bold text-white group-hover:text-cyan-300 transition-colors truncate">Dining</p>
-              <p className="text-[11px] sm:text-xs text-mist-400 group-hover:text-mist-200 truncate mt-0.5 sm:mt-1 font-medium">Menu &amp; Order</p>
+
+            <span className="grid h-[42px] w-[42px] sm:h-12 sm:w-12 place-items-center rounded-xl sm:rounded-2xl shadow-sm bg-amber-400/15 text-amber-300 border border-amber-400/20 group-hover:scale-105 transition-transform p-2 sm:p-2.5 shrink-0 z-10">
+              <UtensilsCrossed className="h-5 w-5 sm:h-6 sm:w-6" />
+            </span>
+
+            <div className="flex flex-col justify-center min-w-0 flex-1 z-10">
+              <p className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 transition-colors truncate leading-tight">
+                Dining
+              </p>
+              <p className="text-[10px] sm:text-xs text-mist-400 group-hover:text-mist-200 truncate mt-0.5 font-medium leading-tight">
+                Menu &amp; Order
+              </p>
             </div>
           </button>
 
@@ -423,17 +448,23 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
             data-tour="tour-quick-room-service"
             type="button"
             onClick={() => onNavigate('services', 'room_service')}
-            className="guest-tile p-4 sm:p-4.5 lg:p-5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_24px_rgba(34,211,238,0.15)] transition-all group min-h-[136px] sm:min-h-[148px] lg:min-h-[156px]"
+            className="relative overflow-hidden guest-tile p-3 sm:p-3.5 lg:p-4 text-left flex flex-row items-center gap-2.5 sm:gap-3 hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_20px_rgba(34,211,238,0.12)] transition-all group min-w-0 w-full box-border min-h-[72px] sm:min-h-[78px] lg:min-h-[82px]"
           >
-            <div className="flex items-start justify-between">
-              <span className="grid h-12 w-12 sm:h-14 sm:w-14 place-items-center rounded-2xl shadow-sm bg-cyan-400/15 text-cyan-300 border border-cyan-400/20 group-hover:scale-105 transition-transform p-2.5">
-                <Sparkles className="h-7 w-7 sm:h-8 sm:w-8" />
-              </span>
-              <span className="text-xs text-mist-400 group-hover:text-cyan-300 group-hover:translate-x-1 transition-all">&rarr;</span>
+            <div className="absolute -right-2 -bottom-2 opacity-[0.05] group-hover:opacity-[0.12] group-hover:scale-105 transition-all text-white pointer-events-none">
+              <Sparkles className="h-16 w-16 sm:h-18 sm:w-18 lg:h-20 lg:w-20 transform -rotate-12" />
             </div>
-            <div className="mt-2">
-              <p className="text-xs sm:text-sm lg:text-base font-bold text-white group-hover:text-cyan-300 transition-colors truncate">Room Service</p>
-              <p className="text-[11px] sm:text-xs text-mist-400 group-hover:text-mist-200 truncate mt-0.5 sm:mt-1 font-medium">Amenities &amp; Care</p>
+
+            <span className="grid h-[42px] w-[42px] sm:h-12 sm:w-12 place-items-center rounded-xl sm:rounded-2xl shadow-sm bg-cyan-400/15 text-cyan-300 border border-cyan-400/20 group-hover:scale-105 transition-transform p-2 sm:p-2.5 shrink-0 z-10">
+              <Sparkles className="h-5 w-5 sm:h-6 sm:w-6" />
+            </span>
+
+            <div className="flex flex-col justify-center min-w-0 flex-1 z-10">
+              <p className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 transition-colors truncate leading-tight">
+                Room Service
+              </p>
+              <p className="text-[10px] sm:text-xs text-mist-400 group-hover:text-mist-200 truncate mt-0.5 font-medium leading-tight">
+                Amenities &amp; Care
+              </p>
             </div>
           </button>
 
@@ -442,17 +473,23 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
             data-tour="tour-quick-maintenance"
             type="button"
             onClick={() => onNavigate('services', 'maintenance')}
-            className="guest-tile p-4 sm:p-4.5 lg:p-5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_24px_rgba(34,211,238,0.15)] transition-all group min-h-[136px] sm:min-h-[148px] lg:min-h-[156px]"
+            className="relative overflow-hidden guest-tile p-3 sm:p-3.5 lg:p-4 text-left flex flex-row items-center gap-2.5 sm:gap-3 hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_20px_rgba(34,211,238,0.12)] transition-all group min-w-0 w-full box-border min-h-[72px] sm:min-h-[78px] lg:min-h-[82px]"
           >
-            <div className="flex items-start justify-between">
-              <span className="grid h-12 w-12 sm:h-14 sm:w-14 place-items-center rounded-2xl shadow-sm bg-sky-400/15 text-sky-300 border border-sky-400/20 group-hover:scale-105 transition-transform p-2.5">
-                <Wrench className="h-7 w-7 sm:h-8 sm:w-8" />
-              </span>
-              <span className="text-xs text-mist-400 group-hover:text-cyan-300 group-hover:translate-x-1 transition-all">&rarr;</span>
+            <div className="absolute -right-2 -bottom-2 opacity-[0.05] group-hover:opacity-[0.12] group-hover:scale-105 transition-all text-white pointer-events-none">
+              <Wrench className="h-16 w-16 sm:h-18 sm:w-18 lg:h-20 lg:w-20 transform -rotate-12" />
             </div>
-            <div className="mt-2">
-              <p className="text-xs sm:text-sm lg:text-base font-bold text-white group-hover:text-cyan-300 transition-colors truncate">Maintenance</p>
-              <p className="text-[11px] sm:text-xs text-mist-400 group-hover:text-mist-200 truncate mt-0.5 sm:mt-1 font-medium">Room Repairs</p>
+
+            <span className="grid h-[42px] w-[42px] sm:h-12 sm:w-12 place-items-center rounded-xl sm:rounded-2xl shadow-sm bg-sky-400/15 text-sky-300 border border-sky-400/20 group-hover:scale-105 transition-transform p-2 sm:p-2.5 shrink-0 z-10">
+              <Wrench className="h-5 w-5 sm:h-6 sm:w-6" />
+            </span>
+
+            <div className="flex flex-col justify-center min-w-0 flex-1 z-10">
+              <p className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 transition-colors truncate leading-tight">
+                Maintenance
+              </p>
+              <p className="text-[10px] sm:text-xs text-mist-400 group-hover:text-mist-200 truncate mt-0.5 font-medium leading-tight">
+                Room Repairs
+              </p>
             </div>
           </button>
 
@@ -461,17 +498,23 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
             data-tour="tour-front-desk"
             type="button"
             onClick={() => setFdSheetOpen(true)}
-            className="guest-tile p-4 sm:p-4.5 lg:p-5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_24px_rgba(34,211,238,0.15)] transition-all group min-h-[136px] sm:min-h-[148px] lg:min-h-[156px]"
+            className="relative overflow-hidden guest-tile p-3 sm:p-3.5 lg:p-4 text-left flex flex-row items-center gap-2.5 sm:gap-3 hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_20px_rgba(34,211,238,0.12)] transition-all group min-w-0 w-full box-border min-h-[72px] sm:min-h-[78px] lg:min-h-[82px]"
           >
-            <div className="flex items-start justify-between">
-              <span className="grid h-12 w-12 sm:h-14 sm:w-14 place-items-center rounded-2xl shadow-sm bg-indigo-400/15 text-indigo-300 border border-indigo-400/20 group-hover:scale-105 transition-transform p-2.5">
-                <MessageSquare className="h-7 w-7 sm:h-8 sm:w-8" />
-              </span>
-              <span className="text-xs text-mist-400 group-hover:text-cyan-300 group-hover:translate-x-1 transition-all">&rarr;</span>
+            <div className="absolute -right-2 -bottom-2 opacity-[0.05] group-hover:opacity-[0.12] group-hover:scale-105 transition-all text-white pointer-events-none">
+              <MessageSquare className="h-16 w-16 sm:h-18 sm:w-18 lg:h-20 lg:w-20 transform -rotate-12" />
             </div>
-            <div className="mt-2">
-              <p className="text-xs sm:text-sm lg:text-base font-bold text-white group-hover:text-cyan-300 transition-colors truncate">Front Desk</p>
-              <p className="text-[11px] sm:text-xs text-mist-400 group-hover:text-mist-200 truncate mt-0.5 sm:mt-1 font-medium">24/7 Desk Chat</p>
+
+            <span className="grid h-[42px] w-[42px] sm:h-12 sm:w-12 place-items-center rounded-xl sm:rounded-2xl shadow-sm bg-indigo-400/15 text-indigo-300 border border-indigo-400/20 group-hover:scale-105 transition-transform p-2 sm:p-2.5 shrink-0 z-10">
+              <MessageSquare className="h-5 w-5 sm:h-6 sm:w-6" />
+            </span>
+
+            <div className="flex flex-col justify-center min-w-0 flex-1 z-10">
+              <p className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 transition-colors truncate leading-tight">
+                Front Desk
+              </p>
+              <p className="text-[10px] sm:text-xs text-mist-400 group-hover:text-mist-200 truncate mt-0.5 font-medium leading-tight">
+                24/7 Desk Chat
+              </p>
             </div>
           </button>
 
@@ -479,17 +522,23 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
           <button
             type="button"
             onClick={() => setReminderSheetOpen(true)}
-            className="guest-tile p-4 sm:p-4.5 lg:p-5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_24px_rgba(34,211,238,0.15)] transition-all group min-h-[136px] sm:min-h-[148px] lg:min-h-[156px]"
+            className="relative overflow-hidden guest-tile p-3 sm:p-3.5 lg:p-4 text-left flex flex-row items-center gap-2.5 sm:gap-3 hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_20px_rgba(34,211,238,0.12)] transition-all group min-w-0 w-full box-border min-h-[72px] sm:min-h-[78px] lg:min-h-[82px]"
           >
-            <div className="flex items-start justify-between">
-              <span className="grid h-12 w-12 sm:h-14 sm:w-14 place-items-center rounded-2xl shadow-sm bg-amber-400/15 text-amber-300 border border-amber-400/20 group-hover:scale-105 transition-transform p-2.5">
-                <Bell className="h-7 w-7 sm:h-8 sm:w-8" />
-              </span>
-              <span className="text-xs text-mist-400 group-hover:text-cyan-300 group-hover:translate-x-1 transition-all">&rarr;</span>
+            <div className="absolute -right-2 -bottom-2 opacity-[0.05] group-hover:opacity-[0.12] group-hover:scale-105 transition-all text-white pointer-events-none">
+              <Bell className="h-16 w-16 sm:h-18 sm:w-18 lg:h-20 lg:w-20 transform -rotate-12" />
             </div>
-            <div className="mt-2">
-              <p className="text-xs sm:text-sm lg:text-base font-bold text-white group-hover:text-cyan-300 transition-colors truncate">Reminders</p>
-              <p className="text-[11px] sm:text-xs text-mist-400 group-hover:text-mist-200 truncate mt-0.5 sm:mt-1 font-medium">Wake-up Calls</p>
+
+            <span className="grid h-[42px] w-[42px] sm:h-12 sm:w-12 place-items-center rounded-xl sm:rounded-2xl shadow-sm bg-amber-400/15 text-amber-300 border border-amber-400/20 group-hover:scale-105 transition-transform p-2 sm:p-2.5 shrink-0 z-10">
+              <Bell className="h-5 w-5 sm:h-6 sm:w-6" />
+            </span>
+
+            <div className="flex flex-col justify-center min-w-0 flex-1 z-10">
+              <p className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 transition-colors truncate leading-tight">
+                Reminders
+              </p>
+              <p className="text-[10px] sm:text-xs text-mist-400 group-hover:text-mist-200 truncate mt-0.5 font-medium leading-tight">
+                Wake-up Calls
+              </p>
             </div>
           </button>
 
@@ -497,17 +546,23 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
           <button
             type="button"
             onClick={() => onNavigate('lost_found')}
-            className="guest-tile p-4 sm:p-4.5 lg:p-5 text-left flex flex-col justify-between hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_24px_rgba(34,211,238,0.15)] transition-all group min-h-[136px] sm:min-h-[148px] lg:min-h-[156px]"
+            className="relative overflow-hidden guest-tile p-3 sm:p-3.5 lg:p-4 text-left flex flex-row items-center gap-2.5 sm:gap-3 hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_20px_rgba(34,211,238,0.12)] transition-all group min-w-0 w-full box-border min-h-[72px] sm:min-h-[78px] lg:min-h-[82px]"
           >
-            <div className="flex items-start justify-between">
-              <span className="grid h-12 w-12 sm:h-14 sm:w-14 place-items-center rounded-2xl shadow-sm bg-teal-400/15 text-teal-300 border border-teal-400/20 group-hover:scale-105 transition-transform p-2.5">
-                <PackageSearch className="h-7 w-7 sm:h-8 sm:w-8" />
-              </span>
-              <span className="text-xs text-mist-400 group-hover:text-cyan-300 group-hover:translate-x-1 transition-all">&rarr;</span>
+            <div className="absolute -right-2 -bottom-2 opacity-[0.05] group-hover:opacity-[0.12] group-hover:scale-105 transition-all text-white pointer-events-none">
+              <PackageSearch className="h-16 w-16 sm:h-18 sm:w-18 lg:h-20 lg:w-20 transform -rotate-12" />
             </div>
-            <div className="mt-2">
-              <p className="text-xs sm:text-sm lg:text-base font-bold text-white group-hover:text-cyan-300 transition-colors truncate">Lost &amp; Found</p>
-              <p className="text-[11px] sm:text-xs text-mist-400 group-hover:text-mist-200 truncate mt-0.5 sm:mt-1 font-medium">Item Inquiries</p>
+
+            <span className="grid h-[42px] w-[42px] sm:h-12 sm:w-12 place-items-center rounded-xl sm:rounded-2xl shadow-sm bg-teal-400/15 text-teal-300 border border-teal-400/20 group-hover:scale-105 transition-transform p-2 sm:p-2.5 shrink-0 z-10">
+              <PackageSearch className="h-5 w-5 sm:h-6 sm:w-6" />
+            </span>
+
+            <div className="flex flex-col justify-center min-w-0 flex-1 z-10">
+              <p className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 transition-colors truncate leading-tight">
+                Lost &amp; Found
+              </p>
+              <p className="text-[10px] sm:text-xs text-mist-400 group-hover:text-mist-200 truncate mt-0.5 font-medium leading-tight">
+                Item Inquiries
+              </p>
             </div>
           </button>
         </div>
@@ -515,8 +570,8 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
 
       {/* 3. PENDING REQUESTS TIMELINE */}
       <section
-        data-tour="tour-my-activity"
-        className="space-y-3"
+        data-tour="tour-pending-requests"
+        className="space-y-3 w-full max-w-full min-w-0 overflow-x-hidden box-border"
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -551,14 +606,14 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
             <p className="text-xs text-mist-400">No active pending requests for Room {room}.</p>
           </div>
         ) : (
-          <div className="space-y-3 sm:space-y-3.5">
+          <div className="space-y-3 sm:space-y-3.5 w-full max-w-full min-w-0 box-border">
             {pendingItems.map((item, idx) => {
               const ItemIcon = getItemIcon(item.type, item.category);
               const style = getStatusStyle(item.status);
               const isLast = idx === pendingItems.length - 1;
 
               return (
-                <div key={item.id} className="relative flex items-stretch gap-3 sm:gap-4 group">
+                <div key={item.id} className="relative flex items-stretch gap-2.5 sm:gap-4 group w-full max-w-full min-w-0 box-border">
                   {/* Dedicated Aligned Timeline Track (Node + Connector) */}
                   <div className="flex flex-col items-center shrink-0 w-6 sm:w-7 pt-4">
                     {/* Glowing Aligned Status Dot */}
@@ -579,25 +634,25 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
                   {/* Timeline Card */}
                   <div
                     onClick={() => onNavigate('activity')}
-                    className="guest-card flex-1 p-3.5 sm:p-4.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 hover:border-cyan-400/40 hover:bg-white/[0.03] transition-all cursor-pointer shadow-sm group-hover:shadow-[0_4px_24px_rgba(0,0,0,0.25)]"
+                    className="guest-card flex-1 min-w-0 w-full max-w-full overflow-hidden box-border p-3.5 sm:p-4.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 hover:border-cyan-400/40 hover:bg-white/[0.03] transition-all cursor-pointer shadow-sm group-hover:shadow-[0_4px_24px_rgba(0,0,0,0.25)]"
                   >
-                    <div className="min-w-0 space-y-1">
-                      <div className="flex items-center gap-3">
+                    <div className="min-w-0 flex-1 overflow-hidden space-y-1">
+                      <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 overflow-hidden">
                         <span className="grid h-8 w-8 sm:h-9 sm:w-9 place-items-center rounded-xl bg-white/5 text-cyan-300 border border-white/5 shrink-0 group-hover:scale-105 transition-transform">
                           <ItemIcon className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
                         </span>
-                        <p className="text-sm sm:text-base font-bold text-white truncate group-hover:text-cyan-300 transition-colors">
+                        <p className="text-sm sm:text-base font-bold text-white truncate group-hover:text-cyan-300 transition-colors min-w-0">
                           {item.serviceName}
                         </p>
                       </div>
                       {item.description && (
-                        <p className="text-xs sm:text-sm text-mist-300 line-clamp-1 pl-11 sm:pl-12">
+                        <p className="text-xs sm:text-sm text-mist-300 line-clamp-1 pl-10.5 sm:pl-12 min-w-0 break-words">
                           {item.description}
                         </p>
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between sm:justify-end gap-3.5 sm:gap-4 shrink-0 pl-11 sm:pl-0">
+                    <div className="flex items-center justify-between sm:justify-end gap-2.5 sm:gap-4 shrink-0 pl-10.5 sm:pl-0 min-w-0 max-w-full flex-wrap sm:flex-nowrap">
                       <span className="text-xs text-mist-400 font-mono flex items-center gap-1.5">
                         <Clock className="h-3.5 w-3.5 text-mist-400" />
                         <span>{item.timestamp}</span>
@@ -618,6 +673,79 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
           </div>
         )}
       </section>
+
+      
+      {/* EMERGENCY ADVISORY DETAIL & ACKNOWLEDGEMENT MODAL */}
+      {alertDetailModalOpen && emergencyAlert && (
+        <GuestSheet
+          title="Front Desk Emergency Advisory"
+          onClose={() => setAlertDetailModalOpen(false)}
+          footer={
+            <div className="flex items-center gap-2 w-full">
+              <button
+                type="button"
+                onClick={() => setAlertDetailModalOpen(false)}
+                className="flex-1 py-2.5 px-3 rounded-xl border border-white/10 text-xs font-semibold text-mist-300 hover:text-white"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  acknowledge(emergencyAlert.id);
+                  setAlertDetailModalOpen(false);
+                }}
+                className="flex-2 py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold shadow-md flex items-center justify-center gap-1.5 transition-all"
+              >
+                <Check className="h-4 w-4" />
+                <span>✓ Acknowledge &amp; Dismiss</span>
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-4 text-xs">
+            <div className="p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-rose-500 text-white">
+                  {emergencyAlert.severity}
+                </span>
+                {emergencyAlert.location && (
+                  <span className="text-[11px] font-semibold text-rose-300">
+                    &bull; {emergencyAlert.location}
+                  </span>
+                )}
+                <span className="text-[10px] text-mist-400 ml-auto font-mono">
+                  {emergencyAlert.timestamp}
+                </span>
+              </div>
+              <h3 className="text-sm font-bold text-white">{emergencyAlert.title}</h3>
+              <p className="text-xs text-rose-100/90 leading-relaxed">{emergencyAlert.description}</p>
+            </div>
+
+            <div className="space-y-2 text-mist-300 leading-relaxed bg-white/5 p-3 rounded-xl border border-white/5">
+              <p className="font-semibold text-white text-xs">Safety Instructions &amp; Guidance:</p>
+              <ul className="list-disc list-inside space-y-1 text-[11px]">
+                <li>Engineering and Security patrols have been dispatched on site.</li>
+                <li>All primary guest elevators and exits remain fully monitored.</li>
+                <li>No immediate evacuation required. Duty Managers are on standby 24/7.</li>
+                <li>Contact Front Desk via portal chat or room telephone line 0 for queries.</li>
+              </ul>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                acknowledge(emergencyAlert.id);
+                setAlertDetailModalOpen(false);
+              }}
+              className="w-full p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 flex items-center justify-center gap-2 font-bold text-xs transition-all"
+            >
+              <Check className="h-4 w-4 text-emerald-400" />
+              <span>Mark as Read &bull; Acknowledge Notice</span>
+            </button>
+          </div>
+        </GuestSheet>
+      )}
 
       {/* QUICK DND SHEET */}
       {dndSheetOpen && (
@@ -950,6 +1078,24 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
             </div>
           </form>
         </GuestSheet>
+      )}
+
+      {/* FLOATING ACTION: PLAN AN EVENT */}
+      {state.eventsConfig?.enabled !== false && (
+        <button
+          type="button"
+          onClick={() => onNavigate('services', 'events_celebrations')}
+          className="fixed bottom-20 md:bottom-8 right-4 sm:right-6 z-40 flex items-center gap-2.5 px-4 py-3 rounded-full bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 text-ink-950 text-xs sm:text-sm font-bold shadow-xl shadow-amber-500/25 hover:shadow-amber-500/40 hover:scale-105 active:scale-95 transition-all border border-amber-300/60 ring-2 ring-ink-950 group"
+          aria-label="Plan an Event or Celebration"
+          title="Plan an Event or Celebration with our VIP team"
+        >
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-ink-950 opacity-40" />
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-ink-950" />
+          </span>
+          <PartyPopper className="h-4 w-4 sm:h-5 sm:w-5 text-ink-950 group-hover:rotate-12 transition-transform" />
+          <span className="font-extrabold tracking-wide">Plan an Event 🎉</span>
+        </button>
       )}
     </div>
   );

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MANAGER_DEPARTMENTS, applyManagerCommand, departmentId, ensureManagerState, managerTasks, managerInspections, managerNotifications, reviewManagerEscalation } from '../src/lib/manager-domain.ts';
+import { MANAGER_DEPARTMENTS, applyManagerCommand, departmentId, ensureManagerState, managerTasks, managerInspections, managerNotifications, reviewManagerEscalation, managerDepartmentFromEmail } from '../src/lib/manager-domain.ts';
 
 function fixture(department = 'housekeeping') {
   return ensureManagerState({ persona: 'department_manager', managerDepartment: department, staffAccounts: [], inspections: [], notifications: [], auditTrail: [], items: Object.fromEntries(['task_fulfiller', 'department_dispatcher', 'department_supervisor', 'department_dispatcher_supervisor', 'department_manager', 'front_desk_coordinator', 'financial_operator', 'security_responder', 'executive_viewer', 'general_manager', 'platform_admin'].map(r => [r, []])) });
@@ -11,6 +11,12 @@ test('all four demo identities have unique email addresses and department IDs', 
   assert.equal(MANAGER_DEPARTMENTS.length, 4);
   assert.equal(new Set(MANAGER_DEPARTMENTS.map(d => d.email)).size, 4);
   for (const d of MANAGER_DEPARTMENTS) assert.equal(departmentId(d.name), d.id);
+});
+test('exact manager emails do not collide with dispatcher department names', () => {
+  for (const department of MANAGER_DEPARTMENTS) assert.equal(managerDepartmentFromEmail(department.email), department.id);
+  assert.equal(managerDepartmentFromEmail(' WELLNESS.MANAGER@THEGRANDADP.COM '), 'wellness');
+  assert.equal(managerDepartmentFromEmail('manager@thegrandadp.com'), 'housekeeping');
+  for (const email of ['wellness@thegrandadp.com', 'housekeeping.dispatcher@thegrandadp.com', 'engineering@thegrandadp.com', 'frontdesk@thegrandadp.com']) assert.equal(managerDepartmentFromEmail(email), undefined);
 });
 test('existing saves migrate without duplicating staff, recovery cases or inspections', () => {
   const s = fixture(), next = ensureManagerState(s);
@@ -117,4 +123,85 @@ test('re-escalating a pending GM case does not create a second approval', () => 
   const s = command(fixture(), { type: 'recovery', taskId: 'dept-case-housekeeping', decision: 'escalate', note: 'Please review.' });
   assert.throws(() => command(s, { type: 'recovery', taskId: 'dept-case-housekeeping', decision: 'escalate', note: 'Repeat' }), /already awaiting/);
   assert.equal(s.items.general_manager.length, 1);
+});
+
+function operationalFixture(department) {
+  const s = fixture(department);
+  s.frontDesk = { rooms: [{ no: '401', floor: 4, occupied: false, readiness: 'dirty', dnd: false }], stays: [], complaints: [], sync: [] };
+  s.staffAccounts.push({ id: 'therapist-1', name: 'Demo therapist', department: 'Spa & Wellness', roleId: 'task_fulfiller', status: 'active', availability: 'on_duty' });
+  return s;
+}
+
+test('stock counts persist through migration; replenishment does not invent received stock', () => {
+  let s = operationalFixture('housekeeping');
+  s = command(s, { type: 'stock-count', stockId: 'hk-linen', quantity: 12 });
+  s = command(s, { type: 'replenish', stockId: 'hk-linen' }, 'restock-1');
+  assert.equal(s.managerOperations.stock.find(i => i.id === 'hk-linen').onHand, 12);
+  assert.match(s.resourceRequests[0].details, /48 sets/);
+  assert.equal(s.resourceRequests[0].department, 'Housekeeping');
+  assert.throws(() => command(s, { type: 'replenish', stockId: 'hk-linen' }), /already pending/);
+  assert.equal(ensureManagerState(s).managerOperations.stock.find(i => i.id === 'hk-linen').onHand, 12);
+});
+test('stock actions reject other departments and invalid whole-unit counts', () => {
+  const s = operationalFixture('housekeeping');
+  assert.throws(() => command(s, { type: 'stock-count', stockId: 'fb-milk', quantity: 4 }), /unavailable/);
+  for (const quantity of [-1, NaN, Infinity, 2.5]) assert.throws(() => command(s, { type: 'stock-count', stockId: 'hk-linen', quantity }));
+});
+test('housekeeping cleaning respects DND and engineering holds and deduplicates work', () => {
+  const s = operationalFixture('housekeeping');
+  s.frontDesk.rooms[0].dnd = true;
+  assert.throws(() => command(s, { type: 'room-cleaning', room: '401' }), /Do Not Disturb/);
+  s.frontDesk.rooms[0].dnd = false; s.frontDesk.rooms[0].readiness = 'out_of_order';
+  assert.throws(() => command(s, { type: 'room-cleaning', room: '401' }), /engineering clearance/);
+  s.frontDesk.rooms[0].readiness = 'dirty';
+  const next = command(s, { type: 'room-cleaning', room: '401' });
+  assert.equal(next.items.department_dispatcher_supervisor[0].category, 'housekeeping');
+  assert.equal(next.frontDesk.rooms[0].readiness, 'dirty', 'queueing does not release or clean the room');
+  assert.throws(() => command(next, { type: 'room-cleaning', room: '401' }), /already has/);
+});
+const appointment = { type: 'appointment', guest: 'Room 402', treatment: 'Relaxation massage', therapistId: 'therapist-1', room: 'Treatment room 1', start: '2026-11-05T10:00:00Z', durationMinutes: 60 };
+test('wellness rejects room and therapist overlaps including the reset buffer', () => {
+  const s = command(operationalFixture('wellness'), appointment, 'appointment-1');
+  assert.equal(s.items.department_dispatcher_supervisor[0].category, 'spa');
+  assert.throws(() => command(s, { ...appointment, start: '2026-11-05T11:10:00Z' }), /reset buffer/);
+  assert.throws(() => command(s, { ...appointment, room: 'Treatment room 2', start: '2026-11-05T10:30:00Z' }), /already booked/);
+  s.staffAccounts.push({ ...s.staffAccounts.find(st => st.id === 'therapist-1'), id: 'therapist-2' });
+  assert.throws(() => command(s, { ...appointment, therapistId: 'therapist-2', start: '2026-11-05T10:30:00Z' }), /already booked/);
+  assert.equal(command(s, { ...appointment, start: '2026-11-05T11:15:00Z' }, 'appointment-2').managerOperations.appointments.length, 2);
+});
+test('cancelling an appointment frees capacity and updates shared tasks', () => {
+  let s = command(operationalFixture('wellness'), appointment, 'appointment-1');
+  assert.throws(() => command(s, { type: 'appointment-status', appointmentId: 'appointment-1', status: 'completed' }), /not finished/);
+  s = command(s, { type: 'appointment-status', appointmentId: 'appointment-1', status: 'cancelled' });
+  assert.equal(s.items.task_fulfiller[0].status, 'Cancelled');
+  assert.equal(command(s, appointment, 'replacement').managerOperations.appointments.length, 2);
+});
+test('wellness rejects unavailable therapists, invalid rooms and past appointments', () => {
+  const s = operationalFixture('wellness');
+  assert.throws(() => command(s, { ...appointment, start: '2026-11-03T10:00:00Z' }), /future appointment/);
+  assert.throws(() => command(s, { ...appointment, room: 'Unknown room' }), /listed treatment room/);
+  s.staffAccounts.find(st => st.id === 'therapist-1').availability = 'break';
+  assert.throws(() => command(s, appointment), /available wellness therapist/);
+});
+test('maintenance work orders deduplicate and service dates require completed work', () => {
+  const initial = operationalFixture('engineering');
+  initial.items.department_manager.unshift({ id: 'legacy-without-ref', title: 'Maintenance issue', department: 'Maintenance & Engineering', meta: '', status: 'Escalated' });
+  let s = command(initial, { type: 'asset-work-order', assetId: 'asset-hvac' }, 'pm-order');
+  const ref = s.managerOperations.assets[0].workOrderRef;
+  assert.throws(() => command(s, { type: 'asset-work-order', assetId: 'asset-hvac' }), /already has/);
+  assert.throws(() => command(s, { type: 'asset-service', assetId: 'asset-hvac' }), /Complete the linked/);
+  s.items.department_dispatcher_supervisor.find(t => t.ref === ref).status = 'Completed';
+  s = command(s, { type: 'asset-service', assetId: 'asset-hvac' });
+  assert.equal(s.managerOperations.assets[0].nextDue, '2026-12-04');
+  assert.equal(s.managerOperations.assets[0].lastServiced, '2026-11-04T12:00:00.000Z');
+  assert.equal(s.managerOperations.assets[0].workOrderRef, undefined);
+});
+test('F&B changes the shared guest menu while other departments cannot', () => {
+  const s = operationalFixture('food-beverages');
+  s.diningMenu = [{ id: 'menu-1', name: 'Demo dish', isAvailable: true, allergens: ['Dairy'] }];
+  const next = command(s, { type: 'menu-availability', menuId: 'menu-1', available: false });
+  assert.equal(next.diningMenu[0].isAvailable, false);
+  assert.deepEqual(next.diningMenu[0].allergens, ['Dairy']);
+  next.managerDepartment = 'housekeeping';
+  assert.throws(() => command(next, { type: 'menu-availability', menuId: 'menu-1', available: true }), /outside your department/);
 });

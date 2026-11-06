@@ -62,7 +62,7 @@ export function SupervisorHandoverTab({
     e.preventDefault();
     if (!notes.trim()) return;
 
-    onSubmitHandover({
+    onSubmitHandover?.({
       outgoingManager: 'Meera Nambiar (EMP-0105)',
       incomingManager,
       shift,
@@ -266,7 +266,7 @@ export function SupervisorHandoverTab({
                   {h.status === 'submitted' ? (
                     <button
                       type="button"
-                      onClick={() => onAcknowledgeHandover(h.id)}
+                      onClick={() => onAcknowledgeHandover?.(h.id)}
                       className="px-3 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold hover:bg-emerald-500/30 transition flex items-center gap-1.5"
                     >
                       <Check className="h-3.5 w-3.5" />

@@ -19,11 +19,13 @@ import {
   ShieldCheck,
   ChevronRight,
   Layers,
+  PartyPopper,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
 import { money } from '@/lib/utils';
 import { GuestSectionHeader } from '@/components/guest/guestUi';
 import type { GuestTabProps, GuestTabId, GuestServicesSubtab } from '@/components/guest/types';
+import { DEFAULT_EVENTS_CARD_IMAGE } from './eventsData';
 
 // Specialized views for deep navigation when a service is opened
 import { DiningSection } from './DiningSection';
@@ -38,6 +40,7 @@ import { BookServiceSubtab } from './BookServiceSubtab';
 import { HousekeepingCatalogueSection } from './HousekeepingCatalogueSection';
 import { MaintenanceTab } from './MaintenanceTab';
 import { SpaConciergeTab } from './SpaConciergeTab';
+import { EventsCelebrationsSection } from './EventsCelebrationsSection';
 
 export function AllServicesSection({ room, guestName, onNavigate, initialSubtab }: GuestTabProps) {
   const { state, updateDndStatus } = useDemo();
@@ -47,17 +50,37 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<'all' | 'room' | 'dining' | 'desk' | 'finance'>('all');
-    useEffect(() => {
+  const [activeSubView, setActiveSubView] = useState<GuestServicesSubtab | null>(
+    (initialSubtab as GuestServicesSubtab) && initialSubtab !== 'all' ? (initialSubtab as GuestServicesSubtab) : null,
+  );
+
+  useEffect(() => {
     setActiveSubView(
       initialSubtab && initialSubtab !== 'all' ? (initialSubtab as GuestServicesSubtab) : null
     );
   }, [initialSubtab]);
 
-  const [activeSubView, setActiveSubView] = useState<GuestServicesSubtab | null>(
-    (initialSubtab as GuestServicesSubtab) && initialSubtab !== 'all' ? (initialSubtab as GuestServicesSubtab) : null,
-  );
+  const isEventsEnabled = state.eventsConfig?.enabled !== false;
+  const eventsCardImage = state.eventsConfig?.cardImage || DEFAULT_EVENTS_CARD_IMAGE;
+  const eventsSubtitle = state.eventsConfig?.subtitle || 'Plan your special moments with us.';
 
   const SERVICES = [
+    ...(isEventsEnabled
+      ? [
+          {
+            id: 'events_celebrations' as const,
+            name: 'Events & Celebrations 🎉',
+            category: 'dining' as const,
+            categoryBadge: 'Banquets & Celebrations',
+            bannerImage: eventsCardImage,
+            icon: PartyPopper,
+            color: 'bg-amber-400/15 text-amber-300 border-amber-400/30',
+            tagline: eventsSubtitle,
+            highlights: ['Weddings & Galas', 'Birthday & Anniversaries', 'Theme Decor & Catering', 'Dedicated Event Butler'],
+            actionText: 'Plan an Event 🎉',
+          },
+        ]
+      : []),
     {
       id: 'room_service' as const,
       name: 'Room Service',
@@ -195,6 +218,13 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
 
   // If a subview is currently open, render it with a back button
   if (activeSubView) {
+    // Events & Celebrations renders cleanly without duplicated back banner
+    if (activeSubView === 'events_celebrations') {
+      return (
+        <EventsCelebrationsSection room={room} guestName={guestName} onNavigate={onNavigate} />
+      );
+    }
+
     return (
       <div className="space-y-4">
         {/* Sub-view rendered without top pill bar per specification */}
@@ -252,7 +282,7 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
   }
 
   return (
-    <div className="space-y-6 sm:space-y-8 pb-12 max-w-7xl mx-auto w-full">
+    <div data-tour="tour-services-tab" className="space-y-6 sm:space-y-8 pb-12 max-w-7xl mx-auto w-full">
       {/* Header & Search */}
       <div className="guest-card p-4 space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -261,9 +291,6 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
               <Layers className="h-4 w-4 text-amber-400" />
               <span>All Hotel Services &amp; Amenities</span>
             </h2>
-            <p className="text-[11px] text-mist-400">
-              Access all 10 departments directly without navigating nested submenus
-            </p>
           </div>
         </div>
 
@@ -310,7 +337,7 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
                 : 'bg-white/5 text-mist-300 hover:text-white hover:bg-white/10'
             }`}
           >
-            Room Comfort (3)
+            Room Comfort ({SERVICES.filter((s) => s.category === 'room').length})
           </button>
           <button
             type="button"
@@ -321,7 +348,7 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
                 : 'bg-white/5 text-mist-300 hover:text-white hover:bg-white/10'
             }`}
           >
-            Dining &amp; Spa (2)
+            Dining &amp; Celebrations ({SERVICES.filter((s) => s.category === 'dining').length})
           </button>
           <button
             type="button"
@@ -332,7 +359,7 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
                 : 'bg-white/5 text-mist-300 hover:text-white hover:bg-white/10'
             }`}
           >
-            Front Desk &amp; Care (4)
+            Front Desk &amp; Care ({SERVICES.filter((s) => s.category === 'desk').length})
           </button>
           <button
             type="button"
@@ -343,7 +370,7 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
                 : 'bg-white/5 text-mist-300 hover:text-white hover:bg-white/10'
             }`}
           >
-            Billing &amp; Folio (1)
+            Billing &amp; Folio ({SERVICES.filter((s) => s.category === 'finance').length})
           </button>
         </div>
       </div>

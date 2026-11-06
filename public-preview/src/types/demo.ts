@@ -16,6 +16,12 @@ export type RoleId =
 
 export type ActiveId = RoleId | 'home' | 'guest' | 'site';
 
+export type DispatcherDepartment =
+  | 'Housekeeping'
+  | 'Wellness'
+  | 'Maintenance & Engineering'
+  | 'Food & Beverages';
+
 export type Tone = 'neutral' | 'info' | 'success' | 'warning' | 'danger' | 'accent';
 
 export interface RoleMeta {
@@ -493,6 +499,11 @@ export interface StayRecord {
   nights: number;
   status: StayStatus;
   departsToday?: boolean;
+  vipTier?: string;
+  milestone?: string;
+  dietarySummary?: string;
+  preferencesSummary?: string;
+  gmStatus?: string;
   /** F08: pre-arrival registration state */
   preCheckIn: 'none' | 'pending_verify' | 'verified';
   idChecked: boolean;
@@ -668,6 +679,20 @@ export interface WorkflowConfig {
   autoEscalateOnOverdue: boolean;
 }
 
+export interface EventCategoryConfig {
+  id: string;
+  name: string;
+  startingPrice: number;
+  available: boolean;
+}
+
+export interface EventsCelebrationsConfig {
+  enabled: boolean;
+  cardImage: string;
+  subtitle: string;
+  categories?: EventCategoryConfig[];
+}
+
 export interface PermissionRule {
   key: string;
   label: string;
@@ -836,7 +861,42 @@ export interface DepartmentServicePolicy {
   isManagerLevel?: boolean;
 }
 
+export interface ManagerStockItem {
+  id: string;
+  department: string;
+  name: string;
+  unit: string;
+  onHand: number;
+  par: number;
+  lastCountedAt?: string;
+  requisitionId?: string;
+}
+
+export interface ManagerAppointment {
+  id: string;
+  guest: string;
+  treatment: string;
+  therapistId: string;
+  room: string;
+  start: string;
+  durationMinutes: number;
+  bufferMinutes: number;
+  status: 'booked' | 'completed' | 'cancelled';
+  taskRef: string;
+}
+
+export interface ManagerAsset {
+  id: string;
+  name: string;
+  location: string;
+  intervalDays: number;
+  nextDue: string;
+  lastServiced?: string;
+  workOrderRef?: string;
+}
+
 export interface DemoState {
+  managerOperations?: { stock: ManagerStockItem[]; appointments: ManagerAppointment[]; assets: ManagerAsset[] };
   managerDepartment?: 'housekeeping' | 'wellness' | 'engineering' | 'food-beverages';
   managerProfiles?: Record<string, { name: string; phone: string }>;
   persona: RoleId | null;
@@ -856,6 +916,8 @@ export interface DemoState {
   auditTrail: AuditEvent[];
   /** Workflow, SLA, and operational configuration (Admin and IT workflow) */
   workflowConfig: WorkflowConfig;
+  /** Events & Celebrations hotel configuration */
+  eventsConfig?: EventsCelebrationsConfig;
   /** In-app notification sounds enabled */
   soundEnabled?: boolean;
   /** Fulfiller shift availability */
@@ -904,6 +966,7 @@ export interface DemoState {
   hotelAlerts?: HotelAlert[];
   diningMenu?: DiningMenuItem[];
   diningCategories?: string[];
+  activeDispatcherDept?: DispatcherDepartment;
 }
 
 /* ---- Phase 4: Guest Reminders & Safety Alert Broadcast Engine ---- */
@@ -944,6 +1007,7 @@ export interface SafetyAlertAuditStep {
   role: string;
   action: string;
   notes?: string;
+  note?: string;
 }
 
 export interface SafetyAlertRecord {

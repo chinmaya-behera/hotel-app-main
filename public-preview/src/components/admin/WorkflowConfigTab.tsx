@@ -18,15 +18,18 @@ import {
   Sliders,
   Sparkles,
   Zap,
+  PartyPopper,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { useDemo } from '@/lib/store';
 import { money } from '@/lib/utils';
 import type { WorkflowConfig, WorkItem } from '@/types/demo';
+import { DEFAULT_EVENTS_CARD_IMAGE, EVENT_CATEGORIES } from '@/components/guest/eventsData';
 
 export function WorkflowConfigTab() {
-  const { state, updateWorkflowConfig, simulateTestTask, notify } = useDemo();
+  const { state, updateWorkflowConfig, updateEventsConfig, simulateTestTask, notify } = useDemo();
   const cfg = state.workflowConfig;
 
   // Local form state
@@ -42,6 +45,36 @@ export function WorkflowConfigTab() {
   const [freeCancellationDays, setFreeCancellationDays] = useState(cfg?.freeCancellationDays ?? 2);
   const [earlyCheckInFee, setEarlyCheckInFee] = useState(cfg?.earlyCheckInFee ?? 3200);
   const [resortFeePerNight, setResortFeePerNight] = useState(cfg?.resortFeePerNight ?? 1500);
+
+  // Events & Celebrations config state
+  const evCfg = state.eventsConfig;
+  const [eventsEnabled, setEventsEnabled] = useState(evCfg?.enabled ?? true);
+  const [eventsCardImage, setEventsCardImage] = useState(evCfg?.cardImage ?? DEFAULT_EVENTS_CARD_IMAGE);
+  const [eventsSubtitle, setEventsSubtitle] = useState(evCfg?.subtitle ?? 'Plan your special moments with us.');
+  const [eventCategories, setEventCategories] = useState(
+    evCfg?.categories ??
+      EVENT_CATEGORIES.map((c) => ({
+        id: c.id,
+        name: c.name,
+        startingPrice: c.startingPrice,
+        available: true,
+      }))
+  );
+
+  const handleSaveEventsConfig = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    updateEventsConfig({
+      enabled: eventsEnabled,
+      cardImage: eventsCardImage.trim() || DEFAULT_EVENTS_CARD_IMAGE,
+      subtitle: eventsSubtitle.trim() || 'Plan your special moments with us.',
+      categories: eventCategories,
+    });
+    notify(
+      eventsEnabled
+        ? 'Events & Celebrations configuration saved and active.'
+        : 'Events & Celebrations disabled (hidden from guest view).'
+    );
+  };
 
   // Test request modal/state
   const [testDept, setTestDept] = useState('Housekeeping');
@@ -394,6 +427,218 @@ export function WorkflowConfigTab() {
               onClick={handleRunSampleRequest}
             >
               {isInjecting ? 'Dispatching…' : 'Dispatch Test Request'}
+            </Button>
+          </div>
+        </div>
+        {/* Section 4: Events & Celebrations Feature Configuration */}
+        <div className="rounded-3xl border border-amber-400/25 bg-ink-900/80 p-6 backdrop-blur-xl shadow-xl space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-white/10 pb-4">
+            <div className="flex items-center gap-3">
+              <span className="grid h-11 w-11 place-items-center rounded-2xl bg-amber-400/15 border border-amber-400/30 text-amber-300">
+                <PartyPopper className="h-6 w-6" />
+              </span>
+              <div>
+                <h3 className="font-display text-lg font-bold text-white flex items-center gap-2">
+                  <span>Events &amp; Celebrations Management</span>
+                  <Badge tone={eventsEnabled ? 'success' : 'neutral'}>
+                    {eventsEnabled ? 'Enabled in Guest App' : 'Disabled (Hidden)'}
+                  </Badge>
+                </h3>
+                <p className="text-xs text-mist-300 mt-0.5">
+                  Control banquet &amp; event planning visibility, customize the guest card image, and configure celebration packages.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant={eventsEnabled ? 'outline' : 'accent'}
+                size="sm"
+                onClick={() => {
+                  const nextState = !eventsEnabled;
+                  setEventsEnabled(nextState);
+                  updateEventsConfig({ enabled: nextState });
+                  notify(
+                    nextState
+                      ? 'Events & Celebrations enabled in Guest App.'
+                      : 'Events & Celebrations disabled (hidden from Services card & Home Page button).'
+                  );
+                }}
+              >
+                {eventsEnabled ? 'Disable Events Feature' : 'Enable Events Feature'}
+              </Button>
+            </div>
+          </div>
+
+          {/* Master status indicator */}
+          <div className={`p-3.5 rounded-2xl border text-xs flex items-center justify-between gap-3 ${
+            eventsEnabled
+              ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-200'
+              : 'bg-rose-500/10 border-rose-500/25 text-rose-200'
+          }`}>
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className={`h-4 w-4 ${eventsEnabled ? 'text-emerald-400' : 'text-rose-400'}`} />
+              <span>
+                {eventsEnabled
+                  ? 'Active: Guests can access Events & Celebrations from both the Home Page floating button and the Services card.'
+                  : 'Disabled: Both the Services directory card and the Home Page floating button are hidden from all guests.'}
+              </span>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={eventsEnabled}
+                onChange={(e) => {
+                  const val = e.target.checked;
+                  setEventsEnabled(val);
+                  updateEventsConfig({ enabled: val });
+                }}
+                className="sr-only peer"
+              />
+              <div className="w-10 h-5 bg-white/20 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-400"></div>
+            </label>
+          </div>
+
+          {/* Image & Subtitle configuration */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-mist-300 block mb-1">
+                  Card Cover Image URL (Guest Services Directory)
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={eventsCardImage}
+                    onChange={(e) => setEventsCardImage(e.target.value)}
+                    placeholder="https://..."
+                    className="flex-1 rounded-xl border border-white/10 bg-ink-950/80 px-3 py-2 text-xs text-white"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEventsCardImage(DEFAULT_EVENTS_CARD_IMAGE)}
+                  >
+                    Reset
+                  </Button>
+                </div>
+                <p className="text-[11px] text-mist-400 mt-1">
+                  High-resolution photo showing hotel banquet, ballroom, or wedding celebrations.
+                </p>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-mist-300 block mb-1">
+                  Card Subtitle / Tagline
+                </label>
+                <input
+                  type="text"
+                  value={eventsSubtitle}
+                  onChange={(e) => setEventsSubtitle(e.target.value)}
+                  placeholder="Plan your special moments with us."
+                  className="w-full rounded-xl border border-white/10 bg-ink-950/80 px-3 py-2 text-xs text-white"
+                />
+              </div>
+            </div>
+
+            {/* Live Card Preview */}
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 flex flex-col justify-between">
+              <span className="text-xs font-semibold text-mist-400 block mb-2">Live Guest Card Preview:</span>
+              <div className="relative w-full h-32 rounded-xl overflow-hidden border border-white/10 bg-ink-950">
+                <img
+                  src={eventsCardImage || DEFAULT_EVENTS_CARD_IMAGE}
+                  alt="Events preview"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src = DEFAULT_EVENTS_CARD_IMAGE;
+                  }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-ink-950 via-ink-950/20 to-transparent" />
+                <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-amber-400 text-ink-950 text-[10px] font-bold shadow-md flex items-center gap-1">
+                  <PartyPopper className="h-3 w-3" />
+                  <span>Celebration</span>
+                </span>
+                <div className="absolute bottom-2 left-2 right-2">
+                  <p className="text-xs font-bold text-white leading-tight">Events &amp; Celebrations 🎉</p>
+                  <p className="text-[10px] text-mist-300 truncate">{eventsSubtitle}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Occasion Packages & Categories Configuration */}
+          <div className="space-y-3 pt-2 border-t border-white/10">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-bold text-white">Occasion Packages &amp; Pricing</h4>
+                <p className="text-xs text-mist-400">
+                  Configure starting rates and guest availability for all 9 occasion categories.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+              {eventCategories.map((cat) => (
+                <div
+                  key={cat.id}
+                  className={`p-3 rounded-xl border transition-all ${
+                    cat.available
+                      ? 'bg-white/[0.03] border-white/10'
+                      : 'bg-white/[0.01] border-white/5 opacity-60'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-bold text-white truncate max-w-[140px]">
+                      {cat.name}
+                    </span>
+                    <label className="flex items-center gap-1.5 text-[10px] text-mist-300 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={cat.available}
+                        onChange={() => {
+                          setEventCategories((prev) =>
+                            prev.map((c) => (c.id === cat.id ? { ...c, available: !c.available } : c))
+                          );
+                        }}
+                        className="rounded border-white/20 bg-ink-950 text-amber-400 focus:ring-0 h-3.5 w-3.5"
+                      />
+                      <span>{cat.available ? 'Active' : 'Off'}</span>
+                    </label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-mist-400">Starting from:</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1000"
+                      value={cat.startingPrice}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setEventCategories((prev) =>
+                          prev.map((c) => (c.id === cat.id ? { ...c, startingPrice: Math.max(0, val) } : c))
+                        );
+                      }}
+                      className="w-24 rounded-lg border border-white/10 bg-ink-950/80 px-2 py-1 text-xs text-white font-mono"
+                    />
+                    <span className="text-[10px] text-emerald-400 font-semibold">{money(cat.startingPrice)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="pt-4 border-t border-white/10 flex items-center justify-end gap-3">
+            <Button
+              type="button"
+              variant="accent"
+              size="sm"
+              iconLeft={Save}
+              onClick={handleSaveEventsConfig}
+            >
+              Save Events &amp; Celebrations Configuration
             </Button>
           </div>
         </div>

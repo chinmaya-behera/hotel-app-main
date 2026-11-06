@@ -334,11 +334,11 @@ export function ExecutiveConsole() {
       <div className="flex flex-col lg:flex-row items-start gap-6">
         {/* Collapsible Sidebar */}
         <aside
-          className={`shrink-0 transition-all duration-200 w-full ${
-            sidebarCollapsed ? 'lg:w-20' : 'lg:w-64'
+          className={`shrink-0 transition-all duration-300 ease-in-out lg:sticky lg:top-20 z-20 self-start ${
+            sidebarCollapsed ? 'w-full lg:w-20' : 'w-full lg:w-64'
           }`}
         >
-          <div className="rounded-3xl border border-white/10 bg-white/70 dark:bg-ink-900/90 p-3 backdrop-blur-xl shadow-xl space-y-3 sticky top-24">
+          <div className="rounded-3xl border border-white/10 bg-white/70 dark:bg-ink-900/90 p-3 backdrop-blur-xl shadow-2xl space-y-3 max-h-[calc(100vh-6rem)] overflow-y-auto no-scrollbar">
             {/* Collapse Toggle */}
             <div className="flex items-center justify-between px-2 py-1 text-xs text-slate-400 dark:text-mist-400 border-b border-slate-100 dark:border-white/[0.06] pb-2">
               {!sidebarCollapsed && (

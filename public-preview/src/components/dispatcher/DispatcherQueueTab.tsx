@@ -27,9 +27,14 @@ import { LinkDuplicateModal } from '@/components/dispatcher/LinkDuplicateModal';
 import { EscalateTaskModal } from '@/components/dispatcher/EscalateTaskModal';
 import { TaskDetailsDrawer } from '@/components/dispatcher/TaskDetailsDrawer';
 import { CreateTaskModal } from '@/components/dispatcher/CreateTaskModal';
-import type { WorkItem } from '@/types/demo';
+import type { WorkItem, DispatcherDepartment } from '@/types/demo';
 
-export function DispatcherQueueTab() {
+interface DispatcherQueueTabProps {
+  tasks?: WorkItem[];
+  activeDept?: DispatcherDepartment;
+}
+
+export function DispatcherQueueTab({ tasks, activeDept }: DispatcherQueueTabProps = {}) {
   const { state, autoAssignTask, autoAssignAllPending } = useDemo();
 
   // Filters & Search
@@ -455,17 +460,6 @@ export function DispatcherQueueTab() {
                               title="Reassign to another staff member"
                             >
                               <UserCheck className="h-3.5 w-3.5 text-amber-300" />
-                            </button>
-                          )}
-
-                          {!task.isLinkedDuplicate && (
-                            <button
-                              type="button"
-                              onClick={() => setDuplicateModalTask(task)}
-                              className="p-1.5 rounded-xl border border-white/10 text-mist-400 hover:text-sky-300 hover:bg-sky-500/10 transition"
-                              title="Link as duplicate"
-                            >
-                              <Link2 className="h-3.5 w-3.5" />
                             </button>
                           )}
 

@@ -23,6 +23,7 @@ import {
   Tag,
   ShieldCheck,
   Building,
+  MessageSquare,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
 import { GuestEmptyState, GuestSectionHeader, GuestSheet } from '@/components/guest/guestUi';
@@ -85,6 +86,14 @@ const STATUS_CONFIG: Record<LostItemStatus, { label: string; tone: string; desc:
     tone: 'bg-mist-600/20 text-mist-300 border-mist-500/30',
     desc: 'Case resolved or closed by hotel management',
   },
+};
+
+
+const FOUND_ITEM_FALLBACK_IMAGES: Record<string, string> = {
+  lf1: 'https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=800&q=80',
+  lf2: 'https://images.unsplash.com/photo-1511499767150-a48a237f0083?auto=format&fit=crop&w=800&q=80',
+  lf3: 'https://images.unsplash.com/photo-1559454403-b8fb88521f11?auto=format&fit=crop&w=800&q=80',
+  lf4: 'https://images.unsplash.com/photo-1534353436294-0dbd4bdac845?auto=format&fit=crop&w=800&q=80',
 };
 
 export function LostFoundSection({ room, guestName, onNavigate, initialSubtab }: GuestTabProps) {
@@ -300,30 +309,7 @@ export function LostFoundSection({ room, guestName, onNavigate, initialSubtab }:
             </div>
           </div>
 
-          {/* Sensitive Items Security Advisory Banner */}
-          {restrictedFoundCount > 0 && (
-            <div className="guest-card p-4 border border-amber-500/25 bg-amber-500/10 flex items-start gap-3">
-              <span className="grid h-8 w-8 place-items-center rounded-xl bg-amber-400/20 text-amber-400 shrink-0 mt-0.5">
-                <ShieldAlert className="h-4 w-4" />
-              </span>
-              <div className="space-y-1">
-                <p className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
-                  <ImageOff className="h-3.5 w-3.5" />
-                  <span>{restrictedFoundCount} High-Value / Restricted Item(s) in Vault</span>
-                </p>
-                <p className="text-[11px] text-mist-300 leading-relaxed">
-                  For guest privacy and security, passports, identity documents, wallets with cash, and fine jewelry are strictly stored in the Master Front Desk Safe and are not shown in this public gallery. If you lost high-value items, please report it directly or speak with our Duty Manager in person.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => onNavigate('services', 'front_desk')}
-                  className="text-[11px] font-semibold text-amber-300 underline hover:text-amber-200 mt-1 inline-block"
-                >
-                  Message Front Desk directly &rarr;
-                </button>
-              </div>
-            </div>
-          )}
+          
 
           {/* Found Items Grid */}
           <div className="space-y-3">

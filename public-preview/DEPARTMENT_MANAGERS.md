@@ -1,6 +1,6 @@
 # Department manager demo
 
-Open `/login`, select **View demo login credentials**, then **Autofill** an account and **Sign In**.
+Open `/login`, select **Department Manager** in **Quick Role Fill**, then choose a department in the dropdown that appears. The selected department's email and password autofill immediately. The dropdown hides when another quick-login role is selected. The **View demo login credentials** popup remains available.
 
 | Department | Demo email | Public demo password |
 | --- | --- | --- |
@@ -33,7 +33,22 @@ The previous `manager@thegrandadp.com` account remains an alias for the housekee
 5. Add a policy and shift handover, update staff availability, refresh, and verify the changes remain in the same browser.
 6. Change to another department manager and verify its tasks, staff, inspections, policies, handovers and notifications are separate.
 
-## Verification and boundaries
+## Department tools and design
+
+All four manager workspaces share warm theme tokens independent of role colours. Light mode uses a white canvas and white panels, with parchment `#EBE2CC`, soft beige `#DED6C1` and taupe `#B7B09E` accents; headings use `#353229` and secondary text uses `#686252`. Dark mode uses charcoal `#171715` backgrounds, raised `#1E1E1B` panels, muted warm highlights and cream text. The theme switch is available on sign-in and inside the manager header, persists in the browser and also styles department selectors, forms and native dialogs. Login-only colour overrides retain its original slate/white light palette, navy dark palette, gold accents and coloured role icons without changing the manager theme or the updated login layout and behaviour.
+
+The overview separates actionable escalations, inspection assignments, department tools and a live shift snapshot. KPI cards open their related screens. Navigation is grouped into Workspace, Management and Personal sections, becomes an icon rail on compact desktop screens, and uses a keyboard-accessible drawer on mobile. Tables, forms and dialogs share larger text, consistent spacing and visible focus states. The selected department loads before the dashboard renders, avoiding a flash of another department's default preview.
+
+| Department desk | Implemented behavior | Research reference |
+| --- | --- | --- |
+| Room readiness | Filter attention, arrivals and DND; create deduplicated cleaning tasks; respect guest DND and engineering holds; count linen and request replenishment. | [Oracle housekeeping room status](https://docs.oracle.com/cd/F17749_01/doc.14/f17755/c_task_menu_housekeeping.htm), [guest service status](https://docs.oracle.com/cd/E98457_01/opera_5_6_core_help/guest_service_status_hskgss.htm) |
+| Appointments | Reserve an available therapist and treatment room, prevent overlapping bookings including a 15-minute reset, complete/cancel appointments, and count treatment supplies. | [Agilysys Book4Time scheduling and resources](https://www.agilysys.com/en/products/book4time/) |
+| Maintenance plan | See overdue/next service dates, generate linked work orders, prevent duplicates, and record service/advance due dates only after completed work; count spare parts. | [IBM preventive maintenance records](https://www.ibm.com/docs/en/mfnp/cd?topic=application-preventive-maintenance-pm-records) |
+| Menu & allergens | Search listed allergens and change the menu availability shared with guest dining. Kitchen stock controls are excluded from the F&B manager view. | [Oracle F&B operations](https://engage.oracle.com/52daf9/items/food-and-beverage-operations) |
+
+These are implementation choices informed by the references, rather than integrations with those products. Replenishment requests do not automatically receive inventory; scheduling creates a synthetic operational task and does not post a charge. Inactive staff remain unavailable.
+
+## Verification
 
 Run `npm run test:manager` on Node 22.18+ or Node 24+. Tests cover all four departments, migration idempotence, scoped mutations, inspection delegation, GM escalation/decision feedback, handovers and notification isolation. Run `node scripts/check-manager-types.mjs fb34e6d` to compare strict TypeScript diagnostics with the source pulled for this change. The repository's existing full-project type errors are not hidden by this comparison.
 

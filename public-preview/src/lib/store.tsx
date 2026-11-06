@@ -12,6 +12,8 @@ import {
 } from 'react';
 import { CircleCheck } from 'lucide-react';
 import { INITIAL_DINING_CATEGORIES, INITIAL_DINING_MENU } from '@/components/guest/diningData';
+import { seedEventsConfig } from '@/components/guest/eventsData';
+import type { EventsCelebrationsConfig } from '@/types/demo';
 import type { DiningMenuItem, DietaryType, AllergenType, PortionOption, MenuItemAddon } from '@/types/demo';
 import {
   folioSeed,
@@ -89,9 +91,9 @@ import type {
   GuestNotification,
   HotelAlert,
   GuestFrontDeskReply,
-  ComplaintCase,
-  ComplaintCategory,
-  } from '@/types/demo';
+  ComplaintCase,  ComplaintCategory,
+  DispatcherDepartment,
+} from '@/types/demo';
 
 const STORAGE_KEY = 'grand-azure-demo-v1';
 
@@ -110,6 +112,7 @@ function seedState(): DemoState {
     staffAccounts: seedStaffAccounts,
     auditTrail: seedAuditTrail,
     workflowConfig: seedWorkflowConfig,
+    eventsConfig: seedEventsConfig,
     soundEnabled: true,
     fulfillerAvailability: 'on_duty',
     notifications: seedNotifications,
@@ -132,10 +135,11 @@ function seedState(): DemoState {
     safetyAlerts: seedSafetyAlerts,
     diningMenu: INITIAL_DINING_MENU,
     diningCategories: INITIAL_DINING_CATEGORIES,
+    activeDispatcherDept: 'Housekeeping' as DispatcherDepartment,
   }) as DemoState);
 }
 
-interface Toast {
+export interface Toast {
   id: number;
   text: string;
 }
@@ -166,6 +170,7 @@ export interface GuestRequestInput {
 }
 
 interface DemoApi {
+  toasts: Toast[];
   setManagerDepartment: (department: ManagerDepartmentId) => void;
   departmentManagerCommand: (command: ManagerCommand) => boolean;
   state: DemoState;
@@ -176,6 +181,7 @@ interface DemoApi {
   reset: () => void;
   notify: (text: string) => void;
   setTheme: (theme: ThemeMode) => void;
+  setActiveDispatcherDept: (dept: DispatcherDepartment) => void;
   submitGuestRequest: (input: GuestRequestInput) => string;
   placeRoomServiceOrder: (room: string, lines: OrderLine[], note?: string) => string;
   placeDiningOrder: (room: string, lines: OrderLine[], note?: string) => string;
@@ -199,6 +205,7 @@ interface DemoApi {
   addStaffAccount: (account: Omit<StaffAccount, 'id' | 'createdAt'>) => void;
   /** Admin Workflow & SLA Configuration (Admin and IT workflow) */
   updateWorkflowConfig: (partial: Partial<WorkflowConfig>) => void;
+  updateEventsConfig: (partial: Partial<EventsCelebrationsConfig>) => void;
   /** Admin QR lifecycle management (SECURITY.md / ER_DIAGRAMS Domain 2) */
   revokeRoomSession: (room: string) => void;
   restoreRoomSession: (room: string) => void;
@@ -448,10 +455,23 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         setState(ensureManagerState({
           managerDepartment: saved.managerDepartment,
           managerProfiles: saved.managerProfiles,
+          managerOperations: saved.managerOperations,
           persona: saved.persona ?? null,
           items: {
             ...base.items,
             ...saved.items,
+            task_fulfiller: [
+              ...(base.items.task_fulfiller ?? []),
+              ...((saved.items?.task_fulfiller ?? []).filter(
+                (si) => !(base.items.task_fulfiller ?? []).some((bi) => bi.id === si.id),
+              )),
+            ],
+            department_dispatcher: [
+              ...(base.items.department_dispatcher ?? []),
+              ...((saved.items?.department_dispatcher ?? []).filter(
+                (si) => !(base.items.department_dispatcher ?? []).some((bi) => bi.id === si.id),
+              )),
+            ],
             department_dispatcher_supervisor:
               saved.items?.department_dispatcher_supervisor ?? base.items.department_dispatcher_supervisor,
             general_manager: saved.items?.general_manager ?? base.items.general_manager,
@@ -493,6 +513,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           safetyAlerts: saved.safetyAlerts ?? base.safetyAlerts,
           diningMenu: saved.diningMenu ?? base.diningMenu,
           diningCategories: saved.diningCategories ?? base.diningCategories,
+          activeDispatcherDept: saved.activeDispatcherDept ?? base.activeDispatcherDept ?? 'Housekeeping',
         }));
       }
     } catch {
@@ -510,9 +531,18 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     }
   }, [state, hydrated]);
 
-  // Keep the whole site on one theme: mirror it onto <html data-theme>.
+  // Keep the whole site on one theme: mirror it onto <html data-theme> and class.
   useEffect(() => {
-    if (hydrated) document.documentElement.dataset.theme = state.theme;
+    if (hydrated) {
+      document.documentElement.dataset.theme = state.theme;
+      if (state.theme === 'light') {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.classList.add('light');
+      } else {
+        document.documentElement.classList.remove('light');
+        document.documentElement.classList.add('dark');
+      }
+    }
   }, [state.theme, hydrated]);
 
   // Clear any pending simulated-lifecycle timers on unmount.
@@ -561,9 +591,24 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     setState((prev) => (prev.theme === theme ? prev : { ...prev, theme }));
   }, []);
 
+  const setActiveDispatcherDept = useCallback((dept: DispatcherDepartment) => {
+    setState((prev) => (prev.activeDispatcherDept === dept ? prev : { ...prev, activeDispatcherDept: dept }));
+  }, []);
+
   const advance = useCallback<DemoApi['advance']>(
     (roleId, itemId, t, reason) => {
-      const item = stateRef.current.items[roleId]?.find((i) => i.id === itemId);
+      let item = stateRef.current.items[roleId]?.find((i) => i.id === itemId);
+      let actualRoleId = roleId;
+      if (!item) {
+        for (const [r, list] of Object.entries(stateRef.current.items)) {
+          const found = list.find((i) => i.id === itemId);
+          if (found) {
+            item = found;
+            actualRoleId = r as RoleId;
+            break;
+          }
+        }
+      }
       if (!item) return;
       const text = `${t.message}: ${item.title}${reason ? ` · ${reason}` : ''}`;
       const revokes = Boolean(t.revokesQr && item.room);
@@ -571,49 +616,56 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
       setState((prev) => {
         const nextItems = { ...prev.items };
-        // Update the item in the active role
-        nextItems[roleId] = nextItems[roleId].map((i) =>
-          i.id === itemId
-            ? {
-              ...i,
-              status: t.next,
-              selfRequested: t.marksSelf ? true : i.selfRequested,
-              blockerReason: t.next === 'Blocked' ? (reason ?? i.blockerReason) : (t.next === 'In progress' ? undefined : i.blockerReason),
-              history: [...(i.history ?? []), historyEntry],
+        // Update matching items across all role queues
+        (Object.keys(nextItems) as RoleId[]).forEach((otherRoleId) => {
+          nextItems[otherRoleId] = nextItems[otherRoleId].map((other) => {
+            if (other.id === itemId || (item!.ref && other.ref === item!.ref)) {
+              return {
+                ...other,
+                status: t.next,
+                selfRequested: t.marksSelf ? true : other.selfRequested,
+                blockerReason:
+                  t.next === 'Blocked'
+                    ? (reason ?? other.blockerReason)
+                    : t.next === 'In progress' || t.next === 'Accepted' || t.next === 'Completed'
+                      ? undefined
+                      : other.blockerReason,
+                history: [...(other.history ?? []), historyEntry],
+              };
             }
-            : i,
-        );
-
-        // Connected cross-role update: If this is a fulfiller task or guest request, also update any mirrored item in other roles
-        if (item.ref) {
-          (Object.keys(nextItems) as RoleId[]).forEach((otherRoleId) => {
-            if (otherRoleId !== roleId) {
-              nextItems[otherRoleId] = nextItems[otherRoleId].map((other) => {
-                if (other.ref === item.ref || (other.room === item.room && other.title === item.title)) {
-                  return {
-                    ...other,
-                    status: t.next,
-                    history: [...(other.history ?? []), historyEntry],
-                  };
-                }
-                return other;
-              });
-            }
+            return other;
           });
+        });
+
+        // Ensure item exists in task_fulfiller queue when action is performed by fulfiller
+        if (roleId === 'task_fulfiller') {
+          const currentFulfiller = nextItems.task_fulfiller ?? [];
+          const exists = currentFulfiller.some((i) => i.id === itemId || (item!.ref && i.ref === item!.ref));
+          if (!exists) {
+            nextItems.task_fulfiller = [
+              {
+                ...item!,
+                status: t.next,
+                blockerReason: t.next === 'Blocked' ? (reason ?? item!.blockerReason) : undefined,
+                history: [...(item!.history ?? []), historyEntry],
+              },
+              ...currentFulfiller,
+            ];
+          }
         }
 
         return {
           ...prev,
           items: nextItems,
-          feed: [{ id: uid(), at: nowLabel(), role: roleById[roleId].short, text }, ...prev.feed].slice(0, 30),
+          feed: [{ id: uid(), at: nowLabel(), role: roleById[roleId]?.short ?? 'Staff', text }, ...prev.feed].slice(0, 30),
           revokedRooms:
-            revokes && item.room && !prev.revokedRooms.includes(item.room)
-              ? [...prev.revokedRooms, item.room]
+            revokes && item!.room && !prev.revokedRooms.includes(item!.room)
+              ? [...prev.revokedRooms, item!.room]
               : prev.revokedRooms,
         };
       });
-      setState((prev) => afterAdvance(prev, roleId, t.next, item.room));
-      notify(revokes ? `${text} · Room ${item.room} guest session revoked` : text);
+      setState((prev) => afterAdvance(prev, actualRoleId, t.next, item!.room));
+      notify(revokes ? `${text} · Room ${item!.room} guest session revoked` : text);
     },
     [notify],
   );
@@ -802,20 +854,30 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
   const attachTaskPhoto = useCallback((roleId: RoleId, itemId: string, dataUrl: string) => {
     setState((prev) => {
-      const item = prev.items[roleId]?.find((i) => i.id === itemId);
+      let item = prev.items[roleId]?.find((i) => i.id === itemId);
+      if (!item) {
+        for (const list of Object.values(prev.items)) {
+          const found = list.find((i) => i.id === itemId);
+          if (found) {
+            item = found;
+            break;
+          }
+        }
+      }
       if (!item) return prev;
       const historyEntry: GuestHistoryEntry = { at: nowLabel(), status: item.status, note: 'Photo evidence attached' };
+      const nextItems = { ...prev.items };
+      (Object.keys(nextItems) as RoleId[]).forEach((r) => {
+        nextItems[r] = nextItems[r].map((i) =>
+          i.id === itemId || (item!.ref && i.ref === item!.ref)
+            ? { ...i, photoUrl: dataUrl, photoAttached: true, history: [...(i.history ?? []), historyEntry] }
+            : i,
+        );
+      });
       return {
         ...prev,
-        items: {
-          ...prev.items,
-          [roleId]: prev.items[roleId].map((i) =>
-            i.id === itemId
-              ? { ...i, photoUrl: dataUrl, photoAttached: true, history: [...(i.history ?? []), historyEntry] }
-              : i,
-          ),
-        },
-        feed: [{ id: uid(), at: nowLabel(), role: roleById[roleId].short, text: `Photo attached for ${item.title}` }, ...prev.feed].slice(0, 30),
+        items: nextItems,
+        feed: [{ id: uid(), at: nowLabel(), role: roleById[roleId]?.short ?? 'Staff', text: `Photo attached for ${item.title}` }, ...prev.feed].slice(0, 30),
       };
     });
     notify('Photo attached successfully');
@@ -997,7 +1059,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       setState((prev) => {
         const ddsItems = prev.items.department_dispatcher_supervisor ?? [];
         const ddItems = prev.items.department_dispatcher ?? [];
-        const task = ddsItems.find((i) => i.id === taskId) || ddItems.find((i) => i.id === taskId);
+        const fulItems = prev.items.task_fulfiller ?? [];
+        const task = ddsItems.find((i) => i.id === taskId) || ddItems.find((i) => i.id === taskId) || fulItems.find((i) => i.id === taskId);
         const staff = (prev.staffAccounts ?? []).find((s) => s.id === staffId || s.employeeId === staffId);
         if (!task || !staff) return prev;
 
@@ -1948,6 +2011,29 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         details: `Parameters updated: ${Object.keys(partial).join(', ')}`,
       });
       notify('Workflow configuration saved');
+    },
+    [notify, recordAuditEvent],
+  );
+
+  const updateEventsConfig = useCallback<DemoApi['updateEventsConfig']>(
+    (partial) => {
+      setState((prev) => ({
+        ...prev,
+        eventsConfig: {
+          ...(prev.eventsConfig ?? seedEventsConfig),
+          ...partial,
+        },
+      }));
+      recordAuditEvent({
+        actor: 'Rajesh Sharma',
+        actorRole: 'Platform Administrator',
+        action: `Events & Celebrations configuration modified`,
+        category: 'Workflow',
+        resource: 'Events & Celebrations Service',
+        outcome: 'success',
+        details: `Parameters updated: ${Object.keys(partial).join(', ')}`,
+      });
+      notify('Events & Celebrations settings saved');
     },
     [notify, recordAuditEvent],
   );
@@ -4353,6 +4439,16 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
   const claimTask = useCallback<DemoApi['claimTask']>(
     (taskId, fulfillerId, fulfillerName) => {
+      const currentAvail = stateRef.current.fulfillerAvailability ?? 'on_duty';
+      if (currentAvail === 'break') {
+        notify('Cannot self-assign tasks while on break. Switch to On Duty status to claim tasks.');
+        return;
+      }
+      if (currentAvail === 'off_duty') {
+        notify('Cannot self-assign tasks while off duty. Switch to On Duty status to claim tasks.');
+        return;
+      }
+
       const timestamp = nowLabel();
       let conflictError = false;
 
@@ -6077,6 +6173,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       reset,
       notify,
       setTheme,
+      setActiveDispatcherDept,
       submitGuestRequest,
       placeRoomServiceOrder,
       placeDiningOrder,
@@ -6097,6 +6194,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       updateStaffRole,
       addStaffAccount,
       updateWorkflowConfig,
+      updateEventsConfig,
       revokeRoomSession,
       restoreRoomSession,
       setIntegrationState,
@@ -6183,6 +6281,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       gestureGuideOpen,
       setGestureGuideOpen,
       resetActionableExamples,
+      toasts,
     }),
     [
       setManagerDepartment,
@@ -6215,6 +6314,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       updateStaffRole,
       addStaffAccount,
       updateWorkflowConfig,
+      updateEventsConfig,
       revokeRoomSession,
       restoreRoomSession,
       setIntegrationState,
@@ -6301,12 +6401,14 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       gestureGuideOpen,
       setGestureGuideOpen,
       resetActionableExamples,
+      toasts,
     ],
   );
 
   return (
     <DemoContext.Provider value={api}>
       {children}
+      {state.persona !== 'task_fulfiller' && (
       <div
         aria-live="polite"
         className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex flex-col items-center gap-2 px-4 sm:items-end sm:pr-6"
@@ -6324,6 +6426,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           </div>
         ))}
       </div>
+      )}
     </DemoContext.Provider>
   );
 }
