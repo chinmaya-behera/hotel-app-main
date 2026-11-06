@@ -185,19 +185,19 @@ export function SecurityApp() {
     gsap.fromTo(
       '.dm-kpi',
       { opacity: 0, y: 18 },
-      { opacity: 1, y: 0, duration: 0.5, stagger: 0.06, delay: 0.16, ease: 'power2.out' }
+      { opacity: 1, y: 0, duration: 0.5, stagger: 0.06, delay: 0.16, ease: 'power2.out', clearProps: 'transform' }
     );
     gsap.fromTo(
       '.gsap-kpi-num',
       { opacity: 0, scale: 0.94 },
-      { opacity: 1, scale: 1, duration: 0.45, stagger: 0.06, delay: 0.22, ease: 'back.out(1.5)' }
+      { opacity: 1, scale: 1, duration: 0.45, stagger: 0.06, delay: 0.22, ease: 'back.out(1.5)', clearProps: 'transform' }
     );
 
     // 3. Grid panels entrance
     gsap.fromTo(
       '.gsap-panel',
       { opacity: 0, y: 20 },
-      { opacity: 1, y: 0, duration: 0.6, stagger: 0.1, delay: 0.24, ease: 'power2.out' }
+      { opacity: 1, y: 0, duration: 0.6, stagger: 0.1, delay: 0.24, ease: 'power2.out', clearProps: 'transform' }
     );
 
     // 4. Section headings
