@@ -235,10 +235,7 @@ export function SecurityApp() {
     <div className="w-full space-y-6 animate-in fade-in duration-150">
       {/* 1. TOP COMMAND HEADER BAR */}
       <div className="rounded-2xl border border-sky-500/20 bg-sky-500/10 p-5 backdrop-blur-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl">
-        <div className="flex items-center gap-3.5">
-          <div className="grid h-12 w-12 place-items-center rounded-2xl bg-sky-500/20 text-sky-300 font-black text-sm border border-sky-500/30 shadow-lg shadow-sky-500/10">
-            <ShieldAlert className="h-6 w-6 text-sky-400" />
-          </div>
+        <div className="flex items-center gap-3">
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-lg font-bold text-white font-display">
@@ -277,15 +274,7 @@ export function SecurityApp() {
             <span>{isSoundOn ? 'Siren Active' : 'Muted'}</span>
           </button>
 
-          {/* Theme Toggle */}
-          <button
-            type="button"
-            onClick={() => setTheme(isLight ? 'dark' : 'light')}
-            className="p-2 rounded-xl border border-white/10 bg-white/5 text-mist-300 hover:text-white transition"
-            title={isLight ? 'Dark Mode' : 'Light Mode'}
-          >
-            {isLight ? <Moon className="h-4 w-4 text-amber-400" /> : <Sun className="h-4 w-4 text-amber-300" />}
-          </button>
+
 
           {/* Mobile View Toggle */}
           <button
@@ -359,64 +348,7 @@ export function SecurityApp() {
               })}
             </nav>
 
-            {/* Quick Live Patrol Coverage Widget */}
-            <div className="mt-4 pt-3 border-t border-white/[0.08] px-2 space-y-2.5">
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="text-mist-400 font-medium">Night Patrol Status</span>
-                <span className="text-emerald-400 font-bold flex items-center gap-1">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Active Sweep
-                </span>
-              </div>
-
-              <div className="space-y-1.5 text-[10px]">
-                <div className="flex justify-between text-mist-300">
-                  <span>Lobby & Entrance</span>
-                  <span className="text-emerald-400 font-mono">100%</span>
-                </div>
-                <div className="h-1 w-full rounded-full bg-white/10 overflow-hidden">
-                  <div className="h-full bg-emerald-400 w-full rounded-full" />
-                </div>
-
-                <div className="flex justify-between text-mist-300">
-                  <span>Pool & Deck Perimeter</span>
-                  <span className="text-amber-400 font-mono">60%</span>
-                </div>
-                <div className="h-1 w-full rounded-full bg-white/10 overflow-hidden">
-                  <div className="h-full bg-amber-400 w-[60%] rounded-full" />
-                </div>
-
-                <div className="flex justify-between text-mist-300">
-                  <span>Basement & Garages</span>
-                  <span className="text-emerald-400 font-mono">90%</span>
-                </div>
-                <div className="h-1 w-full rounded-full bg-white/10 overflow-hidden">
-                  <div className="h-full bg-emerald-400 w-[90%] rounded-full" />
-                </div>
-              </div>
             </div>
-
-            {/* Rapid Hotline Widget */}
-            <div className="mt-3 pt-3 border-t border-white/[0.08] px-2">
-              <p className="text-[10px] uppercase font-bold text-mist-400 tracking-wider mb-1.5">
-                Emergency Hotlines
-              </p>
-              <div className="space-y-1 text-xs text-mist-300">
-                <div className="flex items-center justify-between py-0.5">
-                  <span>Front Desk Lead</span>
-                  <span className="font-mono text-sky-400 font-semibold">Ext 101</span>
-                </div>
-                <div className="flex items-center justify-between py-0.5">
-                  <span>Engineering Desk</span>
-                  <span className="font-mono text-sky-400 font-semibold">Ext 204</span>
-                </div>
-                <div className="flex items-center justify-between py-0.5">
-                  <span>Police / 911 Dispatch</span>
-                  <span className="font-mono text-rose-400 font-bold">911</span>
-                </div>
-              </div>
-            </div>
-          </div>
         </aside>
 
         {/* Right Main Content Area */}
