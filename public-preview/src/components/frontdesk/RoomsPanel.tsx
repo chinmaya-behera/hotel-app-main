@@ -51,7 +51,10 @@ export type StatusFilterId =
   | 'dirty_cleaning'
   | 'checkin'
   | 'checkout'
+  | 'post_departure'
   | 'dnd';
+
+export type CleaningSubfilter = 'all' | 'guest_request' | 'cycle' | 'post_departure';
 
 interface RoomTileData {
   no: string;
@@ -62,8 +65,13 @@ interface RoomTileData {
   typeTag: string; // DLX, STE, TWN, KNG, PRES
   typeFull: string;
   statusLabel: string;
-  statusKind: 'ready' | 'occupied' | 'dirty' | 'cleaning' | 'dnd' | 'checkin' | 'checkout';
+  statusKind: 'ready' | 'occupied' | 'dirty' | 'cleaning' | 'dnd' | 'checkin' | 'checkout' | 'post_departure';
   guestName?: string;
+  previousGuest?: string;
+  checkoutTime?: string;
+  cleanerAssigned?: string;
+  cleaningCategory?: 'guest_request' | 'cycle' | 'post_departure';
+  cycleInfo?: { dueDay: string; cycleDays: number; isOverdue: boolean; nextScheduled: string };
   vip?: boolean;
   stay?: StayRecord;
   pin: string;
@@ -100,6 +108,7 @@ export function RoomsPanel() {
   const { state } = useDemo();
 
   const [activeStatusFilter, setActiveStatusFilter] = useState<StatusFilterId>('all');
+  const [cleaningSubfilter, setCleaningSubfilter] = useState<CleaningSubfilter>('all');
   const [selectedFloorFilter, setSelectedFloorFilter] = useState<number | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [collapsedFloors, setCollapsedFloors] = useState<Record<number, boolean>>({});
@@ -169,6 +178,38 @@ export function RoomsPanel() {
 
         let statusKind: RoomTileData['statusKind'] = 'ready';
         let statusLabel = 'Ready';
+        let previousGuest = checkedOutStay?.guest;
+        let checkoutTime = checkedOutStay?.departure;
+        let cleanerAssigned: string | undefined;
+        let cleaningCategory: RoomTileData['cleaningCategory'] = undefined;
+        let cycleInfo: RoomTileData['cycleInfo'] = undefined;
+
+        if (no === '102') {
+          previousGuest = previousGuest || 'Clara Dupont';
+          checkoutTime = checkoutTime || 'Today · 09:15 AM';
+          cleanerAssigned = 'Vikram Singh (Housekeeping)';
+          cleaningCategory = 'post_departure';
+        } else if (no === '206') {
+          previousGuest = 'Arthur Pendelton';
+          checkoutTime = 'Today · 10:30 AM';
+          cleanerAssigned = 'Vikram Singh (Housekeeping)';
+          cleaningCategory = 'post_departure';
+        } else if (no === '304' || no === '305' || no === '104' || no === '402') {
+          cleaningCategory = 'guest_request';
+          cleanerAssigned = 'Sunita Rao (Housekeeping)';
+        } else if (no === '401' || no === '105' || no === '310' || no === '201') {
+          cleaningCategory = 'cycle';
+          cleanerAssigned = 'Anita Sharma (Housekeeping)';
+          cycleInfo = {
+            dueDay: no === '105' ? 'Overdue · Yesterday' : no === '401' ? 'Due Today' : 'Upcoming Tomorrow',
+            cycleDays: 3,
+            isOverdue: no === '105',
+            nextScheduled: no === '105' ? 'Overdue (Day 4 of 7)' : no === '401' ? 'Today 11:30 (Day 3 of 4)' : 'Tomorrow 10:00 (Day 2 of 4)',
+          };
+        } else if (checkedOutStay) {
+          cleaningCategory = 'post_departure';
+          cleanerAssigned = 'Vikram Singh (Housekeeping)';
+        }
 
         if (dnd) {
           statusKind = 'dnd';
@@ -185,6 +226,9 @@ export function RoomsPanel() {
         } else if (expectedStay) {
           statusKind = 'checkin';
           statusLabel = `Check-In · ${expectedStay.guest.split(' ')[0]}`;
+        } else if (cleaningCategory === 'post_departure' || checkedOutStay) {
+          statusKind = 'post_departure';
+          statusLabel = readiness === 'ready' ? 'Turnover Ready' : 'Post-Departure';
         } else if (readiness === 'cleaning' || readiness === 'inspection_pending') {
           statusKind = 'cleaning';
           statusLabel = 'Cleaning';
@@ -210,6 +254,11 @@ export function RoomsPanel() {
           statusLabel,
           statusKind,
           guestName: stay?.guest ?? expectedStay?.guest,
+          previousGuest,
+          checkoutTime,
+          cleanerAssigned,
+          cleaningCategory,
+          cycleInfo,
           vip: stay?.vip ?? expectedStay?.vip,
           stay: stay ?? expectedStay ?? checkedOutStay,
           pin: getRoomPin(no),
@@ -225,9 +274,10 @@ export function RoomsPanel() {
       all: allRooms.length,
       ready: allRooms.filter((r) => r.statusKind === 'ready').length,
       occupied: allRooms.filter((r) => r.statusKind === 'occupied' || r.occupied).length,
-      dirty_cleaning: allRooms.filter((r) => r.statusKind === 'dirty' || r.statusKind === 'cleaning').length,
+      dirty_cleaning: allRooms.filter((r) => r.statusKind === 'dirty' || r.statusKind === 'cleaning' || r.cleaningCategory !== undefined).length,
       checkin: allRooms.filter((r) => r.statusKind === 'checkin' || stays.some((s) => s.room === r.no && s.status === 'expected')).length,
       checkout: allRooms.filter((r) => r.statusKind === 'checkout' || stays.some((s) => s.room === r.no && s.status === 'in_house' && s.departsToday)).length,
+      post_departure: allRooms.filter((r) => r.statusKind === 'post_departure' || r.cleaningCategory === 'post_departure' || stays.some((s) => s.room === r.no && s.status === 'checked_out')).length,
       dnd: allRooms.filter((r) => r.dnd).length,
     };
   }, [allRooms, stays]);
@@ -246,14 +296,26 @@ export function RoomsPanel() {
       // Status filter
       if (activeStatusFilter === 'ready' && r.statusKind !== 'ready') return false;
       if (activeStatusFilter === 'occupied' && !(r.statusKind === 'occupied' || r.occupied)) return false;
-      if (activeStatusFilter === 'dirty_cleaning' && !(r.statusKind === 'dirty' || r.statusKind === 'cleaning')) return false;
+      if (activeStatusFilter === 'post_departure' && !(r.statusKind === 'post_departure' || r.cleaningCategory === 'post_departure' || stays.some((s) => s.room === r.no && s.status === 'checked_out'))) return false;
+      if (activeStatusFilter === 'dirty_cleaning') {
+        if (cleaningSubfilter === 'guest_request') {
+          return r.cleaningCategory === 'guest_request';
+        }
+        if (cleaningSubfilter === 'cycle') {
+          return r.cleaningCategory === 'cycle';
+        }
+        if (cleaningSubfilter === 'post_departure') {
+          return r.statusKind === 'post_departure' || r.cleaningCategory === 'post_departure' || stays.some((s) => s.room === r.no && s.status === 'checked_out');
+        }
+        return r.statusKind === 'dirty' || r.statusKind === 'cleaning' || r.cleaningCategory !== undefined;
+      }
       if (activeStatusFilter === 'checkin' && !(r.statusKind === 'checkin' || stays.some((s) => s.room === r.no && s.status === 'expected'))) return false;
       if (activeStatusFilter === 'checkout' && !(r.statusKind === 'checkout' || stays.some((s) => s.room === r.no && s.status === 'in_house' && s.departsToday))) return false;
       if (activeStatusFilter === 'dnd' && !r.dnd) return false;
 
       // Search query
       if (q) {
-        const text = `${r.no} ${r.typeFull} ${r.guestName ?? ''}`.toLowerCase();
+        const text = `${r.no} ${r.typeFull} ${r.guestName ?? ''} ${r.previousGuest ?? ''}`.toLowerCase();
         if (!text.includes(q)) return false;
       }
 
@@ -396,6 +458,7 @@ export function RoomsPanel() {
             { id: 'ready', label: 'Ready', count: counts.ready, icon: CheckCircle2, tone: 'text-emerald-400' },
             { id: 'occupied', label: 'Booked', count: counts.occupied, icon: KeyRound, tone: 'text-sky-400' },
             { id: 'dirty_cleaning', label: 'Cleaning', count: counts.dirty_cleaning, icon: Sparkles, tone: 'text-amber-400' },
+            { id: 'post_departure', label: 'Post-Dept', count: counts.post_departure, icon: Clock, tone: 'text-violet-400' },
             { id: 'checkin', label: 'Check-In', count: counts.checkin, icon: LogIn, tone: 'text-cyan-300' },
             { id: 'checkout', label: 'Check-Out', count: counts.checkout, icon: LogOut, tone: 'text-amber-300' },
             { id: 'dnd', label: 'DND', count: counts.dnd, icon: MoonStar, tone: 'text-rose-400' },
@@ -491,6 +554,7 @@ export function RoomsPanel() {
               { id: 'ready', label: 'Ready', count: counts.ready, icon: CheckCircle2, tone: 'text-emerald-400' },
               { id: 'occupied', label: 'Booked / In-House', count: counts.occupied, icon: KeyRound, tone: 'text-sky-400' },
               { id: 'dirty_cleaning', label: 'Dirty / Cleaning', count: counts.dirty_cleaning, icon: Sparkles, tone: 'text-amber-400' },
+              { id: 'post_departure', label: 'Post-Departure', count: counts.post_departure, icon: Clock, tone: 'text-violet-400' },
               { id: 'checkin', label: 'Check-In', count: counts.checkin, icon: LogIn, tone: 'text-cyan-300' },
               { id: 'checkout', label: 'Check-Out', count: counts.checkout, icon: LogOut, tone: 'text-amber-300' },
               { id: 'dnd', label: 'DND', count: counts.dnd, icon: MoonStar, tone: 'text-rose-400' },
@@ -498,30 +562,87 @@ export function RoomsPanel() {
               const Icon = item.icon;
               const isSelected = activeStatusFilter === item.id;
               return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setActiveStatusFilter(item.id as StatusFilterId)}
-                  className={cn(
-                    'w-full flex items-center justify-between p-2.5 rounded-xl border text-xs font-semibold transition-all duration-150',
-                    isSelected
-                      ? 'border-cyan-400/40 bg-cyan-500/15 text-white shadow-sm'
-                      : 'border-transparent text-mist-300 hover:bg-white/[0.04] hover:text-white',
-                  )}
-                >
-                  <div className="flex items-center gap-2.5 truncate">
-                    <Icon className={cn('h-3.5 w-3.5 shrink-0', item.tone)} />
-                    <span className="truncate">{item.label}</span>
-                  </div>
-                  <span
+                <div key={item.id} className="space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveStatusFilter(item.id as StatusFilterId);
+                      if (item.id === 'dirty_cleaning') setCleaningSubfilter('all');
+                    }}
                     className={cn(
-                      'px-2 py-0.5 rounded-md text-[11px] tabular-nums font-bold shrink-0',
-                      isSelected ? 'bg-cyan-400 text-ink-950' : 'bg-white/5 text-mist-300',
+                      'w-full flex items-center justify-between p-2.5 rounded-xl border text-xs font-semibold transition-all duration-150',
+                      isSelected
+                        ? 'border-cyan-400/40 bg-cyan-500/15 text-white shadow-sm'
+                        : 'border-transparent text-mist-300 hover:bg-white/[0.04] hover:text-white',
                     )}
                   >
-                    {item.count}
-                  </span>
-                </button>
+                    <div className="flex items-center gap-2.5 truncate">
+                      <Icon className={cn('h-3.5 w-3.5 shrink-0', item.tone)} />
+                      <span className="truncate">{item.label}</span>
+                    </div>
+                    <span
+                      className={cn(
+                        'px-2 py-0.5 rounded-md text-[11px] tabular-nums font-bold shrink-0',
+                        isSelected ? 'bg-cyan-400 text-ink-950' : 'bg-white/5 text-mist-300',
+                      )}
+                    >
+                      {item.count}
+                    </span>
+                  </button>
+
+                  {item.id === 'dirty_cleaning' && isSelected && (
+                    <div className="ml-4 pl-2.5 py-1.5 space-y-1 border-l-2 border-amber-400/40 bg-white/[0.02] rounded-r-lg">
+                      <button
+                        type="button"
+                        onClick={() => setCleaningSubfilter('all')}
+                        className={cn(
+                          'w-full text-left px-2 py-1 rounded text-[11px] font-medium transition',
+                          cleaningSubfilter === 'all'
+                            ? 'text-cyan-300 font-bold bg-white/5'
+                            : 'text-mist-400 hover:text-white'
+                        )}
+                      >
+                        • All Cleaning
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCleaningSubfilter('guest_request')}
+                        className={cn(
+                          'w-full text-left px-2 py-1 rounded text-[11px] font-medium transition',
+                          cleaningSubfilter === 'guest_request'
+                            ? 'text-amber-300 font-bold bg-white/5'
+                            : 'text-mist-400 hover:text-white'
+                        )}
+                      >
+                        • On Guest Request
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCleaningSubfilter('cycle')}
+                        className={cn(
+                          'w-full text-left px-2 py-1 rounded text-[11px] font-medium transition',
+                          cleaningSubfilter === 'cycle'
+                            ? 'text-sky-300 font-bold bg-white/5'
+                            : 'text-mist-400 hover:text-white'
+                        )}
+                      >
+                        • Cleaning Cycle (3d)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCleaningSubfilter('post_departure')}
+                        className={cn(
+                          'w-full text-left px-2 py-1 rounded text-[11px] font-medium transition',
+                          cleaningSubfilter === 'post_departure'
+                            ? 'text-violet-300 font-bold bg-white/5'
+                            : 'text-mist-400 hover:text-white'
+                        )}
+                      >
+                        • Post-Departure
+                      </button>
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -608,6 +729,7 @@ export function RoomsPanel() {
               type="button"
               onClick={() => {
                 setActiveStatusFilter('all');
+                setCleaningSubfilter('all');
                 setSelectedFloorFilter('all');
                 setSearchQuery('');
               }}
@@ -617,6 +739,33 @@ export function RoomsPanel() {
             </button>
           )}
         </div>
+
+        {/* Subfilter Bar for Dirty / Cleaning */}
+        {activeStatusFilter === 'dirty_cleaning' && (
+          <div className="flex flex-wrap items-center gap-1.5 pb-3 mb-3 border-b border-white/10 shrink-0">
+            <span className="text-[11px] font-bold text-mist-400 mr-1 uppercase tracking-wider">Cleaning Subfilters:</span>
+            {[
+              { id: 'all', label: 'All Cleaning' },
+              { id: 'guest_request', label: 'On Guest Request' },
+              { id: 'cycle', label: 'Cleaning Cycle (Every 3 Days)' },
+              { id: 'post_departure', label: 'Post-Departure Turnover' },
+            ].map((sub) => (
+              <button
+                key={sub.id}
+                type="button"
+                onClick={() => setCleaningSubfilter(sub.id as CleaningSubfilter)}
+                className={cn(
+                  'px-2.5 py-1 rounded-lg text-xs font-semibold border transition',
+                  cleaningSubfilter === sub.id
+                    ? 'border-amber-400/50 bg-amber-500/20 text-amber-200'
+                    : 'border-white/10 bg-white/[0.02] text-mist-300 hover:bg-white/5'
+                )}
+              >
+                {sub.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Scrollable Room Board grouped by Floor (Floors 1 to 4 with 12 rooms each) */}
         <div className="flex-1 min-h-0 overflow-visible lg:overflow-y-auto pr-0 lg:pr-1 space-y-4 sm:space-y-5">
@@ -692,6 +841,13 @@ export function RoomsPanel() {
                             'border-sky-500/25 bg-sky-500/[0.05] hover:border-sky-500/45';
                           StatusIcon = KeyRound;
                           statusColor = 'text-sky-300';
+                        } else if (room.statusKind === 'post_departure') {
+                          tileClasses =
+                            'border-violet-500/30 bg-violet-500/[0.06] hover:border-violet-500/50';
+                          StatusIcon = Clock;
+                          statusColor = 'text-violet-400';
+                          showDot = true;
+                          dotColor = 'bg-violet-400';
                         } else if (room.statusKind === 'cleaning' || room.statusKind === 'dirty') {
                           tileClasses =
                             'border-amber-500/25 bg-amber-500/[0.05] hover:border-amber-500/45';
@@ -897,6 +1053,137 @@ export function RoomsPanel() {
                       </div>
                     )}
                   </div>
+
+                  {/* Post-Departure Room Management Card (Requirement 7.A) */}
+                  {(drawerRoom.cleaningCategory === 'post_departure' ||
+                    drawerRoom.statusKind === 'post_departure' ||
+                    drawerRoom.previousGuest) && (
+                    <div className="p-3.5 rounded-xl border border-violet-500/30 bg-violet-500/[0.04] space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-violet-300">
+                          Post-Departure Turnover Management
+                        </span>
+                        <Badge tone={drawerRoom.readiness === 'ready' ? 'success' : 'warning'}>
+                          {drawerRoom.readiness === 'ready' ? 'Ready for New Guest' : 'Turnover Required'}
+                        </Badge>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <span className="text-mist-400">Previous Guest</span>
+                          <p className="font-semibold text-white mt-0.5">{drawerRoom.previousGuest || 'Clara Dupont'}</p>
+                        </div>
+                        <div>
+                          <span className="text-mist-400">Checkout Time</span>
+                          <p className="font-semibold text-mist-200 mt-0.5">{drawerRoom.checkoutTime || 'Today · 09:15 AM'}</p>
+                        </div>
+                        <div>
+                          <span className="text-mist-400">Housekeeping Status</span>
+                          <p className="font-semibold text-amber-300 capitalize mt-0.5">
+                            {drawerRoom.readiness === 'ready' ? 'Inspected & Ready' : drawerRoom.readiness === 'cleaning' ? 'Cleaning In Progress' : 'Dirty (Awaiting Turnover)'}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-mist-400">Cleaner Assigned</span>
+                          <p className="font-semibold text-mist-200 mt-0.5">{drawerRoom.cleanerAssigned || 'Vikram Singh (Housekeeping)'}</p>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-white/10 flex flex-col gap-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-mist-400">Front Desk Release:</span>
+                          <span className={cn('font-bold', drawerRoom.readiness === 'ready' ? 'text-emerald-400' : 'text-amber-400')}>
+                            {drawerRoom.readiness === 'ready' ? 'Released / Available' : 'Locked (Pending Turnover)'}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row gap-2 mt-1">
+                          <Button
+                            size="sm"
+                            variant="subtle"
+                            iconLeft={Sparkles}
+                            onClick={() => {
+                              setRoomOverrides((prev) => ({
+                                ...prev,
+                                [drawerRoom.no]: { readiness: 'cleaning', occupied: false, dnd: false },
+                              }));
+                            }}
+                          >
+                            Dispatch Turnover (HK)
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={drawerRoom.readiness === 'ready' ? 'accent' : 'subtle'}
+                            iconLeft={CheckCircle2}
+                            disabled={drawerRoom.readiness !== 'ready'}
+                            onClick={() => {
+                              setRoomOverrides((prev) => ({
+                                ...prev,
+                                [drawerRoom.no]: { readiness: 'ready', occupied: false, dnd: false },
+                              }));
+                            }}
+                          >
+                            Mark Room Available
+                          </Button>
+                        </div>
+                        {drawerRoom.readiness !== 'ready' && (
+                          <p className="text-[10px] text-amber-300/80 italic">
+                            * Note: Front Desk cannot release this room until Housekeeping completes turnover and supervisor inspection is approved.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Routine Cleaning Cycle Card (Requirement 7.B.2) */}
+                  {drawerRoom.cleaningCategory === 'cycle' && drawerRoom.cycleInfo && (
+                    <div className="p-3.5 rounded-xl border border-sky-500/30 bg-sky-500/[0.04] space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-sky-300">
+                          Routine Cleaning Cycle (SOP 3-Day Rule)
+                        </span>
+                        <Badge tone={drawerRoom.cycleInfo.isOverdue ? 'danger' : 'info'}>
+                          {drawerRoom.cycleInfo.dueDay}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <span className="text-mist-400">Cycle Policy</span>
+                          <p className="font-semibold text-white mt-0.5">Every 3 Days</p>
+                        </div>
+                        <div>
+                          <span className="text-mist-400">Scheduled Time</span>
+                          <p className="font-semibold text-mist-200 mt-0.5">{drawerRoom.cycleInfo.nextScheduled}</p>
+                        </div>
+                        <div>
+                          <span className="text-mist-400">Assigned Housekeeper</span>
+                          <p className="font-semibold text-mist-200 mt-0.5">{drawerRoom.cleanerAssigned || 'Anita Sharma'}</p>
+                        </div>
+                        <div>
+                          <span className="text-mist-400">Duplicate Check</span>
+                          <p className="font-semibold text-emerald-400 mt-0.5">Protected (1 active/cycle)</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* On Guest Request Cleaning Card (Requirement 7.B.1) */}
+                  {drawerRoom.cleaningCategory === 'guest_request' && (
+                    <div className="p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/[0.04] space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-amber-300">
+                          Guest Requested Cleaning
+                        </span>
+                        <Badge tone="warning">On-Demand Request</Badge>
+                      </div>
+                      <p className="text-xs text-mist-200">
+                        Guest submitted a priority housekeeping request via Guest Portal for full room freshening and towel turnover.
+                      </p>
+                      <p className="text-[11px] text-mist-400">
+                        Assigned Attendant: <strong className="text-white">{drawerRoom.cleanerAssigned || 'Sunita Rao'}</strong>
+                      </p>
+                    </div>
+                  )}
 
                   {/* Room Digital Access & QR Pass Card (Required) */}
                   <div className="p-4 rounded-xl border border-cyan-500/30 bg-cyan-500/[0.04] space-y-3.5">
