@@ -330,19 +330,17 @@ export function GeneralManagerInspectionsTab({
             setActiveView('create');
             setFeedbackBanner(null);
           }}
-          className={`flex items-center justify-between p-4 rounded-2xl border text-left transition-all ${
-            activeView === 'create'
+          className={`flex items-center justify-between p-4 rounded-2xl border text-left transition-all ${activeView === 'create'
               ? 'bg-amber-500/10 border-amber-500/40 text-amber-500 shadow-sm'
               : 'bg-white/70 dark:bg-ink-900/60 border-slate-200 dark:border-white/10 text-slate-600 dark:text-mist-300 hover:border-amber-500/30'
-          }`}
+            }`}
         >
           <div className="flex items-center gap-3">
             <div
-              className={`p-2.5 rounded-xl ${
-                activeView === 'create'
+              className={`p-2.5 rounded-xl ${activeView === 'create'
                   ? 'bg-amber-500 text-ink-950 font-bold'
                   : 'bg-slate-100 dark:bg-ink-950 text-slate-500 dark:text-mist-400'
-              }`}
+                }`}
             >
               <PlusCircle className="h-5 w-5" />
             </div>
@@ -363,19 +361,17 @@ export function GeneralManagerInspectionsTab({
             setActiveView('due');
             setFeedbackBanner(null);
           }}
-          className={`flex items-center justify-between p-4 rounded-2xl border text-left transition-all ${
-            activeView === 'due'
+          className={`flex items-center justify-between p-4 rounded-2xl border text-left transition-all ${activeView === 'due'
               ? 'bg-amber-500/10 border-amber-500/40 text-amber-500 shadow-sm'
               : 'bg-white/70 dark:bg-ink-900/60 border-slate-200 dark:border-white/10 text-slate-600 dark:text-mist-300 hover:border-amber-500/30'
-          }`}
+            }`}
         >
           <div className="flex items-center gap-3">
             <div
-              className={`p-2.5 rounded-xl ${
-                activeView === 'due'
+              className={`p-2.5 rounded-xl ${activeView === 'due'
                   ? 'bg-amber-500 text-ink-950 font-bold'
                   : 'bg-slate-100 dark:bg-ink-950 text-slate-500 dark:text-mist-400'
-              }`}
+                }`}
             >
               <Clock className="h-5 w-5" />
             </div>
@@ -385,11 +381,10 @@ export function GeneralManagerInspectionsTab({
             </div>
           </div>
           <span
-            className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
-              urgentDueCount > 0
+            className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${urgentDueCount > 0
                 ? 'bg-red-500/20 text-red-500 border border-red-500/30'
                 : 'bg-amber-500/20 text-amber-500 border border-amber-500/30'
-            }`}
+              }`}
           >
             {dueCount} Due
           </span>
@@ -402,19 +397,17 @@ export function GeneralManagerInspectionsTab({
             setActiveView('history');
             setFeedbackBanner(null);
           }}
-          className={`flex items-center justify-between p-4 rounded-2xl border text-left transition-all ${
-            activeView === 'history'
+          className={`flex items-center justify-between p-4 rounded-2xl border text-left transition-all ${activeView === 'history'
               ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-500 shadow-sm'
               : 'bg-white/70 dark:bg-ink-900/60 border-slate-200 dark:border-white/10 text-slate-600 dark:text-mist-300 hover:border-emerald-500/30'
-          }`}
+            }`}
         >
           <div className="flex items-center gap-3">
             <div
-              className={`p-2.5 rounded-xl ${
-                activeView === 'history'
+              className={`p-2.5 rounded-xl ${activeView === 'history'
                   ? 'bg-emerald-500 text-ink-950 font-bold'
                   : 'bg-slate-100 dark:bg-ink-950 text-slate-500 dark:text-mist-400'
-              }`}
+                }`}
             >
               <History className="h-5 w-5" />
             </div>
@@ -482,24 +475,15 @@ export function GeneralManagerInspectionsTab({
                         key={d.id}
                         type="button"
                         onClick={() => handleDeptChange(d.id)}
-                        className={`p-3.5 rounded-2xl border text-left transition-all ${
-                          isSelected
+                        className={`p-3.5 rounded-2xl border text-left transition-all flex items-center justify-between gap-2 ${isSelected
                             ? 'bg-amber-500/15 border-amber-500 text-navy-950 dark:text-white ring-2 ring-amber-500/20'
                             : 'bg-white dark:bg-ink-950/60 border-slate-200 dark:border-white/10 text-slate-600 dark:text-mist-400 hover:border-slate-300 dark:hover:border-white/20'
-                        }`}
+                          }`}
                       >
-                        <div className="flex items-center justify-between">
-                          <strong className="text-xs font-bold text-navy-950 dark:text-white">
-                            {deptDisplayName}
-                          </strong>
-                          {isSelected && <Check className="h-3.5 w-3.5 text-amber-500" />}
-                        </div>
-                        <div className="mt-1 text-[11px] text-slate-500 dark:text-mist-400 truncate">
-                          {d.person}
-                        </div>
-                        <div className="mt-2 text-[10px] text-slate-400 dark:text-mist-500 line-clamp-1">
-                          {d.focus}
-                        </div>
+                        <strong className="text-xs font-bold text-navy-950 dark:text-white">
+                          {deptDisplayName}
+                        </strong>
+                        {isSelected && <Check className="h-4 w-4 text-amber-500 shrink-0" />}
                       </button>
                     );
                   })}
@@ -562,11 +546,10 @@ export function GeneralManagerInspectionsTab({
                         key={p.id}
                         type="button"
                         onClick={() => setCreatePriority(p.id as any)}
-                        className={`py-2 px-2 text-center text-xs font-bold rounded-xl border transition ${
-                          createPriority === p.id
+                        className={`py-2 px-2 text-center text-xs font-bold rounded-xl border transition ${createPriority === p.id
                             ? 'bg-amber-500/20 border-amber-500 text-navy-950 dark:text-white'
                             : 'bg-white dark:bg-ink-950/60 border-slate-200 dark:border-white/10 text-slate-500 dark:text-mist-400'
-                        }`}
+                          }`}
                       >
                         {p.label}
                       </button>
@@ -595,11 +578,10 @@ export function GeneralManagerInspectionsTab({
                           setCreateDeadlinePreset(preset);
                           setCustomDeadline('');
                         }}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition ${
-                          createDeadlinePreset === preset && !customDeadline
+                        className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition ${createDeadlinePreset === preset && !customDeadline
                             ? 'bg-amber-400 text-ink-950 font-bold border-amber-400'
                             : 'bg-white dark:bg-ink-950/60 border-slate-200 dark:border-white/10 text-slate-600 dark:text-mist-300 hover:border-slate-300'
-                        }`}
+                          }`}
                       >
                         <Clock className="inline h-3 w-3 mr-1 -mt-0.5" />
                         {preset}
@@ -811,11 +793,10 @@ export function GeneralManagerInspectionsTab({
                 return (
                   <article
                     key={item.id}
-                    className={`p-5 rounded-3xl border backdrop-blur-xl shadow-sm space-y-4 transition ${
-                      isTargetSelected
+                    className={`p-5 rounded-3xl border backdrop-blur-xl shadow-sm space-y-4 transition ${isTargetSelected
                         ? 'border-amber-500 ring-2 ring-amber-500/40 bg-amber-500/10 dark:bg-amber-500/15'
                         : 'border-slate-200 dark:border-white/10 bg-white/70 dark:bg-ink-900/80 hover:border-amber-500/30'
-                    }`}
+                      }`}
                   >
                     {/* Header Row: Room, Department, Status, and DEADLINE */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -843,13 +824,12 @@ export function GeneralManagerInspectionsTab({
                       {/* Prominent Deadline Badge */}
                       <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                         <div
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-bold border ${
-                            isUrgent
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-bold border ${isUrgent
                               ? 'bg-red-500/15 border-red-500/30 text-red-600 dark:text-red-400 animate-pulse'
                               : isVip
-                              ? 'bg-purple-500/15 border-purple-500/30 text-purple-600 dark:text-purple-400'
-                              : 'bg-amber-500/15 border-amber-500/30 text-amber-600 dark:text-amber-400'
-                          }`}
+                                ? 'bg-purple-500/15 border-purple-500/30 text-purple-600 dark:text-purple-400'
+                                : 'bg-amber-500/15 border-amber-500/30 text-amber-600 dark:text-amber-400'
+                            }`}
                         >
                           <Clock className="h-4 w-4" />
                           <span>Deadline: {deadline}</span>
@@ -858,11 +838,10 @@ export function GeneralManagerInspectionsTab({
 
                         {/* Status Tag */}
                         <span
-                          className={`px-2.5 py-1 rounded-full text-xs font-bold capitalize ${
-                            item.status === 'reopened'
+                          className={`px-2.5 py-1 rounded-full text-xs font-bold capitalize ${item.status === 'reopened'
                               ? 'bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/30'
                               : 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30'
-                          }`}
+                            }`}
                         >
                           {item.status === 'reopened' ? 'Reopened (Corrective)' : 'Pending Inspection'}
                         </span>
@@ -914,18 +893,16 @@ export function GeneralManagerInspectionsTab({
                           {item.items.map((chk) => (
                             <div
                               key={chk.id}
-                              className={`p-2.5 rounded-xl border text-xs flex items-start gap-2 ${
-                                chk.passed
+                              className={`p-2.5 rounded-xl border text-xs flex items-start gap-2 ${chk.passed
                                   ? 'bg-emerald-500/10 border-emerald-500/20 text-slate-700 dark:text-mist-300'
                                   : 'bg-slate-50 dark:bg-ink-950/60 border-slate-200 dark:border-white/10 text-slate-500 dark:text-mist-400'
-                              }`}
+                                }`}
                             >
                               <div
-                                className={`p-1 rounded-md mt-0.5 ${
-                                  chk.passed
+                                className={`p-1 rounded-md mt-0.5 ${chk.passed
                                     ? 'bg-emerald-500 text-ink-950'
                                     : 'bg-slate-200 dark:bg-ink-800 text-slate-400'
-                                }`}
+                                  }`}
                               >
                                 <Check className="h-3 w-3" />
                               </div>
@@ -1057,11 +1034,10 @@ export function GeneralManagerInspectionsTab({
                 return (
                   <article
                     key={item.id}
-                    className={`p-5 rounded-3xl border backdrop-blur-xl shadow-sm space-y-4 transition ${
-                      isTargetSelected
+                    className={`p-5 rounded-3xl border backdrop-blur-xl shadow-sm space-y-4 transition ${isTargetSelected
                         ? 'border-emerald-500 ring-2 ring-emerald-500/40 bg-emerald-500/10 dark:bg-emerald-500/15'
                         : 'border-slate-200 dark:border-white/10 bg-white/70 dark:bg-ink-900/80 hover:border-emerald-500/30'
-                    }`}
+                      }`}
                   >
                     {/* Header Row */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

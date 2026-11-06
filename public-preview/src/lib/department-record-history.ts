@@ -2,7 +2,7 @@ import type { DemoState, DepartmentRecordEvent, DepartmentRecordKind, Department
 import { departmentId, taskDepartment } from './manager-domain.ts';
 
 export const RECORD_KINDS: Record<DepartmentRecordKind, string> = {
-  repair: 'Repairs', task: 'Department tasks', order: 'Dining orders', medical: 'Medical cases', complaint: 'Complaints', inspection: 'Inspections',
+  schedule: 'Shift schedules', repair: 'Repairs', task: 'Department tasks', order: 'Dining orders', medical: 'Medical cases', complaint: 'Complaints', inspection: 'Inspections',
   menu: 'Dining menu', stock: 'Stock counts', asset: 'Asset service', room: 'Room readiness', handover: 'Handovers', policy: 'Policies', staff: 'Staff availability', supplies: 'Supply requests',
 };
 const iso = (value?: string) => value && /^\d{4}-\d{2}-\d{2}T/.test(value) && Number.isFinite(Date.parse(value)) ? value : undefined;
@@ -28,7 +28,7 @@ export function departmentRecordSnapshots(state: DemoState): Map<string, Departm
     const completion = [...(item.history || [])].reverse().find(entry => completedRecord(entry.status));
     const notes = item.notes || item.note || completion?.note || item.description || '';
     add(department, kind, item.ref || item.id, item.title, item.status, {
-      Created: item.orderedAt || item.createdAt, Priority: item.priority, Category: item.repairCategory || item.category,
+      Created: item.serviceTiming?.createdAt || item.orderedAt || item.createdAt, 'Acknowledged at': item.serviceTiming?.acknowledgedAt, 'Completed at': item.serviceTiming?.completedAt, 'SLA policy': item.serviceTiming?.policySource, Priority: item.priority, Category: item.repairCategory || item.category,
       Description: item.description, 'Progress / completion notes': notes, 'Status and note history': timeline(item.history),
       'Photo evidence attached': !!item.photoUrl,
       ...(item.orderLines?.length ? { 'Ordered dishes': item.orderLines.map(line => `${line.qty} × ${line.name} · ${line.price}`).join('\n'), 'Service feedback': item.feedback ? `${item.feedback.rating}/5 · ${item.feedback.comment || ''}` : '', 'Dish feedback': Object.entries(item.dishFeedback || {}).map(([id, review]) => `${item.orderLines?.find(line => line.itemId === id)?.dishName || id}: ${review.rating}/5 · ${review.comment || ''}`).join('\n') } : {}),
@@ -47,6 +47,8 @@ export function departmentRecordSnapshots(state: DemoState): Map<string, Departm
   for (const record of state.shiftHandovers || []) add(departmentId(record.department), 'handover', record.id, `Handover to ${record.incomingManager}`, record.status, { Outgoing: record.outgoingManager, Incoming: record.incomingManager, Notes: record.notes, 'Outstanding tasks': record.outstandingTasksCount, 'Priority actions': record.priorityActions.join('\n'), Acknowledged: record.acknowledgedAt }, '', record.outgoingManager, record.notes, record.acknowledgedAt);
   for (const record of state.departmentPolicies || []) add(departmentId(record.department), 'policy', record.id, record.title, 'Published', { Content: record.content || record.summary, Owner: record.policyOwner, 'Effective date': record.effectiveDate, 'Last updated': record.lastUpdated }, '', record.policyOwner);
   for (const record of state.staffAccounts || []) add(departmentId(record.department), 'staff', record.id, record.name, record.status, { Availability: record.availability, Role: record.roleId, Shift: record.shift, Zone: record.floorZone }, '', record.name);
+  for (const record of state.shiftSchedules || []) add(departmentId(record.department), 'schedule', record.id, record.employeeName + ' · ' + record.date, record.status, { Date: record.date, Shift: record.status === 'off' ? 'Off' : record.status === 'leave' ? 'Leave' : record.shiftType, Start: record.startTime, End: record.endTime, Reason: record.notes }, record.floorZone, record.employeeName, record.notes || '');
+  for (const [department, targets] of Object.entries(state.departmentServiceTargets || {})) if (targets) add(department as DepartmentRecordSnapshot['department'], 'policy', 'service-targets-' + department, 'Department service targets', 'Published', { 'Complaint target (minutes)': targets.complaintMinutes, 'Inspection target (minutes)': targets.inspectionMinutes });
   for (const record of state.resourceRequests || []) add(departmentId(record.department), 'supplies', record.id, record.title, record.status, { Details: record.details, Urgency: record.urgency, 'Requested at': record.requestedAt }, '', record.requestedBy, record.details);
   return records;
 }
@@ -62,7 +64,7 @@ export function initialiseDepartmentHistory(state: DemoState, now = new Date().t
 export function captureDepartmentHistory(previous: DemoState, next: DemoState, now = new Date().toISOString()): DemoState {
   if (previous === next) return previous;
   const base = previous.departmentRecordHistory || initialiseDepartmentHistory(previous, now).departmentRecordHistory!;
-  if (['items', 'frontDesk', 'managerOperations', 'inspections', 'diningMenu', 'shiftHandovers', 'departmentPolicies', 'staffAccounts', 'resourceRequests', 'guestComplaints', 'guestPreferences'].every(key => previous[key as keyof DemoState] === next[key as keyof DemoState])) return { ...next, departmentRecordHistory: base };
+  if (['items', 'frontDesk', 'managerOperations', 'inspections', 'diningMenu', 'shiftHandovers', 'departmentPolicies', 'staffAccounts', 'resourceRequests', 'guestComplaints', 'guestPreferences', 'shiftSchedules', 'departmentServiceTargets'].every(key => previous[key as keyof DemoState] === next[key as keyof DemoState])) return { ...next, departmentRecordHistory: base };
   const before = departmentRecordSnapshots(previous), after = departmentRecordSnapshots(next);
   const audit = next.auditTrail?.find(event => !previous.auditTrail?.some(old => old.id === event.id));
   const department = previous.managerDepartment || 'housekeeping';
