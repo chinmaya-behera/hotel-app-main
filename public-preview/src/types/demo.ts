@@ -116,6 +116,32 @@ export interface WorkItem {
   assigneeId?: string;
   /** Timestamp when assigned */
   assignedAt?: string;
+  /** Escalation properties (Front Desk Fulfillers workflow) */
+  escalationId?: string;
+  originalTaskId?: string;
+  fulfillerName?: string;
+  escalationReason?: string;
+  requestedAction?: string;
+  internalNotes?: string;
+  /** Complaint properties (Front Desk Complaints workflow) */
+  complaintId?: string;
+  guestName?: string;
+  complaintCategory?: string;
+  severity?: 'normal' | 'vip' | 'critical';
+  resolutionNotes?: string;
+  /** Routing properties */
+  suggestedDept?: string;
+  routingReason?: string;
+  routingInstructions?: string;
+  /** Event request properties */
+  isEventRequest?: boolean;
+  eventType?: string;
+  preferredDate?: string;
+  attendees?: number;
+  venue?: string;
+  eventRequirements?: string;
+  budget?: number;
+  coordinatorNotes?: string;
   /** Whether this task was linked as a duplicate of an existing task */
   isLinkedDuplicate?: boolean;
   /** Reference of the primary task this duplicate is linked to */
@@ -124,8 +150,6 @@ export interface WorkItem {
   escalatedTo?: string;
   /** Escalation timestamp */
   escalatedAt?: string;
-  /** Escalation justification / note */
-  escalationReason?: string;
   /** Whether the task was assigned via automated routing */
   autoAssigned?: boolean;
   /** Reason why auto-assignment could not match a staff member */
@@ -169,6 +193,78 @@ export interface WorkItem {
   arrivedAt?: string;
   /** Security officer acknowledgment timestamp */
   acknowledgedAt?: string;
+  /** Front Desk case record (frontend mock). Future Guest Portal submissions can use the same shape. */
+  caseKind?: 'request' | 'complaint' | 'incident' | 'event';
+  attachments?: CaseAttachment[];
+  guestPhone?: string;
+  guestEmail?: string;
+  bookingRef?: string;
+  /** guest's preferred service time (display text) and the same moment as epoch ms (used for reminders) */
+  preferredTime?: string;
+  requestedForMs?: number;
+  expectedResolution?: string;
+  /** epoch ms the guest submitted it, and the response target in minutes (drives the Overdue flag) */
+  createdAtMs?: number;
+  slaMinutes?: number;
+  /** Front Desk internal notes (never shown to the guest) */
+  caseNotes?: Array<{ at: string; author: string; text: string }>;
+  /** department the case was forwarded to; Front Desk keeps ownership of the case */
+  forwardedDept?: DispatcherDepartment;
+  forwardedTo?: string;
+  forwardedAt?: string;
+  guestUpdates?: number;
+  closedAt?: string;
+  /** Event request lifecycle */
+  eventStatus?: EventStatus;
+  guestConfirmed?: boolean;
+  venueCheck?: { venue: string; available: boolean; checkedAt: string; note: string };
+  missingInfoRequest?: string;
+}
+
+export type AttachmentArt = 'leak' | 'ac' | 'towels' | 'room' | 'bathroom' | 'cake' | 'venue' | 'minibar' | 'tray' | 'generic';
+
+/** Mock attachment: a local illustration stands in for a guest-uploaded file (no upload backend exists). */
+export interface CaseAttachment {
+  id: string;
+  name: string;
+  type: 'image' | 'document';
+  mime: string;
+  sizeKb: number;
+  art?: AttachmentArt;
+  caption?: string;
+}
+
+export type EventStatus =
+  | 'New'
+  | 'Under Review'
+  | 'Awaiting Guest Confirmation'
+  | 'Awaiting Department Confirmation'
+  | 'Confirmed'
+  | 'In Preparation'
+  | 'Completed'
+  | 'Rejected'
+  | 'Cancelled';
+
+/** Guest safety / security report handled by Front Desk and dispatched to the Security Responder queue. */
+export interface FdIncidentRecord {
+  id: string;
+  ref: string;
+  title: string;
+  source: 'Guest Report' | 'Front Desk Patrol' | 'Housekeeping Alert' | 'Security Dispatch';
+  room?: string;
+  guestName?: string;
+  location: string;
+  severity: 'low' | 'medium' | 'high';
+  status: 'active' | 'dispatched_security' | 'resolved';
+  description: string;
+  reportedAt: string;
+  reportedAtMs?: number;
+  acknowledged?: boolean;
+  securityOfficer?: string;
+  broadcastSent?: boolean;
+  attachments?: CaseAttachment[];
+  timeline: Array<{ at: string; text: string }>;
+  notes?: Array<{ at: string; author: string; text: string }>;
 }
 
 export interface InAppNotification {
@@ -355,6 +451,8 @@ export interface FinanceRefundRequest {
   reviewNotes?: string;
   rejectionReason?: string;
   transactionRef?: string;
+  /** Front Desk case this refund proposal came from (blocks duplicate submissions) */
+  sourceCaseRef?: string;
 }
 
 export type InspectionStatus = 'pending' | 'passed' | 'reopened' | 'escalated';
@@ -530,6 +628,12 @@ export interface StayRecord {
   /** F08: pre-arrival registration state */
   preCheckIn: 'none' | 'pending_verify' | 'verified';
   idChecked: boolean;
+  idDocType?: string;
+  idDocNumber?: string;
+  idVerificationStatus?: 'verified' | 'pending' | 'failed';
+  idVerifiedAt?: string;
+  idVerifiedBy?: string;
+  idVerificationNotes?: string;
   /** payments collected against the folio (simulated, tokenised card) */
   paid: number;
   cardMask: string;
@@ -1035,6 +1139,10 @@ export interface DemoState {
   customDiningRequests?: CustomDiningRequest[];
   guestCompensationRefundRequests?: CompensationRefundRequest[];
   guestIncidents?: GuestIncidentRecord[];
+  /** Front Desk incident reports (shared so KPIs, dispatch and Security stay consistent) */
+  fdIncidents?: FdIncidentRecord[];
+  /** ids of Front Desk notifications already read */
+  fdNotifRead?: string[];
 }
 
 /* ---- Phase 4: Guest Reminders & Safety Alert Broadcast Engine ---- */
@@ -1059,6 +1167,14 @@ export interface GuestReminder {
   createdAt: string;
   specialInstructions?: string;
   category?: string;
+  /** linked Front Desk case and the guest's requested service time (epoch ms) */
+  caseId?: string;
+  caseRef?: string;
+  requestedAtMs?: number;
+  /** when the in-app alarm should ring (epoch ms) and the lead time used to calculate it */
+  alertAtMs?: number;
+  leadMinutes?: number | null;
+  alarm?: { state: 'scheduled' | 'ringing' | 'snoozed' | 'acknowledged' | 'completed'; firedAtMs?: number; snoozeCount?: number };
 }
 
 export type SafetyAlertStatus =

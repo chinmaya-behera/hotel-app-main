@@ -28,6 +28,7 @@ import { CountUp, spotlight } from '@/lib/gestures';
 import { cn } from '@/lib/utils';
 import type { StayRecord, RoomRecord, DemoState } from '@/types/demo';
 import type { TabId } from './FrontDeskConsole';
+import type { RequestSourceTab } from './RequestsPanel';
 
 export interface FrontDeskMobileDashboardProps {
   stays: StayRecord[];
@@ -40,8 +41,8 @@ export interface FrontDeskMobileDashboardProps {
   onNavigate: (
     newTab: TabId,
     options?: {
-      staysFilter?: 'all' | 'arrivals' | 'inhouse' | 'departures' | 'checkedout';
-      reqSourceTab?: 'guest_services' | 'complaints';
+      staysFilter?: 'all' | 'arrivals' | 'inhouse' | 'departures';
+      reqSourceTab?: RequestSourceTab;
     }
   ) => void;
   onOpenLiveActivity: () => void;
@@ -368,7 +369,7 @@ export function FrontDeskMobileDashboard({
           {/* Requests & Cases */}
           <button
             type="button"
-            onClick={() => onNavigate('requests', { reqSourceTab: 'guest_services' })}
+            onClick={() => onNavigate('requests', { reqSourceTab: 'guest_requests' })}
             className="p-3 rounded-2xl border border-white/10 bg-ink-900/80 hover:border-cyan-400/40 text-left transition active:scale-[0.98] group"
           >
             <div className="flex items-center justify-between">

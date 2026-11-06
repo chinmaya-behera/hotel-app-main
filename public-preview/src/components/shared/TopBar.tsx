@@ -198,6 +198,10 @@ export function TopBar({ active, showRail = true }: TopBarProps) {
                   <button
                     type="button"
                     onClick={() => {
+                      if (isFd) {
+                        window.dispatchEvent(new CustomEvent('fd-open-profile-drawer'));
+                        return;
+                      }
                       setProfileCardOpen(!profileCardOpen);
                       setNotifDropdownOpen(false);
                     }}
@@ -522,7 +526,13 @@ export function TopBar({ active, showRail = true }: TopBarProps) {
                 <div className="relative" ref={notifRef}>
                   <button
                     type="button"
-                    onClick={() => setNotifDropdownOpen(!notifDropdownOpen)}
+                    onClick={() => {
+                      if (isFd) {
+                        window.dispatchEvent(new CustomEvent('fd-open-notifications-drawer'));
+                        return;
+                      }
+                      setNotifDropdownOpen(!notifDropdownOpen);
+                    }}
                     className={cn("relative grid place-items-center border border-white/10 bg-white/[0.04] text-mist-300 transition-colors hover:border-white/20 hover:bg-white/[0.08] hover:text-white", isFd ? "h-8 w-8 rounded-lg" : "h-9 w-9 rounded-xl")}
                     title="In-app role notifications"
                     aria-label={`Notifications, ${unreadCount} unread`}
