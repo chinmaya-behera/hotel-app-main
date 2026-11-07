@@ -662,6 +662,10 @@ export interface StayRecord {
   guests?: number;
   /** Guest personal preferences & future service instructions (allergies, DND, dietary) */
   preferences?: GuestPreferences;
+  /** Room QR pass credentials (frontend demo). When unset, a stable demo value is derived from the stay. */
+  guestEmail?: string;
+  guestPhone?: string;
+  accessPin?: string;
 }
 
 export interface RoomRecord {
@@ -1537,6 +1541,7 @@ export interface CompensationRefundRequest {
   staffGuestResponse?: string;
   internalStaffNote?: string;
   resolutionDetails?: string;
+  resolutionNotes?: string;
   resolvedAt?: string;
   resolvedBy?: string;
   additionalInfoRequested?: string;

@@ -87,6 +87,7 @@ export function ExecutiveApprovalsTab({
   // Search & Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>(initialStatusFilter || 'all');
+  const showUrgentSignOffBoxes = statusFilter === 'all' || statusFilter === 'pending';
 
   useEffect(() => {
     if (initialStatusFilter) {
@@ -391,7 +392,7 @@ export function ExecutiveApprovalsTab({
       </div>
 
       {/* Cross-Role Urgent Sign-Off 1: Safety Alert Broadcast Authorizations */}
-      {pendingSafetyAlerts.length > 0 && (
+      {showUrgentSignOffBoxes && pendingSafetyAlerts.length > 0 && (
         <div className="rounded-3xl border border-rose-500/40 bg-gradient-to-r from-rose-950/40 via-ink-900 to-rose-950/20 p-5 shadow-xl text-white backdrop-blur-xl space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-rose-500/20 pb-3">
             <div className="flex items-center gap-3">
@@ -498,7 +499,7 @@ export function ExecutiveApprovalsTab({
       )}
 
       {/* Cross-Role Urgent Sign-Off 2: High-Value Compensation Claims (> ₹10,000) */}
-      {pendingGmCompensations.length > 0 && (
+      {showUrgentSignOffBoxes && pendingGmCompensations.length > 0 && (
         <div className="rounded-3xl border border-amber-500/40 bg-gradient-to-r from-amber-950/40 via-ink-900 to-amber-950/20 p-5 shadow-xl text-white backdrop-blur-xl space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-amber-500/20 pb-3">
             <div className="flex items-center gap-3">

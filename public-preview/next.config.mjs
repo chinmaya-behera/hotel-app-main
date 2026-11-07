@@ -9,6 +9,7 @@ const nextConfig = {
   reactStrictMode: true,
   outputFileTracingRoot: __dirname,
   transpilePackages: ['lucide-react'],
+  devIndicators: false,
   typescript: {
     ignoreBuildErrors: true,
   },

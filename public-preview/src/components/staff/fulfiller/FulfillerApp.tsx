@@ -31,12 +31,16 @@ import {
   isTaskAssignedToProfile,
 } from './fulfillerProfiles';
 import { playChime } from './chime';
+import { BreakRequestModal } from './BreakRequestModal';
+import { useBreakRequest } from './breakRequests';
 
 type FulfillerTab = 'tasks' | 'notifications' | 'policies' | 'performance' | 'profile';
 
 function FulfillerAppContent() {
-  const { state, setPersona, setSoundEnabled, setTheme, setActiveDispatcherDept, toasts, setFulfillerAvailability } = useDemo();
+  const { state, setPersona, setSoundEnabled, setTheme, setActiveDispatcherDept, toasts, setFulfillerAvailability, notify } = useDemo();
   const [activeTab, setActiveTab] = useState<FulfillerTab>('tasks');
+  const [breakModalOpen, setBreakModalOpen] = useState(false);
+  const { breakRequest } = useBreakRequest();
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevTaskCountRef = useRef<number | null>(null);
 
@@ -95,38 +99,389 @@ function FulfillerAppContent() {
       isTaskAssignedToProfile(t, profile) &&
       (t.status === 'Assigned' || t.status === 'Accepted' || t.status === 'In progress'),
   ).length;
-  const notifications = (state.notifications ?? []).filter((n) => n.roleId === 'task_fulfiller');
+  const notifications = (state.notifications ?? []).filter(
+    (n) =>
+      n.roleId === 'task_fulfiller' &&
+      (n.department
+        ? taskMatchesFulfillerDept({ department: n.department } as any, activeDeptKey)
+        : true),
+  );
   const unreadNotifCount = notifications.filter((n) => !n.read).length;
 
   const isLight = state.theme === 'light';
 
-    return (
-    <div className="fixed inset-0 flex items-center justify-center overflow-hidden bg-gradient-to-b from-[#070e1c] via-[#091322] to-[#040810]">
-      {/* Centered Phone Shell Container on Desktop, Full Screen on Mobile */}
+  return (
+    <div
+      className={cn(
+        'fulfiller-root fixed inset-0 flex flex-col overflow-hidden transition-colors duration-300',
+        isLight
+          ? 'fulfiller-light bg-[#fbfaf7] text-[#353229]'
+          : 'fulfiller-dark bg-gradient-to-b from-[#0c0c0e] via-[#121215] to-[#09090b]',
+      )}
+    >
+      {/* Scoped Theme Styles for Task Fulfiller: Matching Department Manager warm luxury palette in Light Mode */}
+      <style>{`
+        .fulfiller-root.fulfiller-dark {
+          --page: 12 12 14;
+          --ink-950: 20 20 23;
+          --ink-900: 28 28 32;
+          --ink-850: 33 33 38;
+          --ink-800: 42 41 47;
+          --ink-700: 58 54 58;
+          --ink-600: 78 72 74;
+          --white: 247 244 237; /* Cream-coloured primary text */
+          --mist-100: 247 244 237;
+          --mist-200: 236 228 217;
+          --mist-300: 217 206 190; /* Warm beige */
+          --mist-400: 166 152 134; /* Warm taupe */
+          --mist-500: 128 116 102; /* Subtle brown */
+          --a: 223 193 135; /* Champagne-gold */
+          --b: 200 169 110; /* Muted gold */
+          --on-a: #141417;
+          --t-emerald: 200 169 110;
+          --t-amber: 223 193 135;
+          --t-sky: 212 184 150;
+          --t-rose: 206 142 122;
+          --t-violet: 196 166 128;
+          color: #f7f4ed;
+        }
+
+        .fulfiller-root.fulfiller-light {
+          --warm-canvas: #fbfaf7;
+          --warm-panel: #ffffff;
+          --warm-sidebar: #fbfaf7;
+          --warm-soft: #f6f3ec;
+          --warm-highlight: #ebe2cc;
+          --warm-selected: #ded6c1;
+          --warm-line: #e7e2d7;
+          --warm-control: #b7b09e;
+          --warm-ink: #353229;
+          --warm-muted: #686252;
+          --warm-primary: #353229;
+          --warm-on-primary: #ffffff;
+          --warm-focus: #8b7550;
+          --warm-shadow: 0 4px 18px rgba(53, 50, 41, 0.04);
+
+          --page: 251 250 247;
+          --ink-950: 255 255 255;
+          --ink-900: 255 255 255;
+          --ink-850: 251 250 247;
+          --ink-800: 246 243 236;
+          --ink-700: 235 226 204;
+          --ink-600: 222 214 193;
+          --white: 53 50 41;
+          --mist-100: 53 50 41;
+          --mist-200: 65 60 50;
+          --mist-300: 104 98 82;
+          --mist-400: 140 132 114;
+          --mist-500: 183 176 158;
+          --a: 53 50 41;
+          --b: 183 176 158;
+          --on-a: #ffffff;
+          --t-emerald: 53 50 41;
+          --t-amber: 139 117 80;
+          --t-sky: 104 98 82;
+          --t-rose: 153 27 27;
+          --t-violet: 104 98 82;
+          color: #353229;
+        }
+
+        /* Dark Theme Overrides */
+        .fulfiller-dark #fulfiller-phone-shell {
+          background-color: #141417 !important;
+          border-color: rgba(165, 130, 95, 0.24) !important;
+        }
+        .fulfiller-dark header {
+          background-color: rgba(24, 24, 28, 0.95) !important;
+          border-color: rgba(165, 130, 95, 0.24) !important;
+        }
+        .fulfiller-dark nav {
+          background-color: rgba(24, 24, 28, 0.95) !important;
+          border-color: rgba(165, 130, 95, 0.24) !important;
+        }
+        .fulfiller-dark .border-white\/10,
+        .fulfiller-dark .border-white\/20,
+        .fulfiller-dark .border-white\/\[0\.08\],
+        .fulfiller-dark .border-white\/\[0\.06\],
+        .fulfiller-dark .border-white\/\[0\.04\],
+        .fulfiller-dark .border-white\/\[0\.03\],
+        .fulfiller-dark .border-white\/\[0\.02\],
+        .fulfiller-dark .border-emerald-500\/40,
+        .fulfiller-dark .border-emerald-500\/30,
+        .fulfiller-dark .border-emerald-500\/20,
+        .fulfiller-dark .border-emerald-400\/40,
+        .fulfiller-dark .border-emerald-400\/30,
+        .fulfiller-dark .border-emerald-400\/20,
+        .fulfiller-dark .border-amber-400\/40,
+        .fulfiller-dark .border-amber-400\/30,
+        .fulfiller-dark .border-amber-400\/20,
+        .fulfiller-dark .border-sky-500\/30,
+        .fulfiller-dark .border-purple-400\/30 {
+          border-color: rgba(165, 130, 95, 0.24) !important;
+        }
+        .fulfiller-dark .bg-white\/\[0\.03\],
+        .fulfiller-dark .bg-white\/\[0\.04\],
+        .fulfiller-dark .bg-white\/\[0\.02\],
+        .fulfiller-dark .bg-white\/\[0\.06\],
+        .fulfiller-dark .bg-emerald-500\/\[0\.03\],
+        .fulfiller-dark .bg-emerald-500\/\[0\.06\],
+        .fulfiller-dark .bg-emerald-500\/10,
+        .fulfiller-dark .bg-amber-400\/\[0\.03\],
+        .fulfiller-dark .bg-amber-400\/\[0\.04\],
+        .fulfiller-dark .bg-amber-400\/10,
+        .fulfiller-dark .bg-purple-400\/\[0\.04\] {
+          background-color: #1c1c20 !important;
+        }
+        .fulfiller-dark .text-white {
+          color: #f7f4ed !important;
+        }
+        .fulfiller-dark .text-mist-200,
+        .fulfiller-dark .text-mist-300 {
+          color: #d9cebe !important;
+        }
+        .fulfiller-dark .text-mist-400,
+        .fulfiller-dark .text-mist-500 {
+          color: #a69886 !important;
+        }
+        .fulfiller-dark .text-emerald-400,
+        .fulfiller-dark .text-emerald-300,
+        .fulfiller-dark .text-amber-400,
+        .fulfiller-dark .text-amber-300,
+        .fulfiller-dark .text-amber-200,
+        .fulfiller-dark .text-sky-400 {
+          color: #dfc187 !important;
+        }
+        .fulfiller-dark .bg-emerald-500,
+        .fulfiller-dark .bg-emerald-600,
+        .fulfiller-dark .bg-amber-400,
+        .fulfiller-dark .bg-sky-500 {
+          background-color: #c8a96e !important;
+          color: #141417 !important;
+        }
+        .fulfiller-dark button.bg-emerald-500:hover,
+        .fulfiller-dark button.bg-amber-400:hover,
+        .fulfiller-dark button.bg-sky-500:hover {
+          background-color: #dfc187 !important;
+          color: #141417 !important;
+        }
+        .fulfiller-dark .bg-emerald-500\/20,
+        .fulfiller-dark .bg-emerald-400\/20,
+        .fulfiller-dark .bg-amber-400\/20,
+        .fulfiller-dark .bg-amber-500\/20,
+        .fulfiller-dark .bg-sky-400\/20,
+        .fulfiller-dark .bg-purple-400\/20 {
+          background-color: rgba(200, 169, 110, 0.16) !important;
+          color: #dfc187 !important;
+          border-color: rgba(165, 130, 95, 0.35) !important;
+        }
+
+        /* Department Manager Light Theme Overrides */
+        .fulfiller-light #fulfiller-phone-shell {
+          background-color: #fbfaf7 !important;
+          border-color: #e7e2d7 !important;
+          color: #353229 !important;
+        }
+        .fulfiller-light header {
+          background-color: rgba(255, 255, 255, 0.98) !important;
+          border-color: #e7e2d7 !important;
+          box-shadow: 0 1px 3px rgba(53, 50, 41, 0.03) !important;
+        }
+        .fulfiller-light nav {
+          background-color: rgba(255, 255, 255, 0.98) !important;
+          border-color: #e7e2d7 !important;
+          box-shadow: 0 -4px 18px rgba(53, 50, 41, 0.04) !important;
+        }
+        .fulfiller-light .border-white\/10,
+        .fulfiller-light .border-white\/20,
+        .fulfiller-light .border-white\/\[0\.08\],
+        .fulfiller-light .border-white\/\[0\.06\],
+        .fulfiller-light .border-white\/\[0\.04\],
+        .fulfiller-light .border-white\/\[0\.03\],
+        .fulfiller-light .border-white\/\[0\.02\],
+        .fulfiller-light .border-slate-300\/70,
+        .fulfiller-light .border-slate-300\/80,
+        .fulfiller-light .border-slate-200,
+        .fulfiller-light .border-emerald-500\/40,
+        .fulfiller-light .border-emerald-500\/30,
+        .fulfiller-light .border-emerald-400\/40,
+        .fulfiller-light .border-amber-400\/40,
+        .fulfiller-light .border-\[rgba\(165\,130\,95\,0\.18\)\],
+        .fulfiller-light .border-\[rgba\(165\,130\,95\,0\.2\)\],
+        .fulfiller-light .border-\[rgba\(165\,130\,95\,0\.24\)\],
+        .fulfiller-light .border-\[rgba\(165\,130\,95\,0\.25\)\],
+        .fulfiller-light .border-\[rgba\(165\,130\,95\,0\.28\)\],
+        .fulfiller-light .border-\[rgba\(165\,130\,95\,0\.3\)\],
+        .fulfiller-light .border-\[rgba\(165\,130\,95\,0\.35\)\],
+        .fulfiller-light .border-\[rgba\(165\,130\,95\,0\.4\)\] {
+          border-color: #e7e2d7 !important;
+        }
+        .fulfiller-light .bg-white\/\[0\.03\],
+        .fulfiller-light .bg-white\/\[0\.04\],
+        .fulfiller-light .bg-white\/\[0\.02\],
+        .fulfiller-light .bg-white\/\[0\.06\],
+        .fulfiller-light .bg-emerald-500\/\[0\.03\],
+        .fulfiller-light .bg-emerald-500\/\[0\.06\],
+        .fulfiller-light .bg-amber-400\/\[0\.03\],
+        .fulfiller-light .bg-amber-400\/\[0\.04\],
+        .fulfiller-light .bg-\[\#1a1918\],
+        .fulfiller-light .bg-\[\#14120e\],
+        .fulfiller-light .bg-\[\#161513\],
+        .fulfiller-light .bg-\[\#1c1c20\],
+        .fulfiller-light .bg-\[\#1e1c1a\],
+        .fulfiller-light .bg-\[\#141417\],
+        .fulfiller-light .bg-\[\#18181c\],
+        .fulfiller-light .bg-ink-950,
+        .fulfiller-light .bg-ink-900 {
+          background-color: #ffffff !important;
+          color: #353229 !important;
+          border-color: #e7e2d7 !important;
+          box-shadow: 0 4px 18px rgba(53, 50, 41, 0.04), 0 1px 3px rgba(53, 50, 41, 0.02);
+        }
+
+        /* High-Contrast Department Manager Text Colors */
+        .fulfiller-light :not(button):not([class*="bg-[#353229]"]):not(.btn-dark).text-white,
+        .fulfiller-light :not(button):not([class*="bg-[#353229]"]):not(.btn-dark).text-\[\#f7f4ed\],
+        .fulfiller-light :not(button):not([class*="bg-[#353229]"]):not(.btn-dark).text-mist-100 {
+          color: #353229 !important;
+        }
+        .fulfiller-light .text-\[\#ded6c9\],
+        .fulfiller-light .text-\[\#d9cebe\],
+        .fulfiller-light .text-mist-200,
+        .fulfiller-light .text-mist-300 {
+          color: #686252 !important;
+        }
+        .fulfiller-light .text-\[\#d4b896\],
+        .fulfiller-light .text-\[\#a89f91\],
+        .fulfiller-light .text-\[\#a69886\],
+        .fulfiller-light .text-mist-400,
+        .fulfiller-light .text-mist-500 {
+          color: #8c8472 !important;
+        }
+        .fulfiller-light .text-\[\#dfc187\],
+        .fulfiller-light .text-\[\#c8a96e\] {
+          color: #8b7550 !important;
+        }
+        .fulfiller-light .text-emerald-600,
+        .fulfiller-light .text-emerald-400,
+        .fulfiller-light .text-emerald-300 {
+          color: #353229 !important;
+        }
+        .fulfiller-light .text-amber-600,
+        .fulfiller-light .text-amber-500,
+        .fulfiller-light .text-amber-400,
+        .fulfiller-light .text-amber-300 {
+          color: #8b7550 !important;
+        }
+        .fulfiller-light .text-sky-600,
+        .fulfiller-light .text-sky-400,
+        .fulfiller-light .text-sky-300 {
+          color: #4a5568 !important;
+        }
+        .fulfiller-light .text-rose-200,
+        .fulfiller-light .text-rose-200\/90,
+        .fulfiller-light .text-rose-300,
+        .fulfiller-light .text-rose-400 {
+          color: #991b1b !important;
+        }
+
+        /* Dark Luxury Primary Action Buttons in Light Mode: Guaranteed white text */
+        .fulfiller-light button.bg-\[\#353229\],
+        .fulfiller-light button.bg-\[\#353229\] *,
+        .fulfiller-light button[class*="bg-[#353229]"],
+        .fulfiller-light button[class*="bg-[#353229]"] *,
+        .fulfiller-light [class*="bg-[#353229]"] button,
+        .fulfiller-light [class*="bg-[#353229]"] button * {
+          color: #ffffff !important;
+        }
+        .fulfiller-light button.bg-\[\#353229\]:hover,
+        .fulfiller-light button[class*="bg-[#353229]"]:hover {
+          background-color: #484438 !important;
+          color: #ffffff !important;
+        }
+
+        /* Department Manager Style Action Buttons */
+        .fulfiller-light .bg-emerald-500,
+        .fulfiller-light .bg-emerald-600,
+        .fulfiller-light .bg-amber-400,
+        .fulfiller-light .bg-sky-500 {
+          background-color: #353229 !important;
+          color: #ffffff !important;
+          border: 1px solid #353229 !important;
+          font-weight: 600 !important;
+        }
+        .fulfiller-light button.bg-emerald-500:hover,
+        .fulfiller-light button.bg-amber-400:hover,
+        .fulfiller-light button.bg-sky-500:hover {
+          background-color: #484438 !important;
+          border-color: #484438 !important;
+          color: #ffffff !important;
+        }
+        .fulfiller-light .bg-emerald-500\/20,
+        .fulfiller-light .bg-emerald-400\/20,
+        .fulfiller-light .bg-amber-400\/20,
+        .fulfiller-light .bg-sky-400\/20,
+        .fulfiller-light .bg-purple-400\/20 {
+          background-color: #f6f3ec !important;
+          color: #353229 !important;
+          border-color: #e7e2d7 !important;
+        }
+
+        /* Department Manager Inputs, Selects & Modals */
+        .fulfiller-light textarea,
+        .fulfiller-light input[type="text"],
+        .fulfiller-light input[type="search"],
+        .fulfiller-light select {
+          background-color: #ffffff !important;
+          color: #353229 !important;
+          border-color: #b7b09e !important;
+          border-radius: 7px !important;
+        }
+        .fulfiller-light textarea:focus,
+        .fulfiller-light input[type="text"]:focus,
+        .fulfiller-light input[type="search"]:focus,
+        .fulfiller-light select:focus {
+          border-color: #8b7550 !important;
+          outline: 2px solid #8b7550 !important;
+          outline-offset: 1px !important;
+        }
+        .fulfiller-light textarea::placeholder,
+        .fulfiller-light input::placeholder {
+          color: #8c8472 !important;
+        }
+      `}</style>
+
+      {/* Full-Screen Fluid Responsive Container */}
       <div
         id="fulfiller-phone-shell"
-        className="relative flex flex-col w-full h-full sm:h-[844px] sm:max-h-[calc(100dvh-2rem)] sm:w-[412px] sm:rounded-[2.8rem] sm:border-[8px] sm:border-[#0f172a] sm:shadow-[0_25px_80px_-15px_rgba(0,0,0,0.8),0_0_0_1px_rgba(255,255,255,0.08)] bg-ink-950 overflow-hidden text-white"
+        className={cn(
+          'relative flex flex-col w-full h-full overflow-hidden transition-colors duration-300',
+          isLight
+            ? 'bg-[#fbfaf7] text-[#353229]'
+            : 'bg-[#141417] text-[#f7f4ed]',
+        )}
       >
-        {/* Phone Speaker Notch (Desktop Shell Only) */}
-        <div className="hidden sm:flex absolute top-0 inset-x-0 z-50 justify-center pointer-events-none pt-2">
-          <div className="h-4 w-28 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center gap-2">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/80 animate-pulse" />
-            <span className="h-1 w-10 rounded-full bg-white/20" />
-          </div>
-        </div>
-
-        {/* In-Mobile Toast Notification Banner */}
+        {/* In-App Toast Notification Banner */}
         {toasts && toasts.length > 0 && (
-          <div className="absolute top-14 inset-x-3 z-[60] pointer-events-none flex flex-col items-center gap-2">
+          <div className="absolute top-16 inset-x-3 sm:inset-x-6 z-[60] pointer-events-none flex flex-col items-center gap-2">
             {toasts.map((t) => (
               <div
                 key={t.id}
-                className="toast-in pointer-events-auto w-full max-w-[380px] flex items-start gap-2.5 rounded-2xl border border-emerald-400/40 bg-ink-900/95 backdrop-blur-xl px-3.5 py-2.5 text-xs text-white shadow-2xl animate-in slide-in-from-top-3 duration-200"
+                className={cn(
+                  'toast-in pointer-events-auto w-full max-w-md flex items-start gap-2.5 rounded-2xl border px-3.5 py-2.5 text-xs shadow-2xl animate-in slide-in-from-top-3 duration-200 backdrop-blur-xl',
+                  isLight
+                    ? 'border-[#e7e2d7] bg-[#ffffff] text-[#353229] shadow-[0_12px_40px_rgba(53,50,41,0.12)]'
+                    : 'border-[rgba(165,130,95,0.4)] bg-[#1c1c20]/95 text-[#f7f4ed]',
+                )}
               >
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+                <CheckCircle2 className={cn('mt-0.5 h-4 w-4 shrink-0', isLight ? 'text-[#353229]' : 'text-[#c8a96e]')} />
                 <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-white leading-snug">{t.text}</p>
-                  <p className="mt-0.5 text-[10px] uppercase font-mono tracking-wider text-mist-400">
+                  <p className={cn('font-bold leading-snug', isLight ? 'text-[#353229]' : 'text-[#f7f4ed]')}>{t.text}</p>
+                  <p
+                    className={cn(
+                      'mt-0.5 text-[10px] uppercase font-mono tracking-wider font-semibold',
+                      isLight ? 'text-[#686252]' : 'text-[#a69886]',
+                    )}
+                  >
                     Task Notification
                   </p>
                 </div>
@@ -135,90 +490,195 @@ function FulfillerAppContent() {
           </div>
         )}
 
-        {/* Mobile Header Bar */}
-        <header className="shrink-0 border-b border-white/[0.08] bg-ink-950/90 backdrop-blur-xl px-4 pt-3 pb-3 sm:pt-6 z-40">
+        {/* Responsive Header Bar: Mobile, Tablet & Desktop */}
+        <header
+          className={cn(
+            'shrink-0 border-b px-4 sm:px-6 lg:px-8 pt-3 pb-3 sm:py-4 z-40 transition-colors duration-300',
+            isLight
+              ? 'border-[#e7e2d7] bg-[#ffffff]/98 backdrop-blur-xl text-[#353229] shadow-xs'
+              : 'border-[rgba(165,130,95,0.24)] bg-[#18181c]/95 text-[#f7f4ed] backdrop-blur-xl',
+          )}
+        >
           <div className="flex items-center justify-between gap-3">
             {/* Identity */}
-            <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex items-center gap-3 min-w-0">
               <div
-                className={cn(
-                  'grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br text-xs font-bold text-ink-950 shadow-md shrink-0',
-                  profile.colorGradient,
-                )}
+                className="grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-xl sm:rounded-2xl shadow-md shrink-0 text-[#141417]"
               >
-                {profile.avatarInitials}
+                <div
+                  className={cn(
+                    'w-full h-full rounded-xl sm:rounded-2xl flex items-center justify-center bg-gradient-to-br text-[#141417]',
+                    profile.colorGradient,
+                  )}
+                >
+                  {profile.avatarInitials}
+                </div>
               </div>
               <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <h1 className="text-xs font-bold text-white truncate">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1
+                    className={cn(
+                      'text-xs sm:text-sm md:text-base font-bold truncate max-w-[140px] sm:max-w-xs transition-colors',
+                      isLight ? 'text-[#353229]' : 'text-[#f7f4ed]',
+                    )}
+                  >
                     {profile.employeeName}
                   </h1>
+
                   <button
                     type="button"
-                    onClick={() => setFulfillerAvailability(currentAvail === 'break' ? 'on_duty' : 'break')}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setBreakModalOpen(true);
+                    }}
                     className={cn(
-                      'flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold border transition-colors',
-                      currentAvail === 'break'
-                        ? 'bg-amber-400/20 text-amber-300 border-amber-400/40 hover:bg-amber-400/30'
-                        : currentAvail === 'off_duty'
-                          ? 'bg-rose-400/20 text-rose-300 border-rose-400/40 hover:bg-rose-400/30'
-                          : 'bg-emerald-400/20 text-emerald-300 border-emerald-400/40 hover:bg-emerald-400/30',
+                      'flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold border transition-all cursor-pointer',
+                      breakRequest?.status === 'pending'
+                        ? isLight
+                          ? 'bg-amber-50 text-amber-900 border-amber-300 shadow-2xs'
+                          : 'bg-amber-400/20 text-amber-300 border-amber-400/40'
+                        : currentAvail === 'break'
+                          ? isLight
+                            ? 'bg-[#ebe2cc] text-[#353229] border-[#b7b09e]'
+                            : 'bg-[#dfc187]/20 text-[#e8cf9a] border-[#dfc187]/40'
+                          : currentAvail === 'off_duty'
+                            ? isLight
+                              ? 'bg-[#fff1f0] text-[#991b1b] border-[#fecaca]'
+                              : 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                            : isLight
+                              ? 'bg-[#f6f3ec] text-[#353229] border-[#e7e2d7] hover:border-[#b7b09e]'
+                              : 'bg-[#c8a96e]/20 text-[#dfc187] border-[#c8a96e]/40 hover:border-[#dfc187]',
                     )}
-                    title="Click to toggle On Duty / On Break"
+                    title={
+                      breakRequest?.status === 'pending'
+                        ? `${breakRequest.title || 'Duty request'} pending approval from Supervisor ${profile.supervisorName} (Click to view)`
+                        : currentAvail === 'break'
+                          ? 'Currently On Break (Click to manage duty status)'
+                          : currentAvail === 'off_duty'
+                            ? 'Currently Off Duty (Click to request On Duty from Supervisor)'
+                            : `On Duty · Managed by Supervisor ${profile.supervisorName} (Click to request Break / Off Duty)`
+                    }
                   >
                     <span
                       className={cn(
                         'h-1.5 w-1.5 rounded-full shrink-0',
-                        currentAvail === 'break'
-                          ? 'bg-amber-400 animate-pulse'
-                          : currentAvail === 'off_duty'
-                            ? 'bg-rose-400'
-                            : 'bg-emerald-400',
+                        breakRequest?.status === 'pending'
+                          ? 'bg-amber-500 animate-pulse'
+                          : currentAvail === 'break'
+                            ? isLight ? 'bg-[#8b7550] animate-pulse' : 'bg-[#dfc187] animate-pulse'
+                            : currentAvail === 'off_duty'
+                              ? 'bg-rose-500'
+                              : isLight ? 'bg-[#353229]' : 'bg-[#c8a96e]',
                       )}
                     />
                     <span>
-                      {currentAvail === 'break' ? 'On Break' : currentAvail === 'off_duty' ? 'Off Duty' : 'On Duty'}
+                      {breakRequest?.status === 'pending'
+                        ? breakRequest.requestType === 'on_duty'
+                          ? 'On Duty Requested'
+                          : breakRequest.requestType === 'off_duty'
+                            ? 'Off Duty Requested'
+                            : breakRequest.requestType === 'break'
+                              ? 'Break Requested'
+                              : 'Duty Req Pending'
+                        : currentAvail === 'break'
+                          ? 'On Break'
+                          : currentAvail === 'off_duty'
+                            ? 'Off Duty'
+                            : 'On Duty'}
+                    </span>
+                    <span className={cn('text-[8px] font-normal opacity-75 hidden sm:inline', isLight ? 'text-[#686252]' : 'text-mist-400')}>
+                      {breakRequest?.status === 'pending' ? '(Pending)' : '(Duty Request)'}
                     </span>
                   </button>
                 </div>
-                <p className="text-[10px] text-mist-300 truncate font-medium">
+                <p
+                  className={cn(
+                    'text-[10px] sm:text-xs truncate font-medium mt-0.5',
+                    isLight ? 'text-[#686252]' : 'text-[#d9cebe]',
+                  )}
+                >
                   {profile.departmentName} · {profile.zone}
                 </p>
               </div>
             </div>
 
-            {/* Quick Header Actions */}
+            {/* Quick Header Actions: Sound, Theme, Notification Symbol, Exit */}
             <div className="flex items-center gap-1.5 shrink-0">
-              {/* Sound Toggle */}
+              {/* Sound / Chime Toggle */}
               <button
                 type="button"
                 onClick={() => setSoundEnabled(!isSoundOn)}
-                className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-mist-300 hover:text-white transition-colors"
+                className={cn(
+                  'grid h-8 w-8 place-items-center rounded-lg border transition-colors',
+                  isLight
+                    ? 'border-[#e7e2d7] bg-[#ffffff] text-[#353229] hover:bg-[#f6f3ec] hover:border-[#b7b09e]'
+                    : 'border-[rgba(165,130,95,0.24)] bg-[#1f1f24] text-[#d9cebe] hover:text-[#f7f4ed] hover:border-[rgba(195,160,115,0.4)]',
+                )}
                 title={isSoundOn ? 'Mute task chime' : 'Enable task chime'}
                 aria-label="Toggle task chime"
               >
                 {isSoundOn ? (
-                  <Volume2 className="h-3.5 w-3.5 text-emerald-400" />
+                  <Volume2 className={cn('h-3.5 w-3.5', isLight ? 'text-[#353229]' : 'text-[#dfc187]')} />
                 ) : (
-                  <VolumeX className="h-3.5 w-3.5 text-mist-500" />
+                  <VolumeX className={cn('h-3.5 w-3.5', isLight ? 'text-[#8c8472]' : 'text-[#a69886]')} />
                 )}
               </button>
 
-              {/* Theme Toggle */}
+              {/* Theme Change Toggle */}
               <button
                 type="button"
                 onClick={() => setTheme(isLight ? 'dark' : 'light')}
-                className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-mist-300 hover:text-white transition-colors"
-                title={isLight ? 'Dark mode' : 'Light mode'}
+                className={cn(
+                  'grid h-8 w-8 place-items-center rounded-lg border transition-colors',
+                  isLight
+                    ? 'border-[#e7e2d7] bg-[#ffffff] text-[#353229] hover:bg-[#f6f3ec] hover:border-[#b7b09e]'
+                    : 'border-[rgba(165,130,95,0.24)] bg-[#1f1f24] text-[#dfc187] hover:text-[#f7f4ed] hover:border-[rgba(195,160,115,0.4)]',
+                )}
+                title={isLight ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
                 aria-label="Toggle theme"
               >
-                {isLight ? <Moon className="h-3.5 w-3.5" /> : <Sun className="h-3.5 w-3.5" />}
+                {isLight ? <Moon className="h-3.5 w-3.5" /> : <Sun className="h-3.5 w-3.5 text-[#dfc187]" />}
+              </button>
+
+              {/* Notification Symbol Button */}
+              <button
+                type="button"
+                onClick={() => setActiveTab('notifications')}
+                className={cn(
+                  'relative grid h-8 w-8 place-items-center rounded-lg border transition-colors',
+                  activeTab === 'notifications'
+                    ? isLight
+                      ? 'border-[#b7b09e] bg-[#ebe2cc] text-[#353229] ring-2 ring-[#ded6c1]'
+                      : 'border-[#dfc187] bg-[#c8a96e]/20 text-[#dfc187] ring-2 ring-[#dfc187]/25'
+                    : isLight
+                      ? 'border-[#e7e2d7] bg-[#ffffff] text-[#353229] hover:bg-[#f6f3ec] hover:border-[#b7b09e]'
+                      : 'border-[rgba(165,130,95,0.24)] bg-[#1f1f24] text-[#d9cebe] hover:text-[#f7f4ed] hover:border-[rgba(195,160,115,0.4)]',
+                )}
+                title={unreadNotifCount > 0 ? `${unreadNotifCount} unread notifications` : 'Notifications & Alerts'}
+                aria-label="View notifications"
+              >
+                <Bell className="h-3.5 w-3.5" />
+                {unreadNotifCount > 0 && (
+                  <span
+                    className={cn(
+                      'absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[8px] font-extrabold shadow-sm animate-pulse',
+                      isLight ? 'bg-[#353229] text-[#ffffff]' : 'bg-[#c8a96e] text-[#141417]',
+                    )}
+                  >
+                    {unreadNotifCount}
+                  </span>
+                )}
               </button>
 
               {/* Exit to Portals / Public */}
               <Link
                 href="/login"
-                className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-mist-300 hover:text-white transition-colors"
+                className={cn(
+                  'grid h-8 w-8 place-items-center rounded-lg border transition-colors',
+                  isLight
+                    ? 'border-[#e7e2d7] bg-[#ffffff] text-[#353229] hover:bg-[#f6f3ec] hover:border-[#b7b09e]'
+                    : 'border-[rgba(165,130,95,0.24)] bg-[#1f1f24] text-[#d9cebe] hover:text-[#f7f4ed] hover:border-[rgba(195,160,115,0.4)]',
+                )}
                 title="Exit to staff login"
                 aria-label="Exit to staff login"
               >
@@ -228,36 +688,52 @@ function FulfillerAppContent() {
           </div>
         </header>
 
-        {/* Scrollable Tab Content Container */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 pt-3 no-scrollbar overscroll-contain">
+        {/* Scrollable Tab Content Container: Mobile, Tablet & Desktop responsive padding */}
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 pt-2 sm:pt-4 pb-6 sm:pb-8 no-scrollbar overscroll-contain">
           {activeTab === 'tasks' && <FulfillerTasksTab profile={profile} />}
           {activeTab === 'notifications' && (
-            <FulfillerNotificationsTab onNavigateToTasks={() => setActiveTab('tasks')} />
+            <FulfillerNotificationsTab profile={profile} onNavigateToTasks={() => setActiveTab('tasks')} />
           )}
           {activeTab === 'policies' && <FulfillerPoliciesTab />}
           {activeTab === 'performance' && <FulfillerPerformanceTab profile={profile} />}
           {activeTab === 'profile' && <FulfillerProfileTab profile={profile} />}
         </div>
 
-        {/* Mobile Bottom Navigation Bar */}
+        {/* Bottom Navigation Bar: Mobile, Tablet & Desktop responsive centering */}
         <nav
           aria-label="Fulfiller app navigation"
-          className="absolute inset-x-0 bottom-0 z-40 border-t border-white/[0.08] bg-ink-950/95 backdrop-blur-2xl pb-safe"
+          className={cn(
+            'relative shrink-0 z-40 border-t pb-safe transition-colors duration-300 backdrop-blur-2xl',
+            isLight
+              ? 'border-[#e7e2d7] bg-[#ffffff]/98 text-[#686252] shadow-[0_-4px_18px_rgba(53,50,41,0.04)]'
+              : 'border-[rgba(165,130,95,0.24)] bg-[#18181c]/95 text-[#d9cebe]',
+          )}
         >
-          <div className="grid grid-cols-5 items-center px-1 py-1.5">
+          <div className="grid grid-cols-5 items-center px-2 py-1.5 max-w-md sm:max-w-xl md:max-w-2xl mx-auto">
             {/* My Tasks */}
             <button
               type="button"
               onClick={() => setActiveTab('tasks')}
               className={cn(
                 'relative flex flex-col items-center gap-1 py-1 text-center transition-colors',
-                activeTab === 'tasks' ? 'text-emerald-400 font-bold' : 'text-mist-400 hover:text-mist-200',
+                activeTab === 'tasks'
+                  ? isLight
+                    ? 'text-[#353229] font-bold'
+                    : 'text-[#dfc187] font-bold'
+                  : isLight
+                    ? 'text-[#686252] hover:text-[#353229]'
+                    : 'text-[#a69886] hover:text-[#f7f4ed]',
               )}
             >
               <span className="relative">
                 <ListChecks className="h-4 w-4" />
                 {activeTaskCount > 0 && (
-                  <span className="absolute -top-1 -right-2 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-emerald-500 px-0.5 text-[8px] font-bold text-ink-950">
+                  <span
+                    className={cn(
+                      'absolute -top-1 -right-2 flex h-3.5 min-w-[14px] items-center justify-center rounded-full px-0.5 text-[8px] font-bold',
+                      isLight ? 'bg-[#353229] text-[#ffffff]' : 'bg-[#c8a96e] text-[#14120e]',
+                    )}
+                  >
                     {activeTaskCount}
                   </span>
                 )}
@@ -271,13 +747,24 @@ function FulfillerAppContent() {
               onClick={() => setActiveTab('notifications')}
               className={cn(
                 'relative flex flex-col items-center gap-1 py-1 text-center transition-colors',
-                activeTab === 'notifications' ? 'text-emerald-400 font-bold' : 'text-mist-400 hover:text-mist-200',
+                activeTab === 'notifications'
+                  ? isLight
+                    ? 'text-[#353229] font-bold'
+                    : 'text-[#dfc187] font-bold'
+                  : isLight
+                    ? 'text-[#686252] hover:text-[#353229]'
+                    : 'text-[#a69886] hover:text-[#f7f4ed]',
               )}
             >
               <span className="relative">
                 <Bell className="h-4 w-4" />
                 {unreadNotifCount > 0 && (
-                  <span className="absolute -top-1 -right-2 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-amber-400 px-0.5 text-[8px] font-bold text-ink-950 animate-pulse">
+                  <span
+                    className={cn(
+                      'absolute -top-1 -right-2 flex h-3.5 min-w-[14px] items-center justify-center rounded-full px-0.5 text-[8px] font-bold animate-pulse',
+                      isLight ? 'bg-[#353229] text-[#ffffff]' : 'bg-[#dfc187] text-[#14120e]',
+                    )}
+                  >
                     {unreadNotifCount}
                   </span>
                 )}
@@ -291,7 +778,13 @@ function FulfillerAppContent() {
               onClick={() => setActiveTab('policies')}
               className={cn(
                 'relative flex flex-col items-center gap-1 py-1 text-center transition-colors',
-                activeTab === 'policies' ? 'text-emerald-400 font-bold' : 'text-mist-400 hover:text-mist-200',
+                activeTab === 'policies'
+                  ? isLight
+                    ? 'text-[#353229] font-bold'
+                    : 'text-[#dfc187] font-bold'
+                  : isLight
+                    ? 'text-[#686252] hover:text-[#353229]'
+                    : 'text-[#a69886] hover:text-[#f7f4ed]',
               )}
             >
               <ShieldCheck className="h-4 w-4" />
@@ -304,7 +797,13 @@ function FulfillerAppContent() {
               onClick={() => setActiveTab('performance')}
               className={cn(
                 'relative flex flex-col items-center gap-1 py-1 text-center transition-colors',
-                activeTab === 'performance' ? 'text-emerald-400 font-bold' : 'text-mist-400 hover:text-mist-200',
+                activeTab === 'performance'
+                  ? isLight
+                    ? 'text-[#353229] font-bold'
+                    : 'text-[#dfc187] font-bold'
+                  : isLight
+                    ? 'text-[#686252] hover:text-[#353229]'
+                    : 'text-[#a69886] hover:text-[#f7f4ed]',
               )}
             >
               <Activity className="h-4 w-4" />
@@ -317,7 +816,13 @@ function FulfillerAppContent() {
               onClick={() => setActiveTab('profile')}
               className={cn(
                 'relative flex flex-col items-center gap-1 py-1 text-center transition-colors',
-                activeTab === 'profile' ? 'text-emerald-400 font-bold' : 'text-mist-400 hover:text-mist-200',
+                activeTab === 'profile'
+                  ? isLight
+                    ? 'text-[#353229] font-bold'
+                    : 'text-[#dfc187] font-bold'
+                  : isLight
+                    ? 'text-[#686252] hover:text-[#353229]'
+                    : 'text-[#a69886] hover:text-[#f7f4ed]',
               )}
             >
               <User className="h-4 w-4" />
@@ -325,6 +830,17 @@ function FulfillerAppContent() {
             </button>
           </div>
         </nav>
+
+        {/* Break Request & Supervisor Shift Management Modal */}
+        <BreakRequestModal
+          isOpen={breakModalOpen}
+          onClose={() => setBreakModalOpen(false)}
+          profile={profile}
+          isLight={isLight}
+          currentAvail={currentAvail}
+          onSetAvailability={setFulfillerAvailability}
+          onNotify={notify}
+        />
       </div>
     </div>
   );
