@@ -69,7 +69,17 @@ The overview separates actionable escalations, inspection assignments, departmen
 
 These are implementation choices informed by the references, rather than integrations with those products. Replenishment requests do not automatically receive inventory; medical cases and reminders are operational demo records and do not post a charge. Inactive staff remain unavailable.
 
-## Verification
+## Record history and completed work
+
+Every department has a **Record history** workspace. It opens on completed work and supports type, date and text filters, saved details, before/after field comparisons and CSV export. Use **Changes since history began** for new activity or **All saved records & changes** to include existing records imported when history was introduced. Task Monitoring also links each task to its history.
+
+Engineering **Repairs → Completed repair history** shows completed jobs with the repair/location, assigned technician, completion time and preserved completion notes. Recategorising a completed repair does not replace its completion time or outcome. Wellness has **Closed case history**, and all four departments have **Resolved complaint history** filters.
+
+The journal captures changes to department tasks and live dining orders, repairs, complaints, Wellness medical cases, inspections/checklists, room readiness, menu settings/removal, stock counts and requisitions, asset service cycles, staff availability, policies and handovers. It records changes made by managers, dispatchers, fulfilment staff and guest/order flows in the shared browser state. Showcase dining records remain separate and do not enter operational history. Medical narratives remain scoped to Wellness in the manager UI.
+
+Saved versions are appended rather than automatically trimmed. Earlier menu values remain after removal, old service dates/work-order links remain after another service cycle, and recorded completion outcomes remain after subsequent edits. Existing records are labelled as such; missing historical completion times are **Not recorded**, never inferred from the migration date. Persisted task updates take priority over seed examples on reload. History persists with the demo's browser localStorage data; clearing that storage or explicitly resetting the entire demo clears it. This is operational demo history, not a server-backed tamper-proof audit service.
+
+## Verification commands
 
 Run `npm run test:manager` on Node 22.18+ or Node 24+. The suite covers all four departments, scoped workflows, meal/timezone boundaries, scheduled meals, historical metadata snapshots, order deduplication, rating validation/averages, queue synchronisation and repair category persistence. Run `npm run typecheck` and `npm run build` for full-project validation.
 

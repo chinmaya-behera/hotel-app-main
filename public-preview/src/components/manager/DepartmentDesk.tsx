@@ -191,14 +191,6 @@ export function DepartmentDesk({ summary = false, onOpen, onInspect }: { summary
           </div>
         )}
       </section>
-
-      <section className="dm-panel">
-        <div className="dm-panel-heading"><div><h2>Menu availability &amp; allergens</h2><p>Availability changes are shared with the guest dining menu.</p></div></div>
-        <div className="dm-toolbar"><input aria-label="Search menu or allergens" value={menuSearch} onChange={e => { setMenuSearch(e.target.value); setMenuLimit(6); }} placeholder="Search item, category or allergen…"/></div>
-        {menu.slice(0, menuLimit).map(item => <article className="dm-record" key={item.id}><div className="dm-record-title"><h3>{item.name}</h3><button className="dm-small-button" role="switch" aria-checked={item.isAvailable} aria-label={`Availability for ${item.name}`} onClick={() => departmentManagerCommand({ type: 'menu-availability', menuId: item.id, available: !item.isAvailable })}>{item.isAvailable ? 'Available' : 'Unavailable'}</button></div><p>{item.category} · ₹{item.price.toLocaleString('en-IN')}</p><small>Listed allergens: {item.allergens.length ? item.allergens.join(', ') : 'None listed — confirm with kitchen'}</small></article>)}
-        {menu.length === 0 && <p className="dm-empty">No matching menu items.</p>}
-        {menuLimit < menu.length && <div className="dm-toolbar"><button className="dm-text-button" onClick={() => setMenuLimit(value => value + 6)}>Show more items ({menu.length - menuLimit} remaining)</button></div>}
-      </section>
     </>}
 
     {customDishAction && (
