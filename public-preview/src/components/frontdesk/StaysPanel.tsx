@@ -35,12 +35,13 @@ import {
   settleBalance,
   stayBalance,
   verifyPreCheckIn,
+  manualVerifyId,
 } from '@/lib/frontDesk';
 import { useDemo } from '@/lib/store';
 import { cn, money } from '@/lib/utils';
 import type { StayRecord } from '@/types/demo';
 
-type Filter = 'all' | 'arrivals' | 'inhouse' | 'departures' | 'checkedout';
+type Filter = 'all' | 'arrivals' | 'inhouse' | 'departures';
 type Dialog = { kind: 'verify' | 'checkout' | 'move' | 'livepass'; stayId: string } | null;
 
 const FILTERS: Array<{ id: Filter; label: string }> = [
@@ -48,7 +49,6 @@ const FILTERS: Array<{ id: Filter; label: string }> = [
   { id: 'arrivals', label: 'Arrivals (Check In)' },
   { id: 'inhouse', label: 'In House' },
   { id: 'departures', label: 'Departures (Check Out)' },
-  { id: 'checkedout', label: 'Post Departure' },
 ];
 
 const MOVE_REASONS = ['AC or maintenance fault', 'Noise complaint', 'Guest-requested upgrade', 'Room not as booked', 'Safety concern'];
@@ -74,7 +74,6 @@ export function StaysPanel({ initialFilter = 'all' }: { initialFilter?: Filter }
       if (filter === 'arrivals') return st.status === 'expected';
       if (filter === 'inhouse') return st.status === 'in_house';
       if (filter === 'departures') return st.status === 'in_house' && Boolean(st.departsToday);
-      if (filter === 'checkedout') return st.status === 'checked_out';
       return true;
     })
     .sort((a, b) => ORDER[a.status] - ORDER[b.status]);
@@ -134,9 +133,6 @@ export function StaysPanel({ initialFilter = 'all' }: { initialFilter?: Filter }
         <VerifyDialog
           stay={dialogStay}
           onClose={() => setDialog(null)}
-          onConfirm={() => {
-            if (!fdAction((s) => verifyPreCheckIn(s, dialogStay.id))) setDialog(null);
-          }}
         />
       )}
       {dialog?.kind === 'checkout' && dialogStay && (
@@ -198,7 +194,21 @@ function StayRow({ stay, onDialog }: { stay: StayRecord; onDialog: (kind: 'verif
                 <Badge tone={stay.preCheckIn === 'verified' ? 'success' : stay.preCheckIn === 'pending_verify' ? 'warning' : 'neutral'}>
                   {stay.preCheckIn === 'verified' ? 'Pre-check-in verified' : stay.preCheckIn === 'pending_verify' ? 'Pending staff verify' : 'No pre-check-in'}
                 </Badge>
-                <Badge tone={stay.idChecked ? 'success' : 'warning'}>{stay.idChecked ? 'ID verified' : 'ID check needed'}</Badge>
+                <Badge
+                  tone={
+                    stay.idVerificationStatus === 'failed'
+                      ? 'danger'
+                      : stay.idChecked || stay.idVerificationStatus === 'verified'
+                      ? 'success'
+                      : 'warning'
+                  }
+                >
+                  {stay.idVerificationStatus === 'failed'
+                    ? 'ID Verification Failed'
+                    : stay.idChecked || stay.idVerificationStatus === 'verified'
+                    ? 'ID Verified'
+                    : 'ID Check Needed'}
+                </Badge>
                 {room && <Badge tone={READINESS_TONE[room.readiness]}>{`Room ${room.no}: ${READINESS_LABEL[room.readiness]}`}</Badge>}
                 {early && (
                   <Badge tone={early.status === 'approved' ? 'success' : early.status === 'declined' ? 'neutral' : 'warning'}>
@@ -235,11 +245,14 @@ function StayRow({ stay, onDialog }: { stay: StayRecord; onDialog: (kind: 'verif
               <Button size="sm" variant="subtle" iconLeft={Smartphone} onClick={() => onDialog('livepass')}>
                 Live Pass
               </Button>
-              {!stay.idChecked && (
-                <Button size="sm" variant="ghost" iconLeft={ShieldCheck} onClick={() => onDialog('verify')}>
-                  Verify ID
-                </Button>
-              )}
+              <Button
+                size="sm"
+                variant={stay.idChecked ? 'subtle' : 'ghost'}
+                iconLeft={ShieldCheck}
+                onClick={() => onDialog('verify')}
+              >
+                {stay.idChecked ? 'ID Verified' : stay.idVerificationStatus === 'failed' ? 'Re-verify ID' : 'Verify ID'}
+              </Button>
               {early?.status === 'pending' && (
                 <>
                   <Button size="sm" variant="ghost" disabled={!roomReady} onClick={() => fdAction((s) => decideEarlyCheckIn(s, stay.id, true))}>
@@ -312,39 +325,220 @@ function StayRow({ stay, onDialog }: { stay: StayRecord; onDialog: (kind: 'verif
   );
 }
 
-function VerifyDialog({ stay, onClose, onConfirm }: { stay: StayRecord; onClose: () => void; onConfirm: () => void }) {
-  const [matches, setMatches] = useState(false);
+function VerifyDialog({ stay, onClose }: { stay: StayRecord; onClose: () => void }) {
+  const { fdAction } = useDemo();
+  const [docType, setDocType] = useState(stay.idDocType || 'Passport');
+  const [docNumber, setDocNumber] = useState(stay.idDocNumber || `IND-${stay.room}779X`);
+  const [status, setStatus] = useState<'verified' | 'pending' | 'failed'>(
+    stay.idVerificationStatus || (stay.idChecked ? 'verified' : 'pending')
+  );
+  const [notes, setNotes] = useState(stay.idVerificationNotes || '');
+  const [confirmed, setConfirmed] = useState(false);
+  const [showError, setShowError] = useState(false);
+
+  const bookingId = stay.bookingRef || `BK-${stay.room}-8402`;
+  const arrivalDate = stay.arrivalDate || '2026-11-06';
+  const arrivalTime = stay.arrival || '14:00';
+  const verifiedBy = stay.idVerifiedBy || 'Front Desk Coordinator';
+  const verifiedAt = stay.idVerifiedAt || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  const handleSave = () => {
+    if (!confirmed) {
+      setShowError(true);
+      return;
+    }
+    fdAction((s) =>
+      manualVerifyId(s, stay.id, {
+        docType,
+        docNumber: docNumber.trim(),
+        status,
+        notes: notes.trim(),
+        verifiedBy,
+      })
+    );
+    onClose();
+  };
+
   return (
     <Modal
-      title={`Verify ${stay.guest}`}
-      description="Pre-arrival registration (F08): the guest's arrival time, ID photo and signature are checked by staff."
+      title={`Verify ID — ${stay.guest}`}
+      description="Manual verification workflow for arriving guests. Verify physical or digital credentials before room key issuance."
       onClose={onClose}
       footer={
-        <>
-          <Button variant="subtle" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button variant="accent" disabled={!matches} onClick={onConfirm} iconLeft={CircleCheck}>
-            Confirm verification
-          </Button>
-        </>
+        <div className="flex w-full flex-wrap items-center justify-between gap-3">
+          <div className="text-xs text-mist-400">
+            {status === 'verified' && <span className="text-emerald-400 font-medium">● Ready to mark as Verified</span>}
+            {status === 'pending' && <span className="text-amber-400 font-medium">● Marking as Pending Check</span>}
+            {status === 'failed' && <span className="text-rose-400 font-medium">● Marking as Verification Failed</span>}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="subtle" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              variant={status === 'failed' ? 'danger' : 'accent'}
+              disabled={!confirmed}
+              onClick={handleSave}
+              iconLeft={status === 'failed' ? CircleAlert : CircleCheck}
+            >
+              {status === 'verified'
+                ? 'Confirm & Mark Verified'
+                : status === 'failed'
+                ? 'Confirm Verification Failure'
+                : 'Confirm & Mark Pending'}
+            </Button>
+          </div>
+        </div>
       }
     >
-      <ul className="space-y-2 text-sm text-mist-200">
-        <li className="flex items-center gap-2">
-          <CircleCheck className="h-4 w-4 text-emerald-400" aria-hidden /> Arrival time submitted · {stay.arrival}
-        </li>
-        <li className="flex items-center gap-2">
-          <CircleCheck className="h-4 w-4 text-emerald-400" aria-hidden /> ID photo on file (encrypted, simulated)
-        </li>
-        <li className="flex items-center gap-2">
-          <CircleCheck className="h-4 w-4 text-emerald-400" aria-hidden /> Signature and consent recorded
-        </li>
-      </ul>
-      <label className="flex cursor-pointer items-start gap-2.5 text-sm text-mist-200">
-        <input type="checkbox" checked={matches} onChange={(e) => setMatches(e.target.checked)} className="mt-1 h-4 w-4" />
-        <span>The ID matches the guest booking and the person in front of me.</span>
-      </label>
+      <div className="space-y-4 text-sm text-mist-200">
+        {/* Guest and Reservation Overview Card */}
+        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3.5">
+          <div className="grid grid-cols-2 gap-3 text-xs sm:grid-cols-3">
+            <div>
+              <span className="text-mist-400">Guest Name</span>
+              <p className="font-semibold text-white mt-0.5">{stay.guest}</p>
+            </div>
+            <div>
+              <span className="text-mist-400">Booking ID</span>
+              <p className="font-semibold text-cyan-300 mt-0.5">{bookingId}</p>
+            </div>
+            <div>
+              <span className="text-mist-400">Room Reservation</span>
+              <p className="font-semibold text-white mt-0.5">Room {stay.room} ({stay.roomType})</p>
+            </div>
+            <div>
+              <span className="text-mist-400">Check-in Date</span>
+              <p className="font-medium text-mist-200 mt-0.5">{arrivalDate}</p>
+            </div>
+            <div>
+              <span className="text-mist-400">Expected Arrival</span>
+              <p className="font-medium text-mist-200 mt-0.5">{arrivalTime}</p>
+            </div>
+            <div>
+              <span className="text-mist-400">Verified By</span>
+              <p className="font-medium text-mist-200 mt-0.5">{verifiedBy}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Verification Status Selector */}
+        <div>
+          <FieldLabel>Verification Status</FieldLabel>
+          <div className="grid grid-cols-3 gap-2 mt-1.5">
+            <button
+              type="button"
+              onClick={() => setStatus('verified')}
+              className={cn(
+                'flex items-center justify-center gap-2 rounded-xl border p-2.5 text-xs font-semibold transition',
+                status === 'verified'
+                  ? 'border-emerald-500/60 bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/50'
+                  : 'border-white/10 bg-white/[0.02] text-mist-300 hover:bg-white/5'
+              )}
+            >
+              <CircleCheck className="h-4 w-4 text-emerald-400" />
+              Verified
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatus('pending')}
+              className={cn(
+                'flex items-center justify-center gap-2 rounded-xl border p-2.5 text-xs font-semibold transition',
+                status === 'pending'
+                  ? 'border-amber-500/60 bg-amber-500/20 text-amber-300 ring-1 ring-amber-500/50'
+                  : 'border-white/10 bg-white/[0.02] text-mist-300 hover:bg-white/5'
+              )}
+            >
+              <Clock className="h-4 w-4 text-amber-400" />
+              Pending
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatus('failed')}
+              className={cn(
+                'flex items-center justify-center gap-2 rounded-xl border p-2.5 text-xs font-semibold transition',
+                status === 'failed'
+                  ? 'border-rose-500/60 bg-rose-500/20 text-rose-300 ring-1 ring-rose-500/50'
+                  : 'border-white/10 bg-white/[0.02] text-mist-300 hover:bg-white/5'
+              )}
+            >
+              <CircleAlert className="h-4 w-4 text-rose-400" />
+              Failed
+            </button>
+          </div>
+        </div>
+
+        {/* ID Document Type & Number */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <FieldLabel htmlFor="id-type">ID Document Type</FieldLabel>
+            <select
+              id="id-type"
+              value={docType}
+              onChange={(e) => setDocType(e.target.value)}
+              className="field w-full mt-1.5"
+            >
+              <option value="Passport">Passport</option>
+              <option value="Aadhaar / National ID">Aadhaar / National ID</option>
+              <option value="Driver's License">Driver's License</option>
+              <option value="Voter ID Card">Voter ID Card</option>
+              <option value="Permanent Resident Card">Permanent Resident Card</option>
+              <option value="Diplomatic ID">Diplomatic ID</option>
+            </select>
+          </div>
+          <div>
+            <FieldLabel htmlFor="id-number">ID Document / Ref Number</FieldLabel>
+            <input
+              id="id-number"
+              type="text"
+              value={docNumber}
+              onChange={(e) => setDocNumber(e.target.value)}
+              placeholder="e.g. IND-P-9842103X"
+              className="field w-full mt-1.5"
+            />
+          </div>
+        </div>
+
+        {/* Verification Notes */}
+        <div>
+          <FieldLabel htmlFor="id-notes">Verification Notes & Findings</FieldLabel>
+          <textarea
+            id="id-notes"
+            rows={2}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Document validity date, photo likeness match, address record, or failure reason..."
+            className="field w-full mt-1.5 resize-none"
+          />
+        </div>
+
+        {/* Explicit Confirmation Check */}
+        <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
+          <label className="flex cursor-pointer items-start gap-2.5 text-xs text-mist-200">
+            <input
+              type="checkbox"
+              checked={confirmed}
+              onChange={(e) => {
+                setConfirmed(e.target.checked);
+                if (e.target.checked) setShowError(false);
+              }}
+              className="mt-0.5 h-4 w-4 rounded border-white/20 bg-white/5 text-amber-500 focus:ring-0"
+            />
+            <span>
+              <strong className="text-white">Explicit Staff Confirmation:</strong> I confirm that I have inspected the guest's ID document, matched credentials against reservation <code className="text-cyan-300">{bookingId}</code>, and verified this record in accordance with hotel policy.
+            </span>
+          </label>
+          {showError && !confirmed && (
+            <p className="mt-2 text-xs text-rose-400 font-medium flex items-center gap-1.5">
+              <CircleAlert className="h-3.5 w-3.5" /> Please check the confirmation box before saving verification.
+            </p>
+          )}
+        </div>
+
+        <div className="text-[11px] text-mist-400 italic">
+          * Frontend demonstration of the hotel's manual guest identity verification workflow. All updates are logged in the Front Desk activity audit feed.
+        </div>
+      </div>
     </Modal>
   );
 }

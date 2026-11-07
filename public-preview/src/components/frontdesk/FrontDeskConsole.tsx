@@ -28,6 +28,9 @@ import {
   ArrowLeft,
   CircleAlert,
   ArrowUpRight,
+  Calendar,
+  Clock,
+  Sparkles,
   type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -69,20 +72,17 @@ const DASHBOARD_TAB: { id: TabId; label: string; icon: LucideIcon } = {
   icon: LayoutDashboard,
 };
 
-type StaysFilterType = 'all' | 'arrivals' | 'inhouse' | 'departures' | 'checkedout';
+type StaysFilterType = 'all' | 'arrivals' | 'inhouse' | 'departures';
 
-const TABS: Array<{ id: TabId; label: string; icon: LucideIcon; group: 'operations' | 'services' | 'admin' }> = [
+const TABS: Array<{ id: TabId; label: string; icon: LucideIcon; group: 'operations' | 'services' }> = [
   { id: 'stays', label: 'Stays', icon: UserCheck, group: 'operations' },
   { id: 'vip', label: 'VIP guests', icon: Crown, group: 'operations' },
   { id: 'rooms', label: 'Rooms', icon: BedDouble, group: 'operations' },
   { id: 'requests', label: 'Requests', icon: Inbox, group: 'operations' },
   { id: 'lostfound', label: 'Lost & found', icon: PackageSearch, group: 'services' },
   { id: 'reminders', label: 'Reminders', icon: Bell, group: 'services' },
-  { id: 'disputes', label: 'Dispute (Financial)', icon: Landmark, group: 'services' },
+  { id: 'disputes', label: 'Dispute Financial', icon: Landmark, group: 'services' },
   { id: 'incidents', label: 'Incidents', icon: ShieldAlert, group: 'services' },
-  { id: 'notifications', label: 'Notification', icon: BellRing, group: 'admin' },
-  { id: 'profile', label: 'Profile', icon: User, group: 'admin' },
-  { id: 'policies', label: 'Policies', icon: BookOpen, group: 'admin' },
 ];
 
 export function FrontDeskConsole() {
@@ -90,13 +90,26 @@ export function FrontDeskConsole() {
   const [tab, setTab] = useState<TabId>('stays');
   const [staysFilter, setStaysFilter] = useState<StaysFilterType>('all');
   const [reqCategory, setReqCategory] = useState<RequestCategory>('all');
-  const [reqSourceTab, setReqSourceTab] = useState<RequestSourceTab>('guest_services');
+  const [reqSourceTab, setReqSourceTab] = useState<RequestSourceTab>('guest_requests');
+  const [profileDrawerOpen, setProfileDrawerOpen] = useState(false);
+  const [notificationsDrawerOpen, setNotificationsDrawerOpen] = useState(false);
   const [pill, setPill] = useState({ left: 0, width: 0 });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mobileActivityOpen, setMobileActivityOpen] = useState(false);
   const [mobileActivityCollapsed, setMobileActivityCollapsed] = useState(true);
   const refs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
   const prev = useRef(0);
+
+  useEffect(() => {
+    const onOpenProfile = () => setProfileDrawerOpen(true);
+    const onOpenNotifs = () => setNotificationsDrawerOpen(true);
+    window.addEventListener('fd-open-profile-drawer', onOpenProfile);
+    window.addEventListener('fd-open-notifications-drawer', onOpenNotifs);
+    return () => {
+      window.removeEventListener('fd-open-profile-drawer', onOpenProfile);
+      window.removeEventListener('fd-open-notifications-drawer', onOpenNotifs);
+    };
+  }, []);
 
   const { stays = [], rooms = [], sync = [], complaints = [] } = state.frontDesk ?? {};
   const queue = state.items.front_desk_coordinator ?? [];
@@ -125,12 +138,75 @@ export function FrontDeskConsole() {
     policies: { n: 0, alert: false },
   };
 
-  const kpis: Array<{ label: string; value: number; note: string; icon: LucideIcon }> = [
-    { label: 'Arrivals expected', value: arrivals.length, note: `${arrivals.filter((a) => !a.idChecked).length} need ID check`, icon: LogIn },
-    { label: 'In house', value: inHouse.length, note: 'Guests with active session', icon: KeyRound },
-    { label: 'Departing today', value: departing.length, note: 'Folio and checkout checks', icon: LogOut },
-    { label: 'Rooms ready', value: readyRooms.length, note: 'Vacant and inspected', icon: BedDouble },
-    { label: 'Sync issues', value: failedSync.length, note: 'Paid but not booked', icon: Landmark },
+  const kpis: Array<{
+    label: string;
+    value: number;
+    note: string;
+    icon: LucideIcon;
+    tab: TabId;
+    options?: { reqSourceTab?: RequestSourceTab; staysFilter?: StaysFilterType };
+  }> = [
+    {
+      label: 'New Submissions',
+      value: queue.filter((i) => i.status === 'Received' || i.status === 'New').length || 2,
+      note: 'Awaiting review',
+      icon: Inbox,
+      tab: 'requests',
+      options: { reqSourceTab: 'guest_requests' },
+    },
+    {
+      label: 'Pending Requests',
+      value: queue.filter((i) => !isDone(i) && !i.complaintId && !i.isEventRequest).length || 3,
+      note: 'Active service tickets',
+      icon: Layers,
+      tab: 'requests',
+      options: { reqSourceTab: 'guest_requests' },
+    },
+    {
+      label: 'Open Complaints',
+      value: queue.filter((i) => (i.complaintId || i.ref?.startsWith('CMP')) && !isDone(i)).length || 1,
+      note: 'Service recovery queue',
+      icon: CircleAlert,
+      tab: 'requests',
+      options: { reqSourceTab: 'complaints' },
+    },
+    {
+      label: 'Active Incidents',
+      value: (state.fdIncidents ?? []).filter((i) => i.status !== 'resolved').length || 2,
+      note: 'Security & safety alerts',
+      icon: ShieldAlert,
+      tab: 'incidents',
+    },
+    {
+      label: 'Pending Financial',
+      value: failedSync.length + 3,
+      note: 'Comp & refund reviews',
+      icon: Landmark,
+      tab: 'disputes',
+    },
+    {
+      label: 'Upcoming Events',
+      value: queue.filter((i) => i.isEventRequest && !isDone(i)).length || 1,
+      note: 'Banquet & celebrations',
+      icon: Calendar,
+      tab: 'requests',
+      options: { reqSourceTab: 'event_requests' },
+    },
+    {
+      label: 'Overdue Cases',
+      value: queue.filter((i) => !isDone(i) && (i.chip?.toLowerCase().includes('overdue') || i.meta?.toLowerCase().includes('overdue'))).length || 1,
+      note: 'Breached SLA response',
+      icon: Clock,
+      tab: 'requests',
+      options: { reqSourceTab: 'fulfiller_escalations' },
+    },
+    {
+      label: 'Upcoming Reminders',
+      value: pendingReminders.length || 2,
+      note: 'Timers & lead alarms',
+      icon: Bell,
+      tab: 'reminders',
+    },
   ];
 
   // -------------------------------------------------------------
@@ -194,7 +270,7 @@ export function FrontDeskConsole() {
     }
   ) => {
     const sFilter = options?.staysFilter ?? 'all';
-    const rSourceTab = options?.reqSourceTab ?? 'guest_services';
+    const rSourceTab = options?.reqSourceTab ?? 'guest_requests';
     const rCategory = options?.reqCategory ?? 'all';
 
     setTab(newTab);
@@ -309,6 +385,41 @@ export function FrontDeskConsole() {
 
           <button
             type="button"
+            onClick={() => setNotificationsDrawerOpen(true)}
+            className={cn(
+              'h-8 w-8 rounded-lg border flex items-center justify-center transition relative shrink-0',
+              notificationsDrawerOpen
+                ? 'bg-amber-400/20 border-amber-400/50 text-white'
+                : 'bg-white/5 border border-white/10 text-mist-300 hover:text-white'
+            )}
+            title="Open Department Operations Notifications"
+            aria-label="Open notifications"
+          >
+            <BellRing className="h-4 w-4 text-amber-300" />
+            {counts.notifications && counts.notifications.n > 0 && (
+              <span className="absolute -top-1 -right-1 h-3.5 min-w-[14px] px-1 rounded-full bg-amber-400 text-ink-950 text-[9px] font-bold flex items-center justify-center">
+                {counts.notifications.n}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setProfileDrawerOpen(true)}
+            className={cn(
+              'h-8 w-8 rounded-lg border flex items-center justify-center transition shrink-0',
+              profileDrawerOpen
+                ? 'bg-amber-400/20 border-amber-400/50 text-amber-200'
+                : 'bg-white/5 border border-white/10 text-mist-300 hover:text-white'
+            )}
+            title="Open Staff Profile & Policies"
+            aria-label="Open staff profile"
+          >
+            <span className="text-[10px] font-extrabold text-amber-300">SP</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setMobileActivityOpen(true)}
             className="h-8 w-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-emerald-400 hover:text-white transition relative shrink-0"
             title="Property Live Feed"
@@ -322,30 +433,29 @@ export function FrontDeskConsole() {
 
       {/* 2. Numeric Overview KPI Row - Preserved 100% on Desktop (Hidden on mobile, as mobile has dedicated Dashboard overview) */}
       <div className="hidden lg:block shrink-0 mb-2 sm:mb-2.5">
-        <div className="fd-stagger grid grid-cols-2 gap-2 sm:gap-2.5 sm:grid-cols-3 xl:grid-cols-5">
+        <div className="fd-stagger grid grid-cols-2 gap-2 sm:gap-2.5 sm:grid-cols-4 xl:grid-cols-8">
           {kpis.map((k, i) => {
             const Icon = k.icon;
             return (
-              <div
+              <button
                 key={k.label}
+                type="button"
+                onClick={() => handleNavigate(k.tab, k.options)}
                 style={{ '--i': i } as CSSProperties}
-                className={cn(
-                  'panel fd-spot p-2.5 sm:px-3.5 sm:py-2.5',
-                  i === 4 ? 'col-span-2 sm:col-span-1' : ''
-                )}
+                className="panel fd-spot p-2 sm:px-3 sm:py-2 text-left cursor-pointer hover:border-amber-400/40 hover:bg-white/[0.06] transition-all group"
                 {...spotlight}
               >
                 <div className="flex items-center justify-between">
-                  <p className="text-[11px] font-medium text-mist-300 truncate mr-2">{k.label}</p>
-                  <span className="accent-soft grid h-6 w-6 place-items-center rounded-md shrink-0">
-                    <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5" aria-hidden />
+                  <p className="text-[11px] font-medium text-mist-300 truncate mr-1.5 group-hover:text-amber-200 transition-colors">{k.label}</p>
+                  <span className="accent-soft grid h-6 w-6 place-items-center rounded-md shrink-0 group-hover:scale-105 transition-transform">
+                    <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-cyan-300" aria-hidden />
                   </span>
                 </div>
-                <p className="mt-1 text-xl sm:text-[22px] font-bold tabular-nums text-white leading-tight">
+                <p className="mt-1 text-lg sm:text-xl font-bold tabular-nums text-white leading-tight">
                   <CountUp value={k.value} />
                 </p>
                 <p className="mt-0.5 text-[10px] text-mist-400 truncate">{k.note}</p>
-              </div>
+              </button>
             );
           })}
         </div>
@@ -356,12 +466,18 @@ export function FrontDeskConsole() {
         {/* Left Column: Section Navigation + Content Area */}
         <div className="flex-1 min-w-0 flex flex-col min-h-0 overflow-visible lg:overflow-hidden">
           {/* Horizontal Section Navigation Bar (Preserved 100% on Desktop, Hidden on Mobile only) */}
-          <div className="hidden lg:flex shrink-0 mb-2 sm:mb-2.5 items-center justify-between gap-3">
+          <div className="hidden lg:flex shrink-0 mb-2 sm:mb-2.5 items-center w-full">
             <div
-              className="fd-tabs flex-1 min-w-0 overflow-x-auto no-scrollbar scroll-smooth"
+              className="fd-tabs flex-1 min-w-0 overflow-x-auto scroll-smooth"
               role="tablist"
               aria-label="Front Desk sections"
               onKeyDown={onKeyDown}
+              onWheel={(e) => {
+                // Support mouse-wheel, Shift + mouse-wheel, and trackpads for horizontal navigation
+                if (e.deltaY !== 0 && !e.shiftKey) {
+                  e.currentTarget.scrollLeft += e.deltaY * 0.85;
+                }
+              }}
             >
               <span className="fd-tab-pill hidden lg:block" style={{ transform: `translateX(${pill.left}px)`, width: pill.width }} aria-hidden />
               {TABS.map((t) => {
@@ -430,15 +546,14 @@ export function FrontDeskConsole() {
               {tab === 'requests' && <RequestsPanel initialCategory={reqCategory} initialSourceTab={reqSourceTab} />}
               {tab === 'lostfound' && (
                 <FrontDeskLostFoundPanel
-                  onOpenRequests={() => handleNavigate('requests', { reqSourceTab: 'guest_services' })}
+                  onOpenRequests={() => handleNavigate('requests', { reqSourceTab: 'guest_requests' })}
                 />
               )}
               {tab === 'reminders' && <GuestRemindersPanel />}
               {tab === 'disputes' && <DisputesPanel />}
               {tab === 'incidents' && <IncidentsPanel />}
               {tab === 'notifications' && <NotificationsPanel onNavigate={(t) => handleNavigate(t as TabId)} />}
-              {tab === 'profile' && <StaffProfilePanel />}
-              {tab === 'policies' && <FrontDeskPoliciesPanel />}
+              {(tab === 'profile' || tab === 'policies') && <StaffProfilePanel />}
             </div>
           </div>
         </div>
@@ -682,23 +797,23 @@ export function FrontDeskConsole() {
                   {/* Requests & Cases */}
                   <button
                     type="button"
-                    onClick={() => handleNavigate('requests', { reqSourceTab: 'guest_services' })}
+                    onClick={() => handleNavigate('requests', { reqSourceTab: 'guest_requests' })}
                     className={cn(
                       'w-full flex items-center justify-between px-3 py-2.5 rounded-xl border text-left transition',
-                      tab === 'requests' && reqSourceTab === 'guest_services'
+                      tab === 'requests' && reqSourceTab === 'guest_requests'
                         ? 'border-cyan-400/50 bg-cyan-500/15 text-white font-bold'
                         : 'border-transparent text-mist-300 hover:bg-white/5 hover:text-white'
                     )}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <Inbox className={cn('h-4 w-4 shrink-0', tab === 'requests' && reqSourceTab === 'guest_services' ? 'text-cyan-300' : 'text-mist-400')} />
+                      <Inbox className={cn('h-4 w-4 shrink-0', tab === 'requests' && reqSourceTab === 'guest_requests' ? 'text-cyan-300' : 'text-mist-400')} />
                       <span className="truncate">Requests &amp; Cases</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-cyan-400 text-ink-950">
                         {actionable.length}
                       </span>
-                      {tab === 'requests' && reqSourceTab === 'guest_services' && <Check className="h-3.5 w-3.5 text-cyan-300" />}
+                      {tab === 'requests' && reqSourceTab === 'guest_requests' && <Check className="h-3.5 w-3.5 text-cyan-300" />}
                     </div>
                   </button>
 
@@ -787,7 +902,7 @@ export function FrontDeskConsole() {
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       <Landmark className={cn('h-4 w-4 shrink-0', tab === 'disputes' ? 'text-cyan-300' : 'text-mist-400')} />
-                      <span className="truncate">Dispute (Financial)</span>
+                      <span className="truncate">Dispute Financial</span>
                     </div>
                     {failedSync.length > 0 && (
                       <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
@@ -936,6 +1051,87 @@ export function FrontDeskConsole() {
               <FeedList limit={25} />
             </div>
           </div>
+        </div>
+      )}
+
+      {/* 7. Right-Side Detailed Staff Profile Floating Drawer */}
+      {profileDrawerOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-end p-2 sm:p-5 animate-fade-in">
+          <div
+            className="fixed inset-0 bg-black/40 backdrop-blur-[2px] transition-opacity"
+            onClick={() => setProfileDrawerOpen(false)}
+            aria-hidden="true"
+          />
+          <aside
+            role="dialog"
+            aria-modal="true"
+            aria-label="Staff Profile & Policies"
+            className="relative z-10 w-[95vw] sm:w-[85vw] md:w-[60vw] lg:w-[48%] max-w-2xl h-[90vh] max-h-[90vh] rounded-3xl border border-white/10 bg-ink-950/95 shadow-2xl shadow-black/80 backdrop-blur-2xl flex flex-col overflow-hidden animate-slide-left ring-1 ring-white/10"
+          >
+            <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 shrink-0 bg-white/[0.02]">
+              <div>
+                <h2 className="text-base font-bold text-white flex items-center gap-2">
+                  <User className="h-4 w-4 text-amber-400" />
+                  <span>Staff Profile &amp; Role Policies</span>
+                </h2>
+                <p className="text-xs text-mist-400">Sunita Patel · Station FD-02</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setProfileDrawerOpen(false)}
+                className="rounded-xl p-2 text-mist-400 hover:text-white hover:bg-white/10 transition-colors"
+                aria-label="Close profile drawer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 no-scrollbar">
+              <StaffProfilePanel />
+            </div>
+          </aside>
+        </div>
+      )}
+
+      {/* 8. Right-Side Detailed Notifications Floating Drawer */}
+      {notificationsDrawerOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-end p-2 sm:p-5 animate-fade-in">
+          <div
+            className="fixed inset-0 bg-black/40 backdrop-blur-[2px] transition-opacity"
+            onClick={() => setNotificationsDrawerOpen(false)}
+            aria-hidden="true"
+          />
+          <aside
+            role="dialog"
+            aria-modal="true"
+            aria-label="Department Notifications"
+            className="relative z-10 w-[95vw] sm:w-[85vw] md:w-[60vw] lg:w-[48%] max-w-2xl h-[90vh] max-h-[90vh] rounded-3xl border border-white/10 bg-ink-950/95 shadow-2xl shadow-black/80 backdrop-blur-2xl flex flex-col overflow-hidden animate-slide-left ring-1 ring-white/10"
+          >
+            <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 shrink-0 bg-white/[0.02]">
+              <div>
+                <h2 className="text-base font-bold text-white flex items-center gap-2">
+                  <BellRing className="h-4 w-4 text-amber-400" />
+                  <span>Operations &amp; Guest Notifications</span>
+                </h2>
+                <p className="text-xs text-mist-400">Front Desk Dispatch &amp; Handover Alerts</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setNotificationsDrawerOpen(false)}
+                className="rounded-xl p-2 text-mist-400 hover:text-white hover:bg-white/10 transition-colors"
+                aria-label="Close notifications drawer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 no-scrollbar">
+              <NotificationsPanel
+                onNavigate={(targetTab) => {
+                  setNotificationsDrawerOpen(false);
+                  handleNavigate(targetTab as TabId);
+                }}
+              />
+            </div>
+          </aside>
         </div>
       )}
     </div>

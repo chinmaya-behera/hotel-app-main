@@ -1,5 +1,6 @@
 import type { DemoState, WorkItem, SupervisorInspection } from '../types/demo';
 import { applyManagerWorkflow, type WorkflowCommand } from './manager-workflows.ts';
+import { applyScheduleCommand, type ScheduleCommand } from './manager-scheduling.ts';
 
 export const MANAGER_DEPARTMENTS = [
   { id: 'housekeeping', name: 'Housekeeping', person: 'Ananya Rao', email: 'housekeeping.manager@thegrandadp.com', focus: 'Room readiness, spotless spaces and thoughtful guest care.', standard: 'Verify linen, amenities, sanitation and room presentation.' },
@@ -57,6 +58,8 @@ export function ensureManagerState(s: DemoState): DemoState {
 }
 
 export type ManagerCommand =
+  | ScheduleCommand
+  | { type: 'service-targets'; inspectionMinutes: number; complaintMinutes: number }
   | WorkflowCommand
   | { type: 'stock-count'; stockId: string; quantity: number }
   | { type: 'replenish'; stockId: string }
@@ -83,7 +86,12 @@ export function applyManagerCommand(state: DemoState, command: ManagerCommand, u
   const pushNotification = (roleId: 'department_manager' | 'department_dispatcher_supervisor' | 'general_manager', title: string, message: string, itemId: string) => {
     s.notifications = [{ id: `${uid}-${roleId}`, roleId, title, message, itemId, department: d.name, timestamp: now, read: false, type: 'alert' }, ...(s.notifications ?? [])];
   };
-  if (['medical-create', 'medical-update', 'complaint-create', 'complaint-update', 'repair-create', 'repair-update', 'repair-category', 'menu-save', 'menu-delete', 'inspection-launch'].includes(command.type)) {
+  if (command.type === 'schedule-shift') {
+    applyScheduleCommand(s, command, uid, now);
+  } else if (command.type === 'service-targets') {
+    if (![command.inspectionMinutes, command.complaintMinutes].every(value => Number.isInteger(value) && value >= 1 && value <= 10080)) throw Error('Service targets must be whole minutes between 1 and 10,080.');
+    s.departmentServiceTargets = { ...s.departmentServiceTargets, [d.id]: { inspectionMinutes: command.inspectionMinutes, complaintMinutes: command.complaintMinutes } };
+  } else if (['medical-create', 'medical-update', 'complaint-create', 'complaint-update', 'repair-create', 'repair-update', 'repair-category', 'menu-save', 'menu-delete', 'inspection-launch'].includes(command.type)) {
     s.managerOperations ??= seedManagerOperations();
     applyManagerWorkflow(s, command as WorkflowCommand, uid, now);
   } else if (['stock-count', 'replenish', 'room-cleaning', 'appointment', 'appointment-status', 'asset-work-order', 'asset-service', 'menu-availability'].includes(command.type)) {

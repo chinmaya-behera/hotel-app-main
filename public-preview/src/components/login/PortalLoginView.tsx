@@ -547,7 +547,7 @@ export function PortalLoginView() {
       <header
         className={`relative z-20 px-5 sm:px-10 py-3.5 sm:py-4 flex items-center justify-between portal-login-header ${
           isLight
-            ? 'border-b border-slate-200/70 bg-white/70 backdrop-blur-md'
+            ? 'border-b border-slate-200/70 bg-[#ffffff]/80 backdrop-blur-md'
             : 'border-b border-white/10 bg-[#070c17]/80 backdrop-blur-md'
         }`}
       >
@@ -580,7 +580,7 @@ export function PortalLoginView() {
             href="/"
             className={`hidden sm:inline-flex items-center gap-2 text-xs sm:text-[13px] px-3.5 py-2 rounded-xl transition-all portal-header-btn ${
               isLight
-                ? 'text-slate-600 hover:text-slate-900 bg-white border border-slate-200 hover:border-slate-300'
+                ? 'text-slate-600 hover:text-slate-900 bg-[#ffffff] border border-slate-200 hover:border-slate-300'
                 : 'text-slate-400 hover:text-white bg-transparent border border-white/10 hover:border-white/20'
             }`}
           >
@@ -595,7 +595,7 @@ export function PortalLoginView() {
             title="Clear form"
             className={`inline-flex items-center gap-2 text-xs sm:text-[13px] px-3.5 py-2 rounded-xl transition-all cursor-pointer portal-header-btn ${
               isLight
-                ? 'text-slate-600 hover:text-slate-900 bg-white border border-slate-200 hover:border-slate-300'
+                ? 'text-slate-600 hover:text-slate-900 bg-[#ffffff] border border-slate-200 hover:border-slate-300'
                 : 'text-slate-400 hover:text-white bg-transparent border border-white/10 hover:border-white/20'
             }`}
           >
@@ -610,7 +610,7 @@ export function PortalLoginView() {
             aria-label={isLight ? 'Switch to dark theme' : 'Switch to light theme'}
             className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer portal-header-btn ${
               isLight
-                ? 'text-slate-600 hover:text-slate-900 bg-white border border-slate-200 hover:border-slate-300'
+                ? 'text-slate-600 hover:text-slate-900 bg-[#ffffff] border border-slate-200 hover:border-slate-300'
                 : 'text-slate-300 hover:text-white bg-transparent border border-white/10 hover:border-white/20'
             }`}
           >
@@ -638,7 +638,7 @@ export function PortalLoginView() {
             <div
               className={`rounded-2xl p-7 sm:p-8 backdrop-blur-xl transition-all portal-card-left ${
                 isLight
-                  ? 'bg-white/85 border border-slate-200/80 shadow-xl shadow-slate-900/10'
+                  ? 'bg-[#ffffff]/95 border border-slate-200/80 shadow-xl shadow-slate-900/10'
                   : 'bg-[#0c1424]/90 border border-white/10 shadow-2xl shadow-black/50'
               }`}
             >
@@ -788,7 +788,7 @@ export function PortalLoginView() {
             <div
               className={`rounded-2xl p-6 sm:p-7 backdrop-blur-xl transition-all portal-card-right ${
                 isLight
-                  ? 'bg-white/75 border border-slate-200/70 shadow-sm'
+                  ? 'bg-[#ffffff]/90 border border-slate-200/70 shadow-sm'
                   : 'bg-[#0c1424]/70 border border-white/10 shadow-sm'
               }`}
             >
@@ -834,7 +834,7 @@ export function PortalLoginView() {
                                 ? 'bg-amber-400/15 border-amber-400/80 text-slate-950 ring-1 ring-amber-400/30'
                                 : 'bg-amber-400/10 border-amber-400/70 text-white')
                             : isLight
-                            ? 'bg-white/70 border-slate-200/80 hover:border-slate-300 hover:bg-white text-slate-700 shadow-2xs'
+                            ? 'bg-[#ffffff]/80 border-slate-200/80 hover:border-slate-300 hover:bg-[#ffffff] text-slate-700 shadow-2xs'
                             : 'bg-white/[0.03] border-white/5 hover:border-white/20 text-slate-300'
                         }`}
                       >
@@ -891,7 +891,7 @@ export function PortalLoginView() {
                                           ? 'bg-amber-400/15 border-amber-400/80 text-slate-950'
                                           : 'bg-amber-400/10 border-amber-400/70 text-white')
                                       : isLight
-                                      ? 'bg-white border-slate-200/80 hover:border-slate-300 text-slate-700 shadow-2xs'
+                                      ? 'bg-[#ffffff] border-slate-200/80 hover:border-slate-300 text-slate-700 shadow-2xs'
                                       : 'bg-white/[0.04] border-white/5 hover:border-white/20 text-slate-300'
                                   }`}
                                 >
@@ -938,7 +938,7 @@ export function PortalLoginView() {
                                           ? 'bg-amber-400/15 border-amber-400/80 text-slate-950'
                                           : 'bg-amber-400/10 border-amber-400/70 text-white')
                                       : isLight
-                                      ? 'bg-white border-slate-200/80 hover:border-slate-300 text-slate-700 shadow-2xs'
+                                      ? 'bg-[#ffffff] border-slate-200/80 hover:border-slate-300 text-slate-700 shadow-2xs'
                                       : 'bg-white/[0.04] border-white/5 hover:border-white/20 text-slate-300'
                                   }`}
                                 >
@@ -984,7 +984,7 @@ export function PortalLoginView() {
                                           ? 'bg-amber-400/15 border-amber-400/80 text-slate-950'
                                           : 'bg-amber-400/10 border-amber-400/70 text-white')
                                       : isLight
-                                      ? 'bg-white border-slate-200/80 hover:border-slate-300 text-slate-700 shadow-2xs'
+                                      ? 'bg-[#ffffff] border-slate-200/80 hover:border-slate-300 text-slate-700 shadow-2xs'
                                       : 'bg-white/[0.04] border-white/5 hover:border-white/20 text-slate-300'
                                   }`}
                                 >

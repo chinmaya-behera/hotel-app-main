@@ -1,319 +1,190 @@
 'use client';
 
-import { useState } from 'react';
 import {
   User,
   ShieldCheck,
-  Clock,
-  Printer,
-  CreditCard,
-  ScanLine,
-  Radio,
-  Plus,
-  Send,
   CheckCircle2,
-  Sliders,
-  Volume2,
-  Moon,
-  Sparkles,
+  Mail,
+  Phone,
+  Building2,
+  Clock,
   KeyRound,
-  FileText,
+  FileCheck2,
+  AlertOctagon,
+  Sparkles,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
 import { Panel } from '@/components/ui/Panel';
-import { Modal } from '@/components/frontdesk/Modal';
-import { shiftHandoverNotesSeed, type ShiftHandoverNote } from '@/lib/mockData';
+
+interface RolePolicyItem {
+  code: string;
+  title: string;
+  summary: string;
+  authority: string;
+}
+
+const ESSENTIAL_POLICIES: RolePolicyItem[] = [
+  {
+    code: 'POL-FO-101',
+    title: 'Mandatory Government ID Verification',
+    summary: 'Physical inspection of valid government photo ID (Passport / Driving License / Aadhaar) is mandatory prior to encoding and issuing RFID keycards.',
+    authority: 'Standard Operating Procedure · Zero Discretion',
+  },
+  {
+    code: 'POL-FO-102',
+    title: 'Check-In & Check-Out Operational Windows',
+    summary: 'Official check-in at 15:00, check-out at 11:00. VIP tier courtesy late checkout granted until 14:00 subject to occupancy availability.',
+    authority: 'Front Office Standard',
+  },
+  {
+    code: 'POL-REC-201',
+    title: 'Autonomous Goodwill Compensation Authority',
+    summary: 'Front Desk coordinators possess autonomous goodwill authorization up to ₹2,500 ($150) for immediate service recovery without manager approval.',
+    authority: 'Front Desk Limit: ₹2,500 · Above requires Duty Manager',
+  },
+  {
+    code: 'POL-SEC-301',
+    title: 'Disturbance & Emergency Escalation Protocol',
+    summary: 'Any safety breach, unauthorized access, or unresolvable guest dispute must immediately be escalated simultaneously to the Duty Manager and Security Responder.',
+    authority: 'Safety & Security Directive · Immediate Escalation',
+  },
+];
+
+const CORE_RESPONSIBILITIES = [
+  {
+    title: 'Guest Check-In & Identity Verification',
+    desc: 'Verify reservation details, validate photo identification, check payment guarantees, and issue encoded keycards.',
+    icon: KeyRound,
+  },
+  {
+    title: 'Central Communications & Routing',
+    desc: 'Receive guest requests and complaints via portal, counter or phone, and route them to Housekeeping, Wellness, Maintenance or F&B.',
+    icon: Sparkles,
+  },
+  {
+    title: 'Service Recovery & Compensation',
+    desc: 'Autonomously resolve guest dissatisfaction with up to ₹2,500 in goodwill adjustments, dining vouchers, or amenity credits.',
+    icon: FileCheck2,
+  },
+  {
+    title: 'Safety & Emergency Escalation',
+    desc: 'Monitor station panic alerts and dispatch incident reports directly to Security Responder Unit and Duty Manager.',
+    icon: AlertOctagon,
+  },
+];
 
 export function StaffProfilePanel() {
-  const [handoverNotes, setHandoverNotes] = useState<ShiftHandoverNote[]>(shiftHandoverNotesSeed);
-  const [showAddNoteModal, setShowAddNoteModal] = useState(false);
-  const [newNoteCategory, setNewNoteCategory] = useState<ShiftHandoverNote['category']>('VIP / Arrival');
-  const [newNotePriority, setNewNotePriority] = useState<ShiftHandoverNote['priority']>('normal');
-  const [newNoteText, setNewNoteText] = useState('');
-
-  // Operator Preferences toggles
-  const [audioChimes, setAudioChimes] = useState(true);
-  const [autoExpandVip, setAutoExpandVip] = useState(true);
-  const [quickKeyEncode, setQuickKeyEncode] = useState(true);
-
-  const handleCreateNote = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newNoteText.trim()) return;
-
-    const noteItem: ShiftHandoverNote = {
-      id: `shn-${Date.now()}`,
-      author: 'Sunita Patel',
-      role: 'Lead Front Desk Coordinator',
-      shift: 'Day',
-      time: 'Just now',
-      category: newNoteCategory,
-      note: newNoteText.trim(),
-      priority: newNotePriority,
-    };
-
-    setHandoverNotes([noteItem, ...handoverNotes]);
-    setShowAddNoteModal(false);
-    setNewNoteText('');
-  };
-
   return (
-    <div className="space-y-4">
-      {/* 1. Operator Profile Card */}
-      <div className="p-5 rounded-2xl border border-white/10 bg-gradient-to-r from-ink-900 via-white/[0.03] to-ink-900 flex flex-col md:flex-row md:items-center justify-between gap-5 shadow-xl">
-        <div className="flex items-center gap-4">
-          <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-amber-400/30 to-amber-600/40 border border-amber-400/50 flex items-center justify-center text-amber-200 font-extrabold text-xl shadow-lg shrink-0">
-            SP
-          </div>
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold text-white tracking-tight">Sunita Patel</h2>
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Online · Station FD-02</span>
-              </span>
+    <div className="space-y-5">
+      {/* 1. Concise Operator Profile Card */}
+      <div className="p-5 sm:p-6 rounded-2xl border border-white/10 bg-gradient-to-r from-ink-900 via-white/[0.03] to-ink-900 shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+          <div className="flex items-center gap-4">
+            <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-amber-400/30 to-amber-600/40 border border-amber-400/50 flex items-center justify-center text-amber-200 font-extrabold text-2xl shadow-lg shrink-0">
+              SP
             </div>
-            <p className="text-xs text-mist-300 font-medium">
-              Lead Front Desk Coordinator · Front Office · Day Shift (07:00 – 15:30)
-            </p>
-            <p className="text-[11px] text-mist-400">
-              Employee ID: <strong className="text-white">EMP-4089</strong> · Assigned Zone: Lobby &amp; Floors 1–5
-            </p>
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-xl font-bold text-white tracking-tight">Sunita Patel</h2>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Active · On Duty</span>
+                </span>
+              </div>
+              <p className="text-sm font-semibold text-amber-300">
+                Lead Front Desk Coordinator
+              </p>
+              <p className="text-xs text-mist-300 flex items-center gap-2">
+                <Building2 className="h-3.5 w-3.5 text-mist-400" />
+                <span>Front Office Department · Station FD-02</span>
+              </p>
+            </div>
           </div>
-        </div>
 
-        {/* Shift Performance Metrics */}
-        <div className="flex items-center gap-3 border-t md:border-t-0 md:border-l border-white/10 pt-3 md:pt-0 md:pl-5">
-          <div className="text-center px-3 py-1.5 rounded-xl bg-white/[0.02] border border-white/5">
-            <p className="text-[10px] text-mist-400 font-medium">Check-ins</p>
-            <p className="text-lg font-bold text-white tabular-nums">14</p>
-          </div>
-          <div className="text-center px-3 py-1.5 rounded-xl bg-white/[0.02] border border-white/5">
-            <p className="text-[10px] text-mist-400 font-medium">IDs Verified</p>
-            <p className="text-lg font-bold text-emerald-300 tabular-nums">8</p>
-          </div>
-          <div className="text-center px-3 py-1.5 rounded-xl bg-white/[0.02] border border-white/5">
-            <p className="text-[10px] text-mist-400 font-medium">Reconciled</p>
-            <p className="text-lg font-bold text-cyan-300 tabular-nums">4</p>
+          {/* Quick Contact & Shift Details */}
+          <div className="flex flex-col gap-1.5 border-t sm:border-t-0 sm:border-l border-white/10 pt-3 sm:pt-0 sm:pl-5 text-xs text-mist-300 shrink-0">
+            <div className="flex items-center justify-between sm:justify-start gap-3">
+              <span className="text-mist-400 font-medium">Employee ID:</span>
+              <strong className="text-white font-mono bg-white/5 px-2 py-0.5 rounded border border-white/10">EMP-4089</strong>
+            </div>
+            <div className="flex items-center justify-between sm:justify-start gap-3">
+              <span className="text-mist-400 font-medium flex items-center gap-1">
+                <Clock className="h-3 w-3 text-amber-400" /> Shift:
+              </span>
+              <strong className="text-amber-200">Day Shift (07:00 – 15:30)</strong>
+            </div>
+            <div className="flex items-center justify-between sm:justify-start gap-3">
+              <span className="text-mist-400 font-medium flex items-center gap-1">
+                <Mail className="h-3 w-3 text-cyan-400" /> Email:
+              </span>
+              <span className="text-mist-200 font-mono text-[11px]">s.patel@thegrandadp.com</span>
+            </div>
+            <div className="flex items-center justify-between sm:justify-start gap-3">
+              <span className="text-mist-400 font-medium flex items-center gap-1">
+                <Phone className="h-3 w-3 text-emerald-400" /> Intercom:
+              </span>
+              <span className="text-mist-200">Ext. 204 (Front Desk Direct)</span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* 2. Desk Terminal Hardware & Integration Status */}
+      {/* 2. Essential Permissions & Responsibilities */}
       <Panel
-        title="Desk Terminal & Hardware Status"
-        hint="Live status of peripherals attached to Station FD-02 (Lobby North)"
-        icon={ScanLine}
+        title="Essential Permissions & Operational Responsibilities"
+        hint="Delegated front office authorities and cross-department coordinator scopes."
+        icon={ShieldCheck}
       >
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="p-3 rounded-xl border border-white/10 bg-white/[0.02] flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
-              <KeyRound className="h-4 w-4" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-white truncate">Keycard Encoder</p>
-              <p className="text-[10px] text-emerald-300 font-medium flex items-center gap-1">
-                <CheckCircle2 className="h-3 w-3" /> RFID Synced · Assa Abloy
-              </p>
-            </div>
-          </div>
-
-          <div className="p-3 rounded-xl border border-white/10 bg-white/[0.02] flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
-              <ScanLine className="h-4 w-4" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-white truncate">Passport / ID Scanner</p>
-              <p className="text-[10px] text-emerald-300 font-medium flex items-center gap-1">
-                <CheckCircle2 className="h-3 w-3" /> Ready (High-DPI)
-              </p>
-            </div>
-          </div>
-
-          <div className="p-3 rounded-xl border border-white/10 bg-white/[0.02] flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
-              <Printer className="h-4 w-4" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-white truncate">Folio Receipt Printer</p>
-              <p className="text-[10px] text-emerald-300 font-medium flex items-center gap-1">
-                <CheckCircle2 className="h-3 w-3" /> Paper 85% · Ready
-              </p>
-            </div>
-          </div>
-
-          <div className="p-3 rounded-xl border border-white/10 bg-white/[0.02] flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
-              <Radio className="h-4 w-4" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-white truncate">Intercom &amp; Radio</p>
-              <p className="text-[10px] text-cyan-300 font-medium flex items-center gap-1">
-                <CheckCircle2 className="h-3 w-3" /> Channel 3 (Front Office)
-              </p>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {CORE_RESPONSIBILITIES.map((r) => {
+            const Icon = r.icon;
+            return (
+              <div
+                key={r.title}
+                className="p-3.5 rounded-xl border border-white/10 bg-white/[0.02] hover:border-white/20 transition-all flex items-start gap-3"
+              >
+                <div className="h-8 w-8 rounded-lg bg-amber-400/10 border border-amber-400/30 flex items-center justify-center text-amber-300 shrink-0 mt-0.5">
+                  <Icon className="h-4 w-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-white">{r.title}</h4>
+                  <p className="text-[11px] text-mist-300 mt-0.5 leading-relaxed">{r.desc}</p>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </Panel>
 
-      {/* 3. Shift Handover Notes Log */}
+      {/* 3. Short Essential Policy Section */}
       <Panel
-        title="Shift Handover Notes Log"
-        hint="Operational handover briefing between Day, Evening, and Night Auditor shifts."
-        icon={FileText}
-        action={
-          <Button
-            size="sm"
-            variant="accent"
-            iconLeft={Plus}
-            onClick={() => setShowAddNoteModal(true)}
-          >
-            + Add Handover Note
-          </Button>
-        }
+        title="Essential Role Policies & Responsibilities"
+        hint="Key operational standards, verification rules, and financial authority limits governing the Front Desk."
+        icon={FileCheck2}
       >
-        <div className="space-y-3">
-          {handoverNotes.map((note) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {ESSENTIAL_POLICIES.map((p) => (
             <div
-              key={note.id}
-              className="p-4 rounded-xl border border-white/10 bg-white/[0.02] space-y-1.5 text-xs hover:border-white/20 transition-all shadow-xs"
+              key={p.code}
+              className="p-4 rounded-xl border border-white/10 bg-white/[0.02] hover:border-white/20 transition-all space-y-2 shadow-xs"
             >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-white text-sm">{note.author}</span>
-                  <Badge tone="neutral">{note.shift} Shift</Badge>
-                  <Badge tone="info">{note.category}</Badge>
-                  {note.priority === 'high' && (
-                    <Badge tone="warning">HIGH PRIORITY</Badge>
-                  )}
-                </div>
-                <span className="text-[11px] text-mist-400">{note.time}</span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[11px] font-mono font-bold text-amber-300 px-2 py-0.5 rounded bg-amber-400/10 border border-amber-400/20">
+                  {p.code}
+                </span>
+                <span className="text-[10px] text-emerald-300 flex items-center gap-1 font-semibold">
+                  <CheckCircle2 className="h-3 w-3" /> Mandatory Standard
+                </span>
               </div>
-
-              <p className="text-mist-200 leading-relaxed">{note.note}</p>
+              <h3 className="text-sm font-bold text-white tracking-tight">{p.title}</h3>
+              <p className="text-xs text-mist-300 leading-relaxed">{p.summary}</p>
+              <div className="pt-2 border-t border-white/[0.06] flex items-center justify-between text-[11px] text-mist-400">
+                <span className="font-medium text-cyan-300">{p.authority}</span>
+              </div>
             </div>
           ))}
         </div>
       </Panel>
-
-      {/* 4. Quick Operator Preferences */}
-      <Panel
-        title="Quick Operator Preferences & Alerts"
-        hint="Customize console audio chimes, VIP card auto-expansion, and terminal shortcuts."
-        icon={Sliders}
-      >
-        <div className="space-y-3 text-xs">
-          <label className="flex items-center justify-between p-3 rounded-xl border border-white/10 bg-white/[0.02] cursor-pointer hover:bg-white/[0.04] transition">
-            <div className="flex items-center gap-3">
-              <Volume2 className="h-4 w-4 text-amber-300" />
-              <div>
-                <p className="font-semibold text-white">Audio Chimes on Urgent Requests</p>
-                <p className="text-[11px] text-mist-400">Play subtle audio chime when guest complaints or VIP alerts land in queue</p>
-              </div>
-            </div>
-            <input
-              type="checkbox"
-              checked={audioChimes}
-              onChange={(e) => setAudioChimes(e.target.checked)}
-              className="rounded border-white/20 bg-ink-900 text-cyan-400 h-4 w-4"
-            />
-          </label>
-
-          <label className="flex items-center justify-between p-3 rounded-xl border border-white/10 bg-white/[0.02] cursor-pointer hover:bg-white/[0.04] transition">
-            <div className="flex items-center gap-3">
-              <Sparkles className="h-4 w-4 text-cyan-300" />
-              <div>
-                <p className="font-semibold text-white">Auto-Expand VIP Profiles on Arrival</p>
-                <p className="text-[11px] text-mist-400">Instantly reveal dietary milestones and GM greeting cards for VIP stays</p>
-              </div>
-            </div>
-            <input
-              type="checkbox"
-              checked={autoExpandVip}
-              onChange={(e) => setAutoExpandVip(e.target.checked)}
-              className="rounded border-white/20 bg-ink-900 text-cyan-400 h-4 w-4"
-            />
-          </label>
-
-          <label className="flex items-center justify-between p-3 rounded-xl border border-white/10 bg-white/[0.02] cursor-pointer hover:bg-white/[0.04] transition">
-            <div className="flex items-center gap-3">
-              <KeyRound className="h-4 w-4 text-emerald-300" />
-              <div>
-                <p className="font-semibold text-white">One-Click Keycard Encoder Write</p>
-                <p className="text-[11px] text-mist-400">Trigger RFID write immediately upon Check-In confirmation</p>
-              </div>
-            </div>
-            <input
-              type="checkbox"
-              checked={quickKeyEncode}
-              onChange={(e) => setQuickKeyEncode(e.target.checked)}
-              className="rounded border-white/20 bg-ink-900 text-cyan-400 h-4 w-4"
-            />
-          </label>
-        </div>
-      </Panel>
-
-      {/* Add Handover Note Modal */}
-      {showAddNoteModal && (
-        <Modal
-          title="Add Shift Handover Note"
-          description="Log operational note for the incoming shift operator (Amit Verma · Evening Shift)."
-          onClose={() => setShowAddNoteModal(false)}
-        >
-          <form onSubmit={handleCreateNote} className="space-y-3 text-xs">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-semibold text-mist-300 mb-1 block">Category</label>
-                <select
-                  value={newNoteCategory}
-                  onChange={(e) => setNewNoteCategory(e.target.value as ShiftHandoverNote['category'])}
-                  className="field w-full text-xs"
-                >
-                  <option value="VIP / Arrival">VIP / Arrival</option>
-                  <option value="Cash / Folio">Cash / Folio</option>
-                  <option value="Maintenance">Maintenance</option>
-                  <option value="General">General</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-mist-300 mb-1 block">Priority</label>
-                <select
-                  value={newNotePriority}
-                  onChange={(e) => setNewNotePriority(e.target.value as ShiftHandoverNote['priority'])}
-                  className="field w-full text-xs"
-                >
-                  <option value="normal">Normal</option>
-                  <option value="high">High Priority</option>
-                  <option value="critical">Critical Briefing</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-mist-300 mb-1 block">Briefing Note</label>
-              <textarea
-                rows={3}
-                required
-                placeholder="e.g. VIP Dr. Soren Lindqvist arriving at 15:00 in Room 201; welcome letter placed on desk."
-                value={newNoteText}
-                onChange={(e) => setNewNoteText(e.target.value)}
-                className="field w-full text-xs"
-              />
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
-              <Button variant="subtle" type="button" onClick={() => setShowAddNoteModal(false)}>
-                Cancel
-              </Button>
-              <Button variant="accent" type="submit" iconLeft={Send}>
-                Log Handover Note
-              </Button>
-            </div>
-          </form>
-        </Modal>
-      )}
     </div>
   );
 }
-

@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { Download, History } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
+import { ChevronRight, Download, History, X } from 'lucide-react';
 import { useDemo } from '@/lib/store';
 import { managerDepartment } from '@/lib/manager-domain';
 import { completedSnapshot, departmentHistory, RECORD_KINDS, repairCompletion } from '@/lib/department-record-history';
@@ -18,7 +18,7 @@ function HistoryEntry({ event }: { event: DepartmentRecordEvent }) {
     <dl className="dm-history-meta"><div><dt>Location</dt><dd>{record.location || 'Not applicable'}</dd></div><div><dt>Status at this version</dt><dd>{record.status}</dd></div><div><dt>Assigned / responsible</dt><dd>{record.owner || 'Not recorded'}</dd></div><div><dt>{completionEvent(event) ? 'Completed on' : 'History recorded on'}</dt><dd>{date(completionEvent(event) ? record.completedAt : event.recordedAt)}</dd></div></dl>
     <p className="dm-subtle">{event.action === 'recorded' ? `Existing record added to history ${date(event.recordedAt)}. Earlier completion times are shown only when recorded.` : `${event.actor} · ${event.actorRole} · ${date(event.recordedAt)}`}</p>
     {record.notes && <p className="dm-history-notes"><b>{event.action === 'completed' ? 'Completion notes' : 'Recorded notes'}:</b> {record.notes}</p>}
-    <details className="dm-case-history"><summary>View saved details{event.changes.length ? ` & ${event.changes.length} field changes` : ''}</summary>
+    <details className="dm-case-history" open><summary>View saved details{event.changes.length ? ` & ${event.changes.length} field changes` : ''}</summary>
       {event.changes.length > 0 && <div className="dm-history-changes"><h4>What changed</h4>{event.changes.map(change => <div key={change.field}><strong>{change.field}</strong><p><small>Before</small>{change.before}</p><p><small>After</small>{change.after}</p></div>)}</div>}
       <h4 className="dm-history-detail-title">Details saved with this version</h4><dl className="dm-history-fields">{Object.entries(record.fields).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
     </details>
@@ -30,7 +30,11 @@ export function DepartmentRecordHistory({ initialSearch = '' }: { initialSearch?
   const department = managerDepartment(state.managerDepartment);
   const [search, setSearch] = useState(initialSearch), [kind, setKind] = useState('all'), [view, setView] = useState(initialSearch ? 'all' : 'completed'), [period, setPeriod] = useState('all');
   const [page, setPage] = useState(1);
+  const [selected, setSelected] = useState<string | null>(null);
+  const dialog = useRef<HTMLDialogElement>(null);
   const entries = useMemo(() => departmentHistory(state, department.id), [state, department.id]);
+  const selectedEvent = entries.find(event => event.id === selected);
+  const versions = selectedEvent ? entries.filter(event => event.record.key === selectedEvent.record.key) : [];
   const kinds = [...new Set(entries.map(entry => entry.record.kind))];
   const query = search.trim().toLowerCase(), cutoff = Date.now() - Number(period) * 86400000;
   const visible = entries.filter(entry => {
@@ -54,7 +58,8 @@ export function DepartmentRecordHistory({ initialSearch = '' }: { initialSearch?
     <div className="dm-toolbar"><input aria-label="Search record history" placeholder="Search reference, work, location, staff or notes" value={search} onChange={e => filter(() => setSearch(e.target.value))}/><select aria-label="Record history type" value={kind} onChange={e => filter(() => setKind(e.target.value))}><option value="all">All record types</option>{kinds.map(k => <option key={k} value={k}>{RECORD_KINDS[k]}</option>)}</select><select aria-label="Record history view" value={view} onChange={e => filter(() => setView(e.target.value))}><option value="completed">Completed work</option><option value="changes">Changes since history began</option><option value="all">All saved records & changes</option></select><select aria-label="Record history period" value={period} onChange={e => filter(() => setPeriod(e.target.value))}><option value="all">All dates</option><option value="7">Past 7 days</option><option value="30">Past 30 days</option></select></div>
     <p className="dm-insight-note">{visible.length} saved record {visible.length === 1 ? 'version' : 'versions'} · {recordCount} {recordCount === 1 ? 'record' : 'records'}. Earlier versions remain after edits or removal. {period !== 'all' && view === 'completed' ? 'Older completions without a recorded completion time are excluded from this period.' : ''}{department.id === 'wellness' ? ' Medical case notes are shown only in the Wellness workspace.' : ''}</p>
     {!visible.length && <div className="dm-empty"><History size={26}/><h3>No matching history</h3><p>Completed work and record changes appear here automatically. Choose All saved records & changes to inspect existing records.</p></div>}
-    {shown.map(event => <HistoryEntry key={event.id} event={event}/>)}
+    <div className="dm-history-list">{shown.map(event => <button className="dm-history-row" key={event.id} onClick={() => { setSelected(event.id); dialog.current?.showModal(); }} aria-label={'Open record: ' + event.record.title + ' · ' + actionLabel[event.action]}><span><small>{RECORD_KINDS[event.record.kind]} · {event.record.reference}</small><strong>{event.record.title}</strong><small>{event.record.location || 'Department record'} · {date(completionEvent(event) ? event.record.completedAt : event.recordedAt)}</small></span><span className="dm-status">{actionLabel[event.action]}</span><ChevronRight size={16}/></button>)}</div>
+    <dialog className="dm-dialog dm-history-dialog" ref={dialog} aria-labelledby="record-detail-title" onClose={() => setSelected(null)}><div className="dm-dialog-heading"><h2 id="record-detail-title">Record details</h2><button className="dm-icon-button" aria-label="Close record details" onClick={() => dialog.current?.close()}><X size={19}/></button></div>{selectedEvent && <><p className="dm-dialog-description">{selectedEvent.record.title} · {versions.length} saved versions</p><div className="dm-history-version-tabs" aria-label="Saved record versions">{versions.map((version, index) => <button key={version.id} aria-pressed={selected === version.id} onClick={() => setSelected(version.id)}>{index === 0 ? 'Latest version' : 'Earlier version ' + (versions.length - index)} · {actionLabel[version.action]}</button>)}</div><HistoryEntry event={selectedEvent}/></>}</dialog>
     {shown.length < visible.length && <div className="dm-history-more"><button className="dm-secondary" onClick={() => setPage(previous => previous + 1)}>Show 20 more versions</button></div>}
   </section>;
 }
