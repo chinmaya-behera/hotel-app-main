@@ -595,53 +595,6 @@ export function SecurityIncidentDetailModal({
               </div>
             </div>
 
-            {/* ================= 3. PHOTO UPLOAD & RESOLUTION SECTION (KEY FEATURE) ================= */}
-            {/* A. When in progress (Not solving inline yet): Dedicated Resolution & Photo Proof Card */}
-            {!isSolvingInline && !isResolved && (
-              <div className="p-4 sm:p-5 rounded-xl bg-white border border-[var(--dm-line)] shadow-sm space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-2.5">
-                    <span className="p-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
-                      <Camera size={18} />
-                    </span>
-                    <div>
-                      <h4 className="text-xs sm:text-sm font-bold text-[var(--dm-ink)] flex items-center gap-2">
-                        <span>Incident Resolution &amp; Photo Proof</span>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-stone-100 text-stone-600 border border-stone-200 font-medium">
-                          Required on completion
-                        </span>
-                      </h4>
-                      <p className="text-[11px] text-[var(--dm-muted)] mt-0.5">
-                        Capture camera image or upload visual proof after solving the incident on scene.
-                      </p>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setIsSolvingInline(true)}
-                    className="dm-primary text-xs px-4 py-2.5 rounded-xl flex items-center justify-center gap-1.5 bg-emerald-700 hover:bg-emerald-800 border-emerald-700 text-white font-bold shadow-sm cursor-pointer shrink-0"
-                  >
-                    <CheckCircle2 size={15} />
-                    <span>Solve &amp; Attach Photo</span>
-                  </button>
-                </div>
-
-                <div
-                  onClick={() => setIsSolvingInline(true)}
-                  className="p-3.5 rounded-xl bg-[var(--dm-surface)] border border-dashed border-[var(--dm-line)] hover:border-emerald-400 hover:bg-emerald-50/40 transition-colors flex items-center justify-between text-xs cursor-pointer group"
-                >
-                  <div className="flex items-center gap-2.5 text-[var(--dm-muted)] group-hover:text-emerald-800">
-                    <UploadCloud size={18} className="text-stone-400 group-hover:text-emerald-600" />
-                    <span>Upload photo of solved problem (e.g. reset alarm panel, secured perimeter, cleared area)</span>
-                  </div>
-                  <span className="text-xs font-bold text-emerald-700 shrink-0 group-hover:underline">
-                    Attach Image &rarr;
-                  </span>
-                </div>
-              </div>
-            )}
-
             {/* B. If currently resolving directly inside modal */}
             {isSolvingInline && !isResolved && (
               <form
