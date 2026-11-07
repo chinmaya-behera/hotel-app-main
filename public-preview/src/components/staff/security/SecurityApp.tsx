@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useEffect, useRef, useState, type FormEvent } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import {
   Activity,
@@ -82,6 +82,13 @@ const statusClass = (status: string) =>
     : /critical|escalat|blocked|reopened|high/i.test(status)
       ? 'dm-status urgent'
       : 'dm-status';
+
+const getPriorityWeight = (priority?: string) => {
+  const p = (priority || 'normal').toLowerCase();
+  if (p === 'critical' || p === 'safety') return 0;
+  if (p === 'urgent' || p === 'high') return 1;
+  return 2;
+};
 
 const getIncidentPhoto = (item: WorkItem) => {
   if (item.incidentPhotoUrl) return item.incidentPhotoUrl;
@@ -241,6 +248,11 @@ export function SecurityApp() {
   const isSoundOn = state.soundEnabled ?? true;
   const items = state.items.security_responder ?? [];
 
+  // Sort incidents by priority: Critical (0) -> Urgent (1) -> Normal (2)
+  const sortedItems = useMemo(() => {
+    return [...items].sort((a, b) => getPriorityWeight(a.priority) - getPriorityWeight(b.priority));
+  }, [items]);
+
   useEffect(() => {
     if (prevCountRef.current !== null && items.length > prevCountRef.current) {
       if (isSoundOn) {
@@ -306,18 +318,20 @@ export function SecurityApp() {
 
   const title = NAV.find((n) => n[0] === tab)?.[1] || 'Overview';
 
-  const visibleIncidents = items.filter((t) => {
-    const matchesStatus =
-      statusFilter === 'all'
-        ? true
-        : statusFilter === 'open'
-          ? t.status !== 'Resolved'
-          : t.status === 'Resolved';
-    const matchesSearch = `${t.title} ${t.ref || ''} ${t.room || ''} ${t.assignee || ''} ${t.priority || ''}`
-      .toLowerCase()
-      .includes(search.toLowerCase());
-    return matchesStatus && matchesSearch;
-  });
+  const visibleIncidents = useMemo(() => {
+    return sortedItems.filter((t) => {
+      const matchesStatus =
+        statusFilter === 'all'
+          ? true
+          : statusFilter === 'open'
+            ? t.status !== 'Resolved'
+            : t.status === 'Resolved';
+      const matchesSearch = `${t.title} ${t.ref || ''} ${t.room || ''} ${t.assignee || ''} ${t.priority || ''}`
+        .toLowerCase()
+        .includes(search.toLowerCase());
+      return matchesStatus && matchesSearch;
+    });
+  }, [sortedItems, statusFilter, search]);
 
   const exportReport = () => {
     const rows = [
@@ -790,7 +804,7 @@ export function SecurityApp() {
                     </tr>
                   </thead>
                   <tbody>
-                    {items.map((item) => (
+                    {sortedItems.map((item) => (
                       <tr key={item.id}>
                         <td>
                           <div className="flex items-center gap-3">
