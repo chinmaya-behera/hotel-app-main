@@ -568,3 +568,61 @@
   .dm-workspace *, .dm-dialog, .dm-dialog * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
   .dm-workspace button:hover { transform: none; }
 }
+
+/* Action outlines must stand out from dark panels; keep structural dividers quiet. */
+.department-manager-page[data-theme='dark'] .dm-workspace {
+  --dm-action-fill: #302d25;
+  --dm-action-hover: #403b2f;
+  --dm-action-edge: #978d79;
+  --dm-action-selected: #d4c5a4;
+  --dm-action-disabled-edge: #6d6455;
+}
+.department-manager-page[data-theme='dark'] .dm-workspace button:is(
+  .dm-icon-button, .dm-small-button, .dm-secondary, .dm-scope-card, .dm-floor-button,
+  .dm-category-chips button, .dm-meal-tabs button, .dm-history-version-tabs button,
+  .dm-segmented button, .dm-workflow-links button, .dm-menu-actions [role='switch']
+) {
+  background: var(--dm-action-fill);
+  color: var(--dm-ink);
+  border: 1px solid var(--dm-action-edge);
+}
+.department-manager-page[data-theme='dark'] .dm-workspace button:is(.dm-kpi, .dm-shift-cell) {
+  border-color: var(--dm-action-edge);
+}
+.department-manager-page[data-theme='dark'] .dm-workspace button.dm-shift-unscheduled {
+  border-style: dashed;
+}
+.department-manager-page[data-theme='dark'] .dm-workspace button.dm-shift-conflict {
+  border-color: var(--dm-danger);
+}
+.department-manager-page[data-theme='dark'] .dm-workspace button:is(
+  .dm-icon-button, .dm-small-button, .dm-secondary, .dm-scope-card, .dm-floor-button, .dm-shift-cell, .dm-kpi,
+  .dm-category-chips button, .dm-meal-tabs button, .dm-history-version-tabs button,
+  .dm-segmented button, .dm-workflow-links button, .dm-menu-actions [role='switch']
+):hover:not(:disabled) {
+  background: var(--dm-action-hover);
+  border-color: var(--dm-action-selected);
+}
+.department-manager-page[data-theme='dark'] .dm-workspace button[aria-pressed='true'],
+.department-manager-page[data-theme='dark'] .dm-sidebar nav button[aria-current='page'] {
+  background: var(--dm-action-hover);
+  border-color: var(--dm-action-selected);
+  color: var(--dm-ink);
+}
+.department-manager-page[data-theme='dark'] .dm-workspace .dm-text-button {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.department-manager-page[data-theme='dark'] .dm-workspace .dm-menu-actions [role='switch'] {
+  min-height: 31px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  text-decoration: none;
+}
+.department-manager-page[data-theme='dark'] .dm-workspace button:disabled {
+  opacity: 1;
+  background: var(--warm-soft);
+  color: var(--dm-muted);
+  border-color: var(--dm-action-disabled-edge);
+  box-shadow: none;
+}
