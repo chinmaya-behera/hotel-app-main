@@ -568,3 +568,50 @@
   .dm-workspace *, .dm-dialog, .dm-dialog * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
   .dm-workspace button:hover { transform: none; }
 }
+
+/* Safety & Security smooth entrance animations (pure CSS) */
+@keyframes securityFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes securityScaleUp {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.gsap-hero-title {
+  animation: securityFadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.gsap-hero-sub {
+  animation: securityFadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.08s forwards;
+}
+
+.gsap-meta {
+  animation: securityFadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.14s forwards;
+}
+
+.gsap-panel {
+  animation: securityFadeUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) 0.18s forwards;
+}
+
+.gsap-section-title {
+  animation: securityFadeUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.22s forwards;
+}
+
+.gsap-kpi-num {
+  animation: securityScaleUp 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s forwards;
+}
