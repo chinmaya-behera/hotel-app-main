@@ -53,7 +53,6 @@ const NAV = [
   ['overview', 'Overview', Gauge, 'Workspace'],
   ['incidents', 'Incident Monitoring', Activity, 'Workspace'],
   ['recovery', 'Escalations & Recovery', Handshake, 'Workspace'],
-  ['staff', 'Officers & Workload', Users, 'Management'],
   ['policies', 'PlayBook', BookOpen, 'Management'],
   ['handover', 'Shift Handover', Send, 'Management'],
   ['notifications', 'Notifications', Bell, 'Personal'],
@@ -1039,66 +1038,6 @@ export function SecurityApp() {
                   </article>
                 ))
             )}
-          </section>
-        )}
-
-        {/* ===================== TAB: STAFF & WORKLOAD ===================== */}
-        {tab === 'staff' && (
-          <section className="dm-panel">
-            <div className="dm-panel-heading">
-              <div>
-                <h2>Security Team &amp; Workload</h2>
-                <p>Live post assignments and active shift readiness within Safety &amp; Security.</p>
-              </div>
-            </div>
-
-            <div className="dm-staff-grid">
-              {securityStaff.map((member) => {
-                const load = items.filter(
-                  (t) => t.assigneeId === member.id || t.assignee === member.name,
-                ).length;
-                return (
-                  <article key={member.id} className="dm-staff-card">
-                    <div className="dm-avatar">
-                      {member.name
-                        .split(' ')
-                        .map((p) => p[0])
-                        .slice(0, 2)
-                        .join('')}
-                    </div>
-                    <h3>{member.name}</h3>
-                    <small>
-                      {member.roleId.replaceAll('_', ' ')} · {member.shift || 'Night Shift'}
-                      {member.status !== 'active' ? ' · Off Shift' : ''}
-                    </small>
-                    <div className="dm-progress-label">
-                      <span>Active incidents</span>
-                      <strong>{load} / {member.maxWorkload || 5}</strong>
-                    </div>
-                    <progress value={load} max={Math.max(load, member.maxWorkload || 5)} />
-                    <label className="dm-field" style={{ marginTop: '12px' }}>
-                      Availability
-                      <select
-                        aria-label={`Availability for ${member.name}`}
-                        disabled={member.status !== 'active'}
-                        value={member.availability || 'on_duty'}
-                        onChange={(e) =>
-                          departmentManagerCommand({
-                            type: 'availability',
-                            staffId: member.id,
-                            value: e.target.value as 'on_duty' | 'break' | 'off_duty',
-                          })
-                        }
-                      >
-                        <option value="on_duty">On duty</option>
-                        <option value="break">On patrol break</option>
-                        <option value="off_duty">Off duty</option>
-                      </select>
-                    </label>
-                  </article>
-                );
-              })}
-            </div>
           </section>
         )}
 
