@@ -4,6 +4,14 @@ import { applyManagerCommand, ensureManagerState, managerTasks } from '../src/li
 import { initialiseDepartmentHistory, captureDepartmentHistory } from '../src/lib/department-record-history.ts';
 import { measureSla, taskPolicy, taskSla, stampTaskTimings, operationalSlas, percentile, slaSummary } from '../src/lib/manager-performance.ts';
 import { operationalWeek, shiftInterval, schedulingConflicts, rosterWorkload } from '../src/lib/manager-scheduling.ts';
+import { seedItems } from '../src/lib/mockData.ts';
+
+test('demo queues initialise every current and legacy role without breaking manager startup', () => {
+  for (const role of ['department_dispatcher', 'department_supervisor', 'department_dispatcher_supervisor', 'department_manager', 'executive_viewer', 'general_manager']) {
+    assert.ok(Array.isArray(seedItems[role]), `${role} has an initial queue`);
+  }
+  assert.deepEqual(seedItems.department_dispatcher_supervisor, [...seedItems.department_dispatcher, ...seedItems.department_supervisor]);
+});
 const now = Date.parse('2026-11-06T09:00:00Z');
 const iso = offset => new Date(now + offset * 60000).toISOString();
 function fixture(department = 'housekeeping') {

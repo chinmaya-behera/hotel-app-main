@@ -322,7 +322,7 @@
 :root[data-theme='light'] .fd-tabs {
   background: rgba(255, 255, 255, 0.88);
   border-color: rgba(234, 213, 220, 0.7);
-  box-shadow: 0 2px 8px -2px rgba(231, 226, 215, 0.05);
+  box-shadow: 0 2px 8px -2px rgba(1, 31, 75, 0.05);
 }
 :root[data-theme='light'] .fd-tab[aria-selected='true'] {
   color: #011f4b;
