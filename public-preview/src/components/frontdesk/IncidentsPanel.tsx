@@ -21,8 +21,13 @@ import { Button } from '@/components/ui/Button';
 import { Panel } from '@/components/ui/Panel';
 import { Modal } from '@/components/frontdesk/Modal';
 import { frontDeskIncidentsSeed, type FDIncident } from '@/lib/mockData';
+import { useDemo } from '@/lib/store';
 
 export function IncidentsPanel() {
+  const { state, validateSafetyAlertByFrontDesk, broadcastSafetyAlert } = useDemo();
+  const pendingAdvisories = (state.safetyAlerts ?? []).filter(alert =>
+    alert.status === 'draft_pending_validation' || alert.status === 'approved_ready_broadcast'
+  );
   const [incidents, setIncidents] = useState<FDIncident[]>(frontDeskIncidentsSeed);
   const [filterSeverity, setFilterSeverity] = useState<'all' | 'low' | 'medium' | 'high'>('all');
   const [showLogModal, setShowLogModal] = useState(false);
@@ -180,6 +185,33 @@ export function IncidentsPanel() {
           </Button>
         </div>
       </div>
+
+      {pendingAdvisories.length > 0 && (
+        <Panel title="Safety advisories" hint="Validate Security reports and publish approved broadcasts." icon={ShieldAlert}>
+          <ul className="space-y-3">
+            {pendingAdvisories.map(alert => {
+              const ready = alert.status === 'approved_ready_broadcast';
+              const audience = alert.broadcastScope === 'hotel_wide' ? 'Hotel-wide'
+                : alert.broadcastScope === 'all_staff' ? 'All staff' : 'Security only';
+              return (
+                <li key={alert.id} className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-white/10 p-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-white">{alert.title}</p>
+                    <p className="mt-1 text-xs text-mist-300">{alert.ref} · {alert.location} · {audience}</p>
+                    <p className="mt-1 text-xs text-mist-300">{alert.description}</p>
+                  </div>
+                  <Button size="sm" variant="subtle" onClick={() => {
+                    if (ready) broadcastSafetyAlert(alert.id);
+                    else validateSafetyAlertByFrontDesk(alert.id);
+                  }}>
+                    {ready ? 'Publish safety alert' : 'Validate for approval'}
+                  </Button>
+                </li>
+              );
+            })}
+          </ul>
+        </Panel>
+      )}
 
       {/* Incidents Board */}
       <Panel

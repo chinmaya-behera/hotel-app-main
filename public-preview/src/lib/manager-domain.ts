@@ -41,7 +41,25 @@ export function managerInspections(s: DemoState, id: ManagerDepartmentId) {
 export function managerNotifications(s: DemoState, id: ManagerDepartmentId) {
   const tasks = new Set(managerTasks(s, id).flatMap(t => [t.id, t.ref].filter(Boolean)));
   const inspections = new Set(managerInspections(s, id).map(i => i.id));
-  return (s.notifications ?? []).filter(n => n.roleId === 'department_manager' && (departmentId(n.department) === id || !n.department && !!n.itemId && (tasks.has(n.itemId) || inspections.has(n.itemId))));
+  return (s.notifications ?? []).filter(n =>
+    n.roleId === 'department_manager'
+    // Broadcasts come from the safety alert record so acknowledgments and resolution stay current.
+    && !/^(?:🚨\s*)?SAFETY ALERT BROADCAST:/i.test(n.title)
+    && (departmentId(n.department) === id || !n.department && !!n.itemId && (tasks.has(n.itemId) || inspections.has(n.itemId)))
+  );
+}
+
+export function managerSafetyAlerts(s: DemoState) {
+  const priorityOrder = { critical: 0, urgent: 1, warning: 2 };
+  return (s.safetyAlerts ?? [])
+    .filter(alert =>
+      (alert.broadcastScope === 'all_staff' || alert.broadcastScope === 'hotel_wide')
+      && (alert.status === 'broadcast_active' || (alert.status === 'resolved' && !!alert.broadcastAt))
+    )
+    .sort((a, b) => {
+      if (a.status !== b.status) return a.status === 'broadcast_active' ? -1 : 1;
+      return a.status === 'broadcast_active' ? priorityOrder[a.priority] - priorityOrder[b.priority] : 0;
+    });
 }
 export function ensureManagerState(s: DemoState): DemoState {
   const next = { ...s, managerOperations: { ...(s.managerOperations ?? seedManagerOperations()), medicalCases: s.managerOperations?.medicalCases ?? [] }, managerDepartment: s.managerDepartment ?? 'housekeeping' as const, staffAccounts: [...s.staffAccounts], items: { ...s.items }, inspections: [...(s.inspections ?? [])] };

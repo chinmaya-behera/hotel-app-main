@@ -3,7 +3,7 @@
 import { Fragment, useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Activity, ArrowRight, ArrowUpRight, BarChart3, Bell, BookOpen, CalendarDays, CheckCheck, ChevronRight, ClipboardCheck, Download, Gauge, Handshake, History, LockKeyhole, LogOut, Menu, MessageSquare, Moon, ShoppingBag, Wrench, Search, Sun, Send, UserRound, Users, X, type LucideIcon } from 'lucide-react';
 import { useDemo } from '@/lib/store';
-import { departmentId, isOpen, managerDepartment, managerInspections, managerNotifications, managerTasks, type ManagerDepartmentId } from '@/lib/manager-domain';
+import { departmentId, isOpen, managerDepartment, managerInspections, managerTasks, type ManagerDepartmentId } from '@/lib/manager-domain';
 import type { SupervisorInspection, WorkItem } from '@/types/demo';
 import { DepartmentDesk, DESK_LABELS } from './DepartmentDesk';
 import '../shared/warm-theme.css';
@@ -13,6 +13,7 @@ import { DiningKitchenMenu, OrderingOverview } from './ManagerDining';
 import { DepartmentAnalytics } from './DepartmentAnalytics';
 import { DepartmentStaffing } from './DepartmentStaffing';
 import { DepartmentRecordHistory } from './DepartmentRecordHistory';
+import { ManagerNotifications } from './ManagerNotifications';
 import { InspectionLauncher } from './InspectionLauncher';
 import { managerComplaints, managerOrders, managerRepairs, medicalReminders } from '@/lib/manager-workflows';
 
@@ -22,7 +23,7 @@ const NAV = [
   ['inspections', 'Inspections', ClipboardCheck], ['recovery', 'Escalations & Recovery', Handshake],
   ['history', 'Record history', History], ['staff', 'Staff & Workload', Users], ['policies', 'Policies', BookOpen],
   ['handover', 'Handover', Send], ['analytics', 'Analytics', BarChart3],
-  ['notifications', 'Notifications', Bell], ['profile', 'Profile', UserRound],
+  ['profile', 'Profile', UserRound],
 ] as const satisfies readonly (readonly [string, string, LucideIcon])[];
 type Tab = typeof NAV[number][0];
 type View = Tab | 'staff-workload';
@@ -46,7 +47,6 @@ const VIEW_DESCRIPTIONS: Partial<Record<Tab, string>> = {
   policies: 'Keep department procedures, service standards and escalation ownership in one place.',
   handover: 'Give the next shift a clear briefing on open work and priority actions.',
   analytics: 'Monitor service commitments, spot risks and review measured performance.',
-  notifications: 'Review department updates and time-sensitive follow-ups.',
   profile: 'Manage your display details and review your department access.',
 };
 type Modal = { kind: 'inspection'; inspection?: SupervisorInspection } | { kind: 'recovery'; task: WorkItem } | { kind: 'policy' } | { kind: 'handover' } | null;
@@ -109,7 +109,6 @@ export function DepartmentManagerConsole() {
   const staff = state.staffAccounts.filter(s => departmentId(s.department) === d.id);
   const supervisors = staff.filter(s => ['department_supervisor', 'department_dispatcher_supervisor'].includes(s.roleId) && s.status === 'active');
   const recovery = tasks.filter(t => /escalat|blocked/i.test(t.status));
-  const notifications = managerNotifications(state, d.id), unread = notifications.filter(n => !n.read).length + reminders.length;
   const policies = (state.departmentPolicies ?? []).filter(p => departmentId(p.department) === d.id);
   const handovers = (state.shiftHandovers ?? []).filter(h => departmentId(h.department) === d.id);
   const pending = inspections.filter(i => i.status === 'pending');
@@ -161,9 +160,9 @@ export function DepartmentManagerConsole() {
       <nav aria-label="Department manager navigation">
         {navigation.map(([id, label, Icon]) => {
           const displayLabel = id === 'department' ? DESK_LABELS[d.id] : label;
-          const badge = id === 'notifications' ? unread : id === 'recovery' ? recovery.length : id === 'complaints' ? complaints.filter(c => isOpen(c.status)).length : id === 'department' ? reminders.length : 0;
+          const badge = id === 'recovery' ? recovery.length : id === 'complaints' ? complaints.filter(c => isOpen(c.status)).length : id === 'department' ? reminders.length : 0;
           return <Fragment key={id}>
-            {['overview', 'staff', 'notifications'].includes(id) && <p className="dm-nav-group-label">{id === 'overview' ? 'Workspace' : id === 'staff' ? 'Management' : 'Personal'}</p>}
+            {['overview', 'staff', 'profile'].includes(id) && <p className="dm-nav-group-label">{id === 'overview' ? 'Workspace' : id === 'staff' ? 'Management' : 'Personal'}</p>}
             <button aria-label={badge > 0 ? `${displayLabel} ${badge}` : displayLabel} aria-current={tab === id ? 'page' : undefined} title={displayLabel} onClick={() => navigate(id)}><Icon size={19}/><span>{displayLabel}</span>{badge > 0 && <b>{badge}</b>}</button>
           </Fragment>;
         })}
@@ -172,11 +171,10 @@ export function DepartmentManagerConsole() {
     </aside>
 
     <main className="dm-main" id="manager-content" tabIndex={-1} inert={sidebarOpen}>
-      <header className="dm-topline"><div className="dm-breadcrumb"><button ref={navigationTrigger} className="dm-menu-toggle dm-icon-button" aria-label="Open navigation" aria-expanded={sidebarOpen} aria-controls="manager-navigation" onClick={() => setSidebarOpen(true)}><Menu size={20}/></button><span>{d.name}</span><ChevronRight size={14}/><strong>{title === 'Overview' ? 'Overview' : title}</strong></div><div className="dm-topline-tools"><span className="dm-live"><i/> Department access</span><button className="dm-icon-button" aria-label={state.theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'} title={state.theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'} onClick={() => setTheme(state.theme === 'light' ? 'dark' : 'light')}>{state.theme === 'light' ? <Moon size={18}/> : <Sun size={18}/>}</button><button className="dm-icon-button" aria-label={`Notifications, ${unread} unread`} onClick={() => navigate('notifications')}><Bell size={19}/>{unread > 0 && <b>{unread}</b>}</button><button className="dm-avatar" aria-label="View your profile" onClick={() => navigate('profile')}>{person.split(' ').map(p => p[0]).slice(0, 2).join('')}</button></div></header>
+      <header className="dm-topline"><div className="dm-breadcrumb"><button ref={navigationTrigger} className="dm-menu-toggle dm-icon-button" aria-label="Open navigation" aria-expanded={sidebarOpen} aria-controls="manager-navigation" onClick={() => setSidebarOpen(true)}><Menu size={20}/></button><span>{d.name}</span><ChevronRight size={14}/><strong>{title === 'Overview' ? 'Overview' : title}</strong></div><div className="dm-topline-tools"><span className="dm-live"><i/> Department access</span><button className="dm-icon-button" aria-label={state.theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'} title={state.theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'} onClick={() => setTheme(state.theme === 'light' ? 'dark' : 'light')}>{state.theme === 'light' ? <Moon size={18}/> : <Sun size={18}/>}</button><ManagerNotifications key={view} reminders={reminders} onOpenMedicalCases={() => navigate('department')}/><button className="dm-avatar" aria-label="View your profile" onClick={() => navigate('profile')}>{person.split(' ').map(p => p[0]).slice(0, 2).join('')}</button></div></header>
 
       <div className="dm-page-heading"><div><p className="dm-eyebrow">DEPARTMENT OPERATIONS</p><h1>{title === 'Overview' ? `${d.name} overview` : title}</h1><p>{VIEW_DESCRIPTIONS[tab] || d.focus}</p></div><div className="dm-heading-actions">{tab === 'overview' ? <InspectionLauncher/> : <span className="dm-date"><CalendarDays size={16}/>{new Date().toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'})}</span>}</div></div>
 
-      {reminders.length > 0 && <div className="dm-followup-banner" role="status"><Bell size={18}/><span><strong>{reminders.length} medical follow-up{reminders.length === 1 ? '' : 's'} due</strong><small>Review the case history, record the outcome and acknowledge or reschedule the reminder.</small></span><button className="dm-small-button" onClick={() => navigate('department')}>Review cases</button></div>}
       {tab === 'department' && (d.id === 'wellness' ? <><MedicalCases now={now}/><DepartmentDesk onOpen={() => navigate('department')} onInspect={() => navigate('inspections')}/></> : d.id === 'food-beverages' ? <DiningKitchenMenu/> : <DepartmentDesk onOpen={() => navigate('department')} onInspect={() => navigate('inspections')}/>)}
       {tab === 'history' && <DepartmentRecordHistory key={historySearch} initialSearch={historySearch}/>}
       {tab === 'complaints' && <DepartmentComplaints/>}
@@ -224,7 +222,6 @@ export function DepartmentManagerConsole() {
 
       {tab === 'analytics' && <DepartmentAnalytics/>}
 
-      {tab === 'notifications' && <section className="dm-panel"><div className="dm-panel-heading"><div><h2>Your department notifications</h2><p>{unread} unread · {d.name}</p></div></div>{reminders.map(c => <article className="dm-record" key={`reminder-${c.id}`}><div className="dm-record-title"><h3>Medical follow-up due · {c.reference}</h3><span className="dm-status urgent">{c.urgency}</span></div><p>{new Date(c.followUpAt!).toLocaleString('en-IN')}</p><button className="dm-small-button" onClick={() => navigate('department')}>Open medical cases</button></article>)}{notifications.length === 0 && reminders.length === 0 && <div className="dm-empty"><Bell size={26}/><h3>You’re up to date</h3><p>Department updates will appear here.</p></div>}{notifications.map(n => <article className="dm-record" key={n.id}><div className="dm-record-title"><h3>{n.title}</h3><span className="dm-status">{n.read ? 'Read' : 'Unread'}</span></div><p>{n.message}</p><small>{dateLabel(n.timestamp)}</small>{!n.read && <button className="dm-text-button" onClick={() => departmentManagerCommand({ type: 'read', notificationId: n.id })}>Mark as read</button>}</article>)}</section>}
 
       {tab === 'profile' && <section className="dm-panel"><div className="dm-panel-heading"><div><h2>Manager profile</h2><p>Your demo identity and department access.</p></div></div><form className="dm-profile-form" onSubmit={e => { e.preventDefault(); const f = new FormData(e.currentTarget); departmentManagerCommand({ type: 'profile', name: String(f.get('name')), phone: String(f.get('phone') || '') }); }}><label className="dm-field">Display name<input name="name" defaultValue={person} required maxLength={100}/></label><label className="dm-field">Phone<input name="phone" type="tel" defaultValue={profile?.phone || ''} maxLength={40}/></label><label className="dm-field">Demo email<input value={d.email} readOnly/></label><label className="dm-field">Department<input value={d.name} readOnly/></label><button className="dm-primary" type="submit">Save profile</button><p className="dm-report-note">Standalone demonstration · work is saved in this browser. Department access here is a demo of the intended permissions.</p></form></section>}
       <footer className="dm-footer">THE GRAND ADP <span>Thoughtful service. Connected teams.</span></footer>

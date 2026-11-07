@@ -6306,12 +6306,12 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const broadcastSafetyAlert = useCallback<DemoApi['broadcastSafetyAlert']>(
     (alertId) => {
       const now = nowLabel();
-      let alertRef = '';
+      const approved = stateRef.current.safetyAlerts?.find(alert => alert.id === alertId);
+      if (approved?.status !== 'approved_ready_broadcast') return;
       setState((prev) => {
         const list = prev.safetyAlerts ?? seedSafetyAlerts;
         const target = list.find((a) => a.id === alertId);
-        if (!target) return prev;
-        alertRef = target.ref;
+        if (target?.status !== 'approved_ready_broadcast') return prev;
 
         const updated: SafetyAlertRecord = {
           ...target,
@@ -6323,12 +6323,12 @@ export function DemoProvider({ children }: { children: ReactNode }) {
               at: now,
               actor: 'Front Desk Broadcast Engine',
               role: 'front_desk_coordinator',
-              action: 'Active broadcast dispatched across all staff consoles and property displays',
+              action: `Safety alert broadcast to ${target.broadcastScope.replaceAll('_', ' ')}`,
             },
           ],
         };
 
-        const allRoles: RoleId[] = [
+        const recipients: RoleId[] = target.broadcastScope === 'security_only' ? ['security_responder'] : [
           'task_fulfiller',
           'department_dispatcher_supervisor',
           'department_manager',
@@ -6338,34 +6338,35 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           'general_manager',
         ];
 
-        const broadcastNotifs: InAppNotification[] = allRoles.map((rId) => ({
+        const broadcastNotifs: InAppNotification[] = recipients.map((rId) => ({
           id: uid(),
           roleId: rId,
           title: `🚨 SAFETY ALERT BROADCAST: ${target.title}`,
           message: `${target.description} (Location: ${target.location}). Exercise operational precautions.`,
           timestamp: now,
           read: false,
-          priority: 'critical',
+          itemId: target.id,
+          priority: target.priority,
           link: rId === 'security_responder' ? '/staff/security' : rId === 'general_manager' ? '/staff/general-manager' : '/staff/front-desk',
         }));
 
         return {
           ...prev,
-          safetyAlerts: list.map((a) => (a.id === alertId ? updated : a)),
+          safetyAlerts: [updated, ...list.filter(alert => alert.id !== alertId)],
           notifications: [...broadcastNotifs, ...(prev.notifications ?? [])],
           feed: [
             {
               id: uid(),
               at: now,
               role: 'Front Desk',
-              text: `BROADCAST ACTIVE: Safety Alert ${target.ref} activated hotel-wide!`,
+              text: `Safety alert ${target.ref} published for ${target.broadcastScope.replaceAll('_', ' ')}`,
             },
             ...prev.feed,
           ],
         };
       });
 
-      notify(`🚨 Hotel-wide Safety Alert ${alertRef} is now BROADCAST ACTIVE!`);
+      notify(`Safety alert ${approved.ref} published`);
     },
     [notify],
   );
