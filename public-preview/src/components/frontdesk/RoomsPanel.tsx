@@ -1187,11 +1187,11 @@ export function RoomsPanel() {
       {/* ============================================================== */}
       {/* 2. MIDDLE COLUMN: Inventory Matrix Room Grid (Matching Design) */}
       {/* ============================================================== */}
-      <div className="flex-1 min-w-0 h-auto lg:h-full flex flex-col rounded-xl sm:rounded-2xl border border-white/10 bg-ink-900/60 p-3 sm:p-5 shadow-lg overflow-visible lg:overflow-hidden">
+      <div className="flex-1 min-w-0 h-auto lg:h-full flex flex-col rounded-xl sm:rounded-2xl border border-slate-200/80 dark:border-white/10 bg-[#f8fafc]/80 dark:bg-ink-900/60 p-3 sm:p-5 shadow-lg overflow-visible lg:overflow-hidden backdrop-blur-sm">
         {/* Horizontal Floor Filter Bar */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 shrink-0 scrollbar-none">
-          <div className="flex items-center gap-1.5 text-slate-400 font-semibold text-xs shrink-0 mr-1">
-            <Layers className="h-4 w-4" />
+          <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 font-semibold text-xs shrink-0 mr-1">
+            <Layers className="h-4 w-4 text-amber-500" />
             <span>Floor:</span>
           </div>
           <button
@@ -1201,7 +1201,7 @@ export function RoomsPanel() {
               'rounded-full px-4 py-1.5 text-xs font-bold transition shrink-0 cursor-pointer',
               selectedFloorFilter === 'all'
                 ? 'bg-amber-500 text-white shadow-sm'
-                : 'bg-slate-700/60 text-slate-200 hover:bg-slate-700 hover:text-white'
+                : 'bg-slate-200/80 text-slate-700 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
             )}
           >
             All Floors
@@ -1215,7 +1215,7 @@ export function RoomsPanel() {
                 'rounded-full px-4 py-1.5 text-xs font-bold transition shrink-0 cursor-pointer',
                 selectedFloorFilter === fl
                   ? 'bg-amber-500 text-white shadow-sm'
-                  : 'bg-slate-700/60 text-slate-200 hover:bg-slate-700 hover:text-white'
+                  : 'bg-slate-200/80 text-slate-700 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
               )}
             >
               Floor {fl}
@@ -1232,7 +1232,7 @@ export function RoomsPanel() {
                 setSelectedFloorFilter('all');
                 setSearchQuery('');
               }}
-              className="ml-auto text-xs text-amber-400 hover:text-amber-300 flex items-center gap-1 font-semibold shrink-0 cursor-pointer pl-2"
+              className="ml-auto text-xs text-amber-500 hover:text-amber-400 flex items-center gap-1 font-semibold shrink-0 cursor-pointer pl-2"
             >
               <RotateCcw className="h-3 w-3" /> Reset
             </button>
@@ -1267,7 +1267,7 @@ export function RoomsPanel() {
         )}
 
         {/* Matrix Header Title */}
-        <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mt-4 mb-3 shrink-0">
+        <div className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mt-4 mb-3 shrink-0">
           INVENTORY MATRIX ({filteredRooms.length} ROOMS)
         </div>
 
@@ -1288,15 +1288,20 @@ export function RoomsPanel() {
                 const isOccupied = room.badgeStatus === 'OCCUPIED' || room.occupied;
 
                 const badgeColors: Record<string, string> = {
-                  READY: 'bg-emerald-100 text-emerald-800',
-                  OCCUPIED: 'bg-indigo-100/90 text-indigo-700',
-                  'INSPECTION PENDING': 'bg-slate-100 text-slate-700',
-                  CLEANING: 'bg-amber-100 text-amber-800',
-                  OUT_OF_ORDER: 'bg-rose-100 text-rose-700',
+                  READY:
+                    'bg-[#dcfce7] text-[#15803d] border border-[#bbf7d0] dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30',
+                  OCCUPIED:
+                    'bg-[#ede9fe] text-[#6d28d9] border border-[#ddd6fe] dark:bg-indigo-500/20 dark:text-indigo-300 dark:border-indigo-500/30',
+                  'INSPECTION PENDING':
+                    'bg-[#f1f5f9] text-[#334155] border border-[#e2e8f0] dark:bg-slate-700/40 dark:text-slate-300 dark:border-slate-600/40',
+                  CLEANING:
+                    'bg-[#fef3c7] text-[#b45309] border border-[#fde68a] dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30',
+                  OUT_OF_ORDER:
+                    'bg-[#ffe4e6] text-[#be123c] border border-[#fecdd3] dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-500/30',
                 };
 
                 const badgeClass =
-                  badgeColors[room.badgeStatus ?? 'READY'] || 'bg-slate-100 text-slate-700';
+                  badgeColors[room.badgeStatus ?? 'READY'] || 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300';
 
                 return (
                   <button
@@ -1307,18 +1312,18 @@ export function RoomsPanel() {
                       openRoomDrawer(room.no);
                     }}
                     className={cn(
-                      'rounded-2xl p-4 text-left transition-all duration-200 cursor-pointer flex flex-col justify-between min-h-[148px] shadow-xs hover:shadow-md relative group',
+                      'rounded-2xl p-4 text-left transition-all duration-200 cursor-pointer flex flex-col justify-between min-h-[148px] relative group',
                       isSelected
-                        ? 'bg-amber-50/20 border-2 border-amber-400 ring-2 ring-amber-300/40 shadow-sm'
-                        : 'bg-white border border-slate-100 hover:border-slate-300'
+                        ? 'bg-[#fffbeb] border-2 border-amber-400 ring-2 ring-amber-300/50 shadow-md dark:bg-amber-500/10 dark:border-amber-400 dark:ring-amber-400/30'
+                        : 'bg-[#ffffff] border border-slate-200/90 hover:border-slate-300 shadow-xs hover:shadow-md dark:bg-[#0c1424]/90 dark:border-white/10 dark:hover:border-white/25 dark:hover:bg-[#111c33]'
                     )}
                   >
                     {/* Top: Room No & Room Type */}
                     <div>
-                      <div className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-none group-hover:text-amber-600 transition-colors">
+                      <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-none group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
                         {room.no}
                       </div>
-                      <div className="text-xs font-medium text-slate-400 mt-1 truncate">
+                      <div className="text-xs font-medium text-slate-500 dark:text-mist-400 mt-1 truncate">
                         {room.typeFull}
                       </div>
                     </div>
@@ -1326,15 +1331,15 @@ export function RoomsPanel() {
                     {/* Middle: Guest Name or Occupied / Vacant */}
                     <div className="my-2.5">
                       {isNamedGuest ? (
-                        <div className="text-xs sm:text-sm font-bold text-slate-900 truncate">
+                        <div className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
                           {room.guestName}
                         </div>
                       ) : isOccupied ? (
-                        <div className="text-xs sm:text-sm font-bold text-slate-800">
+                        <div className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
                           Occupied
                         </div>
                       ) : (
-                        <div className="text-xs italic text-slate-400 font-medium">
+                        <div className="text-xs italic text-slate-400 dark:text-mist-500 font-medium">
                           Vacant
                         </div>
                       )}
@@ -1350,7 +1355,7 @@ export function RoomsPanel() {
                       >
                         {room.badgeStatus}
                       </span>
-                      <span className="text-xs font-medium text-slate-400 shrink-0">
+                      <span className="text-xs font-medium text-slate-500 dark:text-mist-400 shrink-0">
                         Fl {room.floor}
                       </span>
                     </div>

@@ -56,6 +56,8 @@ export type ExecutiveTabId =
   | 'complaints'
   | 'vip'
   | 'rooms'
+  | 'finance'
+  | 'finance-requests'
   | 'finance-purchases'
   | 'finance-equipment'
   | 'finance-resources'
@@ -210,24 +212,10 @@ export function ExecutiveConsole() {
 
     // Group 4: Finance & Resources
     {
-      id: 'finance-purchases',
-      label: 'Purchase Requests',
-      shortLabel: 'Purchases',
+      id: 'finance-requests',
+      label: 'Finance Request',
+      shortLabel: 'Finance Request',
       icon: Wallet,
-      group: 'Finance & Resources',
-    },
-    {
-      id: 'finance-equipment',
-      label: 'Equipment & Maintenance',
-      shortLabel: 'Equipment',
-      icon: Wrench,
-      group: 'Finance & Resources',
-    },
-    {
-      id: 'finance-resources',
-      label: 'Resource Requests',
-      shortLabel: 'Resources',
-      icon: Boxes,
       group: 'Finance & Resources',
       badgeCount: pendingResourcesCount,
       badgeTone: 'info',
@@ -291,6 +279,10 @@ export function ExecutiveConsole() {
     if (tabId === 'approvals-history') {
       setActiveTab('approvals');
       setApprovalInitialFilter('approved');
+      return;
+    }
+    if (tabId === 'finance-requests' || tabId === 'finance') {
+      setActiveTab('finance-requests');
       return;
     }
     if (tabId === 'approvals') {
@@ -629,26 +621,22 @@ export function ExecutiveConsole() {
 
           {activeTab === 'rooms' && <GeneralManagerRoomsTab />}
 
-          {activeTab === 'finance-purchases' && (
+          {(activeTab === 'finance-requests' ||
+            activeTab === 'finance' ||
+            activeTab === 'finance-purchases' ||
+            activeTab === 'finance-equipment' ||
+            activeTab === 'finance-resources') && (
             <ExecutiveFinanceTab
               permissionMode={permissionMode}
-              initialCategory="purchases"
-              onReviewItem={handleOpenApprovalDetail}
-            />
-          )}
-
-          {activeTab === 'finance-equipment' && (
-            <ExecutiveFinanceTab
-              permissionMode={permissionMode}
-              initialCategory="equipment"
-              onReviewItem={handleOpenApprovalDetail}
-            />
-          )}
-
-          {activeTab === 'finance-resources' && (
-            <ExecutiveFinanceTab
-              permissionMode={permissionMode}
-              initialCategory="resources"
+              initialCategory={
+                activeTab === 'finance-purchases'
+                  ? 'purchases'
+                  : activeTab === 'finance-equipment'
+                  ? 'equipment'
+                  : activeTab === 'finance-resources'
+                  ? 'resources'
+                  : 'all'
+              }
               onReviewItem={handleOpenApprovalDetail}
             />
           )}

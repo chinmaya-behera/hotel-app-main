@@ -616,6 +616,68 @@ select option {
 
 /* Quiet hierarchy for long operational sessions; keep information in place. */
 .dm-topline { position: relative; }
+
+.dm-notification-preview {
+  position: absolute;
+  z-index: 30;
+  inset-inline-end: 0;
+  top: calc(100% + 8px);
+  width: min(370px, 100%);
+  padding: 16px;
+  border: 1px solid var(--dm-accent);
+  border-radius: 12px;
+  background: var(--dm-paper);
+  color: var(--dm-ink);
+  box-shadow: 0 12px 32px var(--warm-overlay);
+}
+.dm-notification-header, .dm-notification-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.dm-notification-header h2 { font-size: 16px; font-weight: 600; }
+.dm-notification-header > span, .dm-notification-inbox-caption {
+  color: var(--dm-muted);
+  font-size: 12px;
+}
+.dm-notification-preview-list {
+  max-height: min(50dvh, 350px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.dm-notification-group { margin-top: 14px; }
+.dm-notification-group h3 {
+  margin-bottom: 6px;
+  color: var(--dm-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.dm-notification-entry {
+  padding: 11px;
+  border: 1px solid var(--dm-line);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  overflow-wrap: anywhere;
+}
+.dm-notification-entry[data-unread='true'] { background: var(--warm-soft); }
+.dm-notification-title strong { font-size: 13px; font-weight: 600; }
+.dm-notification-title .dm-status { flex-shrink: 0; text-transform: capitalize; }
+.dm-notification-entry p { margin-top: 5px; font-size: 12px; }
+.dm-notification-entry small, .dm-notification-empty { color: var(--dm-muted); font-size: 11px; }
+.dm-notification-entry small { display: block; margin-top: 5px; }
+.dm-notification-entry button { margin-top: 7px; }
+.dm-notification-preview .dm-notification-entry p {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.dm-notification-see-all { width: 100%; margin-top: 10px; }
+.dm-notification-inbox { width: min(600px, calc(100% - 32px)); }
+.dm-notification-inbox h2 { display: flex; align-items: center; gap: 9px; }
+.dm-notification-inbox-caption { margin-top: 6px; }
+
 .dm-sidebar nav button { transition: background .15s, color .15s, border-color .15s; }
 .dm-kpi, .dm-panel, .dm-staff-card, .dm-room { will-change: auto; transition: background .15s, border-color .15s, box-shadow .15s; }
 .dm-kpi > strong, .dm-metric-strip strong, .dm-table { font-variant-numeric: tabular-nums; }
@@ -655,4 +717,62 @@ select option {
 @media (prefers-reduced-motion: reduce) {
   .dm-workspace *, .dm-dialog, .dm-dialog * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
   .dm-workspace button:hover { transform: none; }
+}
+
+/* Action outlines must stand out from dark panels; keep structural dividers quiet. */
+.department-manager-page[data-theme='dark'] .dm-workspace {
+  --dm-action-fill: #302d25;
+  --dm-action-hover: #403b2f;
+  --dm-action-edge: #978d79;
+  --dm-action-selected: #d4c5a4;
+  --dm-action-disabled-edge: #6d6455;
+}
+.department-manager-page[data-theme='dark'] .dm-workspace button:is(
+  .dm-icon-button, .dm-small-button, .dm-secondary, .dm-scope-card, .dm-floor-button,
+  .dm-category-chips button, .dm-meal-tabs button, .dm-history-version-tabs button,
+  .dm-segmented button, .dm-workflow-links button, .dm-menu-actions [role='switch']
+) {
+  background: var(--dm-action-fill);
+  color: var(--dm-ink);
+  border: 1px solid var(--dm-action-edge);
+}
+.department-manager-page[data-theme='dark'] .dm-workspace button:is(.dm-kpi, .dm-shift-cell) {
+  border-color: var(--dm-action-edge);
+}
+.department-manager-page[data-theme='dark'] .dm-workspace button.dm-shift-unscheduled {
+  border-style: dashed;
+}
+.department-manager-page[data-theme='dark'] .dm-workspace button.dm-shift-conflict {
+  border-color: var(--dm-danger);
+}
+.department-manager-page[data-theme='dark'] .dm-workspace button:is(
+  .dm-icon-button, .dm-small-button, .dm-secondary, .dm-scope-card, .dm-floor-button, .dm-shift-cell, .dm-kpi,
+  .dm-category-chips button, .dm-meal-tabs button, .dm-history-version-tabs button,
+  .dm-segmented button, .dm-workflow-links button, .dm-menu-actions [role='switch']
+):hover:not(:disabled) {
+  background: var(--dm-action-hover);
+  border-color: var(--dm-action-selected);
+}
+.department-manager-page[data-theme='dark'] .dm-workspace button[aria-pressed='true'],
+.department-manager-page[data-theme='dark'] .dm-sidebar nav button[aria-current='page'] {
+  background: var(--dm-action-hover);
+  border-color: var(--dm-action-selected);
+  color: var(--dm-ink);
+}
+.department-manager-page[data-theme='dark'] .dm-workspace .dm-text-button {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.department-manager-page[data-theme='dark'] .dm-workspace .dm-menu-actions [role='switch'] {
+  min-height: 31px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  text-decoration: none;
+}
+.department-manager-page[data-theme='dark'] .dm-workspace button:disabled {
+  opacity: 1;
+  background: var(--warm-soft);
+  color: var(--dm-muted);
+  border-color: var(--dm-action-disabled-edge);
+  box-shadow: none;
 }

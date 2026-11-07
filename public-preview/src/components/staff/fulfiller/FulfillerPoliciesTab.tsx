@@ -1,147 +1,301 @@
 'use client';
 
-import { ShieldCheck, AlertTriangle, CheckCircle2, PhoneCall, ShieldAlert, BookOpen, Clock, Sparkles } from 'lucide-react';
+import {
+  ShieldCheck,
+  AlertTriangle,
+  CheckCircle2,
+  PhoneCall,
+  ShieldAlert,
+  Clock,
+} from 'lucide-react';
+import { useDemo } from '@/lib/store';
+import { cn } from '@/lib/utils';
 import { ROLE_AUTHORITY_PROFILES, SHARED_SERVICE_POLICIES } from '@/lib/policies';
 
 export function FulfillerPoliciesTab() {
+  const { state } = useDemo();
+  const isLight = state.theme === 'light';
+
   const policy = ROLE_AUTHORITY_PROFILES['task_fulfiller'];
   const hkServicePolicies = SHARED_SERVICE_POLICIES.filter(
     (p) => p.department === 'Housekeeping' || p.department === 'Operations',
   );
 
   return (
-    <div className="flex flex-col gap-4 pb-24 text-xs">
+    <div className="flex flex-col gap-3.5 pb-6 sm:pb-8 text-xs">
       {/* Header Banner */}
-      <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.06] p-4 text-white">
-        <div className="flex items-center gap-2.5">
-          <div className="grid h-8 w-8 place-items-center rounded-xl bg-emerald-500/20 text-emerald-400">
-            <ShieldCheck className="h-4 w-4" />
+      <div
+        className={cn(
+          'rounded-3xl border p-4 sm:p-5 transition-colors',
+          isLight
+            ? 'border-[#e7e2d7] bg-[#ffffff] shadow-[0_4px_18px_rgba(53,50,41,0.04)]'
+            : 'border-emerald-500/30 bg-emerald-500/[0.06] text-white',
+        )}
+      >
+        <div className="flex items-center gap-3">
+          <div
+            className={cn(
+              'grid h-9 w-9 shrink-0 place-items-center rounded-xl border',
+              isLight
+                ? 'border-[#e7e2d7] bg-[#f6f3ec] text-[#353229]'
+                : 'border-emerald-400/30 bg-emerald-500/20 text-emerald-400',
+            )}
+          >
+            <ShieldCheck className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="font-bold text-sm text-white">Service Authority & Policies</h2>
-            <p className="text-[11px] text-mist-300">Operational limits, safety rules & escalation protocol</p>
+            <h2 className={cn('font-bold text-sm sm:text-base', isLight ? 'text-[#353229]' : 'text-white')}>
+              Service Authority & SOP Policies
+            </h2>
+            <p className={cn('text-[11px] mt-0.5', isLight ? 'text-[#686252]' : 'text-mist-300')}>
+              Operational boundaries, guest privacy standards & supervisor escalation protocol
+            </p>
           </div>
         </div>
 
         {/* Financial Spending Limit Callout */}
-        <div className="mt-3.5 flex items-center justify-between rounded-xl border border-emerald-400/20 bg-ink-950/60 px-3 py-2">
+        <div
+          className={cn(
+            'mt-3.5 flex items-center justify-between rounded-2xl border px-3.5 py-2.5 transition-colors',
+            isLight
+              ? 'border-[#e7e2d7] bg-[#fbfaf7]'
+              : 'border-emerald-400/20 bg-ink-950/60',
+          )}
+        >
           <div className="flex items-center gap-2">
-            <ShieldAlert className="h-4 w-4 text-emerald-400" />
-            <span className="font-semibold text-mist-200">Financial Discretionary Limit</span>
+            <ShieldAlert className={cn('h-4 w-4', isLight ? 'text-[#353229]' : 'text-emerald-400')} />
+            <span className={cn('font-bold text-xs', isLight ? 'text-[#353229]' : 'text-mist-200')}>
+              Financial Discretionary Limit
+            </span>
           </div>
-          <span className="font-mono font-bold text-emerald-300 bg-emerald-500/20 px-2.5 py-0.5 rounded-full text-xs">
+          <span
+            className={cn(
+              'font-mono font-bold px-2.5 py-0.5 rounded-full text-[11px] border',
+              isLight
+                ? 'bg-[#f6f3ec] text-[#353229] border-[#e7e2d7]'
+                : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+            )}
+          >
             ₹0 (Strict Zero Limit)
           </span>
         </div>
       </div>
 
       {/* Operational Authority: What You Can Do */}
-      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 space-y-3">
-        <div className="flex items-center gap-2 text-emerald-400 font-bold">
-          <CheckCircle2 className="h-4 w-4" />
-          <h3 className="text-white font-semibold">Operational Authority (Allowed Actions)</h3>
+      <div
+        className={cn(
+          'rounded-3xl border p-4 sm:p-5 space-y-3 transition-colors',
+          isLight
+            ? 'border-[#e7e2d7] bg-[#ffffff] shadow-[0_4px_18px_rgba(53,50,41,0.04)]'
+            : 'border-white/10 bg-white/[0.03]',
+        )}
+      >
+        <div className="flex items-center gap-2 font-bold">
+          <CheckCircle2 className={cn('h-4 w-4', isLight ? 'text-[#353229]' : 'text-emerald-400')} />
+          <h3 className={cn('font-bold text-xs sm:text-sm', isLight ? 'text-[#353229]' : 'text-white')}>
+            Operational Authority (Allowed Actions)
+          </h3>
         </div>
-        <ul className="space-y-2 text-mist-300">
+        <ul className={cn('space-y-2 leading-relaxed', isLight ? 'text-[#686252] font-medium' : 'text-mist-300')}>
           {(policy.operationalAuthority ?? policy.canDo ?? []).map((action, idx) => (
-            <li key={idx} className="flex items-start gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
+            <li key={idx} className="flex items-start gap-2.5">
+              <span className={cn('h-1.5 w-1.5 rounded-full mt-1.5 shrink-0', isLight ? 'bg-[#353229]' : 'bg-emerald-400')} />
               <span>{action}</span>
             </li>
           ))}
-          <li className="flex items-start gap-2">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
+          <li className="flex items-start gap-2.5">
+            <span className={cn('h-1.5 w-1.5 rounded-full mt-1.5 shrink-0', isLight ? 'bg-[#353229]' : 'bg-emerald-400')} />
             <span>Self-claim eligible unassigned department tasks across Floors 1–5 before supervisor assignment.</span>
           </li>
-          <li className="flex items-start gap-2">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
-            <span>Submit task reassignment requests with documented reason to Supervisor Meera Nambiar.</span>
+          <li className="flex items-start gap-2.5">
+            <span className={cn('h-1.5 w-1.5 rounded-full mt-1.5 shrink-0', isLight ? 'bg-[#353229]' : 'bg-emerald-400')} />
+            <span>Submit task reassignment requests with documented reason to your department supervisor.</span>
           </li>
-          <li className="flex items-start gap-2">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
+          <li className="flex items-start gap-2.5">
+            <span className={cn('h-1.5 w-1.5 rounded-full mt-1.5 shrink-0', isLight ? 'bg-[#353229]' : 'bg-emerald-400')} />
             <span>Attach photo proof for turnover readiness and maintenance completions.</span>
           </li>
         </ul>
       </div>
 
       {/* Strict Negative Boundaries: What You Cannot Do */}
-      <div className="rounded-2xl border border-rose-500/30 bg-rose-500/[0.05] p-4 space-y-3">
-        <div className="flex items-center gap-2 text-rose-400 font-bold">
-          <AlertTriangle className="h-4 w-4" />
-          <h3 className="text-white font-semibold">Strict Negative Boundaries (Escalation Required)</h3>
+      <div
+        className={cn(
+          'rounded-3xl border p-4 sm:p-5 space-y-3 transition-colors',
+          isLight
+            ? 'border-[#e7e2d7] bg-[#ffffff] shadow-[0_4px_18px_rgba(53,50,41,0.04)]'
+            : 'border-rose-500/30 bg-rose-500/[0.05]',
+        )}
+      >
+        <div className="flex items-center gap-2 font-bold">
+          <AlertTriangle className={cn('h-4 w-4', isLight ? 'text-rose-700' : 'text-rose-400')} />
+          <h3 className={cn('font-bold text-xs sm:text-sm', isLight ? 'text-[#353229]' : 'text-white')}>
+            Strict Negative Boundaries (Escalation Required)
+          </h3>
         </div>
-        <ul className="space-y-2 text-rose-200/90">
+        <ul className={cn('space-y-2 leading-relaxed', isLight ? 'text-[#686252] font-medium' : 'text-rose-200/90')}>
           {(policy.negativeBoundaries ?? policy.cannotDo ?? []).map((boundary, idx) => (
-            <li key={idx} className="flex items-start gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-rose-400 mt-1.5 shrink-0" />
+            <li key={idx} className="flex items-start gap-2.5">
+              <span className={cn('h-1.5 w-1.5 rounded-full mt-1.5 shrink-0', isLight ? 'bg-rose-600' : 'bg-rose-400')} />
               <span>{boundary}</span>
             </li>
           ))}
-          <li className="flex items-start gap-2">
-            <span className="h-1.5 w-1.5 rounded-full bg-rose-400 mt-1.5 shrink-0" />
+          <li className="flex items-start gap-2.5">
+            <span className={cn('h-1.5 w-1.5 rounded-full mt-1.5 shrink-0', isLight ? 'bg-rose-600' : 'bg-rose-400')} />
             <span>Never override a guest Do Not Disturb (DND) without direct Supervisor instruction.</span>
           </li>
-          <li className="flex items-start gap-2">
-            <span className="h-1.5 w-1.5 rounded-full bg-rose-400 mt-1.5 shrink-0" />
+          <li className="flex items-start gap-2.5">
+            <span className={cn('h-1.5 w-1.5 rounded-full mt-1.5 shrink-0', isLight ? 'bg-rose-600' : 'bg-rose-400')} />
             <span>Cannot approve guest compensation, folio discounts, or refunds (Escalate to Duty Manager).</span>
           </li>
-          <li className="flex items-start gap-2">
-            <span className="h-1.5 w-1.5 rounded-full bg-rose-400 mt-1.5 shrink-0" />
-            <span>Cannot certify final room turnover inspection (Supervisor QA approval required).</span>
+          <li className="flex items-start gap-2.5">
+            <span className={cn('h-1.5 w-1.5 rounded-full mt-1.5 shrink-0', isLight ? 'bg-rose-600' : 'bg-rose-400')} />
+            <span>Cannot self-certify completed work (Supervisor inspection approval required).</span>
           </li>
         </ul>
       </div>
 
-      {/* Escalation Pathways */}
-      <div className="rounded-2xl border border-amber-400/20 bg-amber-400/[0.04] p-4 space-y-3">
-        <div className="flex items-center gap-2 text-amber-300 font-bold">
-          <PhoneCall className="h-4 w-4" />
-          <h3 className="text-white font-semibold">Escalation Guidance & Contacts</h3>
+      {/* Escalation Guidance & Contacts */}
+      <div
+        className={cn(
+          'rounded-3xl border p-4 sm:p-5 space-y-3 transition-colors',
+          isLight
+            ? 'border-[#e7e2d7] bg-[#ffffff] shadow-[0_4px_18px_rgba(53,50,41,0.04)]'
+            : 'border-amber-400/20 bg-amber-400/[0.04]',
+        )}
+      >
+        <div className="flex items-center gap-2 font-bold">
+          <PhoneCall className={cn('h-4 w-4', isLight ? 'text-[#353229]' : 'text-amber-300')} />
+          <h3 className={cn('font-bold text-xs sm:text-sm', isLight ? 'text-[#353229]' : 'text-white')}>
+            Escalation Guidance & Contacts
+          </h3>
         </div>
-        <div className="space-y-2 text-mist-300">
-          <div className="p-2.5 rounded-xl border border-white/10 bg-white/[0.02] flex items-center justify-between">
+        <div className="space-y-2">
+          <div
+            className={cn(
+              'p-3 rounded-2xl border flex items-center justify-between gap-3',
+              isLight ? 'border-[#e7e2d7] bg-[#fbfaf7]' : 'border-white/10 bg-white/[0.02]',
+            )}
+          >
             <div>
-              <span className="font-semibold text-white block">Combined Dispatcher / Supervisor</span>
-              <span className="text-[11px] text-mist-400">Meera Nambiar · Operational Blockers & Reassignments</span>
+              <span className={cn('font-bold block text-xs', isLight ? 'text-[#353229]' : 'text-white')}>
+                Combined Dispatcher / Supervisor
+              </span>
+              <span className={cn('text-[11px]', isLight ? 'text-[#686252]' : 'text-mist-400')}>
+                Operational Blockers, Clean Supplies & Reassignments
+              </span>
             </div>
-            <span className="font-mono text-emerald-400 font-bold">Radio Ch 3 / Ext 4020</span>
+            <span
+              className={cn(
+                'font-mono font-bold text-xs shrink-0 px-2.5 py-1 rounded-xl border',
+                isLight ? 'bg-[#f6f3ec] text-[#353229] border-[#e7e2d7]' : 'text-emerald-400 border-transparent',
+              )}
+            >
+              Radio Ch 3 / Ext 4020
+            </span>
           </div>
 
-          <div className="p-2.5 rounded-xl border border-white/10 bg-white/[0.02] flex items-center justify-between">
+          <div
+            className={cn(
+              'p-3 rounded-2xl border flex items-center justify-between gap-3',
+              isLight ? 'border-[#e7e2d7] bg-[#fbfaf7]' : 'border-white/10 bg-white/[0.02]',
+            )}
+          >
             <div>
-              <span className="font-semibold text-white block">Duty Manager</span>
-              <span className="text-[11px] text-mist-400">Marcus Vance · Guest Disputes & VIP Escalations</span>
+              <span className={cn('font-bold block text-xs', isLight ? 'text-[#353229]' : 'text-white')}>
+                Duty Manager
+              </span>
+              <span className={cn('text-[11px]', isLight ? 'text-[#686252]' : 'text-mist-400')}>
+                Guest Disputes, VIP Requests & Policy Escalations
+              </span>
             </div>
-            <span className="font-mono text-amber-300 font-bold">Ext 9999</span>
+            <span
+              className={cn(
+                'font-mono font-bold text-xs shrink-0 px-2.5 py-1 rounded-xl border',
+                isLight ? 'bg-[#f6f3ec] text-[#353229] border-[#e7e2d7]' : 'text-amber-300 border-transparent',
+              )}
+            >
+              Ext 9999
+            </span>
           </div>
 
-          <div className="p-2.5 rounded-xl border border-white/10 bg-white/[0.02] flex items-center justify-between">
+          <div
+            className={cn(
+              'p-3 rounded-2xl border flex items-center justify-between gap-3',
+              isLight ? 'border-[#e7e2d7] bg-[#fbfaf7]' : 'border-white/10 bg-white/[0.02]',
+            )}
+          >
             <div>
-              <span className="font-semibold text-white block">Security & Life Safety</span>
-              <span className="text-[11px] text-mist-400">Immediate Hazard / Physical Safety Concern</span>
+              <span className={cn('font-bold block text-xs', isLight ? 'text-[#353229]' : 'text-white')}>
+                Security & Life Safety
+              </span>
+              <span className={cn('text-[11px]', isLight ? 'text-[#686252]' : 'text-mist-400')}>
+                Immediate Hazard, Medical or Physical Safety Concern
+              </span>
             </div>
-            <span className="font-mono text-rose-400 font-bold">Ext 0000 / Emergency</span>
+            <span
+              className={cn(
+                'font-mono font-bold text-xs shrink-0 px-2.5 py-1 rounded-xl border',
+                isLight ? 'bg-rose-50 text-rose-800 border-rose-200' : 'text-rose-400 border-transparent',
+              )}
+            >
+              Ext 0000 / Emergency
+            </span>
           </div>
         </div>
       </div>
 
       {/* Department Standard SLAs */}
-      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 space-y-3">
-        <div className="flex items-center gap-2 text-mist-200 font-bold">
-          <Clock className="h-4 w-4 text-emerald-400" />
-          <h3 className="text-white font-semibold">Service Standard SLAs</h3>
+      <div
+        className={cn(
+          'rounded-3xl border p-4 sm:p-5 space-y-3 transition-colors',
+          isLight
+            ? 'border-[#e7e2d7] bg-[#ffffff] shadow-[0_4px_18px_rgba(53,50,41,0.04)]'
+            : 'border-white/10 bg-white/[0.03]',
+        )}
+      >
+        <div className="flex items-center gap-2 font-bold">
+          <Clock className={cn('h-4 w-4', isLight ? 'text-[#353229]' : 'text-emerald-400')} />
+          <h3 className={cn('font-bold text-xs sm:text-sm', isLight ? 'text-[#353229]' : 'text-white')}>
+            Service Standard SLAs
+          </h3>
         </div>
         <div className="space-y-2">
           {hkServicePolicies.map((p) => (
-            <div key={p.id} className="p-2.5 rounded-xl border border-white/5 bg-white/[0.02]">
+            <div
+              key={p.id}
+              className={cn(
+                'p-3 rounded-2xl border transition-colors',
+                isLight
+                  ? 'border-[#e7e2d7] bg-[#fbfaf7]'
+                  : 'border-white/5 bg-white/[0.02]',
+              )}
+            >
               <div className="flex items-center justify-between">
-                <span className="font-semibold text-white">{p.title}</span>
+                <span className={cn('font-bold text-xs', isLight ? 'text-[#353229]' : 'text-white')}>{p.title}</span>
                 {p.configured ? (
-                  <span className="text-[10px] text-emerald-300 font-semibold">Configured</span>
+                  <span
+                    className={cn(
+                      'text-[10px] font-semibold px-2 py-0.5 rounded-full border',
+                      isLight ? 'bg-[#f6f3ec] text-[#353229] border-[#e7e2d7]' : 'text-emerald-300 border-transparent',
+                    )}
+                  >
+                    Configured
+                  </span>
                 ) : (
-                  <span className="text-[10px] text-amber-300 italic">Unconfigured</span>
+                  <span
+                    className={cn(
+                      'text-[10px] italic px-2 py-0.5 rounded-full border',
+                      isLight ? 'bg-amber-50 text-amber-800 border-amber-200' : 'text-amber-300 border-transparent',
+                    )}
+                  >
+                    Unconfigured
+                  </span>
                 )}
               </div>
-              <p className="text-[11px] text-mist-400 mt-1">{p.summary ?? p.policySummary}</p>
+              <p className={cn('text-[11px] mt-1 leading-relaxed', isLight ? 'text-[#686252]' : 'text-mist-400')}>
+                {p.summary ?? p.policySummary}
+              </p>
             </div>
           ))}
         </div>

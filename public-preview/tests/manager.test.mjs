@@ -1,12 +1,35 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MANAGER_DEPARTMENTS, applyManagerCommand, departmentId, ensureManagerState, managerTasks, managerInspections, managerNotifications, reviewManagerEscalation, managerDepartmentFromEmail } from '../src/lib/manager-domain.ts';
+import { MANAGER_DEPARTMENTS, applyManagerCommand, departmentId, ensureManagerState, managerTasks, managerInspections, managerNotifications, managerSafetyAlerts, reviewManagerEscalation, managerDepartmentFromEmail } from '../src/lib/manager-domain.ts';
 import { INSPECTION_OPTIONS, managerComplaints, managerRepairs, medicalReminders, reviewDepartmentInspection, managerOrders } from '../src/lib/manager-workflows.ts';
 
 function fixture(department = 'housekeeping') {
   return ensureManagerState({ persona: 'department_manager', managerDepartment: department, staffAccounts: [], inspections: [], notifications: [], auditTrail: [], items: Object.fromEntries(['task_fulfiller', 'department_dispatcher', 'department_supervisor', 'department_dispatcher_supervisor', 'department_manager', 'front_desk_coordinator', 'financial_operator', 'security_responder', 'executive_viewer', 'general_manager', 'platform_admin'].map(r => [r, []])) });
 }
 const command = (s, c, id = 'test-command') => applyManagerCommand(s, c, id, '2026-11-04T12:00:00.000Z');
+
+test('all manager inboxes show published staff safety alerts without drafts or duplicate broadcast notifications', () => {
+  const state = fixture();
+  state.safetyAlerts = [
+    { id: 'past', status: 'resolved', broadcastAt: 'Today, 08:00', broadcastScope: 'hotel_wide' },
+    { id: 'staff', status: 'broadcast_active', broadcastScope: 'all_staff', priority: 'warning' },
+    { id: 'hotel', status: 'broadcast_active', broadcastScope: 'hotel_wide', priority: 'urgent' },
+    { id: 'security', status: 'broadcast_active', broadcastScope: 'security_only' },
+    { id: 'draft', status: 'draft_pending_validation', broadcastScope: 'all_staff' },
+    { id: 'pending', status: 'validated_pending_approval', broadcastScope: 'all_staff' },
+    { id: 'approved', status: 'approved_ready_broadcast', broadcastScope: 'all_staff' },
+    { id: 'not-broadcast', status: 'resolved', broadcastScope: 'hotel_wide' },
+  ];
+  for (const department of MANAGER_DEPARTMENTS) {
+    state.managerDepartment = department.id;
+    state.notifications.push(
+      { id: department.id, roleId: 'department_manager', department: department.name, title: 'Task assigned', read: false },
+      { id: `${department.id}-broadcast`, roleId: 'department_manager', department: department.name, title: '🚨 SAFETY ALERT BROADCAST: Test alert', read: false },
+    );
+    assert.deepEqual(managerSafetyAlerts(state).map(alert => alert.id), ['hotel', 'staff', 'past']);
+    assert.deepEqual(managerNotifications(state, department.id).map(notice => notice.id), [department.id]);
+  }
+});
 
 test('all four demo identities have unique email addresses and department IDs', () => {
   assert.equal(MANAGER_DEPARTMENTS.length, 4);

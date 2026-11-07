@@ -169,7 +169,7 @@ export function SecurityApp() {
   useEffect(() => {
     const lenis = new Lenis({
       duration: 1.15,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       smoothWheel: true,
       touchMultiplier: 1.5,
     });
@@ -245,7 +245,6 @@ export function SecurityApp() {
       { opacity: 1, x: 0, duration: 0.5, delay: 0.3, ease: 'power2.out' }
     );
   }, [tab]);
-
   // Audio siren trigger when critical or new incident arrives
   const isSoundOn = state.soundEnabled ?? true;
   const items = state.items.security_responder ?? [];
