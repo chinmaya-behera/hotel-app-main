@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import './portal-login.css';
@@ -275,6 +275,19 @@ export function PortalLoginView() {
   const [previewFulfillerDept, setPreviewFulfillerDept] = useState<FulfillerDeptKey>('housekeeping');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const dispatcherMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dispatcherMenuRef.current && !dispatcherMenuRef.current.contains(event.target as Node)) {
+        setDispatcherDropdownOpen(false);
+      }
+    }
+    if (dispatcherDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [dispatcherDropdownOpen]);
 
   const isLight = state.theme === 'light';
 
@@ -377,7 +390,8 @@ export function PortalLoginView() {
     setEmail(dept.email);
     setPassword(dept.pass);
     setActiveDispatcherDept(dept.id);
-    showToast(`Loaded ${dept.name} Dispatcher`);
+    setDispatcherDropdownOpen(false);
+    showToast(`Loaded ${dept.name} Supervisor`);
   };
 
   const handleReset = () => {
@@ -823,10 +837,12 @@ export function PortalLoginView() {
                   const Icon = role.icon;
 
                   return (
-                    <React.Fragment key={role.id}>
+                    <div key={role.id} className="relative" ref={isDispatcher ? dispatcherMenuRef : undefined}>
                       <button
                         type="button"
                         onClick={() => handleSelectRole(role)}
+                        aria-expanded={isManager ? managerDropdownOpen : isDispatcher ? dispatcherDropdownOpen : undefined}
+                        aria-controls={isManager ? 'manager-preview-department' : undefined}
                         className={`w-full text-left flex items-center justify-between p-3 sm:p-3.5 rounded-xl border transition-all duration-150 cursor-pointer portal-role-btn ${
                           isSelected
                             ? 'portal-role-selected ' +
@@ -842,7 +858,17 @@ export function PortalLoginView() {
                           <div
                             className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br ${role.color} text-white flex items-center justify-center flex-shrink-0 shadow-sm`}
                           >
-                            <Icon className="w-4.5 h-4.5" />
+                            <Icon className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+                          </div>
+                          <div className="min-w-0">
+                            <span className={`text-xs sm:text-sm block truncate ${isSelected && isLight ? 'font-bold text-slate-950' : 'font-semibold'}`}>
+                              {isDispatcher && isSelected ? `${selectedDept} Supervisor` : role.name}
+                            </span>
+                            {isDispatcher && (
+                              <span className="text-[10px] text-amber-500 dark:text-amber-300 font-bold block truncate">
+                                • {isSelected ? `${selectedDept}` : 'Select Department'}
+                              </span>
+                            )}
                           </div>
                           <span className="text-xs sm:text-[13.5px] font-medium truncate">
                             {role.name}
@@ -866,45 +892,61 @@ export function PortalLoginView() {
                         </div>
                       </button>
 
-                      {/* Dispatcher minimal department options: ONLY name with button */}
+                      {isManager && managerDropdownOpen && (
+                        <label className={`block mt-2 rounded-xl border p-3 text-xs ${isLight ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-[#0c1424] border-white/10 text-slate-300'}`}>
+                          Preview department
+                          <select
+                            id="manager-preview-department"
+                            aria-label="Manager preview department"
+                            value={previewDepartment}
+                            onChange={event => handleSelectManagerDept(event.target.value as ManagerDepartmentId)}
+                            className={`mt-2 w-full rounded-lg border px-3 py-2.5 text-xs ${isLight ? 'bg-white border-slate-300 text-slate-900' : 'bg-[#131e30] border-slate-600 text-slate-100'}`}
+                          >
+                            {MANAGER_DEPARTMENTS.map(department => <option key={department.id} value={department.id}>{department.name}</option>)}
+                          </select>
+                        </label>
+                      )}
+
+                      {/* Pure Dropdown Menu with Department Name Supervisor */}
                       {isDispatcher && dispatcherDropdownOpen && (
                         <div
-                          className={`col-span-full p-3 rounded-xl border animate-in fade-in duration-200 portal-subdept-container ${
+                          className={`absolute top-full left-0 right-0 mt-2 z-50 rounded-2xl border p-2 shadow-2xl transition-all duration-150 ${
                             isLight
-                              ? 'bg-slate-100/90 border-slate-200/80'
-                              : 'bg-[#070d18]/90 border-white/10'
+                              ? 'bg-[#ffffff] border-slate-200/90 shadow-2xl shadow-slate-300/60 text-slate-900'
+                              : 'bg-[#0c1424] backdrop-blur-2xl border-white/10 shadow-2xl shadow-black/80 text-white'
                           }`}
                         >
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          <div className="space-y-1.5">
                             {DISPATCHER_DEPARTMENTS.map((dept) => {
+                              const isDeptActive = selectedDept === dept.id && isSelected;
                               const DeptIcon = dept.icon;
-                              const isDeptActive = isSelected && selectedDept === dept.id;
                               return (
                                 <button
                                   type="button"
                                   key={dept.id}
                                   onClick={() => handleSelectDepartment(dept)}
-                                  className={`w-full text-left flex items-center justify-between p-2.5 sm:p-3 rounded-xl border transition-all text-xs sm:text-[13px] font-medium cursor-pointer portal-subdept-btn ${
+                                  className={`w-full text-left flex items-center justify-between p-2.5 sm:p-3 rounded-xl border transition-all duration-150 cursor-pointer ${
                                     isDeptActive
-                                      ? 'portal-subdept-active ' +
-                                        (isLight
-                                          ? 'bg-amber-400/15 border-amber-400/80 text-slate-950'
-                                          : 'bg-amber-400/10 border-amber-400/70 text-white')
+                                      ? isLight
+                                        ? 'bg-amber-50/90 border-2 border-amber-500 text-slate-950 ring-2 ring-amber-400/30 shadow-md font-bold'
+                                        : 'bg-amber-400/10 border-amber-400/70 text-white ring-1 ring-amber-400/40 shadow-sm font-bold'
                                       : isLight
-                                      ? 'bg-[#ffffff] border-slate-200/80 hover:border-slate-300 text-slate-700 shadow-2xs'
-                                      : 'bg-white/[0.04] border-white/5 hover:border-white/20 text-slate-300'
+                                      ? 'bg-slate-50/90 border-slate-200 hover:bg-[#ffffff] hover:border-slate-300 text-slate-800 shadow-xs hover:shadow-sm font-semibold'
+                                      : 'bg-white/[0.03] border-white/5 hover:border-white/20 text-slate-300 hover:text-white font-semibold'
                                   }`}
                                 >
                                   <div className="flex items-center gap-2.5 min-w-0">
                                     <div
-                                      className={`w-7 h-7 rounded-lg bg-gradient-to-br ${dept.color} text-white flex items-center justify-center flex-shrink-0 shadow-xs`}
+                                      className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br ${dept.color} text-white flex items-center justify-center shrink-0 shadow-xs`}
                                     >
-                                      <DeptIcon className="w-3.5 h-3.5" />
+                                      <DeptIcon className="w-4 h-4" />
                                     </div>
-                                    <span className="truncate">{dept.name}</span>
+                                    <span className="text-xs sm:text-sm truncate">
+                                      {dept.name} Supervisor
+                                    </span>
                                   </div>
                                   {isDeptActive && (
-                                    <Check className="w-4 h-4 text-amber-500 flex-shrink-0 ml-1.5" />
+                                    <Check className="w-4 h-4 text-amber-500 shrink-0 ml-2" />
                                   )}
                                 </button>
                               );
@@ -912,98 +954,7 @@ export function PortalLoginView() {
                           </div>
                         </div>
                       )}
-
-                      {/* Task Fulfiller minimal department options: ONLY name with button */}
-                      {isFulfiller && fulfillerDropdownOpen && (
-                        <div
-                          className={`col-span-full p-3 rounded-xl border animate-in fade-in duration-200 portal-subdept-container ${
-                            isLight
-                              ? 'bg-slate-100/90 border-slate-200/80'
-                              : 'bg-[#070d18]/90 border-white/10'
-                          }`}
-                        >
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                            {FULFILLER_DEPARTMENTS.map((fd) => {
-                              const profile = FULFILLER_PROFILES[fd.key];
-                              const isDeptActive = isSelected && previewFulfillerDept === fd.key;
-                              return (
-                                <button
-                                  type="button"
-                                  key={fd.key}
-                                  onClick={() => handleSelectFulfillerDept(fd.key)}
-                                  className={`w-full text-left flex items-center justify-between p-2.5 sm:p-3 rounded-xl border transition-all text-xs sm:text-[13px] font-medium cursor-pointer portal-subdept-btn ${
-                                    isDeptActive
-                                      ? 'portal-subdept-active ' +
-                                        (isLight
-                                          ? 'bg-amber-400/15 border-amber-400/80 text-slate-950'
-                                          : 'bg-amber-400/10 border-amber-400/70 text-white')
-                                      : isLight
-                                      ? 'bg-[#ffffff] border-slate-200/80 hover:border-slate-300 text-slate-700 shadow-2xs'
-                                      : 'bg-white/[0.04] border-white/5 hover:border-white/20 text-slate-300'
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-2.5 min-w-0">
-                                    <div
-                                      className={`w-7 h-7 rounded-lg bg-gradient-to-br ${profile.colorGradient} text-white flex items-center justify-center flex-shrink-0 shadow-xs`}
-                                    >
-                                      <ClipboardCheck className="w-3.5 h-3.5" />
-                                    </div>
-                                    <span className="truncate">{fd.name}</span>
-                                  </div>
-                                  {isDeptActive && (
-                                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0 ml-1.5" />
-                                  )}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Department Manager minimal department options: ONLY name with button */}
-                      {isManager && managerDropdownOpen && (
-                        <div
-                          className={`col-span-full p-3 rounded-xl border animate-in fade-in duration-200 portal-subdept-container ${
-                            isLight
-                              ? 'bg-slate-100/90 border-slate-200/80'
-                              : 'bg-[#070d18]/90 border-white/10'
-                          }`}
-                        >
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                            {MANAGER_DEPARTMENTS.map((d) => {
-                              const isDeptActive = isSelected && previewDepartment === d.id;
-                              return (
-                                <button
-                                  type="button"
-                                  key={d.id}
-                                  onClick={() => handleSelectManagerDept(d.id)}
-                                  className={`w-full text-left flex items-center justify-between p-2.5 sm:p-3 rounded-xl border transition-all text-xs sm:text-[13px] font-medium cursor-pointer portal-subdept-btn ${
-                                    isDeptActive
-                                      ? 'portal-subdept-active ' +
-                                        (isLight
-                                          ? 'bg-amber-400/15 border-amber-400/80 text-slate-950'
-                                          : 'bg-amber-400/10 border-amber-400/70 text-white')
-                                      : isLight
-                                      ? 'bg-[#ffffff] border-slate-200/80 hover:border-slate-300 text-slate-700 shadow-2xs'
-                                      : 'bg-white/[0.04] border-white/5 hover:border-white/20 text-slate-300'
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-2.5 min-w-0">
-                                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600 text-white flex items-center justify-center flex-shrink-0 shadow-xs">
-                                      <Gauge className="w-3.5 h-3.5" />
-                                    </div>
-                                    <span className="truncate">{d.name}</span>
-                                  </div>
-                                  {isDeptActive && (
-                                    <Check className="w-4 h-4 text-purple-400 flex-shrink-0 ml-1.5" />
-                                  )}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </React.Fragment>
+                    </div>
                   );
                 })}
               </div>

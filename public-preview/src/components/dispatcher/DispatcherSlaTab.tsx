@@ -22,30 +22,43 @@ import {
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
 import { EscalateTaskModal } from '@/components/dispatcher/EscalateTaskModal';
-import type { WorkItem } from '@/types/demo';
+import type { WorkItem, DispatcherDepartment } from '@/types/demo';
 
 interface DispatcherSlaTabProps {
   tasks?: WorkItem[];
+  department?: DispatcherDepartment;
 }
 
-export function DispatcherSlaTab({ tasks }: DispatcherSlaTabProps = {}) {
+export function DispatcherSlaTab({ tasks, department }: DispatcherSlaTabProps = {}) {
   const { state } = useDemo();
   const [escalateModalTask, setEscalateModalTask] = useState<WorkItem | null>(null);
 
   // Filters & View Mode
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedPriority, setSelectedPriority] = useState<string>('all');
-  const [selectedDept, setSelectedDept] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
 
   const allTasks = useMemo(() => {
     if (tasks) return tasks;
-    return [
+    let list = [
       ...(state.items.department_dispatcher_supervisor ?? []),
       ...(state.items.department_dispatcher ?? []),
     ].filter((t, i, arr) => arr.findIndex((x) => x.id === t.id) === i);
-  }, [tasks, state.items.department_dispatcher_supervisor, state.items.department_dispatcher]);
+
+    if (department) {
+      list = list.filter((t) => {
+        const d = (t.department || '').toLowerCase();
+        const cat = (t.category || '').toLowerCase();
+        if (department === 'Housekeeping') return d.includes('housekeeping') || cat === 'housekeeping';
+        if (department === 'Maintenance & Engineering') return d.includes('maintenance') || cat === 'maintenance' || d.includes('eng');
+        if (department === 'Food & Beverages') return d.includes('food') || cat === 'room_service' || d.includes('beverage') || cat === 'dining';
+        if (department === 'Wellness') return d.includes('wellness') || cat === 'wellness' || d.includes('spa');
+        return true;
+      });
+    }
+    return list;
+  }, [tasks, department, state.items.department_dispatcher_supervisor, state.items.department_dispatcher]);
 
   const managerTasks = state.items.department_manager ?? [];
 
@@ -87,15 +100,6 @@ export function DispatcherSlaTab({ tasks }: DispatcherSlaTabProps = {}) {
       // Priority filter
       if (selectedPriority !== 'all' && task.priority !== selectedPriority) return false;
 
-      // Department filter
-      if (selectedDept !== 'all') {
-        const d = (task.department || '').toLowerCase();
-        const cat = (task.category || '').toLowerCase();
-        if (selectedDept === 'housekeeping' && !d.includes('housekeeping') && cat !== 'housekeeping') return false;
-        if (selectedDept === 'maintenance' && !d.includes('maintenance') && cat !== 'maintenance') return false;
-        if (selectedDept === 'food' && !d.includes('food') && cat !== 'room_service') return false;
-      }
-
       // Search query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -108,7 +112,7 @@ export function DispatcherSlaTab({ tasks }: DispatcherSlaTabProps = {}) {
 
       return true;
     });
-  }, [allTasks, selectedStatus, selectedPriority, selectedDept, searchQuery]);
+  }, [allTasks, selectedStatus, selectedPriority, searchQuery]);
 
   // Overall metric counts
   const overdueCount = allTasks.filter((t) => t.status !== 'Completed' && getTaskSlaCategory(t) === 'overdue').length;
@@ -196,18 +200,6 @@ export function DispatcherSlaTab({ tasks }: DispatcherSlaTabProps = {}) {
             <option value="approaching">Approaching Deadline ({approachingCount})</option>
             <option value="on_track">On Track ({onTrackCount})</option>
             <option value="unconfigured">Unconfigured SLA ({unconfiguredCount})</option>
-          </select>
-
-          {/* Department Filter */}
-          <select
-            value={selectedDept}
-            onChange={(e) => setSelectedDept(e.target.value)}
-            className="rounded-xl border border-white/10 bg-ink-950 px-3 py-1.5 text-white focus:outline-none focus:border-amber-400"
-          >
-            <option value="all">All Departments</option>
-            <option value="housekeeping">Housekeeping</option>
-            <option value="maintenance">Maintenance & Engineering</option>
-            <option value="food">Food & Beverage / Room Service</option>
           </select>
 
           {/* Priority Filter */}
@@ -346,7 +338,6 @@ export function DispatcherSlaTab({ tasks }: DispatcherSlaTabProps = {}) {
                         {/* Task title */}
                         <td className="py-4 px-3 max-w-xs">
                           <p className="font-semibold text-white truncate">{task.title}</p>
-                          <p className="text-[11px] text-mist-400 truncate">{task.meta || task.description}</p>
                         </td>
 
                         {/* Department */}
@@ -480,9 +471,6 @@ export function DispatcherSlaTab({ tasks }: DispatcherSlaTabProps = {}) {
 
                     <div>
                       <h3 className="font-bold text-white text-sm line-clamp-1">{task.title}</h3>
-                      <p className="text-xs text-mist-400 line-clamp-2 mt-0.5">
-                        {task.meta || task.description}
-                      </p>
                     </div>
 
                     {/* SLA Status & Target Banner */}

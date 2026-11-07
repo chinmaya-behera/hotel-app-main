@@ -258,7 +258,7 @@ export function DispatcherSupervisorOverviewTab({
 
         {/* Metric 8: Auto-Assign & Escalations */}
         <div
-          onClick={() => onNavigateTab('routing')}
+          onClick={() => onNavigateTab('queue')}
           className="rounded-3xl border border-white/10 bg-ink-900/90 p-4 backdrop-blur-xl shadow-lg hover:border-white/20 transition cursor-pointer group"
         >
           <div className="flex items-center justify-between text-mist-400 mb-2">
@@ -273,8 +273,9 @@ export function DispatcherSupervisorOverviewTab({
         </div>
       </div>
 
-      {/* Room Readiness Pipeline Strip (Supervisor) */}
-      <div className="rounded-3xl border border-white/10 bg-ink-900/90 p-5 backdrop-blur-xl shadow-xl space-y-3">
+      {/* Room Readiness Pipeline Strip (Supervisor - Housekeeping & Maintenance only) */}
+      {(activeDept === 'Housekeeping' || activeDept === 'Maintenance & Engineering') && (
+        <div className="rounded-3xl border border-white/10 bg-ink-900/90 p-5 backdrop-blur-xl shadow-xl space-y-3">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-sm font-bold font-display text-white flex items-center gap-2">
@@ -300,14 +301,18 @@ export function DispatcherSupervisorOverviewTab({
             onClick={() => onNavigateTab('rooms')}
             className="p-3 rounded-2xl bg-rose-500/[0.06] border border-rose-500/20 cursor-pointer hover:border-rose-500/40 transition"
           >
-            <p className="text-[10px] uppercase font-bold text-rose-300">Dirty / Turnover</p>
+            <p className="text-[10px] uppercase font-bold text-rose-300">
+              {activeDept === 'Maintenance & Engineering' ? 'Damaged / Need Repair' : 'Dirty / Turnover'}
+            </p>
             <p className="text-xl font-bold font-mono text-white mt-0.5">{dirtyRooms} Rooms</p>
           </div>
           <div
             onClick={() => onNavigateTab('rooms')}
             className="p-3 rounded-2xl bg-amber-500/[0.06] border border-amber-500/20 cursor-pointer hover:border-amber-500/40 transition"
           >
-            <p className="text-[10px] uppercase font-bold text-amber-300">Cleaning In Progress</p>
+            <p className="text-[10px] uppercase font-bold text-amber-300">
+              {activeDept === 'Maintenance & Engineering' ? 'Repairing In Progress' : 'Cleaning In Progress'}
+            </p>
             <p className="text-xl font-bold font-mono text-white mt-0.5">{cleaningRooms} Rooms</p>
           </div>
           <div
@@ -328,6 +333,7 @@ export function DispatcherSupervisorOverviewTab({
           </div>
         </div>
       </div>
+      )}
 
       {/* Urgent Attention Queue (Dispatcher) */}
       {urgentItems.length > 0 && (
@@ -725,7 +731,7 @@ export function DispatcherSupervisorOverviewTab({
                 <div className="flex items-center gap-2.5">
                   <Flame className="h-4 w-4 text-rose-300" />
                   <div>
-                    <p className="text-xs font-bold text-rose-200">Escalate to Duty Manager</p>
+                    <p className="text-xs font-bold text-rose-200">Escalate to Department Manager</p>
                     <p className="text-[11px] text-rose-300/70">Raise blocker or safety issue</p>
                   </div>
                 </div>
