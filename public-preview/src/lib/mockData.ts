@@ -2539,12 +2539,13 @@ export const seedItems: Record<RoleId, WorkItem[]> = {
     { id: 'adm-3', title: 'Temporary support access · 4 hours', meta: 'PMS vendor support · time-boxed', status: 'Pending' },
   ],
   department_dispatcher_supervisor: [],
+  department_dispatcher: [],
   general_manager: [],
 };
 
 // Populate merged and renamed role items
 seedItems.department_dispatcher_supervisor = [
-  ...seedItems.department_dispatcher,
+  ...(seedItems.department_dispatcher ?? []),
   ...seedItems.department_supervisor,
 ];
 seedItems.general_manager = [...seedItems.executive_viewer];

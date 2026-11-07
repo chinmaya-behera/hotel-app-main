@@ -83,7 +83,15 @@ export interface WorkItem {
     guestName?: string;
     reviewedAt?: string;
     tags?: string[];
+    submittedAt?: string;
   };
+  dishFeedback?: Record<string, { rating: number; comment?: string; submittedAt: string }>;
+  orderedAt?: string;
+  requestedServiceAt?: string;
+  demoSource?: 'dining-showcase';
+  repairCategory?: string;
+  customDiningId?: string;
+  compensationRefundId?: string;
   orderLines?: OrderLine[];
   /** accountable owner of a guest case (Front Desk owns cases; departments own routed tasks) */
   owner?: string;
@@ -466,6 +474,8 @@ export interface InspectionCheckItem {
 }
 
 export interface SupervisorInspection {
+  batchId?: string;
+  typeLabel?: string;
   id: string;
   taskId?: string;
   roomNumber: string;
@@ -500,7 +510,7 @@ export interface SupervisorInspection {
   scheduledTime?: string;
   createdAt?: string;
   /** Inspection scope: particular room, entire floor, or property-wide */
-  scope?: 'single_room' | 'floor' | 'all_rooms';
+  scope?: 'single_room' | 'room' | 'floor' | 'all_rooms' | 'all';
   scopeLabel?: string;
   affectedRooms?: string[];
 }
@@ -691,7 +701,6 @@ export interface ComplaintCase {
   compApplied: boolean;
   createdAt: string;
   managerItemId?: string;
-  department?: DispatcherDepartment;
   assignedTo?: string;
   managerNotes?: string;
   repeatOf?: string;

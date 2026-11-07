@@ -369,6 +369,7 @@ interface DemoApi {
     floor?: number;
     type: SupervisorInspection['type'];
     priority?: 'normal' | 'vip' | 'urgent';
+    scheduledTime?: string;
     instructions: string;
     initiatedBy: string;
     initiatedRole: RoleId;
@@ -5463,6 +5464,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         completedChecklistCount: 0,
         totalChecklistCount: 15,
         scheduledTime: input.scheduledTime || timestamp,
+        completedAt: '',
         createdAt: timestamp,
         instructions: input.instructions,
         initiatedBy: input.initiatedBy,

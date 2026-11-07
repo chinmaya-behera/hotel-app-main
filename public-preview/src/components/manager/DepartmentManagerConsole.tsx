@@ -25,6 +25,22 @@ const NAV = [
   ['notifications', 'Notifications', Bell], ['profile', 'Profile', UserRound],
 ] as const satisfies readonly (readonly [string, string, LucideIcon])[];
 type Tab = typeof NAV[number][0];
+
+const VIEW_DESCRIPTIONS: Partial<Record<Tab, string>> = {
+  complaints: 'Track guest concerns, assign ownership and keep every response on record.',
+  repairs: 'Coordinate hotel-wide repairs by trade, location and progress.',
+  orders: 'Explore meal periods, cuisine demand, dish performance and guest feedback.',
+  tasks: 'Find department requests, review ownership and follow work through to completion.',
+  inspections: 'Launch quality checks, delegate to a supervisor and review inspection progress.',
+  recovery: 'Resolve supervisor escalations or request a General Manager decision with context.',
+  history: 'A clear record of completed work and updates. Open any record for its full history.',
+  staff: 'Plan the week, check coverage and balance work across your team.',
+  policies: 'Keep department procedures, service standards and escalation ownership in one place.',
+  handover: 'Give the next shift a clear briefing on open work and priority actions.',
+  analytics: 'Monitor service commitments, spot risks and review measured performance.',
+  notifications: 'Review department updates and time-sensitive follow-ups.',
+  profile: 'Manage your display details and review your department access.',
+};
 type Modal = { kind: 'inspection'; inspection?: SupervisorInspection } | { kind: 'recovery'; task: WorkItem } | { kind: 'policy' } | { kind: 'handover' } | null;
 const dateLabel = (value?: string) => { if (!value) return 'Not recorded'; const date = new Date(value); return Number.isNaN(date.getTime()) ? value : date.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }); };
 const statusClass = (status: string) => /resolved|completed|passed|acknowledged/i.test(status) ? 'dm-status good' : /escalat|blocked|reopened/i.test(status) ? 'dm-status urgent' : 'dm-status';
@@ -63,7 +79,7 @@ export function DepartmentManagerConsole() {
   const pending = inspections.filter(i => i.status === 'pending');
   const completed = tasks.filter(t => !isOpen(t.status));
   const visibleTasks = tasks.filter(t => (status === 'all' || (status === 'open' ? isOpen(t.status) : !isOpen(t.status))) && `${t.title} ${t.ref} ${t.room} ${t.assignee}`.toLowerCase().includes(search.toLowerCase()));
-  const navigate = (next: Tab) => { setHistorySearch(''); setTab(next); setSearch(''); setStatus('all'); setSidebarOpen(false); };
+  const navigate = (next: Tab) => { setHistorySearch(''); setTab(next); setSearch(''); setStatus('all'); setSidebarOpen(false); window.scrollTo(0, 0); };
   const openModal = (next: NonNullable<Modal>) => { setModal(next); dialog.current?.showModal(); };
   const closeModal = () => { dialog.current?.close(); setModal(null); };
   const title = tab === 'department' ? DESK_LABELS[d.id] : NAV.find(n => n[0] === tab)?.[1];
@@ -90,6 +106,7 @@ export function DepartmentManagerConsole() {
   if (!hydrated) return <div className="dm-loading" role="status"><span className="dm-monogram">G</span><p>Opening your department workspace…</p></div>;
 
   return <div className="dm-workspace" data-sidebar-open={sidebarOpen}>
+    <a className="dm-skip-link" href="#manager-content">Skip to workspace</a>
     {sidebarOpen && <button className="dm-nav-scrim" aria-label="Close navigation" onClick={() => setSidebarOpen(false)}/>}
     <aside className="dm-sidebar" id="manager-navigation">
       <div className="dm-sidebar-brand"><span className="dm-monogram">G</span><div><strong>THE GRAND ADP</strong><small>Manager workspace</small></div><button ref={navigationClose} className="dm-mobile-close dm-icon-button" aria-label="Close sidebar" onClick={() => setSidebarOpen(false)}><X size={18}/></button></div>
@@ -107,10 +124,10 @@ export function DepartmentManagerConsole() {
       <div className="dm-sidebar-footer"><button className="dm-user-button" onClick={() => navigate('profile')} aria-label="Open manager profile"><span className="dm-avatar">{person.split(' ').map(p => p[0]).slice(0, 2).join('')}</span><span><strong>{person}</strong><small>Department Manager</small></span></button><a href="/login" aria-label="Change demo account" title="Change demo account"><LogOut size={18}/></a></div>
     </aside>
 
-    <main className="dm-main" inert={sidebarOpen}>
+    <main className="dm-main" id="manager-content" tabIndex={-1} inert={sidebarOpen}>
       <header className="dm-topline"><div className="dm-breadcrumb"><button ref={navigationTrigger} className="dm-menu-toggle dm-icon-button" aria-label="Open navigation" aria-expanded={sidebarOpen} aria-controls="manager-navigation" onClick={() => setSidebarOpen(true)}><Menu size={20}/></button><span>{d.name}</span><ChevronRight size={14}/><strong>{title === 'Overview' ? 'Overview' : title}</strong></div><div className="dm-topline-tools"><span className="dm-live"><i/> Department access</span><button className="dm-icon-button" aria-label={state.theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'} title={state.theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'} onClick={() => setTheme(state.theme === 'light' ? 'dark' : 'light')}>{state.theme === 'light' ? <Moon size={18}/> : <Sun size={18}/>}</button><button className="dm-icon-button" aria-label={`Notifications, ${unread} unread`} onClick={() => navigate('notifications')}><Bell size={19}/>{unread > 0 && <b>{unread}</b>}</button><button className="dm-avatar" aria-label="View your profile" onClick={() => navigate('profile')}>{person.split(' ').map(p => p[0]).slice(0, 2).join('')}</button></div></header>
 
-      <div className="dm-page-heading"><div><p className="dm-eyebrow">DEPARTMENT OPERATIONS</p><h1>{title === 'Overview' ? `${d.name} overview` : title}</h1><p>{d.focus}</p></div><div className="dm-heading-actions">{tab === 'overview' ? <InspectionLauncher/> : <span className="dm-date"><CalendarDays size={16}/>{new Date().toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'})}</span>}</div></div>
+      <div className="dm-page-heading"><div><p className="dm-eyebrow">DEPARTMENT OPERATIONS</p><h1>{title === 'Overview' ? `${d.name} overview` : title}</h1><p>{VIEW_DESCRIPTIONS[tab] || d.focus}</p></div><div className="dm-heading-actions">{tab === 'overview' ? <InspectionLauncher/> : <span className="dm-date"><CalendarDays size={16}/>{new Date().toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'})}</span>}</div></div>
 
       {reminders.length > 0 && <div className="dm-followup-banner" role="status"><Bell size={18}/><span><strong>{reminders.length} medical follow-up{reminders.length === 1 ? '' : 's'} due</strong><small>Review the case history, record the outcome and acknowledge or reschedule the reminder.</small></span><button className="dm-small-button" onClick={() => navigate('department')}>Review cases</button></div>}
       {tab === 'department' && (d.id === 'wellness' ? <><MedicalCases now={now}/><DepartmentDesk onOpen={() => navigate('department')} onInspect={() => navigate('inspections')}/></> : d.id === 'food-beverages' ? <DiningKitchenMenu/> : <DepartmentDesk onOpen={() => navigate('department')} onInspect={() => navigate('inspections')}/>)}
@@ -141,9 +158,9 @@ export function DepartmentManagerConsole() {
         <section className="dm-panel"><div className="dm-panel-heading"><div><h2>Active requests</h2><p>The latest work across {d.name.toLowerCase()}.</p></div><button className="dm-text-button" onClick={() => navigate('tasks')}>All requests <ArrowUpRight size={15}/></button></div>{taskRows(active.slice(0,5))}</section>
       </>}
 
-      {tab === 'tasks' && <section className="dm-panel"><div className="dm-toolbar"><label className="dm-search"><Search size={16}/><input aria-label="Search department tasks" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search request, room or staff…"/></label><select aria-label="Filter task status" value={status} onChange={e => setStatus(e.target.value)}><option value="all">All requests</option><option value="open">Open requests</option><option value="complete">Completed requests</option></select></div>{taskRows(visibleTasks)}</section>}
+      {tab === 'tasks' && <section className="dm-panel"><div className="dm-toolbar"><label className="dm-search"><Search size={16}/><input aria-label="Search department tasks" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search request, room or staff…"/></label><select aria-label="Filter task status" value={status} onChange={e => setStatus(e.target.value)}><option value="all">All requests</option><option value="open">Open requests</option><option value="complete">Completed requests</option></select></div><div className="dm-results-summary"><span role="status">{visibleTasks.length} of {tasks.length} requests</span>{(search || status !== 'all') && <button className="dm-text-button" onClick={() => { setSearch(''); setStatus('all'); }}>Clear filters <X size={13}/></button>}</div>{taskRows(visibleTasks)}</section>}
 
-      {tab === 'inspections' && <section className="dm-panel"><div className="dm-panel-heading"><div><h2>Quality & inspection inbox</h2><p>Receive GM directives, assign your supervisors or create a department inspection.</p></div><InspectionLauncher/></div>{inspections.map(i => <article className="dm-record" key={i.id}><div className="dm-record-title"><h3>{i.roomNumber} · {i.roomType}</h3><span className={statusClass(i.status)}>{i.status}</span></div><p>{i.typeLabel || i.type.replaceAll('_', ' ')}{i.scope ? ` · ${i.scope === 'all' ? 'Hotel-wide sweep' : i.scope === 'floor' ? 'Floor sweep' : 'Single location'}` : ''}</p><p>{i.instructions || d.standard}</p><small>From {i.initiatedBy || 'Department supervisor'} · Assigned to {i.assignedSupervisorName || 'Unassigned'}</small>{i.status === 'pending' && <button className="dm-small-button" onClick={() => openModal({ kind: 'inspection', inspection: i })}>{i.assignedSupervisorId ? 'Reassign supervisor' : 'Assign supervisor'}</button>}</article>)}</section>}
+      {tab === 'inspections' && <section className="dm-panel"><div className="dm-panel-heading"><div><h2>Quality & inspection inbox</h2><p>Receive GM directives, assign your supervisors or create a department inspection.</p></div><InspectionLauncher/></div>{inspections.map(i => <article className="dm-record" key={i.id}><div className="dm-record-title"><h3>{i.roomNumber} · {i.roomType}</h3><span className={statusClass(i.status)}>{i.status}</span></div><p>{i.typeLabel || i.type.replaceAll('_', ' ')}{i.scope ? ` · ${(i.scope === 'all' || i.scope === 'all_rooms') ? 'Hotel-wide sweep' : i.scope === 'floor' ? 'Floor sweep' : 'Single location'}` : ''}</p><p>{i.instructions || d.standard}</p><small>From {i.initiatedBy || 'Department supervisor'} · Assigned to {i.assignedSupervisorName || 'Unassigned'}</small>{i.status === 'pending' && <button className="dm-small-button" onClick={() => openModal({ kind: 'inspection', inspection: i })}>{i.assignedSupervisorId ? 'Reassign supervisor' : 'Assign supervisor'}</button>}</article>)}</section>}
 
       {tab === 'recovery' && <section className="dm-panel"><div className="dm-panel-heading"><div><h2>Supervisor escalations & service recovery</h2><p>Record a resolution or send the case to the General Manager with context.</p></div></div>{taskRows(recovery)}</section>}
 

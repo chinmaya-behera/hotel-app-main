@@ -841,6 +841,8 @@ export function PortalLoginView() {
                       <button
                         type="button"
                         onClick={() => handleSelectRole(role)}
+                        aria-expanded={isManager ? managerDropdownOpen : isDispatcher ? dispatcherDropdownOpen : undefined}
+                        aria-controls={isManager ? 'manager-preview-department' : undefined}
                         className={`w-full text-left flex items-center justify-between p-3 sm:p-3.5 rounded-xl border transition-all duration-150 cursor-pointer portal-role-btn ${
                           isSelected
                             ? 'portal-role-selected ' +
@@ -890,6 +892,21 @@ export function PortalLoginView() {
                         </div>
                       </button>
 
+                      {isManager && managerDropdownOpen && (
+                        <label className={`block mt-2 rounded-xl border p-3 text-xs ${isLight ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-[#0c1424] border-white/10 text-slate-300'}`}>
+                          Preview department
+                          <select
+                            id="manager-preview-department"
+                            aria-label="Manager preview department"
+                            value={previewDepartment}
+                            onChange={event => handleSelectManagerDept(event.target.value as ManagerDepartmentId)}
+                            className={`mt-2 w-full rounded-lg border px-3 py-2.5 text-xs ${isLight ? 'bg-white border-slate-300 text-slate-900' : 'bg-[#131e30] border-slate-600 text-slate-100'}`}
+                          >
+                            {MANAGER_DEPARTMENTS.map(department => <option key={department.id} value={department.id}>{department.name}</option>)}
+                          </select>
+                        </label>
+                      )}
+
                       {/* Pure Dropdown Menu with Department Name Supervisor */}
                       {isDispatcher && dispatcherDropdownOpen && (
                         <div
@@ -903,7 +920,6 @@ export function PortalLoginView() {
                             {DISPATCHER_DEPARTMENTS.map((dept) => {
                               const isDeptActive = selectedDept === dept.id && isSelected;
                               const DeptIcon = dept.icon;
-                              const isDeptActive = isSelected && selectedDept === dept.id;
                               return (
                                 <button
                                   type="button"
