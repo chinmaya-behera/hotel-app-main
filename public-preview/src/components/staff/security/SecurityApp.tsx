@@ -90,7 +90,10 @@ const getPriorityWeight = (priority?: string) => {
   return 2;
 };
 
+const customLoggedPhotos: Record<string, string> = {};
+
 const getIncidentPhoto = (item: WorkItem) => {
+  if (customLoggedPhotos[item.id]) return customLoggedPhotos[item.id];
   if (item.incidentPhotoUrl) return item.incidentPhotoUrl;
   if (item.photoUrl) return item.photoUrl;
   if (item.securityReport?.photoUrl) return item.securityReport.photoUrl;
@@ -1275,7 +1278,12 @@ export function SecurityApp() {
       {/* Incident Detail Modal */}
       {selectedIncident && (
         <SecurityIncidentDetailModal
-          item={items.find((i) => i.id === selectedIncident.id) || selectedIncident}
+          item={{
+            ...(items.find((i) => i.id === selectedIncident.id) || selectedIncident),
+            incidentPhotoUrl:
+              customLoggedPhotos[selectedIncident.id] ||
+              (items.find((i) => i.id === selectedIncident.id) || selectedIncident).incidentPhotoUrl,
+          }}
           isOpen={!!selectedIncident}
           onClose={() => setSelectedIncident(null)}
           onAcknowledge={acknowledgeSecurityItem}
@@ -1293,7 +1301,18 @@ export function SecurityApp() {
           isOpen={showLogModal}
           onClose={() => setShowLogModal(false)}
           onSubmit={(inc) => {
-            createSecurityIncident(inc);
+            const photo = inc.incidentPhotoUrl || inc.photoUrl;
+            createSecurityIncident(inc as any);
+            if (photo) {
+              setTimeout(() => {
+                const latest = state.items.security_responder?.[0];
+                if (latest) {
+                  latest.incidentPhotoUrl = photo;
+                  latest.photoUrl = photo;
+                  customLoggedPhotos[latest.id] = photo;
+                }
+              }, 50);
+            }
             setShowLogModal(false);
           }}
         />
