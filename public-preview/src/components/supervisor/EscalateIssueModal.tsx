@@ -196,7 +196,7 @@ export function EscalateIssueModal({
               className="px-5 py-2 rounded-xl bg-gradient-to-r from-rose-500 to-amber-500 text-white text-xs font-bold hover:brightness-110 shadow-lg shadow-rose-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2"
             >
               <ArrowUpRight className="h-4 w-4" />
-              <span>Escalate to Duty Manager</span>
+              <span>Escalate to Department Manager</span>
             </button>
           </div>
         </form>

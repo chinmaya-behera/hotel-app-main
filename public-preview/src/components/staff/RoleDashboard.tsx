@@ -45,9 +45,15 @@ export function RoleDashboard({ roleId }: { roleId: RoleId }) {
     setPersona(roleId);
   }, [roleId, setPersona]);
 
-  // Mobile-first Security Responder app for Hotel Security Officers
+  // Security Responder console for Hotel Security Officers
   if (roleId === 'security_responder') {
-    return <SecurityApp />;
+    return (
+      <div className="department-manager-page warm-theme" data-theme={state.theme}>
+        <div className="dm-page-container">
+          <SecurityApp />
+        </div>
+      </div>
+    );
   }
 
   // Mobile-first dedicated Fulfiller app for Task Fulfillers (Attendants, Runners, Technicians)
@@ -63,7 +69,7 @@ export function RoleDashboard({ roleId }: { roleId: RoleId }) {
   ) {
     return (
       <div style={accentVars(role)} className="min-h-screen">
-        <TopBar active={roleId} />
+        <TopBar active={roleId} hideGestureButton />
         <main className="w-full max-w-[1720px] mx-auto px-2 sm:px-4 lg:px-6 pt-4 pb-20">
           <DispatcherSupervisorConsole />
         </main>

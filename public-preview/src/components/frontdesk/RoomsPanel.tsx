@@ -27,6 +27,12 @@ import {
   AlertTriangle,
   RotateCcw,
   User,
+  Layers,
+  Phone,
+  Mail,
+  Calendar,
+  Hash,
+  CreditCard,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -51,38 +57,62 @@ export type StatusFilterId =
   | 'dirty_cleaning'
   | 'checkin'
   | 'checkout'
+  | 'post_departure'
   | 'dnd';
 
-interface RoomTileData {
+export type CleaningSubfilter = 'all' | 'guest_request' | 'cycle' | 'post_departure';
+
+export interface RoomTileData {
   no: string;
   floor: number;
   readiness: Readiness;
   occupied: boolean;
   dnd: boolean;
-  typeTag: string; // DLX, STE, TWN, KNG, PRES
+  typeTag: string; // DLX, STE, TWN, KNG, PRES, RYL, PNT
   typeFull: string;
   statusLabel: string;
-  statusKind: 'ready' | 'occupied' | 'dirty' | 'cleaning' | 'dnd' | 'checkin' | 'checkout';
+  statusKind: 'ready' | 'occupied' | 'dirty' | 'cleaning' | 'dnd' | 'checkin' | 'checkout' | 'post_departure';
+  badgeStatus: 'READY' | 'OCCUPIED' | 'INSPECTION PENDING' | 'CLEANING' | 'OUT_OF_ORDER';
   guestName?: string;
+  guestPhone?: string;
+  guestEmail?: string;
+  bookingRef?: string;
+  checkInDate?: string;
+  checkOutDate?: string;
+  duration?: string;
+  guestsCount?: number;
+  vipTier?: string;
+  folioBalance?: string;
+  preferences?: string;
+  previousGuest?: string;
+  checkoutTime?: string;
+  cleanerAssigned?: string;
+  cleaningCategory?: 'guest_request' | 'cycle' | 'post_departure';
+  cycleInfo?: { dueDay: string; cycleDays: number; isOverdue: boolean; nextScheduled: string };
   vip?: boolean;
   stay?: StayRecord;
   pin: string;
 }
 
-// 12 rooms per floor for Floors 1, 2, 3, 4 (48 rooms total)
+// 5 floors supporting full 27-room hotel matrix
 const FLOOR_INFO: Record<number, { name: string; wing: string }> = {
-  1: { name: 'FLOOR 1', wing: 'North Wing' },
-  2: { name: 'FLOOR 2', wing: 'Central Atrium' },
+  1: { name: 'FLOOR 1', wing: 'North Garden Wing' },
+  2: { name: 'FLOOR 2', wing: 'Central Atrium Wing' },
   3: { name: 'FLOOR 3', wing: 'East Garden Wing' },
-  4: { name: 'FLOOR 4', wing: 'Executive Suites & Penthouse' },
+  4: { name: 'FLOOR 4', wing: 'Executive Suites Wing' },
+  5: { name: 'FLOOR 5', wing: 'Penthouse & Presidential Suites' },
 };
 
 function getRoomType(roomNo: string): { tag: string; full: string } {
-  if (roomNo === '401') return { tag: 'STE', full: 'Ambassador Suite' };
-  if (roomNo === '412') return { tag: 'PRES', full: 'Presidential Penthouse' };
-  if (roomNo === '310') return { tag: 'STE', full: 'Penthouse Suite' };
-  if (roomNo === '201') return { tag: 'STE', full: 'Executive Corner Suite' };
-  if (roomNo === '105') return { tag: 'STE', full: 'Garden Terrace Suite' };
+  if (roomNo === '127') return { tag: 'TWN', full: 'Deluxe Twin' };
+  if (roomNo === '210') return { tag: 'STE', full: 'Suite' };
+  if (roomNo === '305') return { tag: 'STE', full: 'Suite' };
+  if (roomNo.startsWith('30')) return { tag: 'STE', full: 'Executive Suite' };
+  if (roomNo === '402') return { tag: 'DLX', full: 'Deluxe King' };
+  if (roomNo.startsWith('40')) return { tag: 'RYL', full: 'Royal Suite' };
+  if (roomNo === '502' || roomNo === '506') return { tag: 'PRS', full: 'Presidential Suite' };
+  if (roomNo === '518') return { tag: 'PRS', full: 'Penthouse Grand Suite' };
+  if (roomNo.startsWith('50')) return { tag: 'PNT', full: 'Penthouse Suite' };
   const last = parseInt(roomNo.slice(-2), 10);
   if (last % 3 === 0) return { tag: 'TWN', full: 'Deluxe Twin' };
   if (last % 2 === 0) return { tag: 'DLX', full: 'Deluxe King' };
@@ -96,13 +126,484 @@ function getRoomPin(roomNo: string): string {
   return `${code}#`;
 }
 
+interface RoomInventorySeed {
+  no: string;
+  floor: number;
+  typeTag: string;
+  typeFull: string;
+  readiness: Readiness;
+  occupied: boolean;
+  dnd?: boolean;
+  badgeStatus: 'READY' | 'OCCUPIED' | 'INSPECTION PENDING' | 'CLEANING' | 'OUT_OF_ORDER';
+  guestName?: string;
+  guestPhone?: string;
+  guestEmail?: string;
+  bookingRef?: string;
+  checkInDate?: string;
+  checkOutDate?: string;
+  duration?: string;
+  guestsCount?: number;
+  vipTier?: string;
+  folioBalance?: string;
+  preferences?: string;
+  cleanerAssigned?: string;
+  cleaningCategory?: 'guest_request' | 'cycle' | 'post_departure';
+  vip?: boolean;
+}
+
+// The exact 27-room inventory matrix matching the front desk room specification
+const ROOM_INVENTORY_27: RoomInventorySeed[] = [
+  // Floor 1 (1 room)
+  {
+    no: '127',
+    floor: 1,
+    typeTag: 'TWN',
+    typeFull: 'Deluxe Twin',
+    readiness: 'ready',
+    occupied: true,
+    badgeStatus: 'READY',
+    guestName: 'Hannah Weiss',
+    guestPhone: '+1 (555) 349-8821',
+    guestEmail: 'hannah.weiss@voyageur.com',
+    bookingRef: 'BK-127-9481',
+    checkInDate: 'Nov 05, 2026 · 14:00',
+    checkOutDate: 'Nov 09, 2026 · 11:00',
+    duration: '4 Nights · 2 Guests',
+    guestsCount: 2,
+    vipTier: 'Gold Elite',
+    vip: true,
+    folioBalance: '₹0.00 (Settled)',
+    preferences: 'Quiet room away from elevator, hypoallergenic bedding',
+  },
+  // Floor 2 (1 room)
+  {
+    no: '210',
+    floor: 2,
+    typeTag: 'STE',
+    typeFull: 'Suite',
+    readiness: 'inspection_pending',
+    occupied: true,
+    badgeStatus: 'INSPECTION PENDING',
+    guestName: 'Tomás Silva',
+    guestPhone: '+351 912 345 678',
+    guestEmail: 'tomas.silva@skyline.org',
+    bookingRef: 'BK-210-8832',
+    checkInDate: 'Nov 04, 2026 · 15:00',
+    checkOutDate: 'Nov 08, 2026 · 12:00',
+    duration: '4 Nights · 1 Guest',
+    guestsCount: 1,
+    vipTier: 'Silver Elite',
+    vip: true,
+    folioBalance: '₹0.00 (Pre-authorized)',
+    preferences: 'Late checkout requested (13:00), extra sparkling water',
+  },
+  // Floor 3 (8 rooms)
+  {
+    no: '301',
+    floor: 3,
+    typeTag: 'STE',
+    typeFull: 'Executive Suite',
+    readiness: 'ready',
+    occupied: true,
+    badgeStatus: 'OCCUPIED',
+    guestName: 'Liam Gallagher',
+    guestPhone: '+44 7911 123456',
+    guestEmail: 'liam.gallagher@manchester.co.uk',
+    bookingRef: 'BK-301-1102',
+    checkInDate: 'Nov 03, 2026 · 14:00',
+    checkOutDate: 'Nov 07, 2026 · 11:00',
+    duration: '4 Nights · 2 Guests',
+    guestsCount: 2,
+    vipTier: 'Club Member',
+    folioBalance: '₹12,450 (Active Folio)',
+    preferences: 'High floor, firm mattress, morning newspaper',
+  },
+  {
+    no: '302',
+    floor: 3,
+    typeTag: 'STE',
+    typeFull: 'Executive Suite',
+    readiness: 'ready',
+    occupied: true,
+    badgeStatus: 'OCCUPIED',
+    guestName: 'Chloe Dupont',
+    guestPhone: '+33 6 12 34 56 78',
+    guestEmail: 'chloe.dupont@elysee.fr',
+    bookingRef: 'BK-302-2245',
+    checkInDate: 'Nov 05, 2026 · 13:30',
+    checkOutDate: 'Nov 08, 2026 · 11:00',
+    duration: '3 Nights · 1 Guest',
+    guestsCount: 1,
+    vipTier: 'Silver Elite',
+    folioBalance: '₹4,200 (Active Folio)',
+    preferences: 'Airport transfer required on departure, green tea bags',
+  },
+  {
+    no: '303',
+    floor: 3,
+    typeTag: 'STE',
+    typeFull: 'Executive Suite',
+    readiness: 'ready',
+    occupied: false,
+    badgeStatus: 'READY',
+  },
+  {
+    no: '304',
+    floor: 3,
+    typeTag: 'STE',
+    typeFull: 'Executive Suite',
+    readiness: 'cleaning',
+    occupied: false,
+    badgeStatus: 'CLEANING',
+    cleaningCategory: 'post_departure',
+    cleanerAssigned: 'Sunita Rao (Housekeeping)',
+  },
+  {
+    no: '305',
+    floor: 3,
+    typeTag: 'STE',
+    typeFull: 'Suite',
+    readiness: 'ready',
+    occupied: true,
+    badgeStatus: 'OCCUPIED',
+    guestName: 'Marcus Chen',
+    guestPhone: '+1 (415) 890-2341',
+    guestEmail: 'marcus.chen@horizon.co',
+    bookingRef: 'BK-305-7712',
+    checkInDate: 'Nov 02, 2026 · 16:00',
+    checkOutDate: 'Nov 07, 2026 · 11:00',
+    duration: '5 Nights · 2 Guests',
+    guestsCount: 2,
+    vipTier: 'Platinum Elite',
+    vip: true,
+    folioBalance: '₹18,900 (Settled)',
+    preferences: 'Corner suite preference, wake-up call at 07:00, espresso pods',
+  },
+  {
+    no: '306',
+    floor: 3,
+    typeTag: 'STE',
+    typeFull: 'Executive Suite',
+    readiness: 'ready',
+    occupied: true,
+    badgeStatus: 'OCCUPIED',
+    guestName: 'Alexander Wright',
+    guestPhone: '+1 (617) 555-0199',
+    guestEmail: 'alex.wright@cambridge.edu',
+    bookingRef: 'BK-306-4491',
+    checkInDate: 'Nov 04, 2026 · 14:00',
+    checkOutDate: 'Nov 09, 2026 · 11:00',
+    duration: '5 Nights · 1 Guest',
+    guestsCount: 1,
+    vipTier: 'Club Member',
+    folioBalance: '₹0.00 (Settled)',
+    preferences: 'High speed ethernet access, extra desk lamp',
+  },
+  {
+    no: '307',
+    floor: 3,
+    typeTag: 'STE',
+    typeFull: 'Executive Suite',
+    readiness: 'out_of_order',
+    occupied: false,
+    badgeStatus: 'OUT_OF_ORDER',
+  },
+  {
+    no: '308',
+    floor: 3,
+    typeTag: 'STE',
+    typeFull: 'Executive Suite',
+    readiness: 'ready',
+    occupied: false,
+    badgeStatus: 'READY',
+  },
+  // Floor 4 (8 rooms)
+  {
+    no: '401',
+    floor: 4,
+    typeTag: 'RYL',
+    typeFull: 'Royal Suite',
+    readiness: 'ready',
+    occupied: true,
+    badgeStatus: 'OCCUPIED',
+    guestName: 'Devon Vance',
+    guestPhone: '+1 (212) 555-8932',
+    guestEmail: 'devon.vance@vanceholdings.com',
+    bookingRef: 'BK-401-9011',
+    checkInDate: 'Nov 01, 2026 · 12:00',
+    checkOutDate: 'Nov 10, 2026 · 12:00',
+    duration: '9 Nights · 2 Guests',
+    guestsCount: 2,
+    vipTier: 'Presidential VIP',
+    vip: true,
+    folioBalance: '₹45,000 (Active Folio)',
+    preferences: 'Chilled Dom Pérignon on arrival, Butler service on call',
+  },
+  {
+    no: '402',
+    floor: 4,
+    typeTag: 'DLX',
+    typeFull: 'Deluxe King',
+    readiness: 'ready',
+    occupied: true,
+    badgeStatus: 'OCCUPIED',
+    guestName: 'Elena Rostova',
+    guestPhone: '+49 30 1234567',
+    guestEmail: 'elena.rostova@aurora-lux.com',
+    bookingRef: 'BK-402-6634',
+    checkInDate: 'Nov 03, 2026 · 15:00',
+    checkOutDate: 'Nov 08, 2026 · 11:00',
+    duration: '5 Nights · 2 Guests',
+    guestsCount: 2,
+    vipTier: 'Diamond Club',
+    vip: true,
+    folioBalance: '₹8,250 (Settled)',
+    preferences: 'Extra velvet hangers, organic fruit basket, daily fresh lilies',
+  },
+  {
+    no: '403',
+    floor: 4,
+    typeTag: 'RYL',
+    typeFull: 'Royal Suite',
+    readiness: 'ready',
+    occupied: false,
+    badgeStatus: 'READY',
+  },
+  {
+    no: '404',
+    floor: 4,
+    typeTag: 'RYL',
+    typeFull: 'Royal Suite',
+    readiness: 'ready',
+    occupied: true,
+    badgeStatus: 'OCCUPIED',
+    guestName: 'Rajesh Kulkarni',
+    guestPhone: '+91 98201 54321',
+    guestEmail: 'rajesh.kulkarni@apexcorp.in',
+    bookingRef: 'BK-404-3321',
+    checkInDate: 'Nov 04, 2026 · 14:00',
+    checkOutDate: 'Nov 07, 2026 · 11:00',
+    duration: '3 Nights · 2 Guests',
+    guestsCount: 2,
+    vipTier: 'Gold Elite',
+    vip: true,
+    folioBalance: '₹0.00 (Settled)',
+    preferences: 'Vegetarian breakfast preference, late checkout at 14:00',
+  },
+  {
+    no: '405',
+    floor: 4,
+    typeTag: 'RYL',
+    typeFull: 'Royal Suite',
+    readiness: 'ready',
+    occupied: true,
+    badgeStatus: 'OCCUPIED',
+    guestName: 'Sophia Reynolds',
+    guestPhone: '+1 (312) 555-7643',
+    guestEmail: 'sophia.reynolds@chicago-law.com',
+    bookingRef: 'BK-405-8819',
+    checkInDate: 'Nov 05, 2026 · 14:00',
+    checkOutDate: 'Nov 09, 2026 · 11:00',
+    duration: '4 Nights · 1 Guest',
+    guestsCount: 1,
+    vipTier: 'Platinum Elite',
+    vip: true,
+    folioBalance: '₹15,300 (Pre-authorized)',
+    preferences: 'Quiet room, yoga mat in room, extra sparkling mineral water',
+  },
+  {
+    no: '406',
+    floor: 4,
+    typeTag: 'RYL',
+    typeFull: 'Royal Suite',
+    readiness: 'ready',
+    occupied: false,
+    badgeStatus: 'READY',
+  },
+  {
+    no: '407',
+    floor: 4,
+    typeTag: 'RYL',
+    typeFull: 'Royal Suite',
+    readiness: 'ready',
+    occupied: true,
+    badgeStatus: 'OCCUPIED',
+    guestName: 'David Kim',
+    guestPhone: '+82 10 1234 5678',
+    guestEmail: 'david.kim@seoul-tech.kr',
+    bookingRef: 'BK-407-7720',
+    checkInDate: 'Nov 04, 2026 · 16:00',
+    checkOutDate: 'Nov 08, 2026 · 11:00',
+    duration: '4 Nights · 2 Guests',
+    guestsCount: 2,
+    vipTier: 'Silver Elite',
+    folioBalance: '₹0.00 (Settled)',
+    preferences: 'International multi-plug adapters, extra bottled water',
+  },
+  {
+    no: '408',
+    floor: 4,
+    typeTag: 'RYL',
+    typeFull: 'Royal Suite',
+    readiness: 'ready',
+    occupied: false,
+    badgeStatus: 'READY',
+  },
+  // Floor 5 (9 rooms)
+  {
+    no: '501',
+    floor: 5,
+    typeTag: 'PNT',
+    typeFull: 'Penthouse Suite',
+    readiness: 'ready',
+    occupied: true,
+    badgeStatus: 'OCCUPIED',
+    guestName: 'Gabriel Rossi',
+    guestPhone: '+39 02 1234567',
+    guestEmail: 'gabriel.rossi@milano-design.it',
+    bookingRef: 'BK-501-1188',
+    checkInDate: 'Nov 02, 2026 · 14:00',
+    checkOutDate: 'Nov 08, 2026 · 12:00',
+    duration: '6 Nights · 2 Guests',
+    guestsCount: 2,
+    vipTier: 'Titanium Elite',
+    vip: true,
+    folioBalance: '₹32,000 (Active Folio)',
+    preferences: 'Panoramic terrace dinner reservation, espresso machine',
+  },
+  {
+    no: '502',
+    floor: 5,
+    typeTag: 'PRS',
+    typeFull: 'Presidential Suite',
+    readiness: 'ready',
+    occupied: false,
+    badgeStatus: 'READY',
+  },
+  {
+    no: '503',
+    floor: 5,
+    typeTag: 'PNT',
+    typeFull: 'Penthouse Suite',
+    readiness: 'ready',
+    occupied: true,
+    badgeStatus: 'OCCUPIED',
+    guestName: 'Maya Patel',
+    guestPhone: '+91 98110 99887',
+    guestEmail: 'maya.patel@mumbai-ventures.in',
+    bookingRef: 'BK-503-4412',
+    checkInDate: 'Nov 05, 2026 · 15:00',
+    checkOutDate: 'Nov 09, 2026 · 11:00',
+    duration: '4 Nights · 2 Guests',
+    guestsCount: 2,
+    vipTier: 'Gold Elite',
+    vip: true,
+    folioBalance: '₹0.00 (Settled)',
+    preferences: 'Late check-in arrival, herbal tea selection',
+  },
+  {
+    no: '504',
+    floor: 5,
+    typeTag: 'PNT',
+    typeFull: 'Penthouse Suite',
+    readiness: 'cleaning',
+    occupied: false,
+    badgeStatus: 'CLEANING',
+    cleaningCategory: 'cycle',
+    cleanerAssigned: 'Vikram Singh (Housekeeping)',
+  },
+  {
+    no: '505',
+    floor: 5,
+    typeTag: 'PNT',
+    typeFull: 'Penthouse Suite',
+    readiness: 'ready',
+    occupied: true,
+    badgeStatus: 'OCCUPIED',
+    guestName: 'Oliver Smith',
+    guestPhone: '+61 2 9876 5432',
+    guestEmail: 'oliver.smith@sydney-synergy.au',
+    bookingRef: 'BK-505-8831',
+    checkInDate: 'Nov 03, 2026 · 14:00',
+    checkOutDate: 'Nov 08, 2026 · 11:00',
+    duration: '5 Nights · 1 Guest',
+    guestsCount: 1,
+    vipTier: 'Silver Elite',
+    folioBalance: '₹21,500 (Pre-authorized)',
+    preferences: 'Early morning run map, gym towel setup',
+  },
+  {
+    no: '506',
+    floor: 5,
+    typeTag: 'PRS',
+    typeFull: 'Presidential Suite',
+    readiness: 'ready',
+    occupied: false,
+    badgeStatus: 'READY',
+  },
+  {
+    no: '507',
+    floor: 5,
+    typeTag: 'PNT',
+    typeFull: 'Penthouse Suite',
+    readiness: 'ready',
+    occupied: false,
+    badgeStatus: 'READY',
+  },
+  {
+    no: '508',
+    floor: 5,
+    typeTag: 'PNT',
+    typeFull: 'Penthouse Suite',
+    readiness: 'ready',
+    occupied: true,
+    badgeStatus: 'OCCUPIED',
+    guestName: 'Isabella Martinez',
+    guestPhone: '+34 91 123 4567',
+    guestEmail: 'isabella.martinez@madrid-capital.es',
+    bookingRef: 'BK-508-9923',
+    checkInDate: 'Nov 04, 2026 · 14:00',
+    checkOutDate: 'Nov 08, 2026 · 11:00',
+    duration: '4 Nights · 2 Guests',
+    guestsCount: 2,
+    vipTier: 'Club Member',
+    folioBalance: '₹0.00 (Settled)',
+    preferences: 'Extra bathrobes, late checkout at 13:00',
+  },
+  {
+    no: '518',
+    floor: 5,
+    typeTag: 'PRS',
+    typeFull: 'Penthouse Grand Suite',
+    readiness: 'ready',
+    occupied: true,
+    badgeStatus: 'OCCUPIED',
+    guestName: 'Priya Nair',
+    guestPhone: '+91 98765 43210',
+    guestEmail: 'priya.nair@summit.io',
+    bookingRef: 'BK-518-5521',
+    checkInDate: 'Nov 03, 2026 · 14:00',
+    checkOutDate: 'Nov 08, 2026 · 11:00',
+    duration: '5 Nights · 2 Guests',
+    guestsCount: 2,
+    vipTier: 'Presidential VIP',
+    vip: true,
+    folioBalance: '₹0.00 (Settled)',
+    preferences: 'VIP welcome champagne, fresh jasmine garland, executive meeting table',
+  },
+];
+
 export function RoomsPanel() {
   const { state } = useDemo();
 
   const [activeStatusFilter, setActiveStatusFilter] = useState<StatusFilterId>('all');
+  const [cleaningSubfilter, setCleaningSubfilter] = useState<CleaningSubfilter>('all');
   const [selectedFloorFilter, setSelectedFloorFilter] = useState<number | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [collapsedFloors, setCollapsedFloors] = useState<Record<number, boolean>>({});
+
+  // Selected room highlight state (defaults to '303' per specification)
+  const [selectedRoomNo, setSelectedRoomNo] = useState<string>('303');
 
   // Slide-over Drawer State
   const [drawerRoomNo, setDrawerRoomNo] = useState<string | null>(null);
@@ -129,94 +630,115 @@ export function RoomsPanel() {
   const stays = state.frontDesk?.stays ?? [];
   const stateRooms = state.frontDesk?.rooms ?? [];
 
-  // Generate complete 12 rooms for floors 1 to 4 (48 rooms) guaranteed
+  // Generate complete 27 rooms matching the inventory matrix specification
   const allRooms: RoomTileData[] = useMemo(() => {
-    const list: RoomTileData[] = [];
+    return ROOM_INVENTORY_27.map((spec) => {
+      const no = spec.no;
+      const floor = spec.floor;
 
-    for (let floor = 1; floor <= 4; floor++) {
-      for (let i = 1; i <= 12; i++) {
-        const no = `${floor}${String(i).padStart(2, '0')}`;
-        const { tag, full } = getRoomType(no);
+      // Find existing state room if any
+      const existing = stateRooms.find((r) => r.no === no);
+      const override = roomOverrides[no];
+      const stay = stays.find((s) => s.room === no && s.status !== 'checked_out');
+      const expectedStay = stays.find((s) => s.room === no && s.status === 'expected');
+      const checkedOutStay = stays.find((s) => s.room === no && s.status === 'checked_out');
 
-        // Find existing state room if any
-        const existing = stateRooms.find((r) => r.no === no);
-        const override = roomOverrides[no];
+      let readiness: Readiness = existing?.readiness ?? spec.readiness;
+      let occupied = existing?.occupied ?? spec.occupied;
+      let dnd = existing?.dnd ?? spec.dnd ?? false;
+      let badgeStatus = spec.badgeStatus;
 
-        let readiness: Readiness = existing?.readiness ?? 'ready';
-        let occupied = existing?.occupied ?? false;
-        let dnd = existing?.dnd ?? false;
-
-        // Apply local overrides if changed by user
-        if (override) {
-          if (override.readiness !== undefined) readiness = override.readiness;
-          if (override.occupied !== undefined) occupied = override.occupied;
-          if (override.dnd !== undefined) dnd = override.dnd;
-        }
-
-        // Specific seeds if not in state
-        if (!existing && !override) {
-          if (no === '104' || no === '304') readiness = 'cleaning';
-          if (no === '206') readiness = 'dirty';
-          if (no === '308') readiness = 'out_of_order';
-          if (no === '403') readiness = 'inspection_pending';
-          if (no === '305') dnd = true;
-        }
-
-        // Match stay
-        const stay = stays.find((s) => s.room === no && s.status !== 'checked_out');
-        const expectedStay = stays.find((s) => s.room === no && s.status === 'expected');
-        const checkedOutStay = stays.find((s) => s.room === no && s.status === 'checked_out');
-
-        let statusKind: RoomTileData['statusKind'] = 'ready';
-        let statusLabel = 'Ready';
-
-        if (dnd) {
-          statusKind = 'dnd';
-          statusLabel = 'DND';
-        } else if (stay && stay.status === 'in_house') {
-          occupied = true;
-          if (stay.departsToday) {
-            statusKind = 'checkout';
-            statusLabel = `Check-Out · ${stay.guest.split(' ')[0]}`;
-          } else {
-            statusKind = 'occupied';
-            statusLabel = stay.guest.split(' ')[0];
-          }
-        } else if (expectedStay) {
-          statusKind = 'checkin';
-          statusLabel = `Check-In · ${expectedStay.guest.split(' ')[0]}`;
-        } else if (readiness === 'cleaning' || readiness === 'inspection_pending') {
-          statusKind = 'cleaning';
-          statusLabel = 'Cleaning';
-        } else if (readiness === 'dirty' || readiness === 'out_of_order') {
-          statusKind = 'dirty';
-          statusLabel = readiness === 'out_of_order' ? 'Out of Order' : 'Dirty';
-        } else if (occupied) {
-          statusKind = 'occupied';
-          statusLabel = 'Occupied';
-        } else {
-          statusKind = 'ready';
-          statusLabel = 'Ready';
-        }
-
-        list.push({
-          no,
-          floor,
-          readiness,
-          occupied,
-          dnd,
-          typeTag: tag,
-          typeFull: full,
-          statusLabel,
-          statusKind,
-          guestName: stay?.guest ?? expectedStay?.guest,
-          vip: stay?.vip ?? expectedStay?.vip,
-          stay: stay ?? expectedStay ?? checkedOutStay,
-          pin: getRoomPin(no),
-        });
+      // Apply local overrides if changed by user
+      if (override) {
+        if (override.readiness !== undefined) readiness = override.readiness;
+        if (override.occupied !== undefined) occupied = override.occupied;
+        if (override.dnd !== undefined) dnd = override.dnd;
       }
-    }
-    return list;
+
+      let statusKind: RoomTileData['statusKind'] = 'ready';
+      let statusLabel = 'Ready';
+      let previousGuest = checkedOutStay?.guest ?? (spec.cleaningCategory === 'post_departure' ? 'Clara Dupont' : undefined);
+      let checkoutTime = checkedOutStay?.departure ?? (spec.cleaningCategory === 'post_departure' ? 'Today · 09:15 AM' : undefined);
+      let cleanerAssigned = spec.cleanerAssigned;
+      let cleaningCategory: RoomTileData['cleaningCategory'] = spec.cleaningCategory;
+      let cycleInfo: RoomTileData['cycleInfo'] = spec.cleaningCategory === 'cycle' ? {
+        dueDay: 'Due Today',
+        cycleDays: 3,
+        isOverdue: false,
+        nextScheduled: 'Today 11:30 (Day 3 of 4)',
+      } : undefined;
+
+      if (dnd) {
+        statusKind = 'dnd';
+        statusLabel = 'DND';
+        badgeStatus = 'OCCUPIED';
+      } else if (stay && stay.status === 'in_house') {
+        occupied = true;
+        badgeStatus = 'OCCUPIED';
+        if (stay.departsToday) {
+          statusKind = 'checkout';
+          statusLabel = `Check-Out · ${stay.guest.split(' ')[0]}`;
+        } else {
+          statusKind = 'occupied';
+          statusLabel = stay.guest.split(' ')[0];
+        }
+      } else if (expectedStay) {
+        statusKind = 'checkin';
+        statusLabel = `Check-In · ${expectedStay.guest.split(' ')[0]}`;
+      } else if (cleaningCategory === 'post_departure' || checkedOutStay) {
+        statusKind = 'post_departure';
+        statusLabel = readiness === 'ready' ? 'Turnover Ready' : 'Post-Departure';
+        badgeStatus = readiness === 'ready' ? 'READY' : 'CLEANING';
+      } else if (readiness === 'cleaning' || readiness === 'inspection_pending') {
+        statusKind = 'cleaning';
+        statusLabel = readiness === 'inspection_pending' ? 'Inspection' : 'Cleaning';
+        badgeStatus = readiness === 'inspection_pending' ? 'INSPECTION PENDING' : 'CLEANING';
+      } else if (readiness === 'dirty' || readiness === 'out_of_order') {
+        statusKind = 'dirty';
+        statusLabel = readiness === 'out_of_order' ? 'Out of Order' : 'Dirty';
+        badgeStatus = readiness === 'out_of_order' ? 'OUT_OF_ORDER' : 'CLEANING';
+      } else if (occupied) {
+        statusKind = 'occupied';
+        statusLabel = spec.guestName ? spec.guestName.split(' ')[0] : 'Occupied';
+        badgeStatus = 'OCCUPIED';
+      } else {
+        statusKind = 'ready';
+        statusLabel = 'Ready';
+        badgeStatus = 'READY';
+      }
+
+      return {
+        no,
+        floor,
+        readiness,
+        occupied,
+        dnd,
+        typeTag: spec.typeTag,
+        typeFull: spec.typeFull,
+        statusLabel,
+        statusKind,
+        badgeStatus,
+        guestName: stay?.guest ?? expectedStay?.guest ?? spec.guestName,
+        guestPhone: spec.guestPhone,
+        guestEmail: spec.guestEmail,
+        bookingRef: stay?.id ?? spec.bookingRef,
+        checkInDate: stay?.arrival ?? spec.checkInDate,
+        checkOutDate: stay?.departure ?? spec.checkOutDate,
+        duration: spec.duration,
+        guestsCount: spec.guestsCount ?? 2,
+        vipTier: stay?.vipTier ?? spec.vipTier,
+        folioBalance: spec.folioBalance,
+        preferences: stay?.preferencesSummary ?? spec.preferences,
+        previousGuest,
+        checkoutTime,
+        cleanerAssigned,
+        cleaningCategory,
+        cycleInfo,
+        vip: stay?.vip ?? expectedStay?.vip ?? spec.vip,
+        stay: stay ?? expectedStay ?? checkedOutStay,
+        pin: getRoomPin(no),
+      };
+    });
   }, [stateRooms, stays, roomOverrides]);
 
   // Compute live counts for left sidebar
@@ -225,9 +747,10 @@ export function RoomsPanel() {
       all: allRooms.length,
       ready: allRooms.filter((r) => r.statusKind === 'ready').length,
       occupied: allRooms.filter((r) => r.statusKind === 'occupied' || r.occupied).length,
-      dirty_cleaning: allRooms.filter((r) => r.statusKind === 'dirty' || r.statusKind === 'cleaning').length,
+      dirty_cleaning: allRooms.filter((r) => r.statusKind === 'dirty' || r.statusKind === 'cleaning' || r.cleaningCategory !== undefined).length,
       checkin: allRooms.filter((r) => r.statusKind === 'checkin' || stays.some((s) => s.room === r.no && s.status === 'expected')).length,
       checkout: allRooms.filter((r) => r.statusKind === 'checkout' || stays.some((s) => s.room === r.no && s.status === 'in_house' && s.departsToday)).length,
+      post_departure: allRooms.filter((r) => r.statusKind === 'post_departure' || r.cleaningCategory === 'post_departure' || stays.some((s) => s.room === r.no && s.status === 'checked_out')).length,
       dnd: allRooms.filter((r) => r.dnd).length,
     };
   }, [allRooms, stays]);
@@ -246,14 +769,26 @@ export function RoomsPanel() {
       // Status filter
       if (activeStatusFilter === 'ready' && r.statusKind !== 'ready') return false;
       if (activeStatusFilter === 'occupied' && !(r.statusKind === 'occupied' || r.occupied)) return false;
-      if (activeStatusFilter === 'dirty_cleaning' && !(r.statusKind === 'dirty' || r.statusKind === 'cleaning')) return false;
+      if (activeStatusFilter === 'post_departure' && !(r.statusKind === 'post_departure' || r.cleaningCategory === 'post_departure' || stays.some((s) => s.room === r.no && s.status === 'checked_out'))) return false;
+      if (activeStatusFilter === 'dirty_cleaning') {
+        if (cleaningSubfilter === 'guest_request') {
+          return r.cleaningCategory === 'guest_request';
+        }
+        if (cleaningSubfilter === 'cycle') {
+          return r.cleaningCategory === 'cycle';
+        }
+        if (cleaningSubfilter === 'post_departure') {
+          return r.statusKind === 'post_departure' || r.cleaningCategory === 'post_departure' || stays.some((s) => s.room === r.no && s.status === 'checked_out');
+        }
+        return r.statusKind === 'dirty' || r.statusKind === 'cleaning' || r.cleaningCategory !== undefined;
+      }
       if (activeStatusFilter === 'checkin' && !(r.statusKind === 'checkin' || stays.some((s) => s.room === r.no && s.status === 'expected'))) return false;
       if (activeStatusFilter === 'checkout' && !(r.statusKind === 'checkout' || stays.some((s) => s.room === r.no && s.status === 'in_house' && s.departsToday))) return false;
       if (activeStatusFilter === 'dnd' && !r.dnd) return false;
 
       // Search query
       if (q) {
-        const text = `${r.no} ${r.typeFull} ${r.guestName ?? ''}`.toLowerCase();
+        const text = `${r.no} ${r.typeFull} ${r.guestName ?? ''} ${r.previousGuest ?? ''}`.toLowerCase();
         if (!text.includes(q)) return false;
       }
 
@@ -261,8 +796,8 @@ export function RoomsPanel() {
     });
   }, [allRooms, activeStatusFilter, selectedFloorFilter, searchQuery, stays]);
 
-  // Group rooms by floor (1 to 4)
-  const floorsList = [1, 2, 3, 4];
+  // Group rooms by floor (1 to 5)
+  const floorsList = [1, 2, 3, 4, 5];
 
   const toggleFloorCollapse = (fl: number) => {
     setCollapsedFloors((prev) => ({ ...prev, [fl]: !prev[fl] }));
@@ -396,6 +931,7 @@ export function RoomsPanel() {
             { id: 'ready', label: 'Ready', count: counts.ready, icon: CheckCircle2, tone: 'text-emerald-400' },
             { id: 'occupied', label: 'Booked', count: counts.occupied, icon: KeyRound, tone: 'text-sky-400' },
             { id: 'dirty_cleaning', label: 'Cleaning', count: counts.dirty_cleaning, icon: Sparkles, tone: 'text-amber-400' },
+            { id: 'post_departure', label: 'Post-Dept', count: counts.post_departure, icon: Clock, tone: 'text-violet-400' },
             { id: 'checkin', label: 'Check-In', count: counts.checkin, icon: LogIn, tone: 'text-cyan-300' },
             { id: 'checkout', label: 'Check-Out', count: counts.checkout, icon: LogOut, tone: 'text-amber-300' },
             { id: 'dnd', label: 'DND', count: counts.dnd, icon: MoonStar, tone: 'text-rose-400' },
@@ -491,6 +1027,7 @@ export function RoomsPanel() {
               { id: 'ready', label: 'Ready', count: counts.ready, icon: CheckCircle2, tone: 'text-emerald-400' },
               { id: 'occupied', label: 'Booked / In-House', count: counts.occupied, icon: KeyRound, tone: 'text-sky-400' },
               { id: 'dirty_cleaning', label: 'Dirty / Cleaning', count: counts.dirty_cleaning, icon: Sparkles, tone: 'text-amber-400' },
+              { id: 'post_departure', label: 'Post-Departure', count: counts.post_departure, icon: Clock, tone: 'text-violet-400' },
               { id: 'checkin', label: 'Check-In', count: counts.checkin, icon: LogIn, tone: 'text-cyan-300' },
               { id: 'checkout', label: 'Check-Out', count: counts.checkout, icon: LogOut, tone: 'text-amber-300' },
               { id: 'dnd', label: 'DND', count: counts.dnd, icon: MoonStar, tone: 'text-rose-400' },
@@ -498,30 +1035,87 @@ export function RoomsPanel() {
               const Icon = item.icon;
               const isSelected = activeStatusFilter === item.id;
               return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setActiveStatusFilter(item.id as StatusFilterId)}
-                  className={cn(
-                    'w-full flex items-center justify-between p-2.5 rounded-xl border text-xs font-semibold transition-all duration-150',
-                    isSelected
-                      ? 'border-cyan-400/40 bg-cyan-500/15 text-white shadow-sm'
-                      : 'border-transparent text-mist-300 hover:bg-white/[0.04] hover:text-white',
-                  )}
-                >
-                  <div className="flex items-center gap-2.5 truncate">
-                    <Icon className={cn('h-3.5 w-3.5 shrink-0', item.tone)} />
-                    <span className="truncate">{item.label}</span>
-                  </div>
-                  <span
+                <div key={item.id} className="space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveStatusFilter(item.id as StatusFilterId);
+                      if (item.id === 'dirty_cleaning') setCleaningSubfilter('all');
+                    }}
                     className={cn(
-                      'px-2 py-0.5 rounded-md text-[11px] tabular-nums font-bold shrink-0',
-                      isSelected ? 'bg-cyan-400 text-ink-950' : 'bg-white/5 text-mist-300',
+                      'w-full flex items-center justify-between p-2.5 rounded-xl border text-xs font-semibold transition-all duration-150',
+                      isSelected
+                        ? 'border-cyan-400/40 bg-cyan-500/15 text-white shadow-sm'
+                        : 'border-transparent text-mist-300 hover:bg-white/[0.04] hover:text-white',
                     )}
                   >
-                    {item.count}
-                  </span>
-                </button>
+                    <div className="flex items-center gap-2.5 truncate">
+                      <Icon className={cn('h-3.5 w-3.5 shrink-0', item.tone)} />
+                      <span className="truncate">{item.label}</span>
+                    </div>
+                    <span
+                      className={cn(
+                        'px-2 py-0.5 rounded-md text-[11px] tabular-nums font-bold shrink-0',
+                        isSelected ? 'bg-cyan-400 text-ink-950' : 'bg-white/5 text-mist-300',
+                      )}
+                    >
+                      {item.count}
+                    </span>
+                  </button>
+
+                  {item.id === 'dirty_cleaning' && isSelected && (
+                    <div className="ml-4 pl-2.5 py-1.5 space-y-1 border-l-2 border-amber-400/40 bg-white/[0.02] rounded-r-lg">
+                      <button
+                        type="button"
+                        onClick={() => setCleaningSubfilter('all')}
+                        className={cn(
+                          'w-full text-left px-2 py-1 rounded text-[11px] font-medium transition',
+                          cleaningSubfilter === 'all'
+                            ? 'text-cyan-300 font-bold bg-white/5'
+                            : 'text-mist-400 hover:text-white'
+                        )}
+                      >
+                        • All Cleaning
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCleaningSubfilter('guest_request')}
+                        className={cn(
+                          'w-full text-left px-2 py-1 rounded text-[11px] font-medium transition',
+                          cleaningSubfilter === 'guest_request'
+                            ? 'text-amber-300 font-bold bg-white/5'
+                            : 'text-mist-400 hover:text-white'
+                        )}
+                      >
+                        • On Guest Request
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCleaningSubfilter('cycle')}
+                        className={cn(
+                          'w-full text-left px-2 py-1 rounded text-[11px] font-medium transition',
+                          cleaningSubfilter === 'cycle'
+                            ? 'text-sky-300 font-bold bg-white/5'
+                            : 'text-mist-400 hover:text-white'
+                        )}
+                      >
+                        • Cleaning Cycle (3d)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCleaningSubfilter('post_departure')}
+                        className={cn(
+                          'w-full text-left px-2 py-1 rounded text-[11px] font-medium transition',
+                          cleaningSubfilter === 'post_departure'
+                            ? 'text-violet-300 font-bold bg-white/5'
+                            : 'text-mist-400 hover:text-white'
+                        )}
+                      >
+                        • Post-Departure
+                      </button>
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -591,164 +1185,184 @@ export function RoomsPanel() {
       </div>
 
       {/* ============================================================== */}
-      {/* 2. MIDDLE COLUMN: High-Density Square Room Tiles Grouped by Floor */}
+      {/* 2. MIDDLE COLUMN: Inventory Matrix Room Grid (Matching Design) */}
       {/* ============================================================== */}
-      <div className="flex-1 min-w-0 h-auto lg:h-full flex flex-col rounded-xl sm:rounded-2xl border border-white/10 bg-ink-900/60 p-3 sm:p-4 shadow-lg overflow-visible lg:overflow-hidden">
-        {/* Header Row */}
-        <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/10 shrink-0">
-          <div className="flex items-center gap-2.5">
-            <h2 className="text-base font-bold text-white tracking-tight">Room Board</h2>
-            <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-white/10 text-cyan-300 border border-white/10 tabular-nums">
-              {filteredRooms.length} Rooms
-            </span>
+      <div className="flex-1 min-w-0 h-auto lg:h-full flex flex-col rounded-xl sm:rounded-2xl border border-slate-200/80 dark:border-white/10 bg-[#f8fafc]/80 dark:bg-ink-900/60 p-3 sm:p-5 shadow-lg overflow-visible lg:overflow-hidden backdrop-blur-sm">
+        {/* Horizontal Floor Filter Bar */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 shrink-0 scrollbar-none">
+          <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 font-semibold text-xs shrink-0 mr-1">
+            <Layers className="h-4 w-4 text-amber-500" />
+            <span>Floor:</span>
           </div>
+          <button
+            type="button"
+            onClick={() => setSelectedFloorFilter('all')}
+            className={cn(
+              'rounded-full px-4 py-1.5 text-xs font-bold transition shrink-0 cursor-pointer',
+              selectedFloorFilter === 'all'
+                ? 'bg-amber-500 text-white shadow-sm'
+                : 'bg-slate-200/80 text-slate-700 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
+            )}
+          >
+            All Floors
+          </button>
+          {[1, 2, 3, 4, 5].map((fl) => (
+            <button
+              key={fl}
+              type="button"
+              onClick={() => setSelectedFloorFilter(fl)}
+              className={cn(
+                'rounded-full px-4 py-1.5 text-xs font-bold transition shrink-0 cursor-pointer',
+                selectedFloorFilter === fl
+                  ? 'bg-amber-500 text-white shadow-sm'
+                  : 'bg-slate-200/80 text-slate-700 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
+              )}
+            >
+              Floor {fl}
+            </button>
+          ))}
 
+          {/* Reset Filters Shortcut if active */}
           {(activeStatusFilter !== 'all' || selectedFloorFilter !== 'all' || searchQuery) && (
             <button
               type="button"
               onClick={() => {
                 setActiveStatusFilter('all');
+                setCleaningSubfilter('all');
                 setSelectedFloorFilter('all');
                 setSearchQuery('');
               }}
-              className="text-xs text-cyan-300 hover:text-cyan-200 flex items-center gap-1 font-semibold"
+              className="ml-auto text-xs text-amber-500 hover:text-amber-400 flex items-center gap-1 font-semibold shrink-0 cursor-pointer pl-2"
             >
-              <RotateCcw className="h-3 w-3" /> Reset Filters
+              <RotateCcw className="h-3 w-3" /> Reset
             </button>
           )}
         </div>
 
-        {/* Scrollable Room Board grouped by Floor (Floors 1 to 4 with 12 rooms each) */}
-        <div className="flex-1 min-h-0 overflow-visible lg:overflow-y-auto pr-0 lg:pr-1 space-y-4 sm:space-y-5">
+        {/* Subfilter Bar for Dirty / Cleaning if active */}
+        {activeStatusFilter === 'dirty_cleaning' && (
+          <div className="flex flex-wrap items-center gap-1.5 pt-3 pb-1 shrink-0">
+            <span className="text-[11px] font-bold text-mist-400 mr-1 uppercase tracking-wider">Cleaning Subfilters:</span>
+            {[
+              { id: 'all', label: 'All Cleaning' },
+              { id: 'guest_request', label: 'On Guest Request' },
+              { id: 'cycle', label: 'Cleaning Cycle (Every 3 Days)' },
+              { id: 'post_departure', label: 'Post-Departure Turnover' },
+            ].map((sub) => (
+              <button
+                key={sub.id}
+                type="button"
+                onClick={() => setCleaningSubfilter(sub.id as CleaningSubfilter)}
+                className={cn(
+                  'px-2.5 py-1 rounded-lg text-xs font-semibold border transition cursor-pointer',
+                  cleaningSubfilter === sub.id
+                    ? 'border-amber-400/50 bg-amber-500/20 text-amber-200'
+                    : 'border-white/10 bg-white/[0.02] text-mist-300 hover:bg-white/5'
+                )}
+              >
+                {sub.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Matrix Header Title */}
+        <div className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mt-4 mb-3 shrink-0">
+          INVENTORY MATRIX ({filteredRooms.length} ROOMS)
+        </div>
+
+        {/* Scrollable Room Card Grid (4 columns matching screenshot) */}
+        <div className="flex-1 min-h-0 overflow-visible lg:overflow-y-auto pr-0 lg:pr-1 pb-2">
           {filteredRooms.length === 0 ? (
             <div className="p-12 text-center text-sm text-mist-400 flex flex-col items-center gap-2">
               <BedDouble className="h-8 w-8 text-mist-500" />
               <p>No rooms match the selected filters or search query.</p>
             </div>
           ) : (
-            floorsList.map((fl) => {
-              const floorRooms = filteredRooms.filter((r) => r.floor === fl);
-              if (floorRooms.length === 0) return null;
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5">
+              {filteredRooms.map((room) => {
+                const isSelected = selectedRoomNo === room.no;
+                const isNamedGuest = Boolean(
+                  ['127', '210', '305', '402', '518'].includes(room.no) && room.guestName
+                );
+                const isOccupied = room.badgeStatus === 'OCCUPIED' || room.occupied;
 
-              const isCollapsed = collapsedFloors[fl] ?? false;
-              const info = FLOOR_INFO[fl];
+                const badgeColors: Record<string, string> = {
+                  READY:
+                    'bg-[#dcfce7] text-[#15803d] border border-[#bbf7d0] dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30',
+                  OCCUPIED:
+                    'bg-[#ede9fe] text-[#6d28d9] border border-[#ddd6fe] dark:bg-indigo-500/20 dark:text-indigo-300 dark:border-indigo-500/30',
+                  'INSPECTION PENDING':
+                    'bg-[#f1f5f9] text-[#334155] border border-[#e2e8f0] dark:bg-slate-700/40 dark:text-slate-300 dark:border-slate-600/40',
+                  CLEANING:
+                    'bg-[#fef3c7] text-[#b45309] border border-[#fde68a] dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30',
+                  OUT_OF_ORDER:
+                    'bg-[#ffe4e6] text-[#be123c] border border-[#fecdd3] dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-500/30',
+                };
 
-              return (
-                <section key={fl} className="space-y-2.5">
-                  {/* Collapsible Floor Header Row */}
+                const badgeClass =
+                  badgeColors[room.badgeStatus ?? 'READY'] || 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300';
+
+                return (
                   <button
+                    key={room.no}
                     type="button"
-                    onClick={() => toggleFloorCollapse(fl)}
-                    className="w-full flex items-center justify-between p-2.5 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] transition text-xs font-bold text-mist-200 group"
+                    onClick={() => {
+                      setSelectedRoomNo(room.no);
+                      openRoomDrawer(room.no);
+                    }}
+                    className={cn(
+                      'rounded-2xl p-4 text-left transition-all duration-200 cursor-pointer flex flex-col justify-between min-h-[148px] relative group',
+                      isSelected
+                        ? 'bg-[#fffbeb] border-2 border-amber-400 ring-2 ring-amber-300/50 shadow-md dark:bg-amber-500/10 dark:border-amber-400 dark:ring-amber-400/30'
+                        : 'bg-[#ffffff] border border-slate-200/90 hover:border-slate-300 shadow-xs hover:shadow-md dark:bg-[#0c1424]/90 dark:border-white/10 dark:hover:border-white/25 dark:hover:bg-[#111c33]'
+                    )}
                   >
-                    <div className="flex items-center gap-2">
-                      <ChevronDown
+                    {/* Top: Room No & Room Type */}
+                    <div>
+                      <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-none group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                        {room.no}
+                      </div>
+                      <div className="text-xs font-medium text-slate-500 dark:text-mist-400 mt-1 truncate">
+                        {room.typeFull}
+                      </div>
+                    </div>
+
+                    {/* Middle: Guest Name or Occupied / Vacant */}
+                    <div className="my-2.5">
+                      {isNamedGuest ? (
+                        <div className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
+                          {room.guestName}
+                        </div>
+                      ) : isOccupied ? (
+                        <div className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
+                          Occupied
+                        </div>
+                      ) : (
+                        <div className="text-xs italic text-slate-400 dark:text-mist-500 font-medium">
+                          Vacant
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Bottom: Status Badge (left) & Floor (right) */}
+                    <div className="flex items-center justify-between gap-1 pt-1 mt-auto">
+                      <span
                         className={cn(
-                          'h-4 w-4 text-mist-400 transition-transform group-hover:text-white',
-                          isCollapsed && '-rotate-90',
+                          'text-[10px] sm:text-[11px] font-bold px-2.5 py-0.5 rounded-md uppercase tracking-wide leading-tight',
+                          badgeClass
                         )}
-                      />
-                      <span className="text-white uppercase tracking-wider">{info.name}</span>
-                      <span className="text-[11px] font-normal text-mist-400">({info.wing})</span>
+                      >
+                        {room.badgeStatus}
+                      </span>
+                      <span className="text-xs font-medium text-slate-500 dark:text-mist-400 shrink-0">
+                        Fl {room.floor}
+                      </span>
                     </div>
-                    <span className="text-[11px] font-semibold text-mist-400 px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10 tabular-nums">
-                      {floorRooms.length} rooms
-                    </span>
                   </button>
-
-                  {/* Clean Square Room Tiles (12 rooms per floor) */}
-                  {!isCollapsed && (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-6 gap-2 sm:gap-2.5">
-                      {floorRooms.map((room) => {
-                        // Tile Border & Background tone
-                        let tileClasses =
-                          'border-white/10 bg-white/[0.02] hover:border-white/30 text-white';
-                        let StatusIcon = CheckCircle2;
-                        let statusColor = 'text-emerald-400';
-                        let showDot = false;
-                        let dotColor = 'bg-amber-400';
-
-                        if (room.dnd) {
-                          tileClasses =
-                            'border-rose-500/30 bg-rose-500/[0.06] hover:border-rose-500/50';
-                          StatusIcon = MoonStar;
-                          statusColor = 'text-rose-400';
-                          showDot = true;
-                          dotColor = 'bg-rose-500 animate-pulse';
-                        } else if (room.statusKind === 'checkout') {
-                          tileClasses =
-                            'border-amber-500/30 bg-amber-500/[0.06] hover:border-amber-500/50';
-                          StatusIcon = LogOut;
-                          statusColor = 'text-amber-400';
-                          showDot = true;
-                          dotColor = 'bg-amber-400';
-                        } else if (room.statusKind === 'checkin') {
-                          tileClasses =
-                            'border-cyan-500/30 bg-cyan-500/[0.06] hover:border-cyan-500/50';
-                          StatusIcon = LogIn;
-                          statusColor = 'text-cyan-300';
-                        } else if (room.statusKind === 'occupied' || room.occupied) {
-                          tileClasses =
-                            'border-sky-500/25 bg-sky-500/[0.05] hover:border-sky-500/45';
-                          StatusIcon = KeyRound;
-                          statusColor = 'text-sky-300';
-                        } else if (room.statusKind === 'cleaning' || room.statusKind === 'dirty') {
-                          tileClasses =
-                            'border-amber-500/25 bg-amber-500/[0.05] hover:border-amber-500/45';
-                          StatusIcon = Sparkles;
-                          statusColor = 'text-amber-300';
-                          showDot = true;
-                          dotColor = 'bg-amber-400';
-                        } else {
-                          // Ready
-                          tileClasses =
-                            'border-emerald-500/25 bg-emerald-500/[0.04] hover:border-emerald-500/45';
-                          StatusIcon = CheckCircle2;
-                          statusColor = 'text-emerald-400';
-                        }
-
-                        return (
-                          <button
-                            key={room.no}
-                            type="button"
-                            onClick={() => openRoomDrawer(room.no)}
-                            className={cn(
-                              'aspect-[1/0.92] p-2 sm:p-2.5 rounded-xl border flex flex-col justify-between text-left transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-cyan-400/50 relative overflow-hidden group cursor-pointer',
-                              tileClasses,
-                            )}
-                          >
-                            {/* Top Corner: Status Icon & Type Tag */}
-                            <div className="flex items-center justify-between w-full">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-mist-400">
-                                {room.typeTag}
-                              </span>
-                              <StatusIcon className={cn('h-3.5 w-3.5 shrink-0', statusColor)} />
-                            </div>
-
-                            {/* Center: Large Bold Centered Room Number */}
-                            <div className="flex items-center justify-center gap-1.5 my-auto">
-                              {showDot && (
-                                <span className={cn('h-2 w-2 rounded-full shrink-0', dotColor)} />
-                              )}
-                              <span className="text-lg sm:text-2xl font-black tracking-tight tabular-nums text-white group-hover:text-cyan-200 transition-colors">
-                                {room.no}
-                              </span>
-                            </div>
-
-                            {/* Bottom: Concise 1-line Room Type + Status/Guest pill */}
-                            <div className="w-full text-center">
-                              <span className="inline-block w-full truncate rounded-md px-1 sm:px-1.5 py-0.5 text-[9px] sm:text-[10px] font-bold bg-white/5 border border-white/10 text-mist-200 leading-tight">
-                                {room.statusLabel}
-                              </span>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </section>
-              );
-            })
+                );
+              })}
+            </div>
           )}
         </div>
       </div>
@@ -867,36 +1481,301 @@ export function RoomsPanel() {
               {/* TAB 1: OVERVIEW & DIGITAL PASS */}
               {drawerTab === 'overview' && (
                 <>
-                  {/* Guest & Stay Summary Card */}
-                  <div className="p-3.5 rounded-xl border border-white/10 bg-white/[0.02] space-y-2">
-                    <p className="text-[10px] uppercase font-bold tracking-wider text-mist-400">
-                      Stay &amp; Guest Summary
-                    </p>
-                    {drawerRoom.stay ? (
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-white text-sm">
-                            {drawerRoom.stay.guest}
+                  {/* Guest & Stay Summary / Booked Member Information Card */}
+                  {drawerRoom.occupied || drawerRoom.guestName || drawerRoom.stay ? (
+                    <div className="p-4 rounded-2xl border border-cyan-500/30 bg-gradient-to-br from-cyan-950/40 via-ink-900 to-ink-950 space-y-3.5 shadow-lg">
+                      {/* Header: Member Name & VIP Badge */}
+                      <div className="flex items-start justify-between gap-2 pb-2.5 border-b border-white/10">
+                        <div>
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-cyan-400">
+                            Booked Member Profile
                           </span>
-                          {drawerRoom.stay.vip && <Badge tone="accent">VIP</Badge>}
+                          <h4 className="text-base font-extrabold text-white mt-0.5">
+                            {drawerRoom.guestName || drawerRoom.stay?.guest || 'In-House Registered Guest'}
+                          </h4>
+                          <p className="text-[11px] text-mist-300">
+                            Room {drawerRoom.no} · {drawerRoom.typeFull} (Floor {drawerRoom.floor})
+                          </p>
                         </div>
-                        <p className="text-mist-300">
-                          Dates: {drawerRoom.stay.arrival} → {drawerRoom.stay.departure}
-                        </p>
-                        <div className="flex items-center justify-between text-[11px] pt-1 border-t border-white/5">
-                          <span className="text-mist-400">Folio Balance:</span>
-                          <span className="font-bold text-emerald-300">$0.00 (Settled)</span>
+                        <div className="flex flex-col items-end gap-1">
+                          {drawerRoom.vipTier ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                              ★ {drawerRoom.vipTier}
+                            </span>
+                          ) : drawerRoom.vip ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                              ★ VIP Guest
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-400/20 text-cyan-300 border border-cyan-400/30">
+                              In-House Guest
+                            </span>
+                          )}
+                          <span className="text-[10px] font-semibold text-emerald-400">
+                            Checked-In &amp; In-House
+                          </span>
                         </div>
                       </div>
-                    ) : (
+
+                      {/* Key Member Details Grid */}
+                      <div className="grid grid-cols-2 gap-2.5 text-xs">
+                        {/* Phone Number */}
+                        <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/5 space-y-0.5">
+                          <span className="text-[10px] font-semibold text-mist-400 flex items-center gap-1.5">
+                            <Phone className="h-3 w-3 text-cyan-400" />
+                            Contact Phone
+                          </span>
+                          <a
+                            href={`tel:${drawerRoom.guestPhone ?? '+1 (555) 782-1920'}`}
+                            className="font-semibold text-white hover:text-cyan-300 transition text-[11px] truncate block"
+                          >
+                            {drawerRoom.guestPhone ?? '+1 (555) 782-1920'}
+                          </a>
+                        </div>
+
+                        {/* Email Address */}
+                        <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/5 space-y-0.5">
+                          <span className="text-[10px] font-semibold text-mist-400 flex items-center gap-1.5">
+                            <Mail className="h-3 w-3 text-cyan-400" />
+                            Email Address
+                          </span>
+                          <a
+                            href={`mailto:${drawerRoom.guestEmail ?? 'guest@voyageur.com'}`}
+                            className="font-semibold text-white hover:text-cyan-300 transition text-[11px] truncate block"
+                            title={drawerRoom.guestEmail ?? 'guest@voyageur.com'}
+                          >
+                            {drawerRoom.guestEmail ?? 'guest@voyageur.com'}
+                          </a>
+                        </div>
+
+                        {/* Booking Reference ID */}
+                        <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/5 space-y-0.5">
+                          <span className="text-[10px] font-semibold text-mist-400 flex items-center gap-1.5">
+                            <Hash className="h-3 w-3 text-amber-400" />
+                            Booking Reference
+                          </span>
+                          <span className="font-mono font-bold text-amber-300 text-[11px] block">
+                            {drawerRoom.bookingRef ?? drawerRoom.stay?.id ?? `BK-${drawerRoom.no}-9821`}
+                          </span>
+                        </div>
+
+                        {/* Length of Stay & Party */}
+                        <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/5 space-y-0.5">
+                          <span className="text-[10px] font-semibold text-mist-400 flex items-center gap-1.5">
+                            <Clock className="h-3 w-3 text-sky-400" />
+                            Duration &amp; Party
+                          </span>
+                          <span className="font-semibold text-white text-[11px] block">
+                            {drawerRoom.duration ?? (drawerRoom.stay?.nights ? `${drawerRoom.stay.nights} Nights · 2 Guests` : '4 Nights · 2 Guests')}
+                          </span>
+                        </div>
+
+                        {/* Check-In Date & Time */}
+                        <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/5 space-y-0.5">
+                          <span className="text-[10px] font-semibold text-mist-400 flex items-center gap-1.5">
+                            <Calendar className="h-3 w-3 text-emerald-400" />
+                            Check-In Date
+                          </span>
+                          <span className="font-semibold text-emerald-300 text-[11px] block">
+                            {drawerRoom.checkInDate ?? drawerRoom.stay?.arrival ?? 'Nov 05, 2026 · 14:00'}
+                          </span>
+                        </div>
+
+                        {/* Check-Out Date & Time */}
+                        <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/5 space-y-0.5">
+                          <span className="text-[10px] font-semibold text-mist-400 flex items-center gap-1.5">
+                            <Calendar className="h-3 w-3 text-rose-400" />
+                            Check-Out Date
+                          </span>
+                          <span className="font-semibold text-rose-300 text-[11px] block">
+                            {drawerRoom.checkOutDate ?? drawerRoom.stay?.departure ?? 'Nov 09, 2026 · 11:00'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Folio Balance & Card Mask */}
+                      <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/5 flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <CreditCard className="h-3.5 w-3.5 text-emerald-400" />
+                          <span className="text-mist-400 text-[11px]">Folio Balance:</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="font-bold text-emerald-400 text-xs">
+                            {drawerRoom.folioBalance ?? '₹0.00 (Settled)'}
+                          </span>
+                          <span className="text-[10px] text-mist-400 ml-1.5 font-mono">
+                            · Visa •••• 4242
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Special Preferences / Guest Notes */}
+                      {(drawerRoom.preferences || drawerRoom.stay?.preferencesSummary) && (
+                        <div className="p-2.5 rounded-xl bg-amber-500/[0.06] border border-amber-500/20 text-xs space-y-1">
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-amber-300">
+                            Guest Preferences &amp; Requests
+                          </span>
+                          <p className="text-mist-200 text-[11px] leading-relaxed">
+                            {drawerRoom.preferences ?? drawerRoom.stay?.preferencesSummary}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="p-4 rounded-2xl border border-white/10 bg-white/[0.02] space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-mist-400">
+                          Room Status
+                        </span>
+                        <Badge tone={drawerRoom.readiness === 'ready' ? 'success' : drawerRoom.readiness === 'cleaning' ? 'warning' : 'danger'}>
+                          {drawerRoom.readiness === 'ready' ? 'Vacant & Inspected' : drawerRoom.readiness === 'cleaning' ? 'Turnover Cleaning' : 'Out of Order'}
+                        </Badge>
+                      </div>
                       <div className="space-y-1">
-                        <p className="text-white font-semibold">Vacant &amp; Inspected</p>
+                        <p className="text-white font-semibold">
+                          {drawerRoom.readiness === 'ready' ? 'Ready for Immediate Walk-In Assignment' : drawerRoom.readiness === 'cleaning' ? 'Housekeeping Turnover In Progress' : 'Maintenance Required'}
+                        </p>
                         <p className="text-mist-400 text-[11px]">
-                          Ready for immediate walk-in assignment or scheduled arrival check-in.
+                          {drawerRoom.readiness === 'ready'
+                            ? 'Housekeeping inspection verified. All amenities replenished and keyless PIN ready.'
+                            : drawerRoom.readiness === 'cleaning'
+                            ? 'Assigned housekeeping team is freshening linens, towels, and minibar restock.'
+                            : 'Room undergoing technical inspection and maintenance.'}
                         </p>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
+
+                  {/* Post-Departure Room Management Card (Requirement 7.A) */}
+                  {(drawerRoom.cleaningCategory === 'post_departure' ||
+                    drawerRoom.statusKind === 'post_departure' ||
+                    drawerRoom.previousGuest) && (
+                    <div className="p-3.5 rounded-xl border border-violet-500/30 bg-violet-500/[0.04] space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-violet-300">
+                          Post-Departure Turnover Management
+                        </span>
+                        <Badge tone={drawerRoom.readiness === 'ready' ? 'success' : 'warning'}>
+                          {drawerRoom.readiness === 'ready' ? 'Ready for New Guest' : 'Turnover Required'}
+                        </Badge>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <span className="text-mist-400">Previous Guest</span>
+                          <p className="font-semibold text-white mt-0.5">{drawerRoom.previousGuest || 'Clara Dupont'}</p>
+                        </div>
+                        <div>
+                          <span className="text-mist-400">Checkout Time</span>
+                          <p className="font-semibold text-mist-200 mt-0.5">{drawerRoom.checkoutTime || 'Today · 09:15 AM'}</p>
+                        </div>
+                        <div>
+                          <span className="text-mist-400">Housekeeping Status</span>
+                          <p className="font-semibold text-amber-300 capitalize mt-0.5">
+                            {drawerRoom.readiness === 'ready' ? 'Inspected & Ready' : drawerRoom.readiness === 'cleaning' ? 'Cleaning In Progress' : 'Dirty (Awaiting Turnover)'}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-mist-400">Cleaner Assigned</span>
+                          <p className="font-semibold text-mist-200 mt-0.5">{drawerRoom.cleanerAssigned || 'Vikram Singh (Housekeeping)'}</p>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-white/10 flex flex-col gap-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-mist-400">Front Desk Release:</span>
+                          <span className={cn('font-bold', drawerRoom.readiness === 'ready' ? 'text-emerald-400' : 'text-amber-400')}>
+                            {drawerRoom.readiness === 'ready' ? 'Released / Available' : 'Locked (Pending Turnover)'}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row gap-2 mt-1">
+                          <Button
+                            size="sm"
+                            variant="subtle"
+                            iconLeft={Sparkles}
+                            onClick={() => {
+                              setRoomOverrides((prev) => ({
+                                ...prev,
+                                [drawerRoom.no]: { readiness: 'cleaning', occupied: false, dnd: false },
+                              }));
+                            }}
+                          >
+                            Dispatch Turnover (HK)
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={drawerRoom.readiness === 'ready' ? 'accent' : 'subtle'}
+                            iconLeft={CheckCircle2}
+                            disabled={drawerRoom.readiness !== 'ready'}
+                            onClick={() => {
+                              setRoomOverrides((prev) => ({
+                                ...prev,
+                                [drawerRoom.no]: { readiness: 'ready', occupied: false, dnd: false },
+                              }));
+                            }}
+                          >
+                            Mark Room Available
+                          </Button>
+                        </div>
+                        {drawerRoom.readiness !== 'ready' && (
+                          <p className="text-[10px] text-amber-300/80 italic">
+                            * Note: Front Desk cannot release this room until Housekeeping completes turnover and supervisor inspection is approved.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Routine Cleaning Cycle Card (Requirement 7.B.2) */}
+                  {drawerRoom.cleaningCategory === 'cycle' && drawerRoom.cycleInfo && (
+                    <div className="p-3.5 rounded-xl border border-sky-500/30 bg-sky-500/[0.04] space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-sky-300">
+                          Routine Cleaning Cycle (SOP 3-Day Rule)
+                        </span>
+                        <Badge tone={drawerRoom.cycleInfo.isOverdue ? 'danger' : 'info'}>
+                          {drawerRoom.cycleInfo.dueDay}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <span className="text-mist-400">Cycle Policy</span>
+                          <p className="font-semibold text-white mt-0.5">Every 3 Days</p>
+                        </div>
+                        <div>
+                          <span className="text-mist-400">Scheduled Time</span>
+                          <p className="font-semibold text-mist-200 mt-0.5">{drawerRoom.cycleInfo.nextScheduled}</p>
+                        </div>
+                        <div>
+                          <span className="text-mist-400">Assigned Housekeeper</span>
+                          <p className="font-semibold text-mist-200 mt-0.5">{drawerRoom.cleanerAssigned || 'Anita Sharma'}</p>
+                        </div>
+                        <div>
+                          <span className="text-mist-400">Duplicate Check</span>
+                          <p className="font-semibold text-emerald-400 mt-0.5">Protected (1 active/cycle)</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* On Guest Request Cleaning Card (Requirement 7.B.1) */}
+                  {drawerRoom.cleaningCategory === 'guest_request' && (
+                    <div className="p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/[0.04] space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-amber-300">
+                          Guest Requested Cleaning
+                        </span>
+                        <Badge tone="warning">On-Demand Request</Badge>
+                      </div>
+                      <p className="text-xs text-mist-200">
+                        Guest submitted a priority housekeeping request via Guest Portal for full room freshening and towel turnover.
+                      </p>
+                      <p className="text-[11px] text-mist-400">
+                        Assigned Attendant: <strong className="text-white">{drawerRoom.cleanerAssigned || 'Sunita Rao'}</strong>
+                      </p>
+                    </div>
+                  )}
 
                   {/* Room Digital Access & QR Pass Card (Required) */}
                   <div className="p-4 rounded-xl border border-cyan-500/30 bg-cyan-500/[0.04] space-y-3.5">

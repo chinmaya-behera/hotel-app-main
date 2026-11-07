@@ -20,6 +20,7 @@ import {
   ChevronRight,
   Layers,
   PartyPopper,
+  Scale,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
 import { money } from '@/lib/utils';
@@ -131,15 +132,15 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
     },
     {
       id: 'front_desk' as const,
-      name: 'Front Desk Direct Channel',
-      category: 'desk',
+      name: 'Front Desk & Guest Support',
+      category: 'desk' as const,
       categoryBadge: '24/7 Front Office',
       bannerImage: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80',
       icon: MessageSquare,
       color: 'bg-indigo-400/15 text-indigo-300 border-indigo-400/30',
-      tagline: '24/7 direct communication with Front Desk team',
-      highlights: ['Luggage & bell assistance', 'Document printing', 'Late checkout inquiries', 'Two-way message replies'],
-      actionText: 'Message Front Desk',
+      tagline: '24/7 unified guest support: Complaints, Financial issues, Requests & Incidents',
+      highlights: ['Formal complaints & resolution', 'Refund & compensation claims', 'Special requests & assistance', 'Incident reporting & safety'],
+      actionText: 'Open Front Desk & Support',
     },
     {
       id: 'reminders' as const,
@@ -166,18 +167,6 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
       tagline: 'Communicate privacy preferences directly to all staff',
       highlights: ['Instant activation/deactivation', 'Custom duration schedule', 'Special delivery notes', 'Front Desk live sync'],
       actionText: prefs?.dnd ? 'Manage DND (Active)' : 'Activate DND',
-    },
-    {
-      id: 'complaints' as const,
-      name: 'Complaints & Service Recovery',
-      category: 'desk',
-      categoryBadge: 'Guest Relations',
-      bannerImage: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=800&q=80',
-      icon: HeartHandshake,
-      color: 'bg-rose-400/15 text-rose-300 border-rose-400/30',
-      tagline: 'Formal case registration escalated directly to Duty Manager',
-      highlights: ['7 issue categories', 'Photo attachments', 'Resolution tracking & credits', 'Marcus Vance direct escalation'],
-      actionText: 'Register Complaint',
     },
     {
       id: 'lost_found' as const,
@@ -236,14 +225,16 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
         {(activeSubView === 'room_service' || activeSubView === 'housekeeping') && (
           <HousekeepingCatalogueSection room={room} guestName={guestName} onNavigate={onNavigate} />
         )}
-        {activeSubView === 'complaints' && (
-          <ComplaintsSection room={room} guestName={guestName} onNavigate={onNavigate} />
-        )}
         {activeSubView === 'lost_found' && (
           <LostFoundSection room={room} guestName={guestName} onNavigate={onNavigate} />
         )}
-        {activeSubView === 'front_desk' && (
-          <ToFrontDeskSubtab room={room} guestName={guestName} onNavigate={onNavigate} />
+        {(activeSubView === 'front_desk' || activeSubView === 'compensation' || activeSubView === 'complaints') && (
+          <ToFrontDeskSubtab
+            room={room}
+            guestName={guestName}
+            onNavigate={onNavigate}
+            initialSubtab={activeSubView}
+          />
         )}
         {activeSubView === 'reminders' && (
           <RemindersSubtab room={room} guestName={guestName} onNavigate={onNavigate} />

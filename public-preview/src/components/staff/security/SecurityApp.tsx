@@ -1,43 +1,92 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { Fragment, useEffect, useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import {
-  Shield,
   Activity,
+  ArrowRight,
+  ArrowUpRight,
+  BarChart3,
   Bell,
-  History,
-  User,
+  BookOpen,
+  CalendarDays,
+  CheckCheck,
+  ChevronRight,
+  ClipboardCheck,
+  Download,
+  Gauge,
+  Handshake,
+  LockKeyhole,
+  LogOut,
+  Menu,
+  Moon,
+  Search,
+  Sun,
+  Send,
+  UserRound,
+  Users,
+  X,
+  Shield,
+  ShieldAlert,
+  AlertTriangle,
+  Radio,
+  PhoneCall,
   Volume2,
   VolumeX,
-  Sun,
-  Moon,
-  ShieldAlert,
-  ChevronLeft,
-  Flame,
-  Users,
-  BookOpen,
+  type LucideIcon,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
-import type { WorkItem } from '@/types/demo';
-import { SecurityHomeTab } from './SecurityHomeTab';
-import { SecurityIncidentsTab } from './SecurityIncidentsTab';
-import { SecurityAlertsTab } from './SecurityAlertsTab';
-import { SecurityHistoryTab } from './SecurityHistoryTab';
-import { SecurityProfileTab } from './SecurityProfileTab';
-import { SecurityPlaybookTab } from './SecurityPlaybookTab';
-import { SecurityHandoverTab } from './SecurityHandoverTab';
+import type { WorkItem, ShiftHandover } from '@/types/demo';
+import Lenis from 'lenis';
+import 'lenis/dist/lenis.css';
+import gsap from 'gsap';
 import { SecurityIncidentDetailModal } from './SecurityIncidentDetailModal';
+import { SecurityLogIncidentModal } from './SecurityLogIncidentModal';
 import { playSecurityChime, playPanicSiren } from './securityChime';
+import '../../shared/warm-theme.css';
+import '../../manager/department-manager.css';
 
-type SecurityTab = 'home' | 'incidents' | 'alerts' | 'handover' | 'playbook' | 'history' | 'profile';
+const NAV = [
+  ['overview', 'Overview', Gauge, 'Workspace'],
+  ['incidents', 'Incident Monitoring', Activity, 'Workspace'],
+  ['recovery', 'Escalations & Recovery', Handshake, 'Workspace'],
+  ['staff', 'Officers & Workload', Users, 'Management'],
+  ['policies', 'PlayBook', BookOpen, 'Management'],
+  ['handover', 'Shift Handover', Send, 'Management'],
+  ['notifications', 'Notifications', Bell, 'Personal'],
+  ['profile', 'Profile', UserRound, 'Personal'],
+] as const satisfies readonly (readonly [string, string, LucideIcon, string])[];
+
+type Tab = typeof NAV[number][0];
+type Modal =
+  | { kind: 'inspection'; id?: string; sector?: string }
+  | { kind: 'recovery'; task: WorkItem }
+  | { kind: 'policy' }
+  | { kind: 'handover' }
+  | null;
+
+const dateLabel = (value?: string) => {
+  if (!value) return 'Not recorded';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+};
+
+const statusClass = (status: string) =>
+  /resolved|completed|passed|acknowledged/i.test(status)
+    ? 'dm-status good'
+    : /critical|escalat|blocked|reopened|high/i.test(status)
+      ? 'dm-status urgent'
+      : 'dm-status';
 
 export function SecurityApp() {
   const {
     state,
+    hydrated,
+    setTheme,
     setPersona,
     setSoundEnabled,
-    setTheme,
     acknowledgeSecurityItem,
     arriveSecurityItem,
     resolveSecurityItem,
@@ -45,13 +94,45 @@ export function SecurityApp() {
     escalateSecurityItem,
     addSecurityNote,
     createSecurityIncident,
-    markNotificationRead,
-    clearAllNotifications,
+    departmentManagerCommand,
   } = useDemo();
 
-  const [activeTab, setActiveTab] = useState<SecurityTab>('home');
+  const [tab, setTab] = useState<Tab>('overview');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [period, setPeriod] = useState('week');
+  const [modal, setModal] = useState<Modal>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedIncident, setSelectedIncident] = useState<WorkItem | null>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const [showLogModal, setShowLogModal] = useState(false);
+
+  // Security shift handovers fallback local state if none in store
+  const [localHandovers, setLocalHandovers] = useState<ShiftHandover[]>([
+    {
+      id: 'sec-ho-1',
+      shift: 'Night',
+      scope: 'My Department',
+      department: 'Safety & Security',
+      timestamp: new Date(Date.now() - 3600000 * 3).toISOString(),
+      outgoingManager: 'Officer T. Chen (Evening)',
+      incomingManager: 'Inspector Roy (Night)',
+      notes:
+        'Gate 3 magnetic latch recalibrated by Engineering. Suite 402 guest reported mild hallway foot traffic; quiet hours advisory active. Perimeter camera 4 cleared.',
+      outstandingTasksCount: 3,
+      unresolvedComplaintsCount: 0,
+      criticalIncidentsCount: 1,
+      priorityActions: [
+        'Monitor Pool Deck quiet hours after 23:00',
+        'Verify Executive Suite 509 smoke detector replacement ticket',
+        'Hourly sweep of Basement Service Corridor B',
+      ],
+      status: 'submitted',
+    },
+  ]);
+
+  const dialog = useRef<HTMLDialogElement>(null);
+  const navigationTrigger = useRef<HTMLButtonElement>(null);
+  const navigationClose = useRef<HTMLButtonElement>(null);
   const prevCountRef = useRef<number | null>(null);
 
   // Set persona on mount
@@ -59,10 +140,78 @@ export function SecurityApp() {
     setPersona('security_responder');
   }, [setPersona]);
 
-  const items = state.items.security_responder ?? [];
-  const isSoundOn = state.soundEnabled ?? true;
+  // Initialize Lenis smooth scroll
+  useEffect(() => {
+    const lenis = new Lenis({
+      duration: 1.15,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      smoothWheel: true,
+      touchMultiplier: 1.5,
+    });
+
+    let rafId: number;
+    function raf(time: number) {
+      lenis.raf(time);
+      rafId = requestAnimationFrame(raf);
+    }
+    rafId = requestAnimationFrame(raf);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      lenis.destroy();
+    };
+  }, []);
+
+  // GSAP Text & UI entrance animations
+  useEffect(() => {
+    // 1. Hero text stagger
+    gsap.fromTo(
+      '.gsap-hero-title',
+      { opacity: 0, y: 14 },
+      { opacity: 1, y: 0, duration: 0.55, ease: 'power2.out' }
+    );
+    gsap.fromTo(
+      '.gsap-hero-sub',
+      { opacity: 0, y: 10 },
+      { opacity: 1, y: 0, duration: 0.55, delay: 0.08, ease: 'power2.out' }
+    );
+    gsap.fromTo(
+      '.gsap-meta',
+      { opacity: 0, y: 8 },
+      { opacity: 1, y: 0, duration: 0.5, delay: 0.14, ease: 'power2.out' }
+    );
+
+    // 2. KPI metrics entrance & numbers
+    gsap.fromTo(
+      '.dm-kpi',
+      { opacity: 0, y: 18 },
+      { opacity: 1, y: 0, duration: 0.5, stagger: 0.06, delay: 0.16, ease: 'power2.out', clearProps: 'transform' }
+    );
+    gsap.fromTo(
+      '.gsap-kpi-num',
+      { opacity: 0, scale: 0.94 },
+      { opacity: 1, scale: 1, duration: 0.45, stagger: 0.06, delay: 0.22, ease: 'back.out(1.5)', clearProps: 'transform' }
+    );
+
+    // 3. Grid panels entrance
+    gsap.fromTo(
+      '.gsap-panel',
+      { opacity: 0, y: 20 },
+      { opacity: 1, y: 0, duration: 0.6, stagger: 0.1, delay: 0.24, ease: 'power2.out', clearProps: 'transform' }
+    );
+
+    // 4. Section headings
+    gsap.fromTo(
+      '.gsap-section-title',
+      { opacity: 0, x: -8 },
+      { opacity: 1, x: 0, duration: 0.5, delay: 0.3, ease: 'power2.out' }
+    );
+  }, [tab]);
 
   // Audio siren trigger when critical or new incident arrives
+  const isSoundOn = state.soundEnabled ?? true;
+  const items = state.items.security_responder ?? [];
+
   useEffect(() => {
     if (prevCountRef.current !== null && items.length > prevCountRef.current) {
       if (isSoundOn) {
@@ -77,257 +226,1102 @@ export function SecurityApp() {
     prevCountRef.current = items.length;
   }, [items, isSoundOn]);
 
-  // Scroll to top on tab switch
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [activeTab]);
+    if (!sidebarOpen) return;
+    navigationClose.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSidebarOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      navigationTrigger.current?.focus();
+    };
+  }, [sidebarOpen]);
 
-  // Derived counts for navigation badges
-  const activeCount = items.filter((i) => i.status !== 'Resolved').length;
-  const criticalOrNewCount = items.filter(
+  // Calculations
+  const activeIncidents = items.filter((i) => i.status !== 'Resolved');
+  const criticalItems = items.filter(
     (i) => (i.priority === 'critical' || i.status === 'New') && i.status !== 'Resolved',
-  ).length;
+  );
+  const recoveryItems = items.filter((t) => /escalat|blocked/i.test(t.status));
 
-  const isLight = state.theme === 'light';
+  // Security staff accounts
+  const securityStaff = state.staffAccounts.filter(
+    (s) =>
+      s.department === 'Safety & Security' ||
+      s.roleId === 'security_responder' ||
+      ['Inspector Roy', 'Officer Chen', 'Officer Marcus', 'Officer Sarah'].some((n) => s.name.includes(n)),
+  );
+  const onDutyCount = Math.max(
+    4,
+    securityStaff.filter((s) => s.availability === 'on_duty' || s.status === 'active').length,
+  );
+
+  const navigate = (next: Tab) => {
+    setTab(next);
+    setSearch('');
+    setStatusFilter('all');
+    setSidebarOpen(false);
+  };
+
+  const openModal = (next: NonNullable<Modal>) => {
+    setModal(next);
+    dialog.current?.showModal();
+  };
+
+  const closeModal = () => {
+    dialog.current?.close();
+    setModal(null);
+  };
+
+  const title = NAV.find((n) => n[0] === tab)?.[1] || 'Overview';
+
+  const visibleIncidents = items.filter((t) => {
+    const matchesStatus =
+      statusFilter === 'all'
+        ? true
+        : statusFilter === 'open'
+          ? t.status !== 'Resolved'
+          : t.status === 'Resolved';
+    const matchesSearch = `${t.title} ${t.ref || ''} ${t.room || ''} ${t.assignee || ''} ${t.priority || ''}`
+      .toLowerCase()
+      .includes(search.toLowerCase());
+    return matchesStatus && matchesSearch;
+  });
+
+  const exportReport = () => {
+    const rows = [
+      ['ID', 'Title', 'Location', 'Priority', 'Status', 'Assignee'],
+      ...items.map((t) => [
+        `"${t.id}"`,
+        `"${t.title.replace(/"/g, '""')}"`,
+        `"${(t.room || '').replace(/"/g, '""')}"`,
+        `"${t.priority}"`,
+        `"${t.status}"`,
+        `"${(t.assignee || '').replace(/"/g, '""')}"`,
+      ]),
+    ];
+    const csv = rows.map((r) => r.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `security-incident-report-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const submitModal = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const text = (key: string) => String(form.get(key) || '').trim();
+
+    if (modal?.kind === 'handover') {
+      const newHo: ShiftHandover = {
+        id: `sec-ho-${Date.now()}`,
+        shift: 'Night',
+        scope: 'My Department',
+        department: 'Safety & Security',
+        timestamp: new Date().toISOString(),
+        outgoingManager: 'Inspector Roy (Night)',
+        incomingManager: text('incoming') || 'Officer Morning Lead',
+        notes: text('notes'),
+        outstandingTasksCount: activeIncidents.length,
+        unresolvedComplaintsCount: 0,
+        criticalIncidentsCount: criticalItems.length,
+        priorityActions: [
+          'Verify fire suppression panels after overnight test',
+          'Coordinate pool deck towel station access unlocks',
+          'Review VIP arrivals briefing at front desk',
+        ],
+        status: 'submitted',
+      };
+      setLocalHandovers((prev) => [newHo, ...prev]);
+    } else if (modal?.kind === 'recovery' && modal.task) {
+      const decision = text('decision');
+      const note = text('note');
+      if (decision === 'resolve') {
+        resolveSecurityItem(modal.task.id, {
+          summary: 'Escalation resolved by Security Lead',
+          observations: note,
+          actionsTaken: 'Direct intervention completed & logged.',
+          outcome: 'Case closed on night shift.',
+        });
+      } else {
+        escalateSecurityItem(modal.task.id, note, 'Forwarded to General Manager for formal review.');
+      }
+    }
+    closeModal();
+  };
+
+  const kpis = [
+    {
+      label: 'Active incidents',
+      value: items.length || 5,
+      detail: 'Across property',
+      icon: Activity,
+      next: 'incidents' as Tab,
+    },
+    {
+      label: 'Critical alerts',
+      value: criticalItems.length || 3,
+      detail: 'Immediate response required',
+      icon: ShieldAlert,
+      next: 'notifications' as Tab,
+    },
+    {
+      label: 'Open escalations',
+      value: recoveryItems.length || 3,
+      detail: 'Ready for your review',
+      icon: Handshake,
+      next: 'recovery' as Tab,
+    },
+    {
+      label: 'Officers on duty',
+      value: 4,
+      detail: 'Night patrol active',
+      icon: Users,
+      next: 'staff' as Tab,
+    },
+  ];
+
+  const currentDateFormatted = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center overflow-hidden bg-gradient-to-b from-[#050b14] via-[#071120] to-[#03060a]">
-      {/* Centered Phone Shell Container on Desktop, Full Screen on Mobile */}
-      <div className="relative flex flex-col w-full h-full sm:h-[844px] sm:max-h-[calc(100dvh-2rem)] sm:w-[412px] sm:rounded-[2.8rem] sm:border-[8px] sm:border-[#0f172a] sm:shadow-[0_25px_80px_-15px_rgba(0,0,0,0.85),0_0_0_1px_rgba(255,255,255,0.08)] bg-ink-950 overflow-hidden text-white">
-        {/* Phone Speaker Notch (Desktop Shell Only) */}
-        <div className="hidden sm:flex absolute top-0 inset-x-0 z-50 justify-center pointer-events-none pt-2">
-          <div className="h-4 w-28 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center gap-2">
-            <span className="h-1.5 w-1.5 rounded-full bg-rose-500/80 animate-pulse" />
-            <span className="h-1 w-10 rounded-full bg-white/20" />
+    <div className="dm-workspace" data-sidebar-open={sidebarOpen}>
+      {sidebarOpen && (
+        <button
+          className="dm-nav-scrim"
+          aria-label="Close navigation"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* ---------------- LEFT SIDEBAR (WORKSPACE) ---------------- */}
+      <aside className="dm-sidebar" id="security-navigation">
+        <div className="dm-sidebar-brand">
+          <span className="dm-monogram">H</span>
+          <div>
+            <strong>THE GRAND ADP</strong>
+            <small>Security Workspace</small>
+          </div>
+          <button
+            ref={navigationClose}
+            className="dm-mobile-close dm-icon-button"
+            aria-label="Close sidebar"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="dm-department-label">
+          <span className="dm-department-icon">
+            <LockKeyhole size={17} />
+          </span>
+          <div>
+            <small>Your department</small>
+            <strong>Safety &amp; Security</strong>
           </div>
         </div>
 
-        {/* Mobile Header Bar */}
-        <header className="shrink-0 border-b border-white/[0.08] bg-ink-950/95 backdrop-blur-xl px-4 pt-3 pb-3 sm:pt-6 z-40">
-          <div className="flex items-center justify-between gap-3">
-            {/* Identity */}
-            <div className="flex items-center gap-2.5">
-              <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-sky-400 to-indigo-600 text-xs font-black text-ink-950 shadow-md shadow-sky-500/20">
-                IR
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <h1 className="text-xs font-bold text-white truncate">Inspector Roy</h1>
-                  <span className="h-1.5 w-1.5 rounded-full bg-rose-500 ring-2 ring-rose-500/20 shrink-0 animate-pulse" />
-                </div>
-                <p className="text-[10px] text-mist-400 truncate">Safety & Security · Night Shift</p>
-              </div>
-            </div>
+        <nav aria-label="Security operations navigation">
+          {NAV.map(([id, labelText, Icon, group], index) => {
+            const prevGroup = index > 0 ? NAV[index - 1][3] : null;
+            const showGroupHeader = group !== prevGroup;
+            const badge =
+              id === 'notifications'
+                ? criticalItems.length
+                : id === 'recovery'
+                  ? recoveryItems.length || 3
+                  : id === 'incidents'
+                    ? activeIncidents.length
+                    : 0;
 
-            {/* Header Actions */}
-            <div className="flex items-center gap-1.5">
-              {/* Sound Toggle */}
-              <button
-                type="button"
-                onClick={() => setSoundEnabled(!isSoundOn)}
-                title={isSoundOn ? 'Mute alert siren' : 'Enable alert siren'}
-                className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-white/5 text-mist-300 hover:text-white transition-colors"
-              >
-                {isSoundOn ? <Volume2 className="h-4 w-4 text-sky-400" /> : <VolumeX className="h-4 w-4 text-mist-500" />}
-              </button>
+            return (
+              <Fragment key={id}>
+                {showGroupHeader && <p className="dm-nav-group-label">{group}</p>}
+                <button
+                  aria-label={badge > 0 ? `${labelText} ${badge}` : labelText}
+                  aria-current={tab === id ? 'page' : undefined}
+                  title={labelText}
+                  onClick={() => navigate(id)}
+                >
+                  <Icon size={18} />
+                  <span>{labelText}</span>
+                  {badge > 0 && <b>{badge}</b>}
+                </button>
+              </Fragment>
+            );
+          })}
+        </nav>
 
-              {/* Theme Toggle */}
-              <button
-                type="button"
-                onClick={() => setTheme(isLight ? 'dark' : 'light')}
-                title={isLight ? 'Switch to dark theme' : 'Switch to light theme'}
-                className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-white/5 text-mist-300 hover:text-white transition-colors"
-              >
-                {isLight ? <Moon className="h-4 w-4 text-amber-400" /> : <Sun className="h-4 w-4 text-amber-300" />}
-              </button>
+        <div className="dm-sidebar-footer">
+          <button
+            className="dm-user-button"
+            onClick={() => navigate('profile')}
+            aria-label="Open officer profile"
+          >
+            <span className="dm-avatar">IR</span>
+            <span>
+              <strong>Inspector Roy</strong>
+              <small>Safety &amp; Security Lead</small>
+            </span>
+          </button>
+          <Link href="/staff" aria-label="Switch staff role" title="Switch staff role">
+            <LogOut size={18} />
+          </Link>
+        </div>
+      </aside>
 
-              {/* Switch Role back to selector */}
-              <Link
-                href="/roles"
-                className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-white/5 text-mist-300 hover:text-white transition-colors"
-                title="Switch Role"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Link>
-            </div>
+      {/* ---------------- MAIN OPERATING CONSOLE ---------------- */}
+      <main className="dm-main" inert={sidebarOpen ? true : undefined}>
+        {/* Top Breadcrumb & Status Bar */}
+        <header className="dm-topline">
+          <div className="dm-breadcrumb">
+            <button
+              ref={navigationTrigger}
+              className="dm-menu-toggle dm-icon-button"
+              aria-label="Open navigation"
+              aria-expanded={sidebarOpen}
+              aria-controls="security-navigation"
+              onClick={() => setSidebarOpen(true)}
+            >
+              <Menu size={20} />
+            </button>
+            <span>Safety &amp; Security</span>
+            <ChevronRight size={14} />
+            <strong>{title}</strong>
+          </div>
+
+          <div className="dm-topline-tools">
+            <span className="dm-live">
+              <i /> Department access
+            </span>
+
+            {/* Sound toggle button */}
+            <button
+              className="dm-icon-button"
+              aria-label={isSoundOn ? 'Mute alert siren' : 'Enable alert siren'}
+              title={isSoundOn ? 'Siren audible' : 'Siren muted'}
+              onClick={() => setSoundEnabled(!isSoundOn)}
+            >
+              {isSoundOn ? <Volume2 size={18} /> : <VolumeX size={18} />}
+            </button>
+
+            {/* Theme switcher */}
+            <button
+              className="dm-icon-button"
+              aria-label={state.theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}
+              title={state.theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}
+              onClick={() => setTheme(state.theme === 'light' ? 'dark' : 'light')}
+            >
+              {state.theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+            </button>
+
+            {/* Notifications */}
+            <button
+              className="dm-icon-button"
+              aria-label={`Notifications, ${criticalItems.length} alerts`}
+              onClick={() => navigate('notifications')}
+            >
+              <Bell size={19} />
+              {criticalItems.length > 0 && <b>{criticalItems.length}</b>}
+            </button>
+
+            {/* Profile Avatar */}
+            <button
+              className="dm-avatar"
+              aria-label="View security officer profile"
+              onClick={() => navigate('profile')}
+            >
+              IR
+            </button>
           </div>
         </header>
 
-        {/* Quick Section Horizontal Sub-bar */}
-        <div className="shrink-0 flex items-center gap-1 px-3 py-2 border-b border-white/[0.08] bg-ink-950/80 overflow-x-auto scrollbar-none text-[11px]">
-          {(
-            [
-              ['home', 'Overview'],
-              ['incidents', 'Incidents'],
-              ['alerts', 'Safety Alerts'],
-              ['handover', 'Shift Handover'],
-              ['playbook', 'Playbooks & SOP'],
-              ['history', 'Archive'],
-              ['profile', 'Profile'],
-            ] as const
-          ).map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setActiveTab(key)}
-              className={`px-2.5 py-1 rounded-xl whitespace-nowrap font-medium transition ${
-                activeTab === key
-                  ? 'bg-sky-500 text-ink-950 font-bold shadow-md shadow-sky-500/20'
-                  : 'text-mist-400 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+        {/* Page Hero Header */}
+        <div className="dm-page-heading">
+          <div>
+            <p className="dm-eyebrow">DEPARTMENT OPERATIONS</p>
+            <h1 className="gsap-hero-title">{tab === 'overview' ? 'Safety & Security overview' : title}</h1>
+            <p className="gsap-hero-sub">Rapid emergency response, patrol coverage, and guest safety facilities</p>
+          </div>
+
+          <div className="dm-heading-actions">
+            {tab === 'overview' ? (
+              <button className="dm-primary" onClick={() => setShowLogModal(true)}>
+                <ClipboardCheck size={17} /> + Log incident
+              </button>
+            ) : (
+              <span className="dm-date">
+                <CalendarDays size={16} />
+                {currentDateFormatted}
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* Scrollable Main Content Viewport */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3.5 space-y-4 touch-pan-y">
-          {activeTab === 'home' && (
-            <SecurityHomeTab
-              items={items}
-              feed={state.feed}
-              onSelectIncident={(inc) => setSelectedIncident(inc)}
-              onNavigateTab={(t) => setActiveTab(t)}
-              onAcknowledge={acknowledgeSecurityItem}
-              onArrive={arriveSecurityItem}
-              onResolve={resolveSecurityItem}
-              onRequestBackup={requestSecurityBackup}
-              onEscalate={escalateSecurityItem}
-              onAddNote={addSecurityNote}
-              onCreateIncident={createSecurityIncident}
-            />
-          )}
+        {/* ===================== TAB: OVERVIEW ===================== */}
+        {tab === 'overview' && (
+          <>
+            {/* Meta Row: Date & Department Security Lock */}
+            <div className="dm-overview-meta gsap-meta">
+              <span>
+                <CalendarDays size={15} />
+                {currentDateFormatted}
+              </span>
+              <span>
+                <LockKeyhole size={15} />
+                Safety &amp; Security only
+              </span>
+            </div>
 
-          {activeTab === 'incidents' && (
-            <SecurityIncidentsTab
-              items={items}
-              onSelectIncident={(inc) => setSelectedIncident(inc)}
-            />
-          )}
+            {/* 4 Top KPI Cards in Luxury Card Boxes */}
+            <div className="dm-kpis">
+              {kpis.map((k) => (
+                <button
+                  key={k.label}
+                  className="dm-kpi cursor-pointer"
+                  onClick={() => navigate(k.next)}
+                >
+                  <span className="dm-kpi-label">{k.label}</span>
+                  <strong className="gsap-kpi-num">{k.value}</strong>
+                  <span className="dm-kpi-bottom">
+                    <small>{k.detail}</small>
+                    <ArrowUpRight size={15} />
+                  </span>
+                </button>
+              ))}
+            </div>
 
-          {activeTab === 'alerts' && <SecurityAlertsTab />}
+            {/* Middle Grid: Left 8 cols, Right 4 cols */}
+            <div className="dm-overview-grid">
+              {/* Left Column */}
+              <div className="dm-grid-stack">
+                {/* 1. Attention Required Panel */}
+                <section className="dm-panel dm-priority-panel gsap-panel">
+                  <div className="dm-panel-heading">
+                    <div>
+                      <div className="dm-section-title">
+                        <h2 className="gsap-section-title">Attention required</h2>
+                        <span className="dm-count">{Math.max(3, criticalItems.length)}</span>
+                      </div>
+                      <p>Supervisor escalations waiting for a decision.</p>
+                    </div>
+                    <button className="dm-text-button" onClick={() => navigate('incidents')}>
+                      View all <ArrowUpRight size={14} />
+                    </button>
+                  </div>
 
-          {activeTab === 'handover' && <SecurityHandoverTab />}
+                  <div className="dm-attention-list">
+                    {items.slice(0, 3).map((item) => (
+                      <article key={item.id} className="dm-attention-row">
+                        <div>
+                          <strong>{item.title}</strong>
+                          <small>
+                            Security · Level {item.priority === 'critical' ? '4' : '3'} · {item.status}
+                          </small>
+                          <span className="dm-status urgent">Needs review</span>
+                        </div>
+                        <button
+                          className="dm-small-button"
+                          onClick={() => setSelectedIncident(item)}
+                        >
+                          Review &rarr;
+                        </button>
+                      </article>
+                    ))}
+                  </div>
 
-          {activeTab === 'playbook' && <SecurityPlaybookTab />}
+                  <div className="dm-panel-footnote">
+                    <LockKeyhole size={13} />
+                    <span>Cases are limited to Safety &amp; Security</span>
+                  </div>
+                </section>
 
-          {activeTab === 'history' && (
-            <SecurityHistoryTab
-              items={items}
-              onSelectIncident={(inc) => setSelectedIncident(inc)}
-            />
-          )}
+                {/* 2. Patrol & Inspection Queue */}
+                <section className="dm-panel dm-priority-panel gsap-panel">
+                  <div className="dm-panel-heading">
+                    <div>
+                      <div className="dm-section-title">
+                        <h2 className="gsap-section-title">Inspection queue</h2>
+                        <span className="dm-count">1</span>
+                      </div>
+                      <p>Quality checks and General Manager directives.</p>
+                    </div>
+                    <button className="dm-text-button" onClick={() => navigate('incidents')}>
+                      View all <ArrowUpRight size={14} />
+                    </button>
+                  </div>
 
-          {activeTab === 'profile' && <SecurityProfileTab />}
-        </div>
+                  <article className="dm-attention-row dm-inspection-row">
+                    <div>
+                      <strong>402 Perimeter &amp; Service Corridors sweep</strong>
+                      <small>Awaiting supervisor assignment</small>
+                    </div>
+                    <button
+                      className="dm-small-button"
+                      onClick={() => openModal({ kind: 'inspection', sector: 'Sector 402' })}
+                    >
+                      Assign &gt;
+                    </button>
+                  </article>
+                </section>
+              </div>
 
-        {/* Fixed Mobile Bottom Navigation Bar */}
-        <nav
-          role="navigation"
-          aria-label="Security Responder Navigation"
-          className="shrink-0 border-t border-white/[0.08] bg-ink-950/95 backdrop-blur-xl px-2 py-2 sm:pb-3 z-40"
-        >
-          <div className="grid grid-cols-6 gap-1">
-            {/* 1. Home */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('home')}
-              className={`flex flex-col items-center justify-center py-1.5 rounded-xl transition-all ${
-                activeTab === 'home' ? 'text-sky-400 font-bold bg-white/5' : 'text-mist-400 hover:text-mist-200'
-              }`}
+              {/* Right Column */}
+              <div className="dm-grid-stack">
+                {/* 1. Shift Snapshot Card */}
+                <section className="dm-panel dm-shift-card gsap-panel">
+                  <div className="dm-section-title">
+                    <h2 className="gsap-section-title">Shift snapshot</h2>
+                    <span className="dm-shift-label">Night shift</span>
+                  </div>
+
+                  <div className="dm-completion">
+                    <strong>
+                      85<span>%</span>
+                    </strong>
+                    <div>
+                      <b>Patrol completion</b>
+                      <small>3 of 4 sectors covered</small>
+                    </div>
+                  </div>
+
+                  <progress max={100} value={85} />
+
+                  <div className="dm-snapshot-details">
+                    <span>
+                      Team on duty
+                      <strong>{onDutyCount}</strong>
+                    </span>
+                    <span>
+                      Open incidents
+                      <strong>{activeIncidents.length || 5}</strong>
+                    </span>
+                  </div>
+
+                  <div className="dm-shift-actions">
+                    <button className="dm-secondary" onClick={() => openModal({ kind: 'handover' })}>
+                      <Send size={14} />
+                      <span>Prepare handover</span>
+                      <ArrowUpRight size={14} />
+                    </button>
+                  </div>
+                </section>
+
+                {/* 2. Policies & SOPs / Department Tools Card */}
+                <section className="dm-panel dm-desk-summary gsap-panel">
+                  <div className="dm-desk-card-label">
+                    <span>Department tools</span>
+                  </div>
+                  <h2 className="gsap-section-title">Policies &amp; SOPs</h2>
+                  <p>Emergency playbooks &amp; response protocols</p>
+                  <small>Stay ahead of critical incidents and keep emergency protocols ready.</small>
+                  <div style={{ marginTop: 'auto', paddingTop: '18px' }}>
+                    <button
+                      className="dm-primary"
+                      style={{ width: '100%' }}
+                      onClick={() => navigate('policies')}
+                    >
+                      Open emergency playbooks &rarr;
+                    </button>
+                  </div>
+                </section>
+              </div>
+            </div>
+
+            {/* Bottom Full-Width Active Incidents Table */}
+            <section className="dm-panel gsap-panel">
+              <div className="dm-panel-heading">
+                <div>
+                  <h2 className="gsap-section-title">Active incidents</h2>
+                  <p>The latest work across safety &amp; security.</p>
+                </div>
+                <button className="dm-text-button" onClick={() => navigate('incidents')}>
+                  All requests <ArrowUpRight size={14} />
+                </button>
+              </div>
+
+              <div className="dm-table-wrap">
+                <table className="dm-table">
+                  <thead>
+                    <tr>
+                      <th>REQUEST / LOCATION</th>
+                      <th>OWNER</th>
+                      <th>PRIORITY</th>
+                      <th>STATUS</th>
+                      <th>FOLLOW-UP</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((item) => (
+                      <tr key={item.id}>
+                        <td>
+                          <strong>{item.title}</strong>
+                          <small>
+                            {item.ref || item.id} {item.room ? `· ${item.room}` : ''}
+                          </small>
+                        </td>
+                        <td>{item.assignee || 'Awaiting assignment'}</td>
+                        <td>
+                          <span
+                            className={
+                              item.priority === 'critical' || item.priority === 'urgent'
+                                ? 'dm-status urgent'
+                                : 'dm-status'
+                            }
+                          >
+                            {item.priority || 'Normal'}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={statusClass(item.status)}>{item.status}</span>
+                        </td>
+                        <td>
+                          <button
+                            className="dm-text-button"
+                            onClick={() => setSelectedIncident(item)}
+                          >
+                            Review &gt;
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </>
+        )}
+
+        {/* ===================== TAB: INCIDENT MONITORING ===================== */}
+        {tab === 'incidents' && (
+          <section className="dm-panel">
+            <div className="dm-panel-heading">
+              <div>
+                <h2>Incident Monitoring</h2>
+                <p>Filter, search, and inspect live security dispatches and alarms across the property.</p>
+              </div>
+              <div className="dm-heading-actions">
+                <button className="dm-primary" onClick={() => setShowLogModal(true)}>
+                  + Log incident
+                </button>
+              </div>
+            </div>
+
+            <div className="dm-filter-bar" style={{ display: 'flex', gap: '12px', padding: '16px 24px', borderBottom: '1px solid var(--dm-line)' }}>
+              <div style={{ position: 'relative', flex: 1 }}>
+                <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--dm-muted)' }} />
+                <input
+                  type="text"
+                  placeholder="Search incidents by room, title, responder or reference..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  style={{ width: '100%', padding: '8px 12px 8px 36px', borderRadius: '7px', border: '1px solid var(--dm-line)', background: 'var(--dm-surface)', color: 'var(--dm-ink)', fontSize: '13px' }}
+                />
+              </div>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                style={{ padding: '8px 12px', borderRadius: '7px', border: '1px solid var(--dm-line)', background: 'var(--dm-paper)', color: 'var(--dm-ink)', fontSize: '13px' }}
+              >
+                <option value="all">All statuses</option>
+                <option value="open">Active only</option>
+                <option value="resolved">Resolved only</option>
+              </select>
+            </div>
+
+            <div className="dm-table-wrap">
+              <table className="dm-table">
+                <thead>
+                  <tr>
+                    <th>INCIDENT / LOCATION</th>
+                    <th>RESPONDER</th>
+                    <th>PRIORITY</th>
+                    <th>STATUS</th>
+                    <th>FOLLOW-UP</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleIncidents.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} style={{ textAlign: 'center', padding: '36px', color: 'var(--dm-muted)' }}>
+                        No incidents match the search criteria.
+                      </td>
+                    </tr>
+                  ) : (
+                    visibleIncidents.map((item) => (
+                      <tr key={item.id}>
+                        <td>
+                          <strong>{item.title}</strong>
+                          <small>
+                            {item.ref || item.id} {item.room ? `· ${item.room}` : ''}
+                          </small>
+                        </td>
+                        <td>{item.assignee || 'Awaiting assignment'}</td>
+                        <td>
+                          <span
+                            className={
+                              item.priority === 'critical' || item.priority === 'urgent'
+                                ? 'dm-status urgent'
+                                : 'dm-status'
+                            }
+                          >
+                            {item.priority || 'Normal'}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={statusClass(item.status)}>{item.status}</span>
+                        </td>
+                        <td>
+                          <button
+                            className="dm-text-button"
+                            onClick={() => setSelectedIncident(item)}
+                          >
+                            Review &gt;
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+
+
+        {/* ===================== TAB: ESCALATIONS & RECOVERY ===================== */}
+        {tab === 'recovery' && (
+          <section className="dm-panel">
+            <div className="dm-panel-heading">
+              <div>
+                <h2>Supervisor Escalations &amp; Security Recovery</h2>
+                <p>Cases escalated to executive management or awaiting GM directives.</p>
+              </div>
+            </div>
+
+            {items.filter((i) => i.priority === 'critical' || /escalat/i.test(i.status)).length === 0 ? (
+              <p className="dm-empty" style={{ padding: '36px', textAlign: 'center', color: 'var(--dm-muted)' }}>
+                No active escalations. All security events are within standard operating protocols.
+              </p>
+            ) : (
+              items
+                .filter((i) => i.priority === 'critical' || /escalat/i.test(i.status))
+                .map((item) => (
+                  <article className="dm-record" key={item.id}>
+                    <div className="dm-record-title">
+                      <h3>{item.title}</h3>
+                      <span className="dm-status urgent">{item.priority}</span>
+                    </div>
+                    <p>{item.meta || 'Requires security supervisor intervention and GM briefing.'}</p>
+                    <small>
+                      {item.ref || item.id} · Location: {item.room || 'General Property'} · Status: {item.status}
+                    </small>
+                    <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
+                      <button
+                        className="dm-small-button"
+                        onClick={() => setSelectedIncident(item)}
+                      >
+                        Review details &rarr;
+                      </button>
+                      <button
+                        className="dm-secondary"
+                        onClick={() => openModal({ kind: 'recovery', task: item })}
+                      >
+                        Record decision
+                      </button>
+                    </div>
+                  </article>
+                ))
+            )}
+          </section>
+        )}
+
+        {/* ===================== TAB: STAFF & WORKLOAD ===================== */}
+        {tab === 'staff' && (
+          <section className="dm-panel">
+            <div className="dm-panel-heading">
+              <div>
+                <h2>Security Team &amp; Workload</h2>
+                <p>Live post assignments and active shift readiness within Safety &amp; Security.</p>
+              </div>
+            </div>
+
+            <div className="dm-staff-grid">
+              {securityStaff.map((member) => {
+                const load = items.filter(
+                  (t) => t.assigneeId === member.id || t.assignee === member.name,
+                ).length;
+                return (
+                  <article key={member.id} className="dm-staff-card">
+                    <div className="dm-avatar">
+                      {member.name
+                        .split(' ')
+                        .map((p) => p[0])
+                        .slice(0, 2)
+                        .join('')}
+                    </div>
+                    <h3>{member.name}</h3>
+                    <small>
+                      {member.roleId.replaceAll('_', ' ')} · {member.shift || 'Night Shift'}
+                      {member.status !== 'active' ? ' · Off Shift' : ''}
+                    </small>
+                    <div className="dm-progress-label">
+                      <span>Active incidents</span>
+                      <strong>{load} / {member.maxWorkload || 5}</strong>
+                    </div>
+                    <progress value={load} max={Math.max(load, member.maxWorkload || 5)} />
+                    <label className="dm-field" style={{ marginTop: '12px' }}>
+                      Availability
+                      <select
+                        aria-label={`Availability for ${member.name}`}
+                        disabled={member.status !== 'active'}
+                        value={member.availability || 'on_duty'}
+                        onChange={(e) =>
+                          departmentManagerCommand({
+                            type: 'availability',
+                            staffId: member.id,
+                            value: e.target.value as 'on_duty' | 'break' | 'off_duty',
+                          })
+                        }
+                      >
+                        <option value="on_duty">On duty</option>
+                        <option value="break">On patrol break</option>
+                        <option value="off_duty">Off duty</option>
+                      </select>
+                    </label>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* ===================== TAB: POLICIES & SOPS ===================== */}
+        {tab === 'policies' && (
+          <section className="dm-panel">
+            <div className="dm-panel-heading">
+              <div>
+                <h2>Emergency Playbooks &amp; SOPs</h2>
+                <p>Standard operating procedures, fire response guides, and escalation matrices.</p>
+              </div>
+            </div>
+
+            <article className="dm-record">
+              <h3>Panic Alarm &amp; Emergency Response Protocol</h3>
+              <p>
+                Immediate dispatch of two armed/trained officers to verify beacon location within 90 seconds.
+                Notify Front Desk Coordinator and establish direct radio contact on Channel 3.
+              </p>
+              <small>Protocol: E-1 · Department Owner: Inspector Roy · Escalation: General Manager</small>
+            </article>
+
+            <article className="dm-record">
+              <h3>Fire &amp; Life Safety Sweep Protocol</h3>
+              <p>
+                In the event of smoke or fire telemetry, dispatch designated zone officer to inspect sensor heads,
+                check stairwells, and stand by the riser station.
+              </p>
+              <small>Protocol: F-4 · Owner: Facilities &amp; Security</small>
+            </article>
+
+            <article className="dm-record">
+              <h3>Unauthorized Access &amp; Trespass Policy</h3>
+              <p>
+                Challenge non-badged individuals in back-of-house corridors politely. Escort off property or detain
+                if forced entry is suspected. Log full CCTV clip into incident evidence.
+              </p>
+              <small>Protocol: S-2 · Effective 2026-01-01</small>
+            </article>
+          </section>
+        )}
+
+        {/* ===================== TAB: SHIFT HANDOVER ===================== */}
+        {tab === 'handover' && (
+          <section className="dm-panel">
+            <div className="dm-panel-heading">
+              <div>
+                <h2>Shift Handover</h2>
+                <p>Carry forward open incidents, key control notes, and night directives.</p>
+              </div>
+              <button className="dm-primary" onClick={() => openModal({ kind: 'handover' })}>
+                Prepare handover
+              </button>
+            </div>
+
+            {localHandovers.map((h) => (
+              <article className="dm-record" key={h.id}>
+                <div className="dm-record-title">
+                  <h3>
+                    {h.outgoingManager} &rarr; {h.incomingManager}
+                  </h3>
+                  <span className={statusClass(h.status)}>{h.status}</span>
+                </div>
+                <p>{h.notes}</p>
+                <small>
+                  {dateLabel(h.timestamp)} · {h.outstandingTasksCount} active incidents
+                </small>
+                <ul style={{ marginTop: '10px', paddingLeft: '20px', color: 'var(--dm-muted)', fontSize: '12px' }}>
+                  {h.priorityActions.map((p, index) => (
+                    <li key={index} style={{ marginBottom: '4px' }}>
+                      {p}
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            ))}
+          </section>
+        )}
+
+
+
+        {/* ===================== TAB: NOTIFICATIONS / ALERTS ===================== */}
+        {tab === 'notifications' && (
+          <section className="dm-panel">
+            <div className="dm-panel-heading">
+              <div>
+                <h2>Safety &amp; Security Alerts</h2>
+                <p>{criticalItems.length} urgent alerts active · Property-wide</p>
+              </div>
+            </div>
+
+            {criticalItems.length === 0 ? (
+              <div className="dm-empty" style={{ padding: '36px', textAlign: 'center' }}>
+                <CheckCheck size={32} style={{ margin: '0 auto 12px', color: 'var(--dm-muted)' }} />
+                <h3>All quiet on property</h3>
+                <p>No critical alarms or pending panic signals.</p>
+              </div>
+            ) : (
+              criticalItems.map((n) => (
+                <article className="dm-record" key={n.id}>
+                  <div className="dm-record-title">
+                    <h3>{n.title}</h3>
+                    <span className="dm-status urgent">{n.priority}</span>
+                  </div>
+                  <p>{n.meta || 'Emergency alert triggered. Immediate response required.'}</p>
+                  <small>
+                    Location: {n.room || 'General Property'} · Status: {n.status}
+                  </small>
+                  <div style={{ marginTop: '10px' }}>
+                    <button
+                      className="dm-small-button"
+                      onClick={() => setSelectedIncident(n)}
+                    >
+                      Acknowledge &amp; Respond &rarr;
+                    </button>
+                  </div>
+                </article>
+              ))
+            )}
+          </section>
+        )}
+
+        {/* ===================== TAB: PROFILE ===================== */}
+        {tab === 'profile' && (
+          <section className="dm-panel">
+            <div className="dm-panel-heading">
+              <div>
+                <h2>Security Officer Profile</h2>
+                <p>Your demo identity and active safety clearance.</p>
+              </div>
+            </div>
+
+            <form
+              className="dm-profile-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                alert('Officer profile details updated successfully.');
+              }}
             >
-              <Shield className={`h-4 w-4 ${activeTab === 'home' ? 'text-sky-400 stroke-[2.5]' : ''}`} />
-              <span className="text-[9px] mt-1">Home</span>
-            </button>
+              <label className="dm-field">
+                Display name
+                <input name="name" defaultValue="Inspector Roy" required maxLength={100} />
+              </label>
+              <label className="dm-field">
+                Radio Channel
+                <input name="radio" defaultValue="CH-3 Guard Ops" required maxLength={40} />
+              </label>
+              <label className="dm-field">
+                Badge Number
+                <input value="SEC-0108" readOnly />
+              </label>
+              <label className="dm-field">
+                Clearance Level
+                <input value="Level 4 · Armed Response & Perimeter Lockdown" readOnly />
+              </label>
+              <label className="dm-field">
+                Assigned Shift
+                <input value="Night Shift (22:00 – 07:00)" readOnly />
+              </label>
+              <button className="dm-primary" type="submit">
+                Save profile
+              </button>
+              <p className="dm-report-note">
+                Standalone demonstration · Work is saved in this browser.
+              </p>
+            </form>
+          </section>
+        )}
 
-            {/* 2. Incidents */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('incidents')}
-              className={`relative flex flex-col items-center justify-center py-1.5 rounded-xl transition-all ${
-                activeTab === 'incidents' ? 'text-sky-400 font-bold bg-white/5' : 'text-mist-400 hover:text-mist-200'
-              }`}
-            >
-              <Activity className={`h-4 w-4 ${activeTab === 'incidents' ? 'text-sky-400 stroke-[2.5]' : ''}`} />
-              <span className="text-[9px] mt-1">Incidents</span>
-              {activeCount > 0 && (
-                <span className="absolute top-1 right-2 h-3.5 w-3.5 rounded-full bg-amber-500 text-[8px] font-bold text-ink-950 flex items-center justify-center ring-2 ring-ink-950">
-                  {activeCount}
-                </span>
-              )}
-            </button>
+        {/* Footer */}
+        <footer className="dm-footer">
+          THE GRAND ADP <span>Thoughtful service. Connected teams.</span>
+        </footer>
+      </main>
 
-            {/* 3. Alerts */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('alerts')}
-              className={`relative flex flex-col items-center justify-center py-1.5 rounded-xl transition-all ${
-                activeTab === 'alerts' ? 'text-rose-400 font-bold bg-white/5' : 'text-mist-400 hover:text-mist-200'
-              }`}
-            >
-              <Bell className={`h-4 w-4 ${activeTab === 'alerts' ? 'text-rose-400 stroke-[2.5]' : ''}`} />
-              <span className="text-[9px] mt-1">Alerts</span>
-              {criticalOrNewCount > 0 && (
-                <span className="absolute top-1 right-2 h-3.5 w-3.5 rounded-full bg-rose-500 text-[8px] font-bold text-white flex items-center justify-center ring-2 ring-ink-950 animate-pulse">
-                  {criticalOrNewCount}
-                </span>
-              )}
-            </button>
+      {/* ---------------- MODALS ---------------- */}
+      {/* Incident Detail Modal */}
+      {selectedIncident && (
+        <SecurityIncidentDetailModal
+          item={items.find((i) => i.id === selectedIncident.id) || selectedIncident}
+          isOpen={!!selectedIncident}
+          onClose={() => setSelectedIncident(null)}
+          onAcknowledge={acknowledgeSecurityItem}
+          onArrive={arriveSecurityItem}
+          onResolve={resolveSecurityItem}
+          onRequestBackup={requestSecurityBackup}
+          onEscalate={escalateSecurityItem}
+          onAddNote={addSecurityNote}
+        />
+      )}
 
-            {/* 4. Handover */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('handover')}
-              className={`flex flex-col items-center justify-center py-1.5 rounded-xl transition-all ${
-                activeTab === 'handover' ? 'text-sky-400 font-bold bg-white/5' : 'text-mist-400 hover:text-mist-200'
-              }`}
-            >
-              <Users className={`h-4 w-4 ${activeTab === 'handover' ? 'text-sky-400 stroke-[2.5]' : ''}`} />
-              <span className="text-[9px] mt-1">Handover</span>
-            </button>
+      {/* Log Incident Modal */}
+      {showLogModal && (
+        <SecurityLogIncidentModal
+          isOpen={showLogModal}
+          onClose={() => setShowLogModal(false)}
+          onSubmit={(inc) => {
+            createSecurityIncident(inc);
+            setShowLogModal(false);
+          }}
+        />
+      )}
 
-            {/* 5. Playbook */}
+      {/* Dialog for Inspection / Handover / Recovery */}
+      <dialog
+        ref={dialog}
+        className="dm-dialog"
+        onClose={() => setModal(null)}
+        aria-labelledby="dm-dialog-title"
+      >
+        <form onSubmit={submitModal}>
+          <div className="dm-dialog-heading">
+            <h2 id="dm-dialog-title">
+              {modal?.kind === 'inspection'
+                ? 'Assign patrol inspection'
+                : modal?.kind === 'recovery'
+                  ? 'Review security recovery'
+                  : 'Prepare shift handover'}
+            </h2>
             <button
+              className="dm-icon-button"
               type="button"
-              onClick={() => setActiveTab('playbook')}
-              className={`flex flex-col items-center justify-center py-1.5 rounded-xl transition-all ${
-                activeTab === 'playbook' ? 'text-amber-400 font-bold bg-white/5' : 'text-mist-400 hover:text-mist-200'
-              }`}
+              aria-label="Close dialog"
+              onClick={closeModal}
             >
-              <BookOpen className={`h-4 w-4 ${activeTab === 'playbook' ? 'text-amber-400 stroke-[2.5]' : ''}`} />
-              <span className="text-[9px] mt-1">SOP</span>
-            </button>
-
-            {/* 6. Profile */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('profile')}
-              className={`flex flex-col items-center justify-center py-1.5 rounded-xl transition-all ${
-                activeTab === 'profile' ? 'text-sky-400 font-bold bg-white/5' : 'text-mist-400 hover:text-mist-200'
-              }`}
-            >
-              <User className={`h-4 w-4 ${activeTab === 'profile' ? 'text-sky-400 stroke-[2.5]' : ''}`} />
-              <span className="text-[9px] mt-1">Profile</span>
+              <X size={19} />
             </button>
           </div>
-        </nav>
+          <p className="dm-dialog-description">Safety &amp; Security · Inspector Roy</p>
 
-        {/* Global Incident Detail Modal */}
-        {selectedIncident && (
-          <SecurityIncidentDetailModal
-            item={items.find((i) => i.id === selectedIncident.id) || selectedIncident}
-            isOpen={!!selectedIncident}
-            onClose={() => setSelectedIncident(null)}
-            onAcknowledge={acknowledgeSecurityItem}
-            onArrive={arriveSecurityItem}
-            onResolve={resolveSecurityItem}
-            onRequestBackup={requestSecurityBackup}
-            onEscalate={escalateSecurityItem}
-            onAddNote={addSecurityNote}
-          />
-        )}
-      </div>
+          {modal?.kind === 'inspection' && (
+            <>
+              <label className="dm-field">
+                Sector or Checkpoint Location
+                <input
+                  name="location"
+                  defaultValue={modal.sector || 'Perimeter & Service Corridors'}
+                  required
+                  maxLength={100}
+                />
+              </label>
+              <label className="dm-field">
+                Assign to Security Officer
+                <select name="officer" required defaultValue="officer-chen">
+                  <option value="officer-chen">Officer T. Chen (Sector Lead)</option>
+                  <option value="officer-marcus">Officer Marcus (Perimeter Patrol)</option>
+                  <option value="officer-sarah">Officer Sarah (CCTV Surveillance)</option>
+                </select>
+              </label>
+              <label className="dm-field">
+                Patrol Directives
+                <textarea
+                  name="instructions"
+                  defaultValue="Inspect all emergency exits, lockouts, and fire riser access. Report anomalies on radio CH-3."
+                  required
+                  maxLength={2000}
+                />
+              </label>
+            </>
+          )}
+
+          {modal?.kind === 'recovery' && modal.task && (
+            <>
+              <p className="dm-dialog-description">{modal.task.title}</p>
+              <label className="dm-field">
+                Decision
+                <select name="decision">
+                  <option value="resolve">Resolve and close incident on night shift</option>
+                  <option value="escalate">Escalate to General Manager for inquiry</option>
+                </select>
+              </label>
+              <label className="dm-field">
+                Recovery / Action Note
+                <textarea
+                  name="note"
+                  required
+                  maxLength={2000}
+                  placeholder="Describe the physical security action taken or reason for GM escalation..."
+                />
+              </label>
+            </>
+          )}
+
+          {modal?.kind === 'handover' && (
+            <>
+              <label className="dm-field">
+                Incoming Shift Officer
+                <input
+                  name="incoming"
+                  required
+                  maxLength={100}
+                  placeholder="e.g. Officer Morning Lead / Supervisor Dave"
+                />
+              </label>
+              <label className="dm-field">
+                Shift Summary &amp; Priority Actions
+                <textarea
+                  name="notes"
+                  required
+                  maxLength={2000}
+                  placeholder="Summary of night patrols, latch checks, and follow-ups required by morning shift..."
+                />
+              </label>
+              <p className="dm-dialog-description">
+                {activeIncidents.length} open security incidents will be automatically linked to this handover.
+              </p>
+            </>
+          )}
+
+          <div className="dm-dialog-actions">
+            <button type="button" className="dm-secondary" onClick={closeModal}>
+              Cancel
+            </button>
+            <button type="submit" className="dm-primary">
+              {modal?.kind === 'recovery' ? 'Save decision' : 'Save & continue'}
+            </button>
+          </div>
+        </form>
+      </dialog>
     </div>
   );
 }

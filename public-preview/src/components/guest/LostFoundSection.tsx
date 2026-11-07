@@ -273,7 +273,7 @@ export function LostFoundSection({ room, guestName, onNavigate, initialSubtab }:
                   <span>Items Turned In to Front Desk</span>
                 </h2>
                 <p className="text-[11px] text-mist-400 mt-0.5">
-                  Items cataloged by Housekeeping &amp; Security. Tap &quot;This is Mine&quot; to initiate ownership verification.
+                  Items cataloged by Housekeeping &amp; Security. Tap &quot;Claim Item&quot; to initiate ownership verification.
                 </p>
               </div>
 
@@ -396,7 +396,7 @@ export function LostFoundSection({ room, guestName, onNavigate, initialSubtab }:
                               className="w-full py-2 px-3 rounded-xl bg-amber-400 text-ink-950 text-xs font-bold hover:bg-amber-300 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
                             >
                               <ShieldCheck className="h-3.5 w-3.5" />
-                              <span>This is Mine · Claim Item</span>
+                              <span>Claim Item</span>
                             </button>
                           )}
                         </div>
