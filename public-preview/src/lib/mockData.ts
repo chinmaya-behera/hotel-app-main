@@ -6470,12 +6470,26 @@ export const shiftHandoverNotesSeed: ShiftHandoverNote[] = [
   },
 ];
 
+export interface FDIncidentMedia {
+  id: string;
+  type: 'image' | 'video';
+  url: string;
+  thumbUrl?: string;
+  title: string;
+  caption?: string;
+  duration?: string; // e.g. "0:15"
+  fileSize?: string;
+  timestamp?: string;
+  submittedBy?: string;
+}
+
 export interface FDIncident {
   id: string;
   ref: string;
   title: string;
   source: 'Guest Report' | 'Front Desk Patrol' | 'Housekeeping Alert' | 'Security Dispatch';
   room?: string;
+  reportedBy?: string;
   location: string;
   severity: 'low' | 'medium' | 'high';
   status: 'active' | 'dispatched_security' | 'investigating' | 'resolved';
@@ -6483,6 +6497,7 @@ export interface FDIncident {
   reportedAt: string;
   securityOfficer?: string;
   broadcastSent?: boolean;
+  media?: FDIncidentMedia[];
 }
 
 export const frontDeskIncidentsSeed: FDIncident[] = [
@@ -6491,6 +6506,8 @@ export const frontDeskIncidentsSeed: FDIncident[] = [
     ref: 'INC-204',
     title: 'Water Seepage Near Service Elevator B (Floor 3)',
     source: 'Housekeeping Alert',
+    room: '127',
+    reportedBy: 'Hannah Weiss (Guest - Room 127) & Housekeeping',
     location: 'Floor 3 East Corridor',
     severity: 'medium',
     status: 'dispatched_security',
@@ -6498,12 +6515,49 @@ export const frontDeskIncidentsSeed: FDIncident[] = [
     reportedAt: 'Today, 09:12 AM',
     securityOfficer: 'Officer Ramesh K. (Patrol Unit 2)',
     broadcastSent: false,
+    media: [
+      {
+        id: 'med-1-1',
+        type: 'image',
+        url: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=1200&q=80',
+        thumbUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=300&q=80',
+        title: 'Water Pooling on Floor 3 Corridor',
+        caption: 'Water pooling across marble floor near service elevator threshold.',
+        fileSize: '1.8 MB',
+        timestamp: '09:12 AM',
+        submittedBy: 'Hannah Weiss (Guest - Room 127)',
+      },
+      {
+        id: 'med-1-2',
+        type: 'image',
+        url: 'https://images.unsplash.com/photo-1541888946425-d0fbb18086f7?auto=format&fit=crop&w=1200&q=80',
+        thumbUrl: 'https://images.unsplash.com/photo-1541888946425-d0fbb18086f7?auto=format&fit=crop&w=300&q=80',
+        title: 'Ceiling Access Joint Seepage',
+        caption: 'Pipe condensation joint above ceiling tile showing active leak origin.',
+        fileSize: '2.4 MB',
+        timestamp: '09:14 AM',
+        submittedBy: 'Housekeeping Lead Sunita',
+      },
+      {
+        id: 'med-1-3',
+        type: 'video',
+        url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+        thumbUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80',
+        title: 'Water Droplet Flow Video Clip',
+        caption: '15-sec video recording of water dripping continuously into utility bucket.',
+        duration: '0:15',
+        fileSize: '4.6 MB',
+        timestamp: '09:15 AM',
+        submittedBy: 'Hannah Weiss (Guest - Room 127)',
+      },
+    ],
   },
   {
     id: 'inc-2',
     ref: 'INC-205',
     title: 'Unregistered Visitor Attempting Floor Access',
     source: 'Front Desk Patrol',
+    reportedBy: 'Carlos Mendez (Front Desk Concierge)',
     location: 'Lobby North Elevators',
     severity: 'low',
     status: 'resolved',
@@ -6511,12 +6565,49 @@ export const frontDeskIncidentsSeed: FDIncident[] = [
     reportedAt: 'Today, 08:45 AM',
     securityOfficer: 'Officer Meera S.',
     broadcastSent: false,
+    media: [
+      {
+        id: 'med-2-1',
+        type: 'image',
+        url: 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=1200&q=80',
+        thumbUrl: 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=300&q=80',
+        title: 'CCTV Camera 04 Lobby Elevators Still',
+        caption: 'Surveillance snapshot showing visitor attempting elevator keycard bypass.',
+        fileSize: '1.2 MB',
+        timestamp: '08:45 AM',
+        submittedBy: 'Security CCTV Control Room',
+      },
+      {
+        id: 'med-2-2',
+        type: 'image',
+        url: 'https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1200&q=80',
+        thumbUrl: 'https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=300&q=80',
+        title: 'Front Desk Intercept & ID Check',
+        caption: 'Concierge verifying parcel courier delivery authorization credentials.',
+        fileSize: '950 KB',
+        timestamp: '08:48 AM',
+        submittedBy: 'Carlos Mendez (Front Desk)',
+      },
+      {
+        id: 'med-2-3',
+        type: 'video',
+        url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+        thumbUrl: 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=600&q=80',
+        title: 'Elevator Lobby CCTV Playback',
+        caption: '12-sec surveillance camera playback recording visitor intercept.',
+        duration: '0:12',
+        fileSize: '3.8 MB',
+        timestamp: '08:50 AM',
+        submittedBy: 'Officer Meera S. (Security)',
+      },
+    ],
   },
   {
     id: 'inc-3',
     ref: 'INC-206',
     title: 'Emergency Alarm Test Notification & Basement Sensor Trip',
     source: 'Security Dispatch',
+    reportedBy: 'Chief Security Officer Dave',
     location: 'Basement Utility Substation',
     severity: 'high',
     status: 'active',
@@ -6524,6 +6615,81 @@ export const frontDeskIncidentsSeed: FDIncident[] = [
     reportedAt: 'Today, 10:20 AM',
     securityOfficer: 'Chief Security Officer Dave',
     broadcastSent: true,
+    media: [
+      {
+        id: 'med-3-1',
+        type: 'image',
+        url: 'https://images.unsplash.com/photo-1581092335397-9583fe92d232?auto=format&fit=crop&w=1200&q=80',
+        thumbUrl: 'https://images.unsplash.com/photo-1581092335397-9583fe92d232?auto=format&fit=crop&w=300&q=80',
+        title: 'BMS Substation Telemetry Console',
+        caption: 'Thermal telemetry log spike displayed on basement BMS sensor console.',
+        fileSize: '1.5 MB',
+        timestamp: '10:20 AM',
+        submittedBy: 'CSO Dave (Security Dispatch)',
+      },
+      {
+        id: 'med-3-2',
+        type: 'image',
+        url: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=1200&q=80',
+        thumbUrl: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=300&q=80',
+        title: 'Chiller Loop Breaker Inspection',
+        caption: 'Patrol unit physical inspection of secondary chiller pump cooling circuit.',
+        fileSize: '2.1 MB',
+        timestamp: '10:25 AM',
+        submittedBy: 'Patrol Unit 1 Technician',
+      },
+    ],
+  },
+  {
+    id: 'inc-4',
+    ref: 'INC-207',
+    title: 'Balcony Glass Runner Track Jam & High-Wind Latch Vibration',
+    source: 'Guest Report',
+    room: '402',
+    reportedBy: 'Elena Rostova (Guest - Suite 402)',
+    location: 'Room 402 Balcony Terrace',
+    severity: 'medium',
+    status: 'active',
+    description: 'Guest reported patio sliding glass door runner sticking and rattling in gusty weather. Attached photos of rubber gasket wear and video of loose latch.',
+    reportedAt: 'Today, 10:45 AM',
+    securityOfficer: 'Patrol Unit 1 (Standby)',
+    broadcastSent: false,
+    media: [
+      {
+        id: 'med-4-1',
+        type: 'image',
+        url: 'https://images.unsplash.com/photo-1585338107529-13afc5f02586?auto=format&fit=crop&w=1200&q=80',
+        thumbUrl: 'https://images.unsplash.com/photo-1585338107529-13afc5f02586?auto=format&fit=crop&w=300&q=80',
+        title: 'Balcony Door Sliding Runner',
+        caption: 'Sliding track runner displaced along bottom rail guide.',
+        fileSize: '1.4 MB',
+        timestamp: '10:46 AM',
+        submittedBy: 'Elena Rostova',
+      },
+      {
+        id: 'med-4-2',
+        type: 'image',
+        url: 'https://images.unsplash.com/photo-1558002038-1055907df827?auto=format&fit=crop&w=1200&q=80',
+        thumbUrl: 'https://images.unsplash.com/photo-1558002038-1055907df827?auto=format&fit=crop&w=300&q=80',
+        title: 'Balcony Lock Mechanism Jam',
+        caption: 'Close-up photo of latch lever failing to engage secondary mortise.',
+        fileSize: '2.0 MB',
+        timestamp: '10:47 AM',
+        submittedBy: 'Elena Rostova',
+      },
+      {
+        id: 'med-4-3',
+        type: 'video',
+        url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+        thumbUrl: 'https://images.unsplash.com/photo-1585338107529-13afc5f02586?auto=format&fit=crop&w=600&q=80',
+        title: 'Video of Latch Vibrating in Wind',
+        caption: '8-sec mobile phone clip showing sliding door shaking in wind gusts.',
+        duration: '0:08',
+        fileSize: '2.9 MB',
+        timestamp: '10:48 AM',
+        submittedBy: 'Elena Rostova',
+      },
+    ],
   },
 ];
 
