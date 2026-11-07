@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import './portal-login.css';
 import {
   Building2,
   RotateCcw,
@@ -30,10 +31,19 @@ import {
   UtensilsCrossed,
   ChevronDown,
   Check,
+  type LucideIcon,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
-import { MANAGER_DEPARTMENTS, MANAGER_DEMO_PASSWORD, type ManagerDepartmentId } from '@/lib/manager-domain';
-import { DemoCredentialsDialog } from './DemoCredentialsDialog';
+import {
+  MANAGER_DEPARTMENTS,
+  MANAGER_DEMO_PASSWORD,
+  managerDepartmentFromEmail,
+  type ManagerDepartmentId,
+} from '@/lib/manager-domain';
+import {
+  FULFILLER_PROFILES,
+  type FulfillerDeptKey,
+} from '@/components/staff/fulfiller/fulfillerProfiles';
 import type { RoleId, DispatcherDepartment } from '@/types/demo';
 
 interface PresetRole {
@@ -42,7 +52,7 @@ interface PresetRole {
   name: string;
   email: string;
   pass: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: LucideIcon;
   color: string;
   path: string;
   personaId?: RoleId;
@@ -159,7 +169,7 @@ export interface DispatcherDeptOption {
   pass: string;
   path: string;
   description: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: LucideIcon;
   color: string;
 }
 
@@ -189,7 +199,7 @@ export const DISPATCHER_DEPARTMENTS: DispatcherDeptOption[] = [
   {
     id: 'Maintenance & Engineering',
     slug: 'maintenance',
-    name: 'Maintainance & Engineering',
+    name: 'Maintenance & Engineering',
     email: 'dispatcher.engineering@thegrandadp.com',
     pass: 'dispatch123',
     path: '/staff/dispatcher-supervisor?dept=maintenance',
@@ -210,16 +220,51 @@ export const DISPATCHER_DEPARTMENTS: DispatcherDeptOption[] = [
   },
 ];
 
+const FULFILLER_DEPARTMENTS: { key: FulfillerDeptKey; name: string }[] = [
+  { key: 'housekeeping', name: 'Housekeeping' },
+  { key: 'wellness', name: 'Spa & Wellness' },
+  { key: 'maintenance', name: 'Maintenance & Engineering' },
+  { key: 'fnb', name: 'Food & Beverages' },
+];
+
 const DEMO_ACCOUNTS: PresetRole[] = [
-  ...MANAGER_DEPARTMENTS.map((d, index) => ({ id: `manager-${d.id}`, num: `M${index + 1}`, name: `${d.name} Manager`, email: d.email, pass: MANAGER_DEMO_PASSWORD, icon: Gauge, color: 'from-purple-500 to-indigo-600', path: '/staff/department-manager', personaId: 'department_manager' as const, departmentId: d.id })),
+  ...MANAGER_DEPARTMENTS.map((d, index) => ({
+    id: `manager-${d.id}`,
+    num: `M${index + 1}`,
+    name: `${d.name} Manager`,
+    email: d.email,
+    pass: MANAGER_DEMO_PASSWORD,
+    icon: Gauge,
+    color: 'from-purple-500 to-indigo-600',
+    path: '/staff/department-manager',
+    personaId: 'department_manager' as const,
+    departmentId: d.id,
+  })),
+  ...FULFILLER_DEPARTMENTS.map((fd, index) => ({
+    id: `fulfiller-${fd.key}`,
+    num: `F${index + 1}`,
+    name: `Task Fulfiller — ${fd.name} (${FULFILLER_PROFILES[fd.key].employeeName})`,
+    email: FULFILLER_PROFILES[fd.key].email,
+    pass: 'task123',
+    icon: ClipboardCheck,
+    color: FULFILLER_PROFILES[fd.key].colorGradient,
+    path: `/staff/fulfiller?dept=${fd.key}`,
+    personaId: 'task_fulfiller' as const,
+  })),
   ...PRESET_ROLES,
 ];
 
 export function PortalLoginView() {
   const router = useRouter();
   const { state, setTheme, setPersona, setActiveDispatcherDept, setManagerDepartment } = useDemo();
+
   const [dispatcherDropdownOpen, setDispatcherDropdownOpen] = useState(false);
-  const [selectedDept, setSelectedDept] = useState<DispatcherDepartment>(state.activeDispatcherDept || 'Housekeeping');
+  const [fulfillerDropdownOpen, setFulfillerDropdownOpen] = useState(false);
+  const [managerDropdownOpen, setManagerDropdownOpen] = useState(false);
+
+  const [selectedDept, setSelectedDept] = useState<DispatcherDepartment>(
+    state.activeDispatcherDept || 'Housekeeping',
+  );
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -227,6 +272,7 @@ export function PortalLoginView() {
   const [showPassword, setShowPassword] = useState(false);
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const [previewDepartment, setPreviewDepartment] = useState<ManagerDepartmentId>('housekeeping');
+  const [previewFulfillerDept, setPreviewFulfillerDept] = useState<FulfillerDeptKey>('housekeeping');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const dispatcherMenuRef = useRef<HTMLDivElement>(null);
@@ -269,14 +315,48 @@ export function PortalLoginView() {
     }
   }, [isLight, state.theme]);
 
-  const managerSelected = selectedRoleId === 'manager' || selectedRoleId?.startsWith('manager-');
-  const activeRole = DEMO_ACCOUNTS.find((r) => r.id === selectedRoleId) || PRESET_ROLES.find((r) => r.id === selectedRoleId);
+  const handleSelectFulfillerDept = (dept: FulfillerDeptKey) => {
+    setPreviewFulfillerDept(dept);
+    const profile = FULFILLER_PROFILES[dept];
+    setSelectedRoleId('fulfiller');
+    setEmail(profile.email);
+    setPassword('task123');
+    showToast(`Task Fulfiller (${profile.departmentName}) loaded`);
+  };
+
+  const handleSelectManagerDept = (dept: ManagerDepartmentId) => {
+    setPreviewDepartment(dept);
+    const account = DEMO_ACCOUNTS.find(
+      (role) => role.departmentId === dept && role.id !== 'manager',
+    );
+    if (account) {
+      setSelectedRoleId('manager');
+      setEmail(account.email);
+      setPassword(account.pass);
+      setManagerDepartment(dept);
+      showToast(`${account.name} loaded`);
+    }
+  };
 
   const handleSelectRole = (role: PresetRole) => {
+    if (role.id === 'fulfiller') {
+      const nextOpen = !fulfillerDropdownOpen;
+      setFulfillerDropdownOpen(nextOpen);
+      setDispatcherDropdownOpen(false);
+      setManagerDropdownOpen(false);
+      setSelectedRoleId('fulfiller');
+      handleSelectFulfillerDept(previewFulfillerDept);
+      return;
+    }
+
     if (role.id === 'dispatcher') {
-      setDispatcherDropdownOpen(!dispatcherDropdownOpen);
+      const nextOpen = !dispatcherDropdownOpen;
+      setDispatcherDropdownOpen(nextOpen);
+      setFulfillerDropdownOpen(false);
+      setManagerDropdownOpen(false);
       setSelectedRoleId(role.id);
-      const activeDeptConfig = DISPATCHER_DEPARTMENTS.find((d) => d.id === selectedDept) || DISPATCHER_DEPARTMENTS[0];
+      const activeDeptConfig =
+        DISPATCHER_DEPARTMENTS.find((d) => d.id === selectedDept) || DISPATCHER_DEPARTMENTS[0];
       setEmail(activeDeptConfig.email);
       setPassword(activeDeptConfig.pass);
       setActiveDispatcherDept(activeDeptConfig.id);
@@ -284,12 +364,23 @@ export function PortalLoginView() {
       return;
     }
 
+    if (role.id === 'manager') {
+      const nextOpen = !managerDropdownOpen;
+      setManagerDropdownOpen(nextOpen);
+      setDispatcherDropdownOpen(false);
+      setFulfillerDropdownOpen(false);
+      setSelectedRoleId('manager');
+      handleSelectManagerDept(previewDepartment);
+      return;
+    }
+
+    // Single-click role
     setDispatcherDropdownOpen(false);
-    const selected = role.id === 'manager' ? DEMO_ACCOUNTS.find(account => account.departmentId === previewDepartment && account.id !== 'manager')! : role;
-    if (selected.departmentId) setPreviewDepartment(selected.departmentId);
-    setSelectedRoleId(selected.id);
-    setEmail(selected.email);
-    setPassword(selected.pass);
+    setFulfillerDropdownOpen(false);
+    setManagerDropdownOpen(false);
+    setSelectedRoleId(role.id);
+    setEmail(role.email);
+    setPassword(role.pass);
     showToast(`${role.name} loaded`);
   };
 
@@ -308,6 +399,8 @@ export function PortalLoginView() {
     setPassword('');
     setSelectedRoleId(null);
     setDispatcherDropdownOpen(false);
+    setFulfillerDropdownOpen(false);
+    setManagerDropdownOpen(false);
     showToast('Cleared');
   };
 
@@ -318,17 +411,52 @@ export function PortalLoginView() {
 
   const handleForgotPassword = () => {
     if (email.trim()) {
-      showToast('Use View demo login credentials to autofill a public demo account.');
+      showToast(`Reset email sent to ${email.trim()}`);
     } else {
       showToast('Enter your email address first');
     }
   };
 
-    const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
 
     const cleanEmail = email.trim().toLowerCase();
+
+    // Exact manager identities take precedence over broad dispatcher department matching.
+    const managerDepartment = managerDepartmentFromEmail(cleanEmail);
+    if (managerDepartment) {
+      if (password !== MANAGER_DEMO_PASSWORD) {
+        showToast('Email or password does not match a demo account. Open credentials to autofill.');
+        return;
+      }
+      setIsSubmitting(true);
+      setManagerDepartment(managerDepartment);
+      setPersona('department_manager');
+      router.push('/staff/department-manager');
+      return;
+    }
+
+    const isFulfiller =
+      selectedRoleId === 'fulfiller' ||
+      selectedRoleId?.startsWith('fulfiller-') ||
+      cleanEmail.includes('fulfiller');
+
+    if (isFulfiller) {
+      let targetDept: FulfillerDeptKey = previewFulfillerDept;
+      if (cleanEmail.includes('wellness')) targetDept = 'wellness';
+      else if (cleanEmail.includes('eng') || cleanEmail.includes('maint')) targetDept = 'maintenance';
+      else if (cleanEmail.includes('dining') || cleanEmail.includes('fnb') || cleanEmail.includes('food'))
+        targetDept = 'fnb';
+      else if (cleanEmail.includes('housekeeping')) targetDept = 'housekeeping';
+
+      setIsSubmitting(true);
+      setPersona('task_fulfiller');
+      showToast(`Signing in as Task Fulfiller (${FULFILLER_PROFILES[targetDept].departmentName})...`);
+      router.push(`/staff/fulfiller?dept=${targetDept}`);
+      return;
+    }
+
     const isDispatcher =
       selectedRoleId === 'dispatcher' ||
       cleanEmail.includes('dispatcher') ||
@@ -379,7 +507,7 @@ export function PortalLoginView() {
       (selectedRoleId ? DEMO_ACCOUNTS.find((r) => r.id === selectedRoleId) : null);
 
     if (!matchedRole) {
-      showToast('Email or password does not match a demo account. Open demo credentials to autofill.');
+      showToast('Email or password does not match a demo account. Open credentials to autofill.');
       setIsSubmitting(false);
       return;
     }
@@ -394,47 +522,68 @@ export function PortalLoginView() {
     }
   };
 
+  // Determine active display name and indicator badge color
+  let activeRoleDisplayName = 'Standard';
+  let activeRoleDotClass = 'bg-slate-400';
+
+  if (selectedRoleId) {
+    if (selectedRoleId === 'dispatcher') {
+      activeRoleDisplayName = `Dispatcher (${selectedDept})`;
+      activeRoleDotClass = 'bg-gradient-to-r from-sky-500 to-blue-600';
+    } else if (selectedRoleId === 'fulfiller') {
+      activeRoleDisplayName = `Fulfiller (${FULFILLER_PROFILES[previewFulfillerDept].departmentName})`;
+      activeRoleDotClass = 'bg-gradient-to-r from-emerald-500 to-teal-600';
+    } else if (selectedRoleId === 'manager') {
+      const mgrDept = MANAGER_DEPARTMENTS.find((d) => d.id === previewDepartment);
+      activeRoleDisplayName = `${mgrDept?.name || 'Dept'} Manager`;
+      activeRoleDotClass = 'bg-gradient-to-r from-purple-500 to-indigo-600';
+    } else {
+      const found = PRESET_ROLES.find((r) => r.id === selectedRoleId);
+      if (found) {
+        activeRoleDisplayName = found.name;
+        activeRoleDotClass = `bg-gradient-to-r ${found.color}`;
+      }
+    }
+  }
+
   return (
     <div
-      className={`min-h-screen flex flex-col font-sans selection:bg-amber-400 selection:text-slate-900 transition-colors duration-300 relative overflow-x-hidden portal-page-wrap ${
-        isLight ? 'bg-slate-50 text-slate-900' : 'bg-[#080d1a] text-slate-100'
+      className={`min-h-screen flex flex-col font-sans selection:bg-[#E5C378] selection:text-slate-900 transition-colors duration-300 relative overflow-x-hidden portal-login-root ${
+        isLight ? 'bg-slate-100 text-slate-900 light-mode' : 'bg-[#080d1a] text-slate-100 dark-mode'
       }`}
+      data-theme={state.theme}
     >
-      {/* Ambient background glow elements (hidden in light mode via CSS & condition) */}
-      {!isLight && (
-        <>
-          <div className="glow-sphere-1" />
-          <div className="glow-sphere-2" />
-        </>
-      )}
+      {/* Ambient background glow elements (cyan left, purple/pink right) */}
+      <div className="glow-sphere-1" />
+      <div className="glow-sphere-2" />
 
       {/* Top Navigation Header */}
       <header
-        className={`relative z-20 border-b backdrop-blur-md px-4 sm:px-8 py-3.5 flex items-center justify-between transition-colors login-header ${
+        className={`relative z-20 px-5 sm:px-10 py-3.5 sm:py-4 flex items-center justify-between portal-login-header ${
           isLight
-            ? 'border-slate-200 bg-[#ffffff] shadow-sm'
-            : 'border-white/10 bg-[#070c17]/80'
+            ? 'border-b border-slate-200/70 bg-[#ffffff]/80 backdrop-blur-md'
+            : 'border-b border-white/10 bg-[#070c17]/80 backdrop-blur-md'
         }`}
       >
         {/* Brand badge */}
-        <Link href="/" className="flex items-center gap-3 group">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#dfb96c] to-[#a47b31] text-slate-950 flex items-center justify-center font-bold shadow-sm shadow-amber-900/20 ring-1 ring-amber-300/30 group-hover:scale-105 transition-transform">
-            <Building2 className="w-5 h-5 text-slate-950" />
+        <Link href="/" className="flex items-center gap-3.5 group">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#dfb96c] to-[#a47b31] text-slate-950 flex items-center justify-center font-bold shadow-sm shadow-amber-900/20 ring-1 ring-amber-300/30">
+            <Building2 className="w-5 h-5" />
           </div>
           <div>
             <span
-              className={`font-bold text-sm sm:text-base tracking-wide block ${
+              className={`font-bold text-[15px] tracking-wide block ${
                 isLight ? 'text-slate-900' : 'text-slate-100'
               }`}
             >
               The Grand ADP
             </span>
             <span
-              className={`text-[11px] block -mt-0.5 font-medium ${
-                isLight ? 'text-slate-500' : 'text-slate-400'
+              className={`text-[11px] block -mt-0.5 ${
+                isLight ? 'text-slate-400' : 'text-slate-500'
               }`}
             >
-              Resort & Staff Portals
+              Resort &amp; Staff Portals
             </span>
           </div>
         </Link>
@@ -443,141 +592,137 @@ export function PortalLoginView() {
         <div className="flex items-center gap-2.5">
           <Link
             href="/"
-            className={`hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl border transition-all ${
+            className={`hidden sm:inline-flex items-center gap-2 text-xs sm:text-[13px] px-3.5 py-2 rounded-xl transition-all portal-header-btn ${
               isLight
-                ? 'text-slate-700 hover:text-slate-950 border-slate-300 bg-[#ffffff] hover:bg-slate-100 shadow-xs'
-                : 'text-slate-300 hover:text-white border-white/10 hover:border-white/20 bg-white/5'
+                ? 'text-slate-600 hover:text-slate-900 bg-[#ffffff] border border-slate-200 hover:border-slate-300'
+                : 'text-slate-400 hover:text-white bg-transparent border border-white/10 hover:border-white/20'
             }`}
           >
-            <Globe className="w-3.5 h-3.5 text-amber-500" />
-            <span>Public Site</span>
+            <Globe className="w-4 h-4" />
+            <span>Public site</span>
           </Link>
 
           <button
             type="button"
+            id="resetDemoBtn"
             onClick={handleReset}
             title="Clear form"
-            className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl border transition-all cursor-pointer ${
+            className={`inline-flex items-center gap-2 text-xs sm:text-[13px] px-3.5 py-2 rounded-xl transition-all cursor-pointer portal-header-btn ${
               isLight
-                ? 'text-slate-700 hover:text-slate-950 border-slate-300 bg-[#ffffff] hover:bg-slate-100 shadow-xs'
-                : 'text-slate-300 hover:text-white border-white/10 hover:border-white/20 bg-white/5'
+                ? 'text-slate-600 hover:text-slate-900 bg-[#ffffff] border border-slate-200 hover:border-slate-300'
+                : 'text-slate-400 hover:text-white bg-transparent border border-white/10 hover:border-white/20'
             }`}
           >
-            <RotateCcw className="w-3.5 h-3.5" />
+            <RotateCcw className="w-4 h-4" />
             <span>Reset</span>
           </button>
 
           <button
             type="button"
+            id="themeToggleBtn"
             onClick={handleToggleTheme}
             aria-label={isLight ? 'Switch to dark theme' : 'Switch to light theme'}
-            title={isLight ? 'Switch to dark theme' : 'Switch to light theme'}
-            className={`w-9 h-9 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer portal-header-btn ${
               isLight
-                ? 'text-slate-800 border-slate-300 bg-[#ffffff] hover:bg-slate-100 shadow-xs'
-                : 'text-slate-300 border-white/10 hover:bg-white/10 bg-white/5'
+                ? 'text-slate-600 hover:text-slate-900 bg-[#ffffff] border border-slate-200 hover:border-slate-300'
+                : 'text-slate-300 hover:text-white bg-transparent border border-white/10 hover:border-white/20'
             }`}
           >
-            {isLight ? <Moon className="w-4 h-4 text-amber-600" /> : <Sun className="w-4 h-4 text-amber-300" />}
+            {isLight ? <Sun className="w-4.5 h-4.5 text-amber-500" /> : <Moon className="w-4.5 h-4.5 text-slate-300" />}
           </button>
         </div>
       </header>
 
-      {/* Main Content Area - Expansive Large Size Frontend */}
-      <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-14 flex flex-col justify-center">
-        {/* Clean Portal Login Heading */}
-        <div className="mb-8">
+      {/* Main Content Area - Scaled to 110% Zoom Proportion (max-w-[1140px]) */}
+      <main className="relative z-10 flex-1 max-w-[1140px] w-full mx-auto px-5 sm:px-8 py-8 sm:py-12 flex flex-col justify-center">
+        <div className="mb-6">
           <h1
-            className={`text-3xl sm:text-4xl lg:text-5xl font-serif font-bold tracking-tight ${
-              isLight ? 'text-slate-950' : 'text-white'
+            className={`text-3xl sm:text-4xl font-serif font-bold tracking-tight ${
+              isLight ? 'text-slate-900' : 'text-white'
             }`}
           >
             Portal Login
           </h1>
         </div>
 
-        {/* Grid Layout - Large size & generous spacing */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
-          {/* LEFT: Clean Login Card */}
+        {/* 12-Column Grid Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-7 sm:gap-8 items-start">
+          {/* LEFT: Clean Login Card (lg:col-span-5) */}
           <section className="lg:col-span-5 w-full">
             <div
-              className={`rounded-3xl border p-6 sm:p-8 transition-colors login-card ${
+              className={`rounded-2xl p-7 sm:p-8 backdrop-blur-xl transition-all portal-card-left ${
                 isLight
-                  ? 'bg-[#ffffff] border-slate-200/90 shadow-2xl shadow-slate-300/40 text-slate-900'
-                  : 'bg-[#0c1424]/90 backdrop-blur-2xl border-white/10 shadow-2xl shadow-black/60 text-white'
+                  ? 'bg-[#ffffff]/95 border border-slate-200/80 shadow-xl shadow-slate-900/10'
+                  : 'bg-[#0c1424]/90 border border-white/10 shadow-2xl shadow-black/50'
               }`}
             >
               <div
                 className={`flex items-center justify-between pb-4 mb-6 border-b ${
-                  isLight ? 'border-slate-200' : 'border-white/5'
+                  isLight ? 'border-slate-200/60' : 'border-white/5'
                 }`}
               >
                 <h2
-                  className={`text-sm font-bold tracking-wider uppercase login-card-title ${
-                    isLight ? 'text-slate-800' : 'text-slate-400'
+                  className={`text-xs sm:text-sm font-semibold tracking-wide uppercase ${
+                    isLight ? 'text-slate-500' : 'text-slate-400'
                   }`}
                 >
                   Sign In
                 </h2>
                 <div
-                  className={`flex items-center gap-2 px-2.5 py-1 rounded-lg text-xs font-semibold border login-card-badge ${
+                  id="activeRoleTag"
+                  className={`flex items-center gap-2 px-3 py-1 rounded-md text-xs font-medium portal-active-role-tag ${
                     isLight
-                      ? 'bg-slate-100 text-slate-800 border-slate-200'
-                      : 'bg-white/5 text-slate-300 border-white/10'
+                      ? 'bg-slate-100 text-slate-600 border border-slate-200'
+                      : 'bg-white/5 text-slate-300 border border-white/10'
                   }`}
                 >
-                  <span
-                    className={`w-2 h-2 rounded-full ${
-                      activeRole ? `bg-gradient-to-r ${activeRole.color}` : 'bg-slate-400'
-                    }`}
-                  />
-                  <span>{activeRole ? (activeRole.id === 'dispatcher' ? `Dispatcher (${selectedDept})` : activeRole.name) : 'Standard'}</span>
+                  <span className={`w-1.5 h-1.5 rounded-full ${activeRoleDotClass}`} />
+                  <span id="activeRoleName" className="truncate max-w-[150px]">
+                    {activeRoleDisplayName}
+                  </span>
                 </div>
               </div>
 
               {/* Form */}
-              <form onSubmit={handleLoginSubmit} className="space-y-5">
-                {/* Email */}
+              <form id="loginForm" onSubmit={handleLoginSubmit} className="space-y-4 sm:space-y-5">
+                {/* Email Field */}
                 <div>
                   <label
                     htmlFor="emailInput"
-                    className={`block text-xs font-bold uppercase tracking-wider mb-2 login-card-label ${
-                      isLight ? 'text-slate-800' : 'text-slate-300'
+                    className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${
+                      isLight ? 'text-slate-500' : 'text-slate-400'
                     }`}
                   >
-                    Email Address
+                    Email
                   </label>
                   <div className="relative">
-                    <span
-                      className={`absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none ${
-                        isLight ? 'text-slate-500' : 'text-slate-400'
-                      }`}
-                    >
-                      <Mail className="w-4 h-4" />
+                    <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <Mail className="w-5 h-5" />
                     </span>
                     <input
                       type="email"
                       id="emailInput"
+                      autoComplete="username"
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="name@thegrandadp.com"
-                      className={`w-full pl-10 pr-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-xl border focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition-all font-medium login-input ${
+                      className={`w-full pl-11 pr-4 py-3 text-sm sm:text-[15px] rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-400/70 focus:border-amber-400 transition-all shadow-2xs portal-input ${
                         isLight
-                          ? 'bg-[#ffffff] text-slate-900 placeholder-slate-400 border-slate-300 shadow-xs'
-                          : 'bg-[#070d18] text-white placeholder-slate-500 border-white/10'
+                          ? 'bg-slate-50 text-slate-900 placeholder-slate-400 border border-slate-200'
+                          : 'bg-[#070d18] text-white placeholder-slate-500 border border-white/10'
                       }`}
                     />
                   </div>
                 </div>
 
-                {/* Password */}
+                {/* Password Field */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label
                       htmlFor="passwordInput"
-                      className={`block text-xs font-bold uppercase tracking-wider login-card-label ${
-                        isLight ? 'text-slate-800' : 'text-slate-300'
+                      className={`block text-xs font-semibold uppercase tracking-wider ${
+                        isLight ? 'text-slate-500' : 'text-slate-400'
                       }`}
                     >
                       Password
@@ -585,49 +730,46 @@ export function PortalLoginView() {
                     <button
                       type="button"
                       onClick={handleForgotPassword}
-                      className="text-xs font-bold text-amber-600 hover:text-amber-700 dark:text-amber-400 hover:underline cursor-pointer"
+                      className={`text-xs cursor-pointer hover:underline ${
+                        isLight ? 'text-amber-600' : 'text-amber-400'
+                      }`}
                     >
                       Forgot?
                     </button>
                   </div>
                   <div className="relative">
-                    <span
-                      className={`absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none ${
-                        isLight ? 'text-slate-500' : 'text-slate-400'
-                      }`}
-                    >
-                      <Lock className="w-4 h-4" />
+                    <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <Lock className="w-5 h-5" />
                     </span>
                     <input
                       type={showPassword ? 'text' : 'password'}
                       id="passwordInput"
+                      autoComplete="current-password"
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className={`w-full pl-10 pr-10 py-2.5 sm:py-3 text-sm sm:text-base rounded-xl border focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition-all font-medium login-input ${
+                      className={`w-full pl-11 pr-11 py-3 text-sm sm:text-[15px] rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-400/70 focus:border-amber-400 transition-all shadow-2xs portal-input ${
                         isLight
-                          ? 'bg-[#ffffff] text-slate-900 placeholder-slate-400 border-slate-300 shadow-xs'
-                          : 'bg-[#070d18] text-white placeholder-slate-500 border-white/10'
+                          ? 'bg-slate-50 text-slate-900 placeholder-slate-400 border border-slate-200'
+                          : 'bg-[#070d18] text-white placeholder-slate-500 border border-white/10'
                       }`}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       aria-label="Toggle password visibility"
-                      className={`absolute inset-y-0 right-0 pr-3.5 flex items-center transition-colors cursor-pointer ${
-                        isLight ? 'text-slate-500 hover:text-slate-800' : 'text-slate-400 hover:text-white'
-                      }`}
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
                     >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-xs sm:text-sm pt-0.5">
+                <div className="flex items-center justify-between text-xs sm:text-[13px] pt-1">
                   <label
-                    className={`flex items-center gap-2.5 cursor-pointer select-none font-medium login-card-label ${
-                      isLight ? 'text-slate-700' : 'text-slate-300'
+                    className={`flex items-center gap-2.5 cursor-pointer select-none ${
+                      isLight ? 'text-slate-600' : 'text-slate-400'
                     }`}
                   >
                     <input
@@ -635,73 +777,80 @@ export function PortalLoginView() {
                       id="rememberMe"
                       checked={rememberMe}
                       onChange={(e) => setRememberMe(e.target.checked)}
-                      className="w-4 h-4 rounded text-amber-600 bg-slate-100 border-slate-300 focus:ring-0"
+                      className="w-4 h-4 rounded text-amber-500 bg-slate-100 border-slate-300 focus:ring-0"
                     />
-                    <span>Remember this workstation</span>
+                    <span>Remember me</span>
                   </label>
                 </div>
 
-                {/* Submit Button - Direct Sign In */}
+                {/* Submit Button */}
                 <button
                   type="submit"
                   id="submitBtn"
                   disabled={isSubmitting}
-                  className="w-full mt-3 py-3 sm:py-3.5 px-5 rounded-xl font-bold text-xs sm:text-sm uppercase tracking-wider text-slate-950 bg-gradient-to-r from-[#dfb96c] to-[#c79a40] hover:from-[#e8c57b] hover:to-[#d8a84a] shadow-lg shadow-amber-900/25 active:scale-[0.99] transition-all flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
+                  className="w-full mt-3 py-3.5 px-5 rounded-xl font-semibold text-xs sm:text-sm uppercase tracking-wider text-slate-950 bg-gradient-to-r from-[#dfb96c] to-[#c79a40] hover:from-[#e8c57b] hover:to-[#d8a84a] shadow-md shadow-amber-900/20 active:scale-[0.99] transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-60"
                 >
-                  <span>{isSubmitting ? 'Signing In...' : 'Sign In'}</span>
+                  <span id="submitBtnText">{isSubmitting ? 'Signing in…' : 'Sign In'}</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </form>
-              <DemoCredentialsDialog accounts={DEMO_ACCOUNTS.filter(account => account.id !== 'manager')} onSelect={handleSelectRole}/>
             </div>
           </section>
 
-          {/* RIGHT: Minimal Role Buttons Section */}
+          {/* RIGHT: Minimal Role Buttons Section (lg:col-span-7) */}
           <section className="lg:col-span-7 w-full">
             <div
-              className={`rounded-3xl border p-6 sm:p-7 transition-colors login-card ${
+              className={`rounded-2xl p-6 sm:p-7 backdrop-blur-xl transition-all portal-card-right ${
                 isLight
-                  ? 'bg-[#ffffff] border-slate-200/90 shadow-2xl shadow-slate-300/40 text-slate-900'
-                  : 'bg-[#0c1424]/75 backdrop-blur-2xl border-white/10 shadow-xl text-white'
+                  ? 'bg-[#ffffff]/90 border border-slate-200/70 shadow-sm'
+                  : 'bg-[#0c1424]/70 border border-white/10 shadow-sm'
               }`}
             >
-              <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center justify-between mb-4">
                 <span
-                  className={`text-xs sm:text-sm font-bold uppercase tracking-wider login-card-title ${
-                    isLight ? 'text-slate-800' : 'text-slate-400'
+                  className={`text-xs sm:text-[13px] font-semibold uppercase tracking-wider ${
+                    isLight ? 'text-slate-500' : 'text-slate-400'
                   }`}
                 >
                   Quick Role Fill
                 </span>
-                <span className={`text-xs font-mono font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                <span className="text-xs font-mono text-slate-400">
                   Select to populate
                 </span>
               </div>
 
               {/* Minimal Role Buttons List */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-3.5">
+              <div id="roleGrid" className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {PRESET_ROLES.map((role) => {
-                  const isSelected = role.id === 'manager' ? !!managerSelected : role.id === selectedRoleId;
-                  const Icon = role.icon;
+                  const isManager = role.id === 'manager';
+                  const isFulfiller = role.id === 'fulfiller';
                   const isDispatcher = role.id === 'dispatcher';
+                  const isSelected =
+                    isManager
+                      ? selectedRoleId === 'manager' || selectedRoleId?.startsWith('manager-')
+                      : isFulfiller
+                      ? selectedRoleId === 'fulfiller' || selectedRoleId?.startsWith('fulfiller-')
+                      : isDispatcher
+                      ? selectedRoleId === 'dispatcher'
+                      : selectedRoleId === role.id;
+
+                  const Icon = role.icon;
 
                   return (
                     <div key={role.id} className="relative" ref={isDispatcher ? dispatcherMenuRef : undefined}>
                       <button
                         type="button"
                         onClick={() => handleSelectRole(role)}
-                        aria-pressed={isSelected}
-                        aria-expanded={role.id === 'manager' ? !!managerSelected : undefined}
-                        aria-controls={role.id === 'manager' ? 'manager-preview-selector' : undefined}
-                        className={`w-full text-left flex items-center justify-between p-3 sm:p-3.5 rounded-2xl border transition-all duration-150 cursor-pointer login-role-btn ${
-                          isSelected ? 'active' : ''
-                        } ${
+                        aria-expanded={isManager ? managerDropdownOpen : isDispatcher ? dispatcherDropdownOpen : undefined}
+                        aria-controls={isManager ? 'manager-preview-department' : undefined}
+                        className={`w-full text-left flex items-center justify-between p-3 sm:p-3.5 rounded-xl border transition-all duration-150 cursor-pointer portal-role-btn ${
                           isSelected
-                            ? isLight
-                              ? 'bg-amber-50/90 border-2 border-amber-500 text-slate-950 ring-2 ring-amber-400/30 shadow-md'
-                              : 'bg-amber-400/10 border-amber-400/70 text-white ring-1 ring-amber-400/40 shadow-sm'
+                            ? 'portal-role-selected ' +
+                              (isLight
+                                ? 'bg-amber-400/15 border-amber-400/80 text-slate-950 ring-1 ring-amber-400/30'
+                                : 'bg-amber-400/10 border-amber-400/70 text-white')
                             : isLight
-                            ? 'bg-slate-50/90 border-slate-200 hover:bg-[#ffffff] hover:border-slate-300 text-slate-800 shadow-xs hover:shadow-sm'
+                            ? 'bg-[#ffffff]/80 border-slate-200/80 hover:border-slate-300 hover:bg-[#ffffff] text-slate-700 shadow-2xs'
                             : 'bg-white/[0.03] border-white/5 hover:border-white/20 text-slate-300'
                         }`}
                       >
@@ -721,29 +870,42 @@ export function PortalLoginView() {
                               </span>
                             )}
                           </div>
+                          <span className="text-xs sm:text-[13.5px] font-medium truncate">
+                            {role.name}
+                          </span>
                         </div>
-
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {isDispatcher && (
+                        <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+                          {(isDispatcher || isManager || isFulfiller) && (
                             <ChevronDown
-                              className={`w-4 h-4 text-amber-500 transition-transform duration-200 ${
-                                dispatcherDropdownOpen ? 'rotate-180' : ''
+                              className={`w-4 h-4 text-slate-400 transition-transform ${
+                                (isDispatcher && dispatcherDropdownOpen) ||
+                                (isFulfiller && fulfillerDropdownOpen) ||
+                                (isManager && managerDropdownOpen)
+                                  ? 'rotate-180'
+                                  : ''
                               }`}
                             />
                           )}
-                          <span
-                            className={`text-[11px] font-mono px-2 py-0.5 rounded font-medium login-role-num ${
-                              isSelected && isLight
-                                ? 'bg-amber-200 text-amber-950 font-bold'
-                                : isLight
-                                ? 'bg-slate-200/90 text-slate-700'
-                                : 'bg-white/5 text-slate-400'
-                            }`}
-                          >
+                          <span className="text-xs font-mono text-slate-400">
                             {role.num}
                           </span>
                         </div>
                       </button>
+
+                      {isManager && managerDropdownOpen && (
+                        <label className={`block mt-2 rounded-xl border p-3 text-xs ${isLight ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-[#0c1424] border-white/10 text-slate-300'}`}>
+                          Preview department
+                          <select
+                            id="manager-preview-department"
+                            aria-label="Manager preview department"
+                            value={previewDepartment}
+                            onChange={event => handleSelectManagerDept(event.target.value as ManagerDepartmentId)}
+                            className={`mt-2 w-full rounded-lg border px-3 py-2.5 text-xs ${isLight ? 'bg-white border-slate-300 text-slate-900' : 'bg-[#131e30] border-slate-600 text-slate-100'}`}
+                          >
+                            {MANAGER_DEPARTMENTS.map(department => <option key={department.id} value={department.id}>{department.name}</option>)}
+                          </select>
+                        </label>
+                      )}
 
                       {/* Pure Dropdown Menu with Department Name Supervisor */}
                       {isDispatcher && dispatcherDropdownOpen && (
@@ -758,11 +920,10 @@ export function PortalLoginView() {
                             {DISPATCHER_DEPARTMENTS.map((dept) => {
                               const isDeptActive = selectedDept === dept.id && isSelected;
                               const DeptIcon = dept.icon;
-
                               return (
                                 <button
-                                  key={dept.id}
                                   type="button"
+                                  key={dept.id}
                                   onClick={() => handleSelectDepartment(dept)}
                                   className={`w-full text-left flex items-center justify-between p-2.5 sm:p-3 rounded-xl border transition-all duration-150 cursor-pointer ${
                                     isDeptActive
@@ -797,7 +958,6 @@ export function PortalLoginView() {
                   );
                 })}
               </div>
-              {managerSelected && <div id="manager-preview-selector" className="manager-preview-selector"><label htmlFor="manager-preview-department">Department manager preview</label><select id="manager-preview-department" value={previewDepartment} onChange={event => { const department = event.target.value as ManagerDepartmentId; const account = DEMO_ACCOUNTS.find(role => role.departmentId === department && role.id !== 'manager'); if (account) handleSelectRole(account); }}>{MANAGER_DEPARTMENTS.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select><p>Select a department to autofill its preview login.</p></div>}
             </div>
           </section>
         </div>
@@ -805,16 +965,13 @@ export function PortalLoginView() {
 
       {/* Custom Alert Toast */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 animate-fade-in pointer-events-none">
-          <div
-            className={`text-xs sm:text-sm px-4 py-2.5 rounded-2xl shadow-2xl border flex items-center gap-2.5 ${
-              isLight
-                ? 'bg-slate-900 text-white border-slate-800 shadow-slate-900/40'
-                : 'bg-slate-900 text-white border-white/10'
-            }`}
-          >
-            <Info className="w-4 h-4 text-amber-400 shrink-0" />
-            <span className="font-semibold">{toastMessage}</span>
+        <div
+          role="status"
+          className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200 pointer-events-none"
+        >
+          <div className="bg-slate-900 dark:bg-slate-800 text-white text-xs sm:text-[13px] px-4 py-3 rounded-xl shadow-lg border border-white/10 flex items-center gap-2.5">
+            <Info className="w-4 h-4 text-cyan-400" />
+            <span>{toastMessage}</span>
           </div>
         </div>
       )}

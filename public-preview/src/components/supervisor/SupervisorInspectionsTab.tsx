@@ -29,12 +29,14 @@ import type {
 } from '@/types/demo';
 
 interface SupervisorInspectionsTabProps {
+  departmentName?: string;
   inspections?: SupervisorInspection[];
   department?: DispatcherDepartment;
   onSelectInspection?: (inspection: SupervisorInspection) => void;
 }
 
 export function SupervisorInspectionsTab({
+  departmentName = 'Housekeeping',
   inspections = [],
   department = 'Housekeeping',
   onSelectInspection,

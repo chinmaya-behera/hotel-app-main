@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   AlertCircle,
   AlertTriangle,
@@ -42,6 +42,10 @@ interface ExecutiveApprovalsTabProps {
   initialStatusFilter?: string;
   selectedItemFromParent?: WorkItem | null;
   onClearSelectedItem?: () => void;
+  selectedSafetyAlertId?: string | null;
+  onClearSelectedSafetyAlert?: () => void;
+  selectedCompensationId?: string | null;
+  onClearSelectedCompensation?: () => void;
 }
 
 export function ExecutiveApprovalsTab({
@@ -49,6 +53,10 @@ export function ExecutiveApprovalsTab({
   initialStatusFilter,
   selectedItemFromParent,
   onClearSelectedItem,
+  selectedSafetyAlertId,
+  onClearSelectedSafetyAlert,
+  selectedCompensationId,
+  onClearSelectedCompensation,
 }: ExecutiveApprovalsTabProps) {
   const {
     state,
@@ -63,15 +71,29 @@ export function ExecutiveApprovalsTab({
 
   // Phase 4 GM Cross-Role Approval queues
   const pendingSafetyAlerts = (state.safetyAlerts ?? []).filter(
-    (a) => a.status === 'validated_pending_approval',
+    (a) =>
+      a.status === 'validated_pending_approval' ||
+      a.id === selectedSafetyAlertId ||
+      a.ref === selectedSafetyAlertId,
   );
   const pendingGmCompensations = (state.compensationRequests ?? []).filter(
-    (c) => c.status === 'pending_gm',
+    (c) =>
+      c.status === 'pending_gm' ||
+      (c.amount > 10000 && c.status === 'pending_financial_operator') ||
+      c.id === selectedCompensationId ||
+      c.ref === selectedCompensationId,
   );
 
   // Search & Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>(initialStatusFilter || 'all');
+
+  useEffect(() => {
+    if (initialStatusFilter) {
+      setStatusFilter(initialStatusFilter);
+      setPage(1);
+    }
+  }, [initialStatusFilter]);
   const [deptFilter, setDeptFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
@@ -84,6 +106,24 @@ export function ExecutiveApprovalsTab({
 
   // Selected item for drawer/modal
   const [activeItem, setActiveItem] = useState<WorkItem | null>(selectedItemFromParent || null);
+
+  useEffect(() => {
+    if (selectedItemFromParent) {
+      setActiveItem(selectedItemFromParent);
+    }
+  }, [selectedItemFromParent]);
+
+  useEffect(() => {
+    if (selectedSafetyAlertId) {
+      const alt = (state.safetyAlerts ?? []).find(
+        (a) => a.id === selectedSafetyAlertId || a.ref === selectedSafetyAlertId,
+      );
+      if (alt) {
+        setViewingAlertAudit(alt);
+      }
+    }
+  }, [selectedSafetyAlertId, state.safetyAlerts]);
+
   const [commentText, setCommentText] = useState('');
 
   // Modals for actions
@@ -113,7 +153,10 @@ export function ExecutiveApprovalsTab({
         // Department filter
         if (deptFilter !== 'all') {
           const itemDept = item.department || (item.meta?.includes('Front Office') ? 'Front Office' : item.meta?.includes('Engineering') ? 'Maintenance & Engineering' : '');
-          if (!itemDept.toLowerCase().includes(deptFilter.toLowerCase())) return false;
+          const matches = deptFilter.toLowerCase() === 'wellness'
+            ? itemDept.toLowerCase().includes('wellness') || itemDept.toLowerCase().includes('spa')
+            : itemDept.toLowerCase().includes(deptFilter.toLowerCase());
+          if (!matches) return false;
         }
 
         // Category filter
@@ -188,6 +231,11 @@ export function ExecutiveApprovalsTab({
     setInfoQuestions('');
   };
 
+  const handleReopen = (item: WorkItem) => {
+    if (permissionMode === 'viewer') return;
+    reviewExecutiveItem(item.id, 'reopen', 'Reopened for evaluation by Executive General Manager Priya Nair');
+  };
+
   const handleAddComment = () => {
     if (!currentItem || !commentText.trim()) return;
     addExecutiveComment(currentItem.id, commentText.trim());
@@ -256,11 +304,11 @@ export function ExecutiveApprovalsTab({
               }}
               className="w-full px-3 py-2 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-ink-950/70 text-xs text-navy-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/40"
             >
-              <option value="all">Status: All Records</option>
-              <option value="pending">Needs Approval</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
-              <option value="info">Info Requested</option>
+              <option value="all">Status: All Requests</option>
+              <option value="pending">Pending Approvals</option>
+              <option value="approved">Authorized</option>
+              <option value="rejected">Declined</option>
+              <option value="info">Clarification Needed</option>
             </select>
           </div>
 
@@ -279,7 +327,7 @@ export function ExecutiveApprovalsTab({
               <option value="Front Office">Front Office</option>
               <option value="Housekeeping">Housekeeping</option>
               <option value="Food & Beverage">Food & Beverage</option>
-              <option value="Spa">Spa & Wellness</option>
+              <option value="Wellness">Wellness</option>
             </select>
           </div>
 
@@ -308,8 +356,8 @@ export function ExecutiveApprovalsTab({
         {/* Quick status tabs pills */}
         <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-100 dark:border-white/[0.06]">
           {[
-            { id: 'all', label: 'All Requests' },
-            { id: 'pending', label: 'Needs Approval', count: items.filter((i) => i.status === 'Needs approval').length },
+            { id: 'all', label: 'All Requests', count: items.length },
+            { id: 'pending', label: 'Pending Approvals', count: items.filter((i) => i.status === 'Needs approval').length },
             { id: 'approved', label: 'Authorized', count: items.filter((i) => i.status === 'Approved').length },
             { id: 'rejected', label: 'Declined', count: items.filter((i) => i.status === 'Rejected').length },
             { id: 'info', label: 'Clarification Needed', count: items.filter((i) => i.status === 'Info Requested').length },
@@ -328,7 +376,7 @@ export function ExecutiveApprovalsTab({
               }`}
             >
               <span>{tab.label}</span>
-              {tab.count !== undefined && tab.count > 0 && (
+              {tab.count !== undefined && (
                 <span
                   className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${
                     statusFilter === tab.id ? 'bg-white/30 text-white' : 'bg-black/10 dark:bg-white/10'
@@ -370,11 +418,20 @@ export function ExecutiveApprovalsTab({
           </div>
 
           <div className="grid gap-3 sm:grid-cols-1">
-            {pendingSafetyAlerts.map((alt) => (
-              <div
-                key={alt.id}
-                className="p-4 rounded-2xl border border-rose-500/30 bg-ink-950/60 flex flex-col md:flex-row md:items-center justify-between gap-4"
-              >
+            {pendingSafetyAlerts.map((alt) => {
+              const isSelected = Boolean(
+                selectedSafetyAlertId &&
+                  (alt.id === selectedSafetyAlertId || alt.ref === selectedSafetyAlertId),
+              );
+              return (
+                <div
+                  key={alt.id}
+                  className={`p-4 rounded-2xl border transition flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                    isSelected
+                      ? 'border-rose-400 ring-2 ring-rose-500/50 bg-rose-950/80 shadow-lg'
+                      : 'border-rose-500/30 bg-ink-950/60'
+                  }`}
+                >
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-mono font-bold text-xs px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30">
@@ -434,7 +491,8 @@ export function ExecutiveApprovalsTab({
                   )}
                 </div>
               </div>
-            ))}
+            );
+          })}
           </div>
         </div>
       )}
@@ -464,11 +522,20 @@ export function ExecutiveApprovalsTab({
           </div>
 
           <div className="grid gap-3 sm:grid-cols-1">
-            {pendingGmCompensations.map((comp) => (
-              <div
-                key={comp.id}
-                className="p-4 rounded-2xl border border-amber-500/30 bg-ink-950/60 flex flex-col md:flex-row md:items-center justify-between gap-4"
-              >
+            {pendingGmCompensations.map((comp) => {
+              const isSelected = Boolean(
+                selectedCompensationId &&
+                  (comp.id === selectedCompensationId || comp.ref === selectedCompensationId),
+              );
+              return (
+                <div
+                  key={comp.id}
+                  className={`p-4 rounded-2xl border transition flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                    isSelected
+                      ? 'border-amber-400 ring-2 ring-amber-500/50 bg-amber-950/80 shadow-lg'
+                      : 'border-amber-500/30 bg-ink-950/60'
+                  }`}
+                >
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-mono font-bold text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
@@ -520,7 +587,8 @@ export function ExecutiveApprovalsTab({
                   </div>
                 )}
               </div>
-            ))}
+            );
+          })}
           </div>
         </div>
       )}
@@ -670,6 +738,86 @@ export function ExecutiveApprovalsTab({
                                 }`}
                               >
                                 Decline
+                              </button>
+                            </>
+                          )}
+
+                          {isInfo && (
+                            <>
+                              <button
+                                type="button"
+                                disabled={permissionMode === 'viewer'}
+                                onClick={() => setConfirmApproveModal(item)}
+                                title={permissionMode === 'viewer' ? 'Disabled in Viewer Mode' : 'Authorize Clarified Requisition'}
+                                className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 ${
+                                  permissionMode === 'viewer'
+                                    ? 'bg-slate-200 dark:bg-white/5 text-slate-400 dark:text-mist-500 cursor-not-allowed opacity-60'
+                                    : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm'
+                                }`}
+                              >
+                                <span>Authorize</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                disabled={permissionMode === 'viewer'}
+                                onClick={() => setConfirmRejectModal(item)}
+                                title={permissionMode === 'viewer' ? 'Disabled in Viewer Mode' : 'Decline Requisition'}
+                                className={`px-2 py-1.5 rounded-xl text-xs font-bold transition ${
+                                  permissionMode === 'viewer'
+                                    ? 'bg-slate-200 dark:bg-white/5 text-slate-400 dark:text-mist-500 cursor-not-allowed opacity-60'
+                                    : 'bg-rose-500/15 hover:bg-rose-500/25 text-rose-600 dark:text-rose-300 border border-rose-500/30'
+                                }`}
+                              >
+                                Decline
+                              </button>
+
+                              <button
+                                type="button"
+                                disabled={permissionMode === 'viewer'}
+                                onClick={() => handleReopen(item)}
+                                title="Move back to Pending Approvals"
+                                className="px-2 py-1.5 rounded-xl text-xs font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 transition flex items-center gap-1"
+                              >
+                                <RotateCcw className="h-3 w-3" />
+                                <span>To Pending</span>
+                              </button>
+                            </>
+                          )}
+
+                          {isApproved && (
+                            <button
+                              type="button"
+                              disabled={permissionMode === 'viewer'}
+                              onClick={() => handleReopen(item)}
+                              title="Re-open and move back to Pending Approvals"
+                              className="px-2 py-1.5 rounded-xl text-xs font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 transition flex items-center gap-1"
+                            >
+                              <RotateCcw className="h-3 w-3" />
+                              <span>To Pending</span>
+                            </button>
+                          )}
+
+                          {isRejected && (
+                            <>
+                              <button
+                                type="button"
+                                disabled={permissionMode === 'viewer'}
+                                onClick={() => setConfirmApproveModal(item)}
+                                title="Override and Authorize"
+                                className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30 transition"
+                              >
+                                Authorize
+                              </button>
+                              <button
+                                type="button"
+                                disabled={permissionMode === 'viewer'}
+                                onClick={() => handleReopen(item)}
+                                title="Re-open and move back to Pending Approvals"
+                                className="px-2 py-1.5 rounded-xl text-xs font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 transition flex items-center gap-1"
+                              >
+                                <RotateCcw className="h-3 w-3" />
+                                <span>To Pending</span>
                               </button>
                             </>
                           )}
@@ -936,7 +1084,7 @@ export function ExecutiveApprovalsTab({
                           : 'border-sky-500/30 text-sky-600 dark:text-sky-300 hover:bg-sky-500/10'
                       }`}
                     >
-                      Request Info
+                      Request Clarification
                     </button>
 
                     <button
@@ -963,6 +1111,92 @@ export function ExecutiveApprovalsTab({
                       }`}
                     >
                       Authorize Approval
+                    </button>
+                  </>
+                )}
+
+                {currentItem.status === 'Info Requested' && (
+                  <>
+                    <button
+                      type="button"
+                      disabled={permissionMode === 'viewer'}
+                      onClick={() => handleReopen(currentItem)}
+                      className="px-3.5 py-2 rounded-2xl text-xs font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 border border-amber-500/30 transition flex items-center gap-1.5"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" />
+                      <span>Move to Pending</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={permissionMode === 'viewer'}
+                      onClick={() => setConfirmRejectModal(currentItem)}
+                      className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition ${
+                        permissionMode === 'viewer'
+                          ? 'bg-slate-200 text-slate-400 opacity-60 cursor-not-allowed'
+                          : 'bg-rose-500/15 text-rose-600 dark:text-rose-300 hover:bg-rose-500/25 border border-rose-500/30'
+                      }`}
+                    >
+                      Decline
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={permissionMode === 'viewer'}
+                      onClick={() => setConfirmApproveModal(currentItem)}
+                      className={`px-5 py-2 rounded-2xl text-xs font-bold text-white transition shadow-md ${
+                        permissionMode === 'viewer'
+                          ? 'bg-slate-300 opacity-60 cursor-not-allowed'
+                          : 'bg-emerald-500 hover:bg-emerald-600'
+                      }`}
+                    >
+                      Authorize Approval
+                    </button>
+                  </>
+                )}
+
+                {currentItem.status === 'Approved' && (
+                  <>
+                    <button
+                      type="button"
+                      disabled={permissionMode === 'viewer'}
+                      onClick={() => handleReopen(currentItem)}
+                      className="px-3.5 py-2 rounded-2xl text-xs font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 border border-amber-500/30 transition flex items-center gap-1.5"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" />
+                      <span>Return to Pending</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={permissionMode === 'viewer'}
+                      onClick={() => setConfirmRejectModal(currentItem)}
+                      className="px-3.5 py-2 rounded-2xl text-xs font-bold bg-rose-500/15 text-rose-600 dark:text-rose-300 hover:bg-rose-500/25 border border-rose-500/30 transition"
+                    >
+                      Revoke Decision
+                    </button>
+                  </>
+                )}
+
+                {currentItem.status === 'Rejected' && (
+                  <>
+                    <button
+                      type="button"
+                      disabled={permissionMode === 'viewer'}
+                      onClick={() => handleReopen(currentItem)}
+                      className="px-3.5 py-2 rounded-2xl text-xs font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 border border-amber-500/30 transition flex items-center gap-1.5"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" />
+                      <span>Re-open to Pending</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={permissionMode === 'viewer'}
+                      onClick={() => setConfirmApproveModal(currentItem)}
+                      className="px-5 py-2 rounded-2xl text-xs font-bold text-white bg-emerald-500 hover:bg-emerald-600 transition shadow-md"
+                    >
+                      Override & Authorize
                     </button>
                   </>
                 )}

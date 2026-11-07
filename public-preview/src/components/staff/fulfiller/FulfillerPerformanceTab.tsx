@@ -13,10 +13,14 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
+import { type FulfillerProfile, taskMatchesFulfillerDept, isTaskAssignedToProfile } from './fulfillerProfiles';
 
-export function FulfillerPerformanceTab() {
+export function FulfillerPerformanceTab({ profile }: { profile?: FulfillerProfile } = {}) {
   const { state } = useDemo();
-  const tasks = state.items.task_fulfiller ?? [];
+  const rawTasks = state.items.task_fulfiller ?? [];
+  const tasks = profile
+    ? rawTasks.filter((t) => taskMatchesFulfillerDept(t, profile.deptKey) && isTaskAssignedToProfile(t, profile))
+    : rawTasks;
 
   const total = tasks.length;
   const completed = tasks.filter((t) => t.status === 'Completed').length;

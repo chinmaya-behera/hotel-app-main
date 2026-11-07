@@ -154,7 +154,7 @@ export function ExecutivePerformanceTab() {
       },
       {
         id: 'spa_wellness',
-        name: 'Spa & Wellness',
+        name: 'Wellness',
         leadName: 'T. Brandt',
         leadEmpId: 'EMP-0110',
         icon: Star,
@@ -165,8 +165,8 @@ export function ExecutivePerformanceTab() {
         staffOnDutyCount: 2,
         totalStaffCount: 2,
         guestSatisfactionScore: 4.95,
-        activeTasks: allTasks.filter((t) => t.category === 'spa'),
-        staffMembers: allStaff.filter((s) => s.department.toLowerCase().includes('spa')),
+        activeTasks: allTasks.filter((t) => t.category === 'spa' || t.department?.toLowerCase().includes('wellness')),
+        staffMembers: allStaff.filter((s) => s.department.toLowerCase().includes('spa') || s.department.toLowerCase().includes('wellness')),
         weeklyTrend: [97, 98, 99, 98, 97, 99, 98.5],
       },
       {
@@ -227,7 +227,7 @@ export function ExecutivePerformanceTab() {
             <option value="housekeeping">Housekeeping & Rooms</option>
             <option value="front_office">Front Office & Stays</option>
             <option value="food_beverage">Food & Beverage</option>
-            <option value="spa_wellness">Spa & Wellness</option>
+            <option value="spa_wellness">Wellness</option>
             <option value="security">Safety & Security</option>
           </select>
 

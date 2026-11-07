@@ -140,10 +140,53 @@ export function verifyPreCheckIn(s: DemoState, stayId: string): FdResult {
   return {
     next: {
       ...s,
-      frontDesk: { ...s.frontDesk, stays: patchStay(s.frontDesk.stays, stayId, { preCheckIn: 'verified', idChecked: true }) },
+      frontDesk: { ...s.frontDesk, stays: patchStay(s.frontDesk.stays, stayId, { preCheckIn: 'verified', idChecked: true, idVerificationStatus: 'verified' }) },
       feed: feedWith(s, 'Front Desk', `Pre-check-in verified · ${stay.guest} · Room ${stay.room}`),
     },
     message: `${stay.guest} verified. ID and consent recorded (simulated).`,
+  };
+}
+
+export function manualVerifyId(
+  s: DemoState,
+  stayId: string,
+  details: {
+    docType: string;
+    docNumber: string;
+    status: 'verified' | 'pending' | 'failed';
+    notes?: string;
+    verifiedBy?: string;
+  }
+): FdResult {
+  const stay = s.frontDesk.stays.find((x) => x.id === stayId);
+  if (!stay) return { error: 'Stay not found.' };
+
+  const isVerified = details.status === 'verified';
+  const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  return {
+    next: {
+      ...s,
+      frontDesk: {
+        ...s.frontDesk,
+        stays: patchStay(s.frontDesk.stays, stayId, {
+          idChecked: isVerified,
+          preCheckIn: isVerified ? 'verified' : details.status === 'pending' ? 'pending_verify' : 'none',
+          idDocType: details.docType,
+          idDocNumber: details.docNumber,
+          idVerificationStatus: details.status,
+          idVerifiedAt: now,
+          idVerifiedBy: details.verifiedBy || 'Front Desk Coordinator',
+          idVerificationNotes: details.notes || '',
+        }),
+      },
+      feed: feedWith(
+        s,
+        'Front Desk',
+        `ID Verification ${details.status.toUpperCase()} · ${stay.guest} (${details.docType}: ${details.docNumber || 'N/A'})`
+      ),
+    },
+    message: `ID status for ${stay.guest} updated to "${details.status}". Recorded in audit log.`,
   };
 }
 

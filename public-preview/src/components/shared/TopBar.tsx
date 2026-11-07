@@ -31,7 +31,7 @@ import { useDemo } from '@/lib/store';
 import { managerDepartment, managerNotifications } from '@/lib/manager-domain';
 import { HOME_ACCENT, quickLinks, roles, roleById } from '@/lib/roles';
 import { accentVars, cn } from '@/lib/utils';
-import type { ActiveId, RoleId } from '@/types/demo';
+import type { ActiveId, RoleId, StaffAccount } from '@/types/demo';
 
 interface TopBarProps {
   active: ActiveId;
@@ -170,11 +170,12 @@ export function TopBar({ active, showRail = true, hideGestureButton = false }: T
   }
 
   const isLight = state.theme === 'light';
+  const isFd = roleId === 'front_desk_coordinator';
 
   return (
     <>
       <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-ink-950/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 sm:px-6">
+        <div className={cn("mx-auto flex max-w-7xl items-center gap-3", isFd ? "px-4 sm:px-5 py-1.5 h-[52px] min-h-[52px]" : "px-4 py-3 sm:px-6")}>
           {/* Brand & Home Navigation */}
           <Link
             href="/"
@@ -182,14 +183,14 @@ export function TopBar({ active, showRail = true, hideGestureButton = false }: T
             title="The Grand ADP Resort · View Public Website"
           >
             <span
-              className="icon-tile h-10 w-10 shrink-0 rounded-xl"
+              className={cn("icon-tile shrink-0", isFd ? "h-8 w-8 rounded-lg" : "h-10 w-10 rounded-xl")}
               style={accentVars(role ?? HOME_ACCENT)}
             >
               <Hotel className="h-5 w-5" aria-hidden />
             </span>
             <span className="leading-tight">
-              <span className="block font-display text-lg text-white">The Grand ADP</span>
-              <span className="block text-[10px] uppercase tracking-[0.22em] text-mist-400">
+              <span className={cn("block font-display text-white", isFd ? "text-sm sm:text-base leading-snug" : "text-lg")}>The Grand ADP</span>
+              <span className={cn("block uppercase text-mist-400", isFd ? "text-[9px] tracking-[0.2em]" : "text-[10px] tracking-[0.22em]")}>
                 {isRole ? `${role?.name} Portal` : 'Resort · Staff Portals'}
               </span>
             </span>
@@ -205,11 +206,16 @@ export function TopBar({ active, showRail = true, hideGestureButton = false }: T
                   <button
                     type="button"
                     onClick={() => {
+                      if (isFd) {
+                        window.dispatchEvent(new CustomEvent('fd-open-profile-drawer'));
+                        return;
+                      }
                       setProfileCardOpen(!profileCardOpen);
                       setNotifDropdownOpen(false);
                     }}
                     className={cn(
-                      'flex items-center gap-2.5 rounded-full border py-1 pl-1.5 pr-3 shadow-inner transition-all text-left focus:outline-none focus:ring-2 focus:ring-amber-400/30 cursor-pointer',
+                      'flex items-center rounded-full border shadow-inner transition-all text-left focus:outline-none focus:ring-2 focus:ring-amber-400/30 cursor-pointer',
+                      isFd ? 'gap-2 py-0.5 pl-1 pr-2.5 text-xs' : 'gap-2.5 py-1 pl-1.5 pr-3',
                       profileCardOpen
                         ? isLight
                           ? 'border-amber-400 bg-white shadow-md'
@@ -223,14 +229,14 @@ export function TopBar({ active, showRail = true, hideGestureButton = false }: T
                     aria-expanded={profileCardOpen}
                   >
                     <div
-                      className="grid h-7 w-7 place-items-center rounded-full text-xs font-bold text-white shadow-sm shrink-0"
+                      className={cn("grid place-items-center rounded-full font-bold text-white shadow-sm shrink-0", isFd ? "h-6 w-6 text-[10px]" : "h-7 w-7 text-xs")}
                       style={{
                         background: `linear-gradient(135deg, rgb(${role?.accent ?? '52 211 153'}), rgb(${role?.accent2 ?? '16 185 129'}))`,
                       }}
                     >
                       {staff.name
                         .split(' ')
-                        .map((n) => n[0])
+                        .map((n: string) => n[0])
                         .join('')
                         .slice(0, 2)}
                     </div>
@@ -291,7 +297,7 @@ export function TopBar({ active, showRail = true, hideGestureButton = false }: T
                           >
                             {staff.name
                               .split(' ')
-                              .map((n) => n[0])
+                              .map((n: string) => n[0])
                               .join('')
                               .slice(0, 2)}
                           </div>
@@ -411,7 +417,7 @@ export function TopBar({ active, showRail = true, hideGestureButton = false }: T
                             className="font-medium"
                             style={{ color: isLight ? '#0f172a' : '#e2e8f0' }}
                           >
-                            {staff.floorZone || 'Property-Wide'}
+                            {('floorZone' in staff ? staff.floorZone : undefined) || 'Property-Wide'}
                           </span>
                         </div>
 
@@ -429,7 +435,7 @@ export function TopBar({ active, showRail = true, hideGestureButton = false }: T
                             className="font-mono text-[11px] truncate max-w-[190px] font-medium"
                             style={{ color: isLight ? '#0f172a' : '#e2e8f0' }}
                           >
-                            {staff.email || `${staff.name.toLowerCase().replace(/\s+/g, '.')}@grandazure.com`}
+                            {('email' in staff ? staff.email : undefined) || `${staff.name.toLowerCase().replace(/\s+/g, '.')}@grandazure.com`}
                           </span>
                         </div>
 
@@ -444,7 +450,7 @@ export function TopBar({ active, showRail = true, hideGestureButton = false }: T
                             className="font-mono font-bold"
                             style={{ color: isLight ? '#047857' : '#34d399' }}
                           >
-                            {staff.financialLimit ? `₹${staff.financialLimit.toLocaleString('en-IN')}` : 'Operational Scope'}
+                            {'financialLimit' in staff && staff.financialLimit ? `₹${staff.financialLimit.toLocaleString('en-IN')}` : 'Operational Scope'}
                           </span>
                         </div>
                       </div>
@@ -528,8 +534,14 @@ export function TopBar({ active, showRail = true, hideGestureButton = false }: T
                 <div className="relative" ref={notifRef}>
                   <button
                     type="button"
-                    onClick={() => setNotifDropdownOpen(!notifDropdownOpen)}
-                    className="relative grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-mist-300 transition-colors hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
+                    onClick={() => {
+                      if (isFd) {
+                        window.dispatchEvent(new CustomEvent('fd-open-notifications-drawer'));
+                        return;
+                      }
+                      setNotifDropdownOpen(!notifDropdownOpen);
+                    }}
+                    className={cn("relative grid place-items-center border border-white/10 bg-white/[0.04] text-mist-300 transition-colors hover:border-white/20 hover:bg-white/[0.08] hover:text-white", isFd ? "h-8 w-8 rounded-lg" : "h-9 w-9 rounded-xl")}
                     title="In-app role notifications"
                     aria-label={`Notifications, ${unreadCount} unread`}
                   >
@@ -614,7 +626,7 @@ export function TopBar({ active, showRail = true, hideGestureButton = false }: T
                 <button
                   type="button"
                   onClick={() => setTheme(isLight ? 'dark' : 'light')}
-                  className="grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-mist-300 transition-colors hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
+                  className={cn("grid place-items-center border border-white/10 bg-white/[0.04] text-mist-300 transition-colors hover:border-white/20 hover:bg-white/[0.08] hover:text-white", isFd ? "h-8 w-8 rounded-lg" : "h-9 w-9 rounded-xl")}
                   title={isLight ? 'Switch to dark mode' : 'Switch to light mode'}
                   aria-label="Toggle theme"
                 >
@@ -638,7 +650,7 @@ export function TopBar({ active, showRail = true, hideGestureButton = false }: T
                 <button
                   type="button"
                   onClick={() => setLogoutModalOpen(true)}
-                  className="flex items-center gap-1.5 rounded-xl border border-rose-400/30 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-300 transition-colors hover:border-rose-400/50 hover:bg-rose-500/20 hover:text-rose-200"
+                  className={cn("flex items-center border border-rose-400/30 bg-rose-500/10 font-semibold text-rose-300 transition-colors hover:border-rose-400/50 hover:bg-rose-500/20 hover:text-rose-200", isFd ? "gap-1.5 px-2.5 py-1 text-xs rounded-lg" : "gap-1.5 px-3 py-1.5 text-xs rounded-xl")}
                   title="Sign out of this staff account"
                 >
                   <LogOut className="h-3.5 w-3.5" aria-hidden />

@@ -519,6 +519,7 @@ export function DispatcherSupervisorConsole() {
 
           {activeTab === 'inspections' && (
             <SupervisorInspectionsTab
+              departmentName={currentDept}
               inspections={inspections}
               department={currentDept}
               onSelectInspection={(insp) => {

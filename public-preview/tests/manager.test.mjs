@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MANAGER_DEPARTMENTS, applyManagerCommand, departmentId, ensureManagerState, managerTasks, managerInspections, managerNotifications, reviewManagerEscalation } from '../src/lib/manager-domain.ts';
+import { MANAGER_DEPARTMENTS, applyManagerCommand, departmentId, ensureManagerState, managerTasks, managerInspections, managerNotifications, reviewManagerEscalation, managerDepartmentFromEmail } from '../src/lib/manager-domain.ts';
+import { INSPECTION_OPTIONS, managerComplaints, managerRepairs, medicalReminders, reviewDepartmentInspection, managerOrders } from '../src/lib/manager-workflows.ts';
 
 function fixture(department = 'housekeeping') {
   return ensureManagerState({ persona: 'department_manager', managerDepartment: department, staffAccounts: [], inspections: [], notifications: [], auditTrail: [], items: Object.fromEntries(['task_fulfiller', 'department_dispatcher', 'department_supervisor', 'department_dispatcher_supervisor', 'department_manager', 'front_desk_coordinator', 'financial_operator', 'security_responder', 'executive_viewer', 'general_manager', 'platform_admin'].map(r => [r, []])) });
@@ -11,6 +12,12 @@ test('all four demo identities have unique email addresses and department IDs', 
   assert.equal(MANAGER_DEPARTMENTS.length, 4);
   assert.equal(new Set(MANAGER_DEPARTMENTS.map(d => d.email)).size, 4);
   for (const d of MANAGER_DEPARTMENTS) assert.equal(departmentId(d.name), d.id);
+});
+test('exact manager emails do not collide with dispatcher department names', () => {
+  for (const department of MANAGER_DEPARTMENTS) assert.equal(managerDepartmentFromEmail(department.email), department.id);
+  assert.equal(managerDepartmentFromEmail(' WELLNESS.MANAGER@THEGRANDADP.COM '), 'wellness');
+  assert.equal(managerDepartmentFromEmail('manager@thegrandadp.com'), 'housekeeping');
+  for (const email of ['wellness@thegrandadp.com', 'housekeeping.dispatcher@thegrandadp.com', 'engineering@thegrandadp.com', 'frontdesk@thegrandadp.com']) assert.equal(managerDepartmentFromEmail(email), undefined);
 });
 test('existing saves migrate without duplicating staff, recovery cases or inspections', () => {
   const s = fixture(), next = ensureManagerState(s);
@@ -198,4 +205,125 @@ test('F&B changes the shared guest menu while other departments cannot', () => {
   assert.deepEqual(next.diningMenu[0].allergens, ['Dairy']);
   next.managerDepartment = 'housekeeping';
   assert.throws(() => command(next, { type: 'menu-availability', menuId: 'menu-1', available: true }), /outside your department/);
+});
+
+test('medical cases keep unique references, urgency, follow-up acknowledgement and append-only history', () => {
+  assert.throws(() => command(fixture('wellness'), { type: 'policy', title: 'Unavailable', content: 'Policy action removed from Wellness.' }), /Policies are not available/);
+  let s = command(fixture('wellness'), { type: 'medical-create', guest: 'Demo guest', location: '402', urgency: 'urgent', note: 'Private synthetic case note', followUpAt: '2026-11-04T11:00:00Z' }, 'case-1');
+  const record = s.managerOperations.medicalCases[0];
+  assert.equal(record.reference, 'MED-2026-0001');
+  assert.equal(medicalReminders(s, Date.parse('2026-11-04T12:00:00Z')).length, 1);
+  assert.equal(s.notifications.length, 0, 'case narrative is not put in shared notifications');
+  assert.ok(!JSON.stringify(s.auditTrail).includes('Private synthetic case note'));
+  s = command(s, { type: 'medical-update', caseId: 'case-1', urgency: 'routine', status: 'monitoring', note: 'Follow-up recorded', followUpAt: record.followUpAt, acknowledge: true });
+  assert.equal(s.managerOperations.medicalCases[0].history.length, 2);
+  assert.equal(medicalReminders(s, Date.parse('2026-11-04T12:01:00Z')).length, 0);
+  s = command(s, { type: 'medical-update', caseId: 'case-1', urgency: 'routine', status: 'monitoring', note: 'Schedule next review', followUpAt: '2026-11-04T13:00:00Z' });
+  assert.equal(medicalReminders(s, Date.parse('2026-11-04T14:00:00Z')).length, 1);
+  assert.equal(ensureManagerState(s).managerOperations.medicalCases.length, 1);
+  assert.throws(() => command({ ...s, managerDepartment: 'engineering' }, { type: 'medical-update', caseId: 'case-1', urgency: 'routine', status: 'closed', note: 'No access' }), /outside your department/);
+});
+
+test('complaints are department scoped and update guest, Front Desk and task copies together', () => {
+  for (const d of MANAGER_DEPARTMENTS) {
+    let s = fixture(d.id);
+    s.frontDesk = { rooms: [], stays: [], complaints: [] };
+    s = command(s, { type: 'complaint-create', guest: 'Demo guest', room: '402', title: 'Service concern', description: 'Recorded test concern', priority: 'normal' }, `complaint-${d.id}`);
+    const reference = managerComplaints(s, d.id)[0].reference;
+    assert.equal(managerComplaints(s, d.id).length, 1, 'shared copies deduplicate');
+    for (const other of MANAGER_DEPARTMENTS.filter(x => x.id !== d.id)) assert.equal(managerComplaints(s, other.id).length, 0);
+    s = command(s, { type: 'complaint-update', reference, status: 'Resolved', note: 'Guest informed and follow-up completed' });
+    assert.equal(s.guestComplaints[0].status, 'Resolved');
+    assert.equal(s.frontDesk.complaints[0].status, 'Resolved');
+    assert.equal(managerTasks(s, d.id).find(t => t.ref === reference).status, 'Resolved');
+    assert.equal(s.frontDesk.complaints[0].compApplied, false);
+    const other = { ...s, managerDepartment: d.id === 'wellness' ? 'engineering' : 'wellness' };
+    assert.throws(() => command(other, { type: 'complaint-update', reference, status: 'Resolved', note: 'No access' }), /unavailable/);
+  }
+});
+
+test('existing guest category routing is explicit and ambiguous complaints stay with Front Desk', () => {
+  const s = fixture();
+  s.guestComplaints = ['Housekeeping', 'Maintenance', 'Food and Dining', 'Other', 'Staff Behaviour'].map((category, i) => ({ id: `g-${i}`, complaintId: `C-${i}`, room: '402', guestName: 'Demo', category, title: 'Concern', description: 'Test', status: 'Submitted', submittedAt: '', history: [] }));
+  assert.equal(managerComplaints(s, 'housekeeping').length, 1);
+  assert.equal(managerComplaints(s, 'engineering').length, 1);
+  assert.equal(managerComplaints(s, 'food-beverages').length, 1);
+  assert.equal(managerComplaints(s, 'wellness').length, 0);
+});
+
+test('hotel repairs cover service areas, mirror workflow changes and reject unavailable technicians', () => {
+  let s = fixture('engineering');
+  s.staffAccounts.push({ id: 'tech', employeeId: 'TECH-1', name: 'Demo technician', roleId: 'task_fulfiller', department: 'Maintenance & Engineering', status: 'active', availability: 'on_duty' });
+  s = command(s, { type: 'repair-create', title: 'Lobby fitting repair', location: 'Main lobby', note: 'Fitting needs repair', priority: 'urgent', technicianId: 'tech' }, 'repair-1');
+  assert.equal(managerRepairs(s).length, 1);
+  assert.equal(managerRepairs(s)[0].location, 'Main lobby');
+  s = command(s, { type: 'repair-update', taskId: 'repair-1', status: 'Completed', note: 'Repair verified', technicianId: 'tech' });
+  for (const key of ['department_dispatcher', 'department_dispatcher_supervisor', 'task_fulfiller']) assert.equal(s.items[key][0].status, 'Completed');
+  assert.throws(() => command(s, { type: 'repair-create', title: 'Repair', location: 'Lobby', note: 'Test', priority: 'normal', technicianId: 'dept-manager-wellness' }), /technician/);
+  assert.throws(() => command(fixture(), { type: 'repair-create', title: 'Repair', location: 'Lobby', note: 'Test', priority: 'normal' }), /outside/);
+});
+
+function roomFixture(department = 'housekeeping') {
+  const s = fixture(department);
+  s.frontDesk = { rooms: [{ no: '101', floor: 1, readiness: 'dirty' }, { no: '102', floor: 1, readiness: 'out_of_order' }, { no: '201', floor: 2, readiness: 'dirty' }], stays: [], complaints: [] };
+  return s;
+}
+test('inspection sweeps create one real checklist per actual room with department-specific templates', () => {
+  for (const d of MANAGER_DEPARTMENTS) {
+    const s = roomFixture(d.id), before = s.inspections.length;
+    const base = { type: 'inspection-launch', supervisorId: `dept-supervisor-${d.id}`, inspectionType: INSPECTION_OPTIONS[d.id][0].type, priority: 'urgent', instructions: 'Test directive' };
+    const floor = command(s, { ...base, scope: 'floor', floor: 1 }, 'sweep');
+    const created = floor.inspections.filter(i => i.batchId === 'sweep');
+    assert.equal(floor.inspections.length, before + 2);
+    assert.deepEqual(created.map(i => i.roomNumber), ['101', '102']);
+    assert.ok(created.every(i => i.assignedSupervisorId === `dept-supervisor-${d.id}` && i.priority === 'urgent' && i.items.every(item => !item.passed)));
+    assert.deepEqual(created[0].items.map(item => item.label), INSPECTION_OPTIONS[d.id][0].checks);
+    const all = command(s, { ...base, scope: 'all' }, 'all');
+    assert.equal(all.inspections.filter(i => i.batchId === 'all').length, 3);
+    assert.throws(() => command(s, { ...base, scope: 'room', location: '999' }), /existing room/);
+    assert.throws(() => command(s, { ...base, scope: 'floor', floor: 9 }), /No rooms/);
+    assert.throws(() => command(s, { ...base, scope: 'all', supervisorId: `dept-supervisor-${d.id === 'wellness' ? 'engineering' : 'wellness'}` }), /supervisor/);
+    assert.equal(s.inspections.length, before);
+  }
+});
+test('supervisor must finish the correct department checklist and cannot clear engineering holds', () => {
+  for (const id of ['housekeeping', 'wellness', 'engineering', 'food-beverages']) {
+    let s = command(roomFixture(id), { type: 'inspection-launch', scope: 'all', supervisorId: `dept-supervisor-${id}`, inspectionType: INSPECTION_OPTIONS[id][0].type, priority: 'normal', instructions: '' }, 'batch');
+    s.persona = 'department_dispatcher_supervisor';
+    s.activeDispatcherDept = managerDepartmentForTest(id);
+    const record = s.inspections.find(i => i.batchId === 'batch');
+    assert.throws(() => reviewDepartmentInspection(s, record.id, 'passed', '', record.items), /Complete every/);
+    const checks = record.items.map(item => ({ ...item, passed: true }));
+    const passed = reviewDepartmentInspection(s, record.id, 'passed', 'Verified test checklist', checks);
+    assert.equal(passed.inspections.find(i => i.id === record.id).status, 'passed');
+    assert.equal(passed.frontDesk.rooms[0].readiness, id === 'housekeeping' ? 'ready' : 'dirty');
+    assert.equal(passed.frontDesk.rooms[1].readiness, 'out_of_order');
+    assert.equal(passed.inspections.find(i => i.id === record.id).items.every(i => i.passed), true);
+    assert.throws(() => reviewDepartmentInspection({ ...s, activeDispatcherDept: id === 'wellness' ? 'Housekeeping' : 'Wellness' }, record.id, 'passed', '', checks), /supervisor department/);
+  }
+});
+function managerDepartmentForTest(id) { return MANAGER_DEPARTMENTS.find(d => d.id === id).name; }
+
+test('dining catalog edits preserve dish options and update shared categories; only F&B can edit', () => {
+  let s = fixture('food-beverages');
+  s.diningMenu = [{ id: 'dish', name: 'Old name', category: 'Breakfast', price: 100, dietary: 'veg', image: '', ingredients: [], allergens: [], isAvailable: true, mealTimes: ['breakfast'], supportsSpiceLevel: true }];
+  const item = { name: 'Updated dish', category: 'Special menu', price: 220, dietary: 'vegan', image: '', ingredients: ['Rice', 'Soy'], allergens: ['Soy'], isAvailable: false };
+  s = command(s, { type: 'menu-save', menuId: 'dish', item });
+  assert.equal(s.diningMenu[0].name, 'Updated dish');
+  assert.equal(s.diningMenu[0].supportsSpiceLevel, true);
+  assert.deepEqual(s.diningMenu[0].mealTimes, ['breakfast']);
+  assert.ok(s.diningCategories.includes('Special menu'));
+  assert.throws(() => command({ ...s, managerDepartment: 'wellness' }, { type: 'menu-save', item }), /outside/);
+  assert.throws(() => command(s, { type: 'menu-save', item: { ...item, price: -1 } }), /price/);
+  s = command(s, { type: 'menu-delete', menuId: 'dish' });
+  assert.equal(s.diningMenu.length, 0);
+});
+test('ordering overview deduplicates shared orders and excludes other departments', () => {
+  const s = fixture('food-beverages');
+  const order = { id: 'order', ref: 'DIN-1', category: 'room_service', status: 'Order Placed', title: 'Guest order', meta: '', orderLines: [{ itemId: 'dish', name: 'Dish', qty: 2, price: 100 }] };
+  s.items.department_dispatcher.push(order);
+  s.items.department_dispatcher_supervisor.push({ ...order, id: 'mirror' });
+  s.items.department_dispatcher.push({ ...order, id: 'hk', ref: 'HK-1', category: 'housekeeping', department: 'Housekeeping' });
+  s.items.department_dispatcher.push({ id: 'lift', ref: 'RS-LIFT', title: 'Service lift fault', category: 'room_service', status: 'Blocked', meta: '' });
+  assert.equal(managerOrders(s).length, 1);
 });
