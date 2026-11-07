@@ -1011,16 +1011,6 @@ export function SecurityIncidentDetailModal({
                 </button>
               )}
 
-              {(isOnScene || isBackup || isEscalated || (!isNew && !isAck && !isResolved)) && !isSolvingInline && (
-                <button
-                  onClick={() => setIsSolvingInline(true)}
-                  className="dm-primary text-xs px-5 py-2.5 rounded-xl font-bold flex items-center gap-1.5 cursor-pointer shadow-md bg-emerald-700 hover:bg-emerald-800 border-emerald-700 text-white"
-                >
-                  <CheckCircle2 size={15} />
-                  <span>Solve Incident &amp; Upload Photo</span>
-                </button>
-              )}
-
               {isResolved && (
                 <button
                   onClick={() => postFileInputRef.current?.click()}
