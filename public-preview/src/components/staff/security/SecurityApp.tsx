@@ -37,9 +37,6 @@ import {
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
 import type { WorkItem, ShiftHandover } from '@/types/demo';
-import Lenis from 'lenis';
-import 'lenis/dist/lenis.css';
-import gsap from 'gsap';
 import { SecurityIncidentDetailModal } from './SecurityIncidentDetailModal';
 import { SecurityLogIncidentModal } from './SecurityLogIncidentModal';
 import { playSecurityChime, playPanicSiren } from './securityChime';
@@ -140,7 +137,7 @@ export function SecurityApp() {
     setPersona('security_responder');
   }, [setPersona]);
 
-  // Initialize Lenis smooth scroll
+  // Enable smooth scrolling
   useEffect(() => {
     const lenis = new Lenis({
       duration: 1.15,
@@ -157,56 +154,9 @@ export function SecurityApp() {
     rafId = requestAnimationFrame(raf);
 
     return () => {
-      cancelAnimationFrame(rafId);
-      lenis.destroy();
+      document.documentElement.style.scrollBehavior = prev;
     };
   }, []);
-
-  // GSAP Text & UI entrance animations
-  useEffect(() => {
-    // 1. Hero text stagger
-    gsap.fromTo(
-      '.gsap-hero-title',
-      { opacity: 0, y: 14 },
-      { opacity: 1, y: 0, duration: 0.55, ease: 'power2.out' }
-    );
-    gsap.fromTo(
-      '.gsap-hero-sub',
-      { opacity: 0, y: 10 },
-      { opacity: 1, y: 0, duration: 0.55, delay: 0.08, ease: 'power2.out' }
-    );
-    gsap.fromTo(
-      '.gsap-meta',
-      { opacity: 0, y: 8 },
-      { opacity: 1, y: 0, duration: 0.5, delay: 0.14, ease: 'power2.out' }
-    );
-
-    // 2. KPI metrics entrance & numbers
-    gsap.fromTo(
-      '.dm-kpi',
-      { opacity: 0, y: 18 },
-      { opacity: 1, y: 0, duration: 0.5, stagger: 0.06, delay: 0.16, ease: 'power2.out', clearProps: 'transform' }
-    );
-    gsap.fromTo(
-      '.gsap-kpi-num',
-      { opacity: 0, scale: 0.94 },
-      { opacity: 1, scale: 1, duration: 0.45, stagger: 0.06, delay: 0.22, ease: 'back.out(1.5)', clearProps: 'transform' }
-    );
-
-    // 3. Grid panels entrance
-    gsap.fromTo(
-      '.gsap-panel',
-      { opacity: 0, y: 20 },
-      { opacity: 1, y: 0, duration: 0.6, stagger: 0.1, delay: 0.24, ease: 'power2.out', clearProps: 'transform' }
-    );
-
-    // 4. Section headings
-    gsap.fromTo(
-      '.gsap-section-title',
-      { opacity: 0, x: -8 },
-      { opacity: 1, x: 0, duration: 0.5, delay: 0.3, ease: 'power2.out' }
-    );
-  }, [tab]);
 
   // Audio siren trigger when critical or new incident arrives
   const isSoundOn = state.soundEnabled ?? true;
