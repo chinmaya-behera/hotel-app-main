@@ -1541,6 +1541,7 @@ export interface CompensationRefundRequest {
   staffGuestResponse?: string;
   internalStaffNote?: string;
   resolutionDetails?: string;
+  resolutionNotes?: string;
   resolvedAt?: string;
   resolvedBy?: string;
   additionalInfoRequested?: string;

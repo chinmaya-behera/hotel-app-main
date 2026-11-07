@@ -220,7 +220,7 @@ interface DemoApi {
     rating: number,
     comment?: string,
     dishesOrTags?: Record<string, { rating: number; comment?: string }> | string[],
-    tags?: string[],
+    tagsOrDishes?: string[] | Record<string, { rating: number; comment?: string }>,
   ) => void;
   disputeFolioCharge: (room: string, lineId: string, reason: string) => void;
   claimLostItem: (room: string, itemId: string) => void;
@@ -2039,14 +2039,17 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
       if (Array.isArray(dishesOrTags)) {
         tags = dishesOrTags;
+        if (extraTags && typeof extraTags === 'object' && !Array.isArray(extraTags)) {
+          dishes = extraTags as Record<string, { rating: number; comment?: string }>;
+        }
       } else if (dishesOrTags && typeof dishesOrTags === 'object') {
         dishes = dishesOrTags;
-        tags = extraTags;
+        tags = Array.isArray(extraTags) ? extraTags : undefined;
       } else if (Array.isArray(extraTags)) {
         tags = extraTags;
       }
 
-      const item = stateRef.current.items[roleId]?.find((i) => i.id === itemId || i.ref === itemId);
+      const item = (stateRef.current?.items || state.items)[roleId]?.find((i) => i.id === itemId || i.ref === itemId);
       let feedbackPatch: Partial<WorkItem> = { feedback: { rating, comment, tags, submittedAt } };
 
       if (item?.orderLines?.length) {
@@ -2116,7 +2119,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       });
       notify('Thank you for rating our service!');
     },
-    [notify],
+    [notify, state.items],
   );
 
   const submitCustomDiningRequest = useCallback<DemoApi['submitCustomDiningRequest']>(
