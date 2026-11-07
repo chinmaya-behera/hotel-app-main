@@ -24,41 +24,30 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Panel } from '@/components/ui/Panel';
 import { useDemo } from '@/lib/store';
-import type { GuestReminder, GuestReminderPriority } from '@/types/demo';
+import type { GuestReminder } from '@/types/demo';
+import { MaterialTimePickerModal, type ReminderConfigData } from './MaterialTimePickerModal';
 
 type ReminderTab = 'all' | 'upcoming' | 'overdue' | 'completed';
 
-const LEAD_TIME_OPTIONS = [
-  { label: '5 minutes before', minutes: 5 },
-  { label: '10 minutes before', minutes: 10 },
-  { label: '15 minutes before (Recommended)', minutes: 15 },
-  { label: '30 minutes before', minutes: 30 },
-  { label: '60 minutes before (1 hour)', minutes: 60 },
-  { label: 'At service time (0m)', minutes: 0 },
-];
-
 export function GuestRemindersPanel() {
-  const { state, createGuestReminder, updateGuestReminderStatus, deleteGuestReminder } = useDemo();
+  const {
+    state,
+    createGuestReminder,
+    updateGuestReminderStatus,
+    updateGuestReminder,
+    deleteGuestReminder,
+  } = useDemo();
   const [activeTab, setActiveTab] = useState<ReminderTab>('all');
-  const [showAddForm, setShowAddForm] = useState(false);
 
-  // Form Fields
-  const [title, setTitle] = useState('Evening Turndown & Extra Towels');
-  const [guestName, setGuestName] = useState('Elena Rostova');
-  const [room, setRoom] = useState('402');
-  const [caseRef, setCaseRef] = useState('REQ-2026-402');
-  const [serviceDate, setServiceDate] = useState('Today');
-  const [serviceTime, setServiceTime] = useState('20:00');
-  const [leadMinutes, setLeadMinutes] = useState(15);
-  const [assignedTo, setAssignedTo] = useState('Front Desk Coordinator');
-  const [instructions, setInstructions] = useState('Verify guest is in room and deliver extra plush towels with lavender pillow mist.');
-  const [priority, setPriority] = useState<GuestReminderPriority>('vip');
+  // Side-by-Side Time Picker & Minimal Details Modal state
+  const [editingReminder, setEditingReminder] = useState<GuestReminder | null>(null);
+  const [isCreatingNew, setIsCreatingNew] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Simulated ringing alarm state (can be triggered by timer or test button)
   const [ringingReminderId, setRingingReminderId] = useState<string | null>('rem-demo-1');
   const [snoozedMessage, setSnoozedMessage] = useState<string | null>(null);
 
-  const stays = state.frontDesk?.stays ?? [];
   const reminders = state.guestReminders ?? [];
 
   // Seed default realistic reminders if none exist
@@ -131,37 +120,55 @@ export function GuestRemindersPanel() {
     return `${alertH.toString().padStart(2, '0')}:${alertM.toString().padStart(2, '0')} (${leadMins}m lead time)`;
   };
 
-  const handleCreate = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!guestName.trim() || !title.trim()) return;
-
-    createGuestReminder({
-      title: title.trim(),
-      guestName: guestName.trim(),
-      room,
-      caseRef: caseRef.trim() || undefined,
-      dueDateTime: `${serviceDate}, ${serviceTime}`,
-      dueDate: serviceDate,
-      dueTime: serviceTime,
-      leadMinutes,
-      status: 'pending',
-      priority,
-      assignedTo,
-      text: instructions.trim(),
-      createdBy: 'Sunita Patel (Front Desk)',
-      alarm: { state: 'scheduled' },
-    });
-
-    setShowAddForm(false);
+  const handleOpenAddModal = () => {
+    setEditingReminder(null);
+    setIsCreatingNew(true);
   };
 
-  const handleSelectStay = (stayId: string) => {
-    const s = stays.find((x) => x.id === stayId);
-    if (s) {
-      setGuestName(s.guest);
-      setRoom(s.room);
-      if (s.vip) setPriority('vip');
+  const handleOpenEditModal = (rem: GuestReminder) => {
+    setEditingReminder(rem);
+    setIsCreatingNew(false);
+  };
+
+  const handleSaveReminder = (newTime: string, data?: ReminderConfigData) => {
+    if (editingReminder) {
+      const day = editingReminder.dueDate || 'Today';
+      const updatedDueDateTime = `${day}, ${newTime}`;
+      updateGuestReminder(editingReminder.id, {
+        dueTime: newTime,
+        dueDateTime: updatedDueDateTime,
+        title: data?.title || editingReminder.title,
+        room: data?.room || editingReminder.room,
+        guestName: data?.guestName || editingReminder.guestName,
+        assignedTo: data?.assignedTo || editingReminder.assignedTo,
+        text: data?.instructions || editingReminder.text,
+      });
+      setToastMessage(
+        `✓ Reminder updated for ${data?.guestName || editingReminder.guestName} (Room ${data?.room || editingReminder.room}) at ${newTime}`
+      );
+    } else if (isCreatingNew && data) {
+      createGuestReminder({
+        title: data.title.trim() || 'Guest Service Reminder',
+        room: data.room.trim() || 'General',
+        guestName: data.guestName.trim() || 'In-House Guest',
+        assignedTo: data.assignedTo || 'Front Desk Coordinator',
+        text: data.instructions.trim() || 'Attend to guest service at scheduled time.',
+        dueTime: newTime,
+        dueDateTime: `Today, ${newTime}`,
+        dueDate: 'Today',
+        leadMinutes: 15,
+        priority: 'vip',
+        status: 'pending',
+        createdBy: 'Front Desk Coordinator',
+        alarm: { state: 'scheduled' },
+      });
+      setToastMessage(
+        `✓ New reminder scheduled for ${data.guestName} (Room ${data.room}) at ${newTime}`
+      );
     }
+    setEditingReminder(null);
+    setIsCreatingNew(false);
+    setTimeout(() => setToastMessage(null), 4000);
   };
 
   // Alarm actions
@@ -285,6 +292,14 @@ export function GuestRemindersPanel() {
         </div>
       )}
 
+      {/* Reminder Custom Time Toast Feedback */}
+      {toastMessage && (
+        <div className="p-3 rounded-xl bg-blue-500/15 border border-blue-500/30 text-blue-200 text-xs font-semibold flex items-center gap-2 animate-fade-in">
+          <CheckCircle2 className="h-4 w-4 text-blue-400" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
       {/* Top Controls Row: Sub-Tabs + Action Buttons */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="inline-flex p-1 rounded-xl bg-white/[0.04] border border-white/10 text-xs">
@@ -316,232 +331,13 @@ export function GuestRemindersPanel() {
           size="sm"
           variant="accent"
           iconLeft={Plus}
-          onClick={() => setShowAddForm(!showAddForm)}
+          onClick={handleOpenAddModal}
         >
-          {showAddForm ? 'Cancel Form' : '+ Create Customizable Reminder'}
+          + Add Reminder
         </Button>
       </div>
 
-      {/* 2. Customizable Reminder Creation Drawer / Modal */}
-      {showAddForm && (
-        <form
-          onSubmit={handleCreate}
-          className="rounded-2xl border border-white/15 bg-ink-900/95 p-5 sm:p-6 space-y-4 shadow-2xl backdrop-blur-2xl animate-fade-in"
-        >
-          <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
-            <div>
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-amber-300" />
-                <span>Configure Guest Service Reminder &amp; Alarm Timer</span>
-              </h3>
-              <p className="text-xs text-mist-400">
-                Calculates automatic alarm lead-time before guest requested service.
-              </p>
-            </div>
-            <span className="text-[11px] text-amber-300 font-mono font-bold bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/20">
-              Station FD-02
-            </span>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-3 text-xs">
-            {/* Quick Stay Select */}
-            <div className="sm:col-span-3">
-              <label className="text-xs font-semibold text-mist-300 mb-1 block">
-                Quick Select Active In-House Guest Stay
-              </label>
-              <select
-                onChange={(e) => handleSelectStay(e.target.value)}
-                className="field w-full text-xs"
-              >
-                <option value="">-- Choose guest from in-house / expected stays --</option>
-                {stays.map((st) => (
-                  <option key={st.id} value={st.id}>
-                    {st.guest} (Room {st.room} · {st.status === 'in_house' ? 'In House' : 'Expected'})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Reminder Title */}
-            <div className="sm:col-span-2">
-              <label className="text-xs font-semibold text-mist-300 mb-1 block">
-                Reminder Title
-              </label>
-              <input
-                type="text"
-                required
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Evening Turndown & Extra Towels"
-                className="field w-full text-xs"
-              />
-            </div>
-
-            {/* Related Case Ref */}
-            <div>
-              <label className="text-xs font-semibold text-mist-300 mb-1 block">
-                Related Case / Request ID
-              </label>
-              <input
-                type="text"
-                value={caseRef}
-                onChange={(e) => setCaseRef(e.target.value)}
-                placeholder="e.g. REQ-2026-402"
-                className="field w-full text-xs font-mono"
-              />
-            </div>
-
-            {/* Guest Name */}
-            <div>
-              <label className="text-xs font-semibold text-mist-300 mb-1 block">
-                Guest Full Name
-              </label>
-              <input
-                type="text"
-                required
-                value={guestName}
-                onChange={(e) => setGuestName(e.target.value)}
-                placeholder="e.g. Elena Rostova"
-                className="field w-full text-xs"
-              />
-            </div>
-
-            {/* Room */}
-            <div>
-              <label className="text-xs font-semibold text-mist-300 mb-1 block">
-                Room Number
-              </label>
-              <input
-                type="text"
-                required
-                value={room}
-                onChange={(e) => setRoom(e.target.value)}
-                placeholder="e.g. 402"
-                className="field w-full text-xs"
-              />
-            </div>
-
-            {/* Priority */}
-            <div>
-              <label className="text-xs font-semibold text-mist-300 mb-1 block">Priority</label>
-              <select
-                value={priority}
-                onChange={(e) => setPriority(e.target.value as GuestReminderPriority)}
-                className="field w-full text-xs"
-              >
-                <option value="normal">Normal</option>
-                <option value="urgent">Urgent</option>
-                <option value="vip">VIP Guest</option>
-              </select>
-            </div>
-
-            {/* Guest Requested Service Date */}
-            <div>
-              <label className="text-xs font-semibold text-mist-300 mb-1 block">
-                Service Date
-              </label>
-              <input
-                type="text"
-                value={serviceDate}
-                onChange={(e) => setServiceDate(e.target.value)}
-                placeholder="Today / Tomorrow"
-                className="field w-full text-xs"
-              />
-            </div>
-
-            {/* Guest Requested Service Time */}
-            <div>
-              <label className="text-xs font-semibold text-mist-300 mb-1 block">
-                Requested Service Time (24h)
-              </label>
-              <input
-                type="time"
-                value={serviceTime}
-                onChange={(e) => setServiceTime(e.target.value)}
-                className="field w-full text-xs font-mono"
-              />
-            </div>
-
-            {/* Custom Lead Time Selector */}
-            <div>
-              <label className="text-xs font-semibold text-mist-300 mb-1 block">
-                Alarm Lead Time Before Service
-              </label>
-              <select
-                value={leadMinutes}
-                onChange={(e) => setLeadMinutes(Number(e.target.value))}
-                className="field w-full text-xs"
-              >
-                {LEAD_TIME_OPTIONS.map((opt) => (
-                  <option key={opt.minutes} value={opt.minutes}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Calculated Alert Time Badge Display */}
-            <div className="sm:col-span-3 p-3 rounded-xl bg-amber-400/10 border border-amber-400/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div className="flex items-center gap-2 text-xs">
-                <Clock className="h-4 w-4 text-amber-400 shrink-0" />
-                <span className="text-mist-200">
-                  Calculated In-App Alert Alarm Time:
-                </span>
-                <strong className="text-amber-300 font-mono text-sm">
-                  {calculateAlertTimeString(serviceTime, leadMinutes)}
-                </strong>
-              </div>
-              <span className="text-[11px] text-mist-400 italic">
-                * Rings banner and notifies coordinator before fulfillment window.
-              </span>
-            </div>
-
-            {/* Assigned Staff */}
-            <div>
-              <label className="text-xs font-semibold text-mist-300 mb-1 block">
-                Assigned Staff / Team
-              </label>
-              <select
-                value={assignedTo}
-                onChange={(e) => setAssignedTo(e.target.value)}
-                className="field w-full text-xs"
-              >
-                <option value="Front Desk Coordinator">Front Desk Coordinator</option>
-                <option value="Housekeeping Attendant">Housekeeping Attendant</option>
-                <option value="Engineering Maintenance">Engineering Maintenance</option>
-                <option value="F&B Room Service">F&B Room Service</option>
-                <option value="Concierge Chauffeur">Concierge Chauffeur</option>
-              </select>
-            </div>
-
-            {/* Instructions */}
-            <div className="sm:col-span-2">
-              <label className="text-xs font-semibold text-mist-300 mb-1 block">
-                Reminder Instructions &amp; Action Notes
-              </label>
-              <textarea
-                required
-                rows={2}
-                value={instructions}
-                onChange={(e) => setInstructions(e.target.value)}
-                placeholder="Action notes for fulfillment team..."
-                className="field w-full text-xs resize-none"
-              />
-            </div>
-          </div>
-
-          <div className="pt-3 flex justify-end gap-2 border-t border-white/[0.08]">
-            <Button size="sm" variant="subtle" onClick={() => setShowAddForm(false)}>
-              Cancel
-            </Button>
-            <Button size="sm" variant="accent" type="submit">
-              Save Reminder &amp; Arm Alarm
-            </Button>
-          </div>
-        </form>
-      )}
-
-      {/* 3. Reminders Hub List */}
+      {/* 2. Reminders Hub List */}
       <Panel
         title={`Reminders Schedule (${effectiveReminders.filter((r) => r.status === 'pending').length} Active)`}
         hint="Configured timers with lead alarms, stay links, and operational status."
@@ -590,10 +386,17 @@ export function GuestRemindersPanel() {
                     <p className="text-xs text-mist-200">{rem.text}</p>
 
                     <div className="flex flex-wrap items-center gap-3 text-[11px] text-mist-400 pt-0.5">
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3 w-3 text-amber-300" />
-                        <span>Due: <strong className="text-white">{rem.dueDateTime}</strong></span>
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() => isPending && handleOpenEditModal(rem)}
+                        className={`inline-flex items-center gap-1 text-left ${
+                          isPending ? 'hover:text-blue-300 hover:underline cursor-pointer group' : ''
+                        }`}
+                        title={isPending ? 'Click to customize reminding time and notes' : undefined}
+                      >
+                        <Clock className="h-3 w-3 text-amber-300 group-hover:text-blue-300" />
+                        <span>Due: <strong className="text-white group-hover:text-blue-200">{rem.dueDateTime}</strong></span>
+                      </button>
                       <span>·</span>
                       <span>Lead: <strong className="text-cyan-300">{rem.leadMinutes ?? 15}m before</strong></span>
                       <span>·</span>
@@ -604,6 +407,19 @@ export function GuestRemindersPanel() {
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                    {/* Individual Reminder Time Customization Button */}
+                    {isPending && (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEditModal(rem)}
+                        className="px-2.5 py-1 rounded-lg border border-blue-400/40 bg-blue-500/10 text-[#8ab4f8] text-[11px] font-semibold hover:bg-blue-500/20 transition flex items-center gap-1.5 shadow-sm"
+                        title="Customize reminding time and reminder details"
+                      >
+                        <Clock className="h-3 w-3" />
+                        <span>Set Time</span>
+                      </button>
+                    )}
+
                     {/* Ring Now Test Button */}
                     {isPending && !isRinging && (
                       <button
@@ -651,6 +467,40 @@ export function GuestRemindersPanel() {
           </div>
         )}
       </Panel>
+
+      {/* 3. Material 3 Side-by-Side Time Picker & Minimal Details Modal */}
+      <MaterialTimePickerModal
+        isOpen={Boolean(editingReminder) || isCreatingNew}
+        showReminderFields={true}
+        initialTime={editingReminder?.dueTime || '20:00'}
+        initialData={
+          editingReminder
+            ? {
+                title: editingReminder.title,
+                room: editingReminder.room,
+                guestName: editingReminder.guestName,
+                assignedTo: editingReminder.assignedTo || 'Front Desk Coordinator',
+                instructions: editingReminder.text,
+              }
+            : {
+                title: '',
+                room: '',
+                guestName: '',
+                assignedTo: 'Front Desk Coordinator',
+                instructions: '',
+              }
+        }
+        title={
+          editingReminder
+            ? `Set Time & Details · Room ${editingReminder.room} (${editingReminder.guestName})`
+            : 'New Guest Reminder · Timer & Details'
+        }
+        onClose={() => {
+          setEditingReminder(null);
+          setIsCreatingNew(false);
+        }}
+        onConfirm={handleSaveReminder}
+      />
     </div>
   );
 }

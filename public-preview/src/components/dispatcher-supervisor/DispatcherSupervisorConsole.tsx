@@ -125,9 +125,9 @@ export function DispatcherSupervisorConsole() {
     }
   }, [setActiveDispatcherDept]);
 
-  // Redirect away from rooms tab if in Wellness department
+  // Redirect away from rooms tab if in Wellness or Food & Beverages department
   useEffect(() => {
-    if (currentDept === 'Wellness' && activeTab === 'rooms') {
+    if ((currentDept === 'Wellness' || currentDept === 'Food & Beverages') && activeTab === 'rooms') {
       setActiveTab('overview');
     }
   }, [currentDept, activeTab]);
@@ -354,7 +354,7 @@ export function DispatcherSupervisorConsole() {
       badge: pendingInspections > 0 ? pendingInspections : undefined,
       badgeTone: 'warning',
     },
-    ...(currentDept !== 'Wellness'
+    ...(currentDept !== 'Wellness' && currentDept !== 'Food & Beverages'
       ? [
           {
             id: 'rooms' as DispatcherSupervisorTab,
