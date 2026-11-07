@@ -1,9 +1,9 @@
 'use client';
 
-import { Fragment, useEffect, useRef, useState, type FormEvent } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Activity, ArrowRight, ArrowUpRight, BarChart3, Bell, BookOpen, CalendarDays, CheckCheck, ChevronRight, ClipboardCheck, Download, Gauge, Handshake, History, LockKeyhole, LogOut, Menu, MessageSquare, Moon, ShoppingBag, Wrench, Search, Sun, Send, UserRound, Users, X, type LucideIcon } from 'lucide-react';
 import { useDemo } from '@/lib/store';
-import { departmentId, isOpen, managerDepartment, managerInspections, managerNotifications, managerTasks } from '@/lib/manager-domain';
+import { departmentId, isOpen, managerDepartment, managerInspections, managerNotifications, managerTasks, type ManagerDepartmentId } from '@/lib/manager-domain';
 import type { SupervisorInspection, WorkItem } from '@/types/demo';
 import { DepartmentDesk, DESK_LABELS } from './DepartmentDesk';
 import '../shared/warm-theme.css';
@@ -25,6 +25,14 @@ const NAV = [
   ['notifications', 'Notifications', Bell], ['profile', 'Profile', UserRound],
 ] as const satisfies readonly (readonly [string, string, LucideIcon])[];
 type Tab = typeof NAV[number][0];
+type View = Tab | 'staff-workload';
+
+function isAvailableTab(tab: Tab, department: ManagerDepartmentId) {
+  if (tab === 'repairs') return department === 'engineering';
+  if (tab === 'orders') return department === 'food-beverages';
+  if (tab === 'policies') return department !== 'wellness';
+  return true;
+}
 
 const VIEW_DESCRIPTIONS: Partial<Record<Tab, string>> = {
   complaints: 'Track guest concerns, assign ownership and keep every response on record.',
@@ -52,7 +60,8 @@ export function DepartmentManagerConsole() {
   const now = useManagerClock();
   const reminders = d.id === 'wellness' ? medicalReminders(state, now) : [];
   const complaints = managerComplaints(state, d.id);
-  const [tab, setTab] = useState<Tab>('overview');
+  const [view, setView] = useState<View>('overview');
+  const tab = view === 'staff-workload' ? 'staff' : view;
   const [historySearch, setHistorySearch] = useState('');
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
@@ -61,6 +70,33 @@ export function DepartmentManagerConsole() {
   const dialog = useRef<HTMLDialogElement>(null);
   const navigationTrigger = useRef<HTMLButtonElement>(null);
   const navigationClose = useRef<HTMLButtonElement>(null);
+  const showView = useCallback((next: View, reference = '') => {
+    setView(next);
+    setHistorySearch(reference);
+    setSearch('');
+    setStatus('all');
+    setSidebarOpen(false);
+    dialog.current?.close();
+    setModal(null);
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    const workspacePath = window.location.pathname;
+    const restoreView = () => {
+      if (window.location.pathname !== workspacePath) return;
+      const requested = new URLSearchParams(window.location.search).get('view');
+      const next = requested === 'staff-workload'
+        ? requested
+        : NAV.find(([id]) => id === requested && isAvailableTab(id, d.id))?.[0] ?? 'overview';
+      const reference = window.history.state?.managerHistorySearch;
+      showView(next, next === 'history' && typeof reference === 'string' ? reference : '');
+    };
+    restoreView();
+    window.addEventListener('popstate', restoreView);
+    return () => window.removeEventListener('popstate', restoreView);
+  }, [hydrated, d.id, showView]);
+
   useEffect(() => {
     if (!sidebarOpen) return;
     navigationClose.current?.focus();
@@ -79,7 +115,18 @@ export function DepartmentManagerConsole() {
   const pending = inspections.filter(i => i.status === 'pending');
   const completed = tasks.filter(t => !isOpen(t.status));
   const visibleTasks = tasks.filter(t => (status === 'all' || (status === 'open' ? isOpen(t.status) : !isOpen(t.status))) && `${t.title} ${t.ref} ${t.room} ${t.assignee}`.toLowerCase().includes(search.toLowerCase()));
-  const navigate = (next: Tab) => { setHistorySearch(''); setTab(next); setSearch(''); setStatus('all'); setSidebarOpen(false); window.scrollTo(0, 0); };
+  const navigate = (next: View, reference = '') => {
+    if (next !== view || reference !== historySearch) {
+      const url = new URL(window.location.href);
+      if (next === 'overview') url.searchParams.delete('view');
+      else url.searchParams.set('view', next);
+      window.history.pushState(reference ? { managerHistorySearch: reference } : null, '', url);
+    }
+    showView(next, reference);
+    if (tab !== 'staff' || (next !== 'staff' && next !== 'staff-workload')) {
+      window.scrollTo(0, 0);
+    }
+  };
   const openModal = (next: NonNullable<Modal>) => { setModal(next); dialog.current?.showModal(); };
   const closeModal = () => { dialog.current?.close(); setModal(null); };
   const title = tab === 'department' ? DESK_LABELS[d.id] : NAV.find(n => n[0] === tab)?.[1];
@@ -91,9 +138,9 @@ export function DepartmentManagerConsole() {
       : { type: 'handover' as const, incoming: text('incoming'), notes: text('notes') };
     if (departmentManagerCommand(command)) closeModal();
   };
-  const taskRows = (rows: WorkItem[]) => rows.length ? <div className="dm-table-wrap"><table className="dm-table"><thead><tr><th>Request / location</th><th>Owner</th><th>Priority</th><th>Status</th><th>Follow-up</th></tr></thead><tbody>{rows.map(t => <tr key={t.id}><td><strong>{t.title}</strong><small>{t.ref || t.id}{t.room ? ` · Room ${t.room}` : ''}</small></td><td>{t.assignee || 'Awaiting assignment'}</td><td>{t.priority || 'normal'}</td><td><span className={statusClass(t.status)}>{t.status}</span></td><td>{isOpen(t.status) ? <button className="dm-text-button" onClick={() => openModal({ kind: 'recovery', task: t })}>Review <ChevronRight size={14}/></button> : 'Complete'}<button className="dm-text-button dm-task-history-link" onClick={() => { navigate('history'); setHistorySearch(t.ref || t.id); }}>View history</button></td></tr>)}</tbody></table></div> : <div className="dm-empty"><CheckCheck size={26}/><h3>All clear here</h3><p>No matching department requests.</p></div>;
+  const taskRows = (rows: WorkItem[]) => rows.length ? <div className="dm-table-wrap"><table className="dm-table"><thead><tr><th>Request / location</th><th>Owner</th><th>Priority</th><th>Status</th><th>Follow-up</th></tr></thead><tbody>{rows.map(t => <tr key={t.id}><td><strong>{t.title}</strong><small>{t.ref || t.id}{t.room ? ` · Room ${t.room}` : ''}</small></td><td>{t.assignee || 'Awaiting assignment'}</td><td>{t.priority || 'normal'}</td><td><span className={statusClass(t.status)}>{t.status}</span></td><td>{isOpen(t.status) ? <button className="dm-text-button" onClick={() => openModal({ kind: 'recovery', task: t })}>Review <ChevronRight size={14}/></button> : 'Complete'}<button className="dm-text-button dm-task-history-link" onClick={() => navigate('history', t.ref || t.id)}>View history</button></td></tr>)}</tbody></table></div> : <div className="dm-empty"><CheckCheck size={26}/><h3>All clear here</h3><p>No matching department requests.</p></div>;
 
-  const navigation = [NAV.find(n => n[0] === 'overview')!, ...NAV.filter(n => n[0] !== 'overview' && (n[0] !== 'repairs' || d.id === 'engineering') && (n[0] !== 'orders' || d.id === 'food-beverages') && (n[0] !== 'policies' || d.id !== 'wellness'))];
+  const navigation = [NAV.find(n => n[0] === 'overview')!, ...NAV.filter(([id]) => id !== 'overview' && isAvailableTab(id, d.id))];
   const completionRate = tasks.length ? Math.round(completed.length / tasks.length * 100) : 0;
   const onDuty = staff.filter(member => member.status === 'active' && !['break', 'off_duty'].includes(member.availability || 'on_duty')).length;
   const kpis = [
@@ -164,7 +211,12 @@ export function DepartmentManagerConsole() {
 
       {tab === 'recovery' && <section className="dm-panel"><div className="dm-panel-heading"><div><h2>Supervisor escalations & service recovery</h2><p>Record a resolution or send the case to the General Manager with context.</p></div></div>{taskRows(recovery)}</section>}
 
-      {tab === 'staff' && <DepartmentStaffing/>}
+      {tab === 'staff' && (
+        <DepartmentStaffing
+          view={view === 'staff-workload' ? 'workload' : 'schedule'}
+          onViewChange={next => navigate(next === 'workload' ? 'staff-workload' : 'staff')}
+        />
+      )}
 
       {tab === 'policies' && <section className="dm-panel"><div className="dm-panel-heading"><div><h2>Department policies</h2><p>Service standards, procedures and escalation ownership.</p></div><button className="dm-primary" onClick={() => openModal({ kind: 'policy' })}>Add policy</button></div><article className="dm-record"><h3>Department quality standard</h3><p>{d.standard}</p><small>Owner: {person} · Escalation: General Manager</small></article>{policies.map(p => <article className="dm-record" key={p.id}><h3>{p.title}</h3><p>{p.content || p.summary}</p><small>{p.category} · {p.policyOwner} · Effective {p.effectiveDate}</small></article>)}</section>}
 
