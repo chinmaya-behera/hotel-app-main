@@ -31,8 +31,16 @@ export function SecurityLogIncidentModal({ isOpen, onClose, onSubmit }: Security
   const [photoName, setPhotoName] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dialogCardRef = useRef<HTMLDivElement>(null);
 
   if (!isOpen) return null;
+
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    if (dialogCardRef.current) {
+      dialogCardRef.current.scrollTop += e.deltaY;
+    }
+  };
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -71,8 +79,20 @@ export function SecurityLogIncidentModal({ isOpen, onClose, onSubmit }: Security
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/45 backdrop-blur-sm animate-in fade-in duration-150">
-      <div className="dm-dialog-card w-full max-w-lg bg-white border border-[var(--dm-line)] rounded-2xl p-6 shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto text-[var(--dm-ink)]">
+    <div
+      data-lenis-prevent
+      onWheel={(e) => e.stopPropagation()}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/45 backdrop-blur-sm animate-in fade-in duration-150"
+      onClick={onClose}
+    >
+      <div
+        ref={dialogCardRef}
+        data-lenis-prevent
+        onWheel={handleWheel}
+        onClick={(e) => e.stopPropagation()}
+        style={{ overscrollBehavior: 'contain' }}
+        className="dm-dialog-card w-full max-w-lg bg-white border border-[var(--dm-line)] rounded-2xl p-6 shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto text-[var(--dm-ink)]"
+      >
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-[var(--dm-line)]">
           <div className="flex items-center gap-3">
