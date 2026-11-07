@@ -109,7 +109,7 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
   }
 
   return (
-    <div className="flex flex-col gap-3 pb-24 text-xs">
+    <div className="flex flex-col gap-3 pb-6 sm:pb-8 text-xs">
       {/* Top Segmented Switcher: "Updates" vs "Hotel & Safety Alerts" */}
       <div
         className={cn(
@@ -319,35 +319,47 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
         </div>
       </div>
 
-      {/* Empty State */}
+      {/* Activity Log Header (matching reference Image 1) */}
+      <div className="flex items-center justify-between px-1 pt-0.5">
+        <h3 className={cn('text-[11px] font-bold uppercase tracking-wider', isLight ? 'text-[#8b7550]' : 'text-[#dfc187]')}>
+          {mainTab === 'updates' ? 'ACTIVITY LOG' : 'SAFETY LOG'}
+        </h3>
+        <p className={cn('text-[11px] font-mono', isLight ? 'text-[#8c8472]' : 'text-mist-400')}>
+          {mainTab === 'updates' ? `${displayedUpdates.length} notifications displayed` : `${displayedSafety.length} alerts displayed`}
+        </p>
+      </div>
+
+      {/* Empty State (matching reference Image 1) */}
       {((mainTab === 'updates' && displayedUpdates.length === 0) ||
         (mainTab === 'safety' && displayedSafety.length === 0)) && (
         <div
           className={cn(
-            'flex flex-col items-center justify-center rounded-3xl border border-dashed py-14 px-6 text-center space-y-2.5 transition-colors',
+            'flex flex-col items-center justify-center rounded-3xl border py-14 px-6 text-center space-y-3 transition-colors',
             isLight
-              ? 'border-[#e7e2d7] bg-[#fbfaf7]'
-              : 'border-[rgba(165,130,95,0.28)] bg-[#1a1918]/60',
+              ? 'border-[#e7e2d7] bg-[#ffffff] shadow-xs'
+              : 'border-[rgba(165,130,95,0.22)] bg-[#1a1918]/80 shadow-md',
           )}
         >
           <div
             className={cn(
-              'grid h-10 w-10 place-items-center rounded-full border',
+              'grid h-12 w-12 place-items-center rounded-full border',
               isLight
-                ? 'border-[#e7e2d7] bg-[#ffffff] text-[#686252]'
-                : 'border-[rgba(165,130,95,0.2)] bg-white/[0.04] text-[#a89f91]',
+                ? 'border-[#e7e2d7] bg-[#f6f3ec] text-[#353229]'
+                : 'border-[rgba(165,130,95,0.3)] bg-white/[0.04] text-[#dfc187]',
             )}
           >
-            {mainTab === 'updates' ? <Bell className="h-5 w-5" /> : <ShieldAlert className="h-5 w-5" />}
+            {mainTab === 'updates' ? <Bell className="h-6 w-6" /> : <ShieldAlert className="h-6 w-6" />}
           </div>
-          <div>
-            <p className={cn('text-xs font-bold', isLight ? 'text-[#353229]' : 'text-[#f7f4ed]')}>
-              {mainTab === 'updates' ? 'No updates in this view' : 'No safety alerts'}
+          <div className="space-y-1">
+            <p className={cn('text-sm font-bold', isLight ? 'text-[#353229]' : 'text-[#f7f4ed]')}>
+              {mainTab === 'updates' ? 'No notifications found' : 'No safety alerts found'}
             </p>
-            <p className={cn('text-[11px] mt-0.5', isLight ? 'text-[#686252]' : 'text-[#ded6c9]')}>
+            <p className={cn('text-xs max-w-sm mx-auto leading-relaxed', isLight ? 'text-[#686252]' : 'text-[#ded6c9]')}>
               {unreadOnly
-                ? 'All notifications have been acknowledged.'
-                : 'New task dispatches and broadcast alerts will appear here.'}
+                ? 'All notifications have been acknowledged. Turn off "Unread" to view previous activity.'
+                : mainTab === 'updates'
+                  ? 'When supervisors assign tasks, dispatch updates, or update your work roster, they will appear here.'
+                  : 'Property-wide broadcasts, emergency alerts, and safety protocols will appear here.'}
             </p>
           </div>
         </div>

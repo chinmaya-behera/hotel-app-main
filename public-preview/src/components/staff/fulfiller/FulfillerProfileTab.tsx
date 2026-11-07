@@ -14,6 +14,7 @@ import {
   Power,
   Shield,
   ShieldCheck,
+  Sparkles,
   Sun,
   User,
   UserCheck,
@@ -26,12 +27,7 @@ import { FULFILLER_PROFILES, type FulfillerProfile } from './fulfillerProfiles';
 import { cn } from '@/lib/utils';
 import { playChime } from './chime';
 import { BreakRequestModal } from './BreakRequestModal';
-import {
-  useBreakRequest,
-  useDutyRequest,
-  DUTY_KIND_LABEL,
-  type RequestKind,
-} from './breakRequests';
+import { useBreakRequest, type DutyRequestType } from './breakRequests';
 
 const EMERGENCY_REASONS = [
   'Medical emergency / sudden illness',
@@ -73,13 +69,12 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
   const [emergencyModalOpen, setEmergencyModalOpen] = useState(false);
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
   const [breakModalOpen, setBreakModalOpen] = useState(false);
+  const [dutyModalInitialType, setDutyModalInitialType] = useState<DutyRequestType>('break');
   const [supervisorNotice, setSupervisorNotice] = useState<string | null>(null);
   const [emergencyReason, setEmergencyReason] = useState(EMERGENCY_REASONS[0]);
   const [emergencyNotes, setEmergencyNotes] = useState('');
 
   const { breakRequest, approveBreakRequest, completeBreakRequest } = useBreakRequest();
-  const { dutyRequest } = useDutyRequest();
-  const [requestKind, setRequestKind] = useState<RequestKind | undefined>(undefined);
 
   const currentAvail = state.fulfillerAvailability ?? 'on_duty';
   const isSoundOn = state.soundEnabled ?? true;
@@ -98,7 +93,7 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
   }
 
   return (
-    <div className={cn('flex flex-col gap-4 pb-28 text-xs', isLight ? 'text-[#353229]' : 'text-white')}>
+    <div className={cn('flex flex-col gap-4 pb-6 sm:pb-8 text-xs', isLight ? 'text-[#353229]' : 'text-white')}>
       {/* Profile Card */}
       <div
         className={cn(
@@ -240,9 +235,7 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
           >
             {breakRequest?.status === 'pending'
               ? 'Break Requested'
-              : dutyRequest?.status === 'pending'
-                ? `${DUTY_KIND_LABEL[dutyRequest.kind]} Requested`
-                : currentAvail === 'on_duty'
+              : currentAvail === 'on_duty'
                 ? 'On Duty'
                 : currentAvail === 'break'
                   ? 'On Break'
@@ -250,20 +243,20 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
           </span>
         </div>
 
-        {/* 3 Status Cards: On Duty (Supervisor Managed) | On Break (Request from Supervisor) | Off Duty (Supervisor Managed) */}
+        {/* 3 Status Cards: On Duty | Off Duty | On Break */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
           {/* Card 1: On Duty */}
           <button
             type="button"
             onClick={() => {
-              if (currentAvail === 'off_duty') {
-                setRequestKind('on_duty');
+              if (currentAvail === 'on_duty') {
+                setSupervisorNotice(
+                  `You are currently On Duty under Supervisor ${activeProfile.supervisorName}. Shift active on Floors 1–5 (08:00–16:30).`,
+                );
+              } else {
+                setDutyModalInitialType('on_duty');
                 setBreakModalOpen(true);
-                return;
               }
-              setSupervisorNotice(
-                `On Duty is managed directly by Department Supervisor (${activeProfile.supervisorName}). Your active shift schedule is Floors 1–5 (08:00–16:30).`,
-              );
             }}
             className={cn(
               'flex flex-col items-start gap-1 rounded-2xl p-3 text-xs transition-all cursor-pointer border text-left',
@@ -271,9 +264,13 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
                 ? isLight
                   ? 'border-[#353229] bg-[#f6f3ec] text-[#353229] shadow-xs'
                   : 'border-[#dfc187] bg-[rgba(200,169,110,0.12)] text-white shadow-sm'
-                : isLight
-                  ? 'border-[#e7e2d7] bg-[#ffffff] text-[#686252] hover:bg-[#fbfaf7]'
-                  : 'border-white/10 bg-white/[0.03] text-mist-300 hover:bg-white/[0.05]',
+                : breakRequest?.status === 'pending' && breakRequest.requestType === 'on_duty'
+                  ? isLight
+                    ? 'border-amber-400 bg-amber-50 text-amber-900 shadow-xs'
+                    : 'border-amber-400/40 bg-amber-400/10 text-amber-200'
+                  : isLight
+                    ? 'border-[#e7e2d7] bg-[#ffffff] text-[#686252] hover:bg-[#fbfaf7]'
+                    : 'border-white/10 bg-white/[0.03] text-mist-300 hover:bg-white/[0.05]',
             )}
           >
             <div className="flex items-center justify-between w-full">
@@ -288,30 +285,92 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
                     ? isLight
                       ? 'bg-[#353229] text-white border-transparent'
                       : 'bg-[#c8a96e] text-[#14120e] border-transparent'
-                    : isLight
-                      ? 'border-[#e7e2d7] bg-[#f6f3ec] text-[#8c8472]'
-                      : 'border-white/10 bg-black/30 text-mist-400',
+                    : breakRequest?.status === 'pending' && breakRequest.requestType === 'on_duty'
+                      ? 'bg-amber-100 text-amber-900 border-amber-300'
+                      : isLight
+                        ? 'border-[#e7e2d7] bg-[#f6f3ec] text-[#8c8472]'
+                        : 'border-white/10 bg-black/30 text-mist-400',
                 )}
               >
-                Supervisor
+                {currentAvail === 'on_duty' ? 'Active' : breakRequest?.status === 'pending' && breakRequest.requestType === 'on_duty' ? 'Waiting' : 'Send Req'}
               </span>
             </div>
             <p className={cn('text-[10px] mt-1', isLight ? 'text-[#8c8472]' : 'text-mist-400')}>
-              Managed by Supervisor · Shift active
+              {currentAvail === 'on_duty'
+                ? 'Active shift on duty'
+                : 'Request On Duty from supervisor'}
             </p>
           </button>
 
-          {/* Card 2: On Break / Request Break */}
+          {/* Card 2: Off Duty */}
           <button
             type="button"
-            onClick={() => setBreakModalOpen(true)}
+            onClick={() => {
+              if (currentAvail === 'off_duty') {
+                setSupervisorNotice(
+                  `You are currently Off Duty under Supervisor ${activeProfile.supervisorName}. Clock-in or report on duty via request dialog.`,
+                );
+              } else {
+                setDutyModalInitialType('off_duty');
+                setBreakModalOpen(true);
+              }
+            }}
+            className={cn(
+              'flex flex-col items-start gap-1 rounded-2xl p-3 text-xs transition-all cursor-pointer border text-left',
+              currentAvail === 'off_duty'
+                ? isLight
+                  ? 'border-rose-400 bg-rose-50 text-rose-900 shadow-xs'
+                  : 'border-rose-500/40 bg-rose-500/10 text-white shadow-sm'
+                : breakRequest?.status === 'pending' && breakRequest.requestType === 'off_duty'
+                  ? isLight
+                    ? 'border-amber-400 bg-amber-50 text-amber-900 shadow-xs'
+                    : 'border-amber-400/40 bg-amber-400/10 text-amber-200'
+                  : isLight
+                    ? 'border-[#e7e2d7] bg-[#ffffff] text-[#686252] hover:bg-[#fbfaf7]'
+                    : 'border-white/10 bg-white/[0.03] text-mist-300 hover:bg-white/[0.05]',
+            )}
+          >
+            <div className="flex items-center justify-between w-full">
+              <span className="flex items-center gap-1.5 font-bold">
+                <Power className="h-3.5 w-3.5" />
+                <span>Off Duty</span>
+              </span>
+              <span
+                className={cn(
+                  'text-[9px] px-1.5 py-0.2 rounded font-mono font-semibold uppercase border',
+                  currentAvail === 'off_duty'
+                    ? 'bg-rose-500 text-white border-transparent'
+                    : breakRequest?.status === 'pending' && breakRequest.requestType === 'off_duty'
+                      ? 'bg-amber-100 text-amber-900 border-amber-300'
+                      : isLight
+                        ? 'border-[#e7e2d7] bg-[#f6f3ec] text-[#8c8472]'
+                        : 'border-white/10 bg-black/30 text-mist-400',
+                )}
+              >
+                {currentAvail === 'off_duty' ? 'Active' : breakRequest?.status === 'pending' && breakRequest.requestType === 'off_duty' ? 'Waiting' : 'Send Req'}
+              </span>
+            </div>
+            <p className={cn('text-[10px] mt-1', isLight ? 'text-[#8c8472]' : 'text-mist-400')}>
+              {currentAvail === 'off_duty'
+                ? 'Shift signed off'
+                : 'Request Off Duty from supervisor'}
+            </p>
+          </button>
+
+          {/* Card 3: On Break */}
+          <button
+            type="button"
+            onClick={() => {
+              setDutyModalInitialType('break');
+              setBreakModalOpen(true);
+            }}
             className={cn(
               'flex flex-col items-start gap-1 rounded-2xl p-3 text-xs transition-all cursor-pointer border text-left',
               currentAvail === 'break'
                 ? isLight
                   ? 'border-[#353229] bg-[#f6f3ec] text-[#353229] shadow-xs'
                   : 'border-[#dfc187] bg-[rgba(200,169,110,0.12)] text-white shadow-sm'
-                : breakRequest?.status === 'pending'
+                : breakRequest?.status === 'pending' && breakRequest.requestType === 'break'
                   ? isLight
                     ? 'border-amber-400 bg-amber-50 text-amber-900 shadow-xs'
                     : 'border-amber-400/40 bg-amber-400/10 text-amber-200'
@@ -326,7 +385,7 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
                 <span>
                   {currentAvail === 'break'
                     ? 'On Break'
-                    : breakRequest?.status === 'pending'
+                    : breakRequest?.status === 'pending' && breakRequest.requestType === 'break'
                       ? 'Break Pending'
                       : 'Request Break'}
                 </span>
@@ -338,7 +397,7 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
                     ? isLight
                       ? 'bg-[#353229] text-white border-transparent'
                       : 'bg-[#c8a96e] text-[#14120e] border-transparent'
-                    : breakRequest?.status === 'pending'
+                    : breakRequest?.status === 'pending' && breakRequest.requestType === 'break'
                       ? 'bg-amber-100 text-amber-900 border-amber-300'
                       : isLight
                         ? 'border-[#b7b09e] bg-[#ffffff] text-[#353229]'
@@ -347,7 +406,7 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
               >
                 {currentAvail === 'break'
                   ? 'Active'
-                  : breakRequest?.status === 'pending'
+                  : breakRequest?.status === 'pending' && breakRequest.requestType === 'break'
                     ? 'Waiting'
                     : 'Send Req'}
               </span>
@@ -355,56 +414,7 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
             <p className={cn('text-[10px] mt-1', isLight ? 'text-[#8c8472]' : 'text-mist-400')}>
               {currentAvail === 'break'
                 ? 'Click to end break & resume'
-                : breakRequest?.status === 'pending'
-                  ? 'Request sent to supervisor'
-                  : 'Send request to supervisor'}
-            </p>
-          </button>
-
-          {/* Card 3: Off Duty */}
-          <button
-            type="button"
-            onClick={() => {
-              if (currentAvail === 'on_duty') {
-                setRequestKind('off_duty');
-                setBreakModalOpen(true);
-                return;
-              }
-              setSupervisorNotice(
-                `Off Duty status is managed by Department Supervisor (${activeProfile.supervisorName}). Shift completion and clock-out are authorized via Supervisor console at 16:30.`,
-              );
-            }}
-            className={cn(
-              'flex flex-col items-start gap-1 rounded-2xl p-3 text-xs transition-all cursor-pointer border text-left',
-              currentAvail === 'off_duty'
-                ? isLight
-                  ? 'border-rose-400 bg-rose-50 text-rose-900 shadow-xs'
-                  : 'border-rose-500/40 bg-rose-500/10 text-white shadow-sm'
-                : isLight
-                  ? 'border-[#e7e2d7] bg-[#ffffff] text-[#686252] hover:bg-[#fbfaf7]'
-                  : 'border-white/10 bg-white/[0.03] text-mist-300 hover:bg-white/[0.05]',
-            )}
-          >
-            <div className="flex items-center justify-between w-full">
-              <span className="flex items-center gap-1.5 font-bold">
-                <Power className="h-3.5 w-3.5" />
-                <span>Off Duty</span>
-              </span>
-              <span
-                className={cn(
-                  'text-[9px] px-1.5 py-0.2 rounded font-mono font-semibold uppercase border',
-                  currentAvail === 'off_duty'
-                    ? 'bg-rose-500 text-white border-transparent'
-                    : isLight
-                      ? 'border-[#e7e2d7] bg-[#f6f3ec] text-[#8c8472]'
-                      : 'border-white/10 bg-black/30 text-mist-400',
-                )}
-              >
-                Supervisor
-              </span>
-            </div>
-            <p className={cn('text-[10px] mt-1', isLight ? 'text-[#8c8472]' : 'text-mist-400')}>
-              Managed by Supervisor · Sign-off only
+                : 'Request break window'}
             </p>
           </button>
         </div>
@@ -817,19 +827,16 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
         </FulfillerModalPortal>
       )}
 
-      {/* Break Request Modal */}
+      {/* Break & Duty Request Modal */}
       <BreakRequestModal
         isOpen={breakModalOpen}
-        onClose={() => {
-          setBreakModalOpen(false);
-          setRequestKind(undefined);
-        }}
-        initialKind={requestKind}
+        onClose={() => setBreakModalOpen(false)}
         profile={activeProfile}
         isLight={isLight}
         currentAvail={currentAvail}
         onSetAvailability={setFulfillerAvailability}
         onNotify={notify}
+        initialType={dutyModalInitialType}
       />
     </div>
   );

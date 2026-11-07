@@ -32,24 +32,15 @@ import {
 } from './fulfillerProfiles';
 import { playChime } from './chime';
 import { BreakRequestModal } from './BreakRequestModal';
-import {
-  useBreakRequest,
-  useDutyRequest,
-  getStoredBreakRequest,
-  formatCountdown,
-  DUTY_KIND_LABEL,
-} from './breakRequests';
+import { useBreakRequest } from './breakRequests';
 
 type FulfillerTab = 'tasks' | 'notifications' | 'policies' | 'performance' | 'profile';
 
 function FulfillerAppContent() {
-  const { state, setPersona, setSoundEnabled, setTheme, setActiveDispatcherDept, toasts, setFulfillerAvailability, notify, notifyDepartmentSupervisor } = useDemo();
+  const { state, setPersona, setSoundEnabled, setTheme, setActiveDispatcherDept, toasts, setFulfillerAvailability, notify } = useDemo();
   const [activeTab, setActiveTab] = useState<FulfillerTab>('tasks');
   const [breakModalOpen, setBreakModalOpen] = useState(false);
-  const { breakRequest, completeBreakRequest } = useBreakRequest();
-  const { dutyRequest } = useDutyRequest();
-  const [breakRemainingMs, setBreakRemainingMs] = useState<number | null>(null);
-  const prevAvailRef = useRef<'on_duty' | 'break' | 'off_duty' | null>(null);
+  const { breakRequest } = useBreakRequest();
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevTaskCountRef = useRef<number | null>(null);
 
@@ -83,56 +74,6 @@ function FulfillerAppContent() {
   useEffect(() => {
     setPersona('task_fulfiller');
   }, [setPersona]);
-
-  // Pending request (break / on duty / off duty) shown in the top bar status pill
-  const isRequestPending = breakRequest?.status === 'pending' || dutyRequest?.status === 'pending';
-  const requestedLabel =
-    breakRequest?.status === 'pending'
-      ? 'Break'
-      : dutyRequest
-        ? DUTY_KIND_LABEL[dutyRequest.kind]
-        : 'Break';
-
-  // While on an approved break: live countdown, and automatic return to On Duty when it ends
-  useEffect(() => {
-    if (currentAvail !== 'break') {
-      setBreakRemainingMs(null);
-      return;
-    }
-    const tick = () => {
-      const rec = getStoredBreakRequest();
-      if (!rec || rec.status !== 'approved' || !rec.endsAt) {
-        setBreakRemainingMs(null);
-        return;
-      }
-      const remaining = rec.endsAt - Date.now();
-      if (remaining <= 0) {
-        setBreakRemainingMs(null);
-        completeBreakRequest();
-        setFulfillerAvailability('on_duty');
-        notify('Your break has ended. You are back On Duty.');
-        return;
-      }
-      setBreakRemainingMs(remaining);
-    };
-    tick();
-    const id = window.setInterval(tick, 1000);
-    return () => window.clearInterval(id);
-  }, [currentAvail, completeBreakRequest, setFulfillerAvailability, notify]);
-
-  // Tell the department supervisor when the fulfiller returns from break (manual or automatic)
-  useEffect(() => {
-    const prev = prevAvailRef.current;
-    prevAvailRef.current = currentAvail;
-    if (prev === 'break' && currentAvail === 'on_duty') {
-      notifyDepartmentSupervisor({
-        department: profile.departmentName,
-        title: `Break Ended · ${profile.employeeName}`,
-        message: `${profile.employeeName} (${profile.departmentName}) is back On Duty after break and can receive tasks again.`,
-        tone: 'info',
-      });
-    }
-  }, [currentAvail, profile.departmentName, profile.employeeName, notifyDepartmentSupervisor]);
 
   // Audio chime trigger when new task enters queue
   const tasks = state.items.task_fulfiller ?? [];
@@ -398,9 +339,9 @@ function FulfillerAppContent() {
         }
 
         /* High-Contrast Department Manager Text Colors */
-        .fulfiller-light .text-white,
-        .fulfiller-light .text-\[\#f7f4ed\],
-        .fulfiller-light .text-mist-100 {
+        .fulfiller-light :not(button):not([class*="bg-[#353229]"]):not(.btn-dark).text-white,
+        .fulfiller-light :not(button):not([class*="bg-[#353229]"]):not(.btn-dark).text-\[\#f7f4ed\],
+        .fulfiller-light :not(button):not([class*="bg-[#353229]"]):not(.btn-dark).text-mist-100 {
           color: #353229 !important;
         }
         .fulfiller-light .text-\[\#ded6c9\],
@@ -441,6 +382,21 @@ function FulfillerAppContent() {
         .fulfiller-light .text-rose-300,
         .fulfiller-light .text-rose-400 {
           color: #991b1b !important;
+        }
+
+        /* Dark Luxury Primary Action Buttons in Light Mode: Guaranteed white text */
+        .fulfiller-light button.bg-\[\#353229\],
+        .fulfiller-light button.bg-\[\#353229\] *,
+        .fulfiller-light button[class*="bg-[#353229]"],
+        .fulfiller-light button[class*="bg-[#353229]"] *,
+        .fulfiller-light [class*="bg-[#353229]"] button,
+        .fulfiller-light [class*="bg-[#353229]"] button * {
+          color: #ffffff !important;
+        }
+        .fulfiller-light button.bg-\[\#353229\]:hover,
+        .fulfiller-light button[class*="bg-[#353229]"]:hover {
+          background-color: #484438 !important;
+          color: #ffffff !important;
         }
 
         /* Department Manager Style Action Buttons */
@@ -577,7 +533,7 @@ function FulfillerAppContent() {
                     }}
                     className={cn(
                       'flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold border transition-all cursor-pointer',
-                      isRequestPending
+                      breakRequest?.status === 'pending'
                         ? isLight
                           ? 'bg-amber-50 text-amber-900 border-amber-300 shadow-2xs'
                           : 'bg-amber-400/20 text-amber-300 border-amber-400/40'
@@ -594,19 +550,19 @@ function FulfillerAppContent() {
                               : 'bg-[#c8a96e]/20 text-[#dfc187] border-[#c8a96e]/40 hover:border-[#dfc187]',
                     )}
                     title={
-                      isRequestPending
-                        ? `${requestedLabel} request pending approval from Supervisor ${profile.supervisorName} (Click to view)`
+                      breakRequest?.status === 'pending'
+                        ? `${breakRequest.title || 'Duty request'} pending approval from Supervisor ${profile.supervisorName} (Click to view)`
                         : currentAvail === 'break'
-                          ? 'Currently On Break (Click to end break & return to duty)'
+                          ? 'Currently On Break (Click to manage duty status)'
                           : currentAvail === 'off_duty'
-                            ? `Off Duty · Managed by Department Supervisor ${profile.supervisorName}`
-                            : `On Duty · Managed by Supervisor ${profile.supervisorName} (Click to request break)`
+                            ? 'Currently Off Duty (Click to request On Duty from Supervisor)'
+                            : `On Duty · Managed by Supervisor ${profile.supervisorName} (Click to request Break / Off Duty)`
                     }
                   >
                     <span
                       className={cn(
                         'h-1.5 w-1.5 rounded-full shrink-0',
-                        isRequestPending
+                        breakRequest?.status === 'pending'
                           ? 'bg-amber-500 animate-pulse'
                           : currentAvail === 'break'
                             ? isLight ? 'bg-[#8b7550] animate-pulse' : 'bg-[#dfc187] animate-pulse'
@@ -616,21 +572,23 @@ function FulfillerAppContent() {
                       )}
                     />
                     <span>
-                      {isRequestPending
-                        ? `${requestedLabel} Requested`
+                      {breakRequest?.status === 'pending'
+                        ? breakRequest.requestType === 'on_duty'
+                          ? 'On Duty Requested'
+                          : breakRequest.requestType === 'off_duty'
+                            ? 'Off Duty Requested'
+                            : breakRequest.requestType === 'break'
+                              ? 'Break Requested'
+                              : 'Duty Req Pending'
                         : currentAvail === 'break'
-                          ? breakRemainingMs !== null
-                            ? `On Break · ${formatCountdown(breakRemainingMs)}`
-                            : 'On Break'
+                          ? 'On Break'
                           : currentAvail === 'off_duty'
                             ? 'Off Duty'
                             : 'On Duty'}
                     </span>
-                    {currentAvail === 'on_duty' && !breakRequest && (
-                      <span className={cn('text-[8px] font-normal opacity-75 hidden sm:inline', isLight ? 'text-[#686252]' : 'text-mist-400')}>
-                        (Requests)
-                      </span>
-                    )}
+                    <span className={cn('text-[8px] font-normal opacity-75 hidden sm:inline', isLight ? 'text-[#686252]' : 'text-mist-400')}>
+                      {breakRequest?.status === 'pending' ? '(Pending)' : '(Duty Request)'}
+                    </span>
                   </button>
                 </div>
                 <p
@@ -731,7 +689,7 @@ function FulfillerAppContent() {
         </header>
 
         {/* Scrollable Tab Content Container: Mobile, Tablet & Desktop responsive padding */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 pt-3 sm:pt-6 pb-24 sm:pb-28 no-scrollbar overscroll-contain">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 pt-2 sm:pt-4 pb-6 sm:pb-8 no-scrollbar overscroll-contain">
           {activeTab === 'tasks' && <FulfillerTasksTab profile={profile} />}
           {activeTab === 'notifications' && (
             <FulfillerNotificationsTab profile={profile} onNavigateToTasks={() => setActiveTab('tasks')} />
@@ -745,7 +703,7 @@ function FulfillerAppContent() {
         <nav
           aria-label="Fulfiller app navigation"
           className={cn(
-            'absolute inset-x-0 bottom-0 z-40 border-t pb-safe transition-colors duration-300 backdrop-blur-2xl',
+            'relative shrink-0 z-40 border-t pb-safe transition-colors duration-300 backdrop-blur-2xl',
             isLight
               ? 'border-[#e7e2d7] bg-[#ffffff]/98 text-[#686252] shadow-[0_-4px_18px_rgba(53,50,41,0.04)]'
               : 'border-[rgba(165,130,95,0.24)] bg-[#18181c]/95 text-[#d9cebe]',

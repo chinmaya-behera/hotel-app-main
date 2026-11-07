@@ -2,44 +2,81 @@
 
 import { useState, useEffect, useCallback } from 'react';
 
-/** Request types a fulfiller can send to their Department Supervisor. */
-export type DutyRequestKind = 'on_duty' | 'off_duty';
-export type RequestKind = 'break' | DutyRequestKind;
-
-export interface BreakRequestRecord {
-  id: string;
-  employeeName: string;
-  supervisorName: string;
-  breakType: string;
-  durationMinutes: number;
-  reason?: string;
-  requestedAt: string;
-  status: 'pending' | 'approved' | 'rejected' | 'completed';
-  respondedAt?: string;
-  /** Epoch ms when the approved break started (set on approval). */
-  startedAt?: number;
-  /** Epoch ms when the approved break is due to end (set on approval). */
-  endsAt?: number;
-}
+export type DutyRequestType = 'on_duty' | 'off_duty' | 'break';
 
 export interface DutyRequestRecord {
   id: string;
-  kind: DutyRequestKind;
   employeeName: string;
-  employeeId: string;
-  departmentName: string;
   supervisorName: string;
-  reasonLabel: string;
-  note?: string;
+  requestType: DutyRequestType;
+  title: string;
+  reason: string;
+  customReason?: string;
+  durationMinutes?: number;
   requestedAt: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'completed';
+  respondedAt?: string;
+  // Backward compatibility:
+  breakType?: string;
 }
 
-export interface DutyReasonOption {
-  id: string;
-  label: string;
-  desc: string;
-}
+export type BreakRequestRecord = DutyRequestRecord;
+
+export const ON_DUTY_REASONS = [
+  {
+    id: 'shift_start',
+    label: 'Shift Start / Report for Duty',
+    desc: 'Commence scheduled service rounds on assigned floors',
+  },
+  {
+    id: 'relieve',
+    label: 'Relieving Colleague / Shift Handover',
+    desc: 'Take over floor coverage from previous shift attendant',
+  },
+  {
+    id: 'surge',
+    label: 'Occupancy Surge / Overtime Support',
+    desc: 'Respond to high arrival volume and express turnover requests',
+  },
+  {
+    id: 'return',
+    label: 'Returning to Duty from Break or Leave',
+    desc: 'Ready to receive and fulfill pending guest service tasks',
+  },
+  {
+    id: 'other',
+    label: 'Others',
+    desc: 'Specify custom reason for supervisor authorization',
+  },
+];
+
+export const OFF_DUTY_REASONS = [
+  {
+    id: 'shift_complete',
+    label: 'Shift Concluded / Turnover Tasks Done',
+    desc: 'All assigned room turnovers and service items completed',
+  },
+  {
+    id: 'handover_done',
+    label: 'Shift Handover to Reliever Complete',
+    desc: 'Master keycard and linen inventory transferred to reliever',
+  },
+  {
+    id: 'scheduled_end',
+    label: 'Scheduled Shift Hours Concluded',
+    desc: 'End of scheduled shift roster window',
+  },
+  {
+    id: 'emergency_leave',
+    label: 'Emergency / Personal Leave',
+    desc: 'Urgent medical or personal departure required',
+  },
+  {
+    id: 'other',
+    label: 'Others',
+    desc: 'Specify custom reason for supervisor authorization',
+  },
+];
 
 export const BREAK_OPTIONS = [
   {
@@ -62,87 +99,55 @@ export const BREAK_OPTIONS = [
   },
   {
     id: 'other',
-    label: 'Custom Break Request',
+    label: 'Others (Custom Duration & Reason)',
     durationMinutes: 20,
-    desc: 'Document custom reason for supervisor review',
+    desc: 'Document custom reason and duration for supervisor review',
   },
 ];
 
-export const ON_DUTY_REASONS: DutyReasonOption[] = [
+export const OTHER_DUTY_OPTIONS = [
   {
-    id: 'start_shift',
-    label: 'Start of Shift · Clock-in',
-    desc: 'Begin the assigned shift and start receiving tasks',
+    id: 'swap',
+    label: 'Shift Swap / Floor Coverage Adjustment',
+    desc: 'Coordinate coverage change with a team colleague',
   },
   {
-    id: 'return_absence',
-    label: 'Return from Leave / Absence',
-    desc: 'Resume duty after approved time away',
+    id: 'dept_assist',
+    label: 'Cross-Department Support (F&B / Banquet / Front Desk)',
+    desc: 'Temporary assistance during peak guest events',
+  },
+  {
+    id: 'special_event',
+    label: 'Special VIP Staging / Dedicated Floor Protocol',
+    desc: 'Assigned to private VIP arrival or event preparation',
+  },
+  {
+    id: 'restock',
+    label: 'Chemical & Linen Restock Period',
+    desc: 'Re-supplying floor service pantries and carts',
   },
   {
     id: 'other',
-    label: 'Other (add a note)',
-    desc: 'Explain the reason for your supervisor',
+    label: 'Others',
+    desc: 'Specify custom duty request for supervisor review',
   },
 ];
 
-export const OFF_DUTY_REASONS: DutyReasonOption[] = [
-  {
-    id: 'shift_complete',
-    label: 'Shift Completed · Clock-out',
-    desc: 'Assigned work is closed or handed over',
-  },
-  {
-    id: 'unwell',
-    label: 'Feeling Unwell',
-    desc: 'Unable to continue the shift',
-  },
-  {
-    id: 'emergency',
-    label: 'Personal / Family Emergency',
-    desc: 'Urgent need to leave the property',
-  },
-  {
-    id: 'other',
-    label: 'Other (add a note)',
-    desc: 'Explain the reason for your supervisor',
-  },
-];
+const STORAGE_KEY = 'fulfiller_duty_request_v2';
+const EVENT_NAME = 'fulfiller_duty_request_change';
 
-export const DUTY_KIND_LABEL: Record<DutyRequestKind, string> = {
-  on_duty: 'On Duty',
-  off_duty: 'Off Duty',
-};
-
-/** Formats a millisecond duration as mm:ss (e.g. 12:05). */
-export function formatCountdown(ms: number): string {
-  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-}
-
-const nowLabel = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-/* ------------------------------------------------------------------ */
-/* Break requests                                                      */
-/* ------------------------------------------------------------------ */
-
-const STORAGE_KEY = 'fulfiller_break_request_v1';
-const EVENT_NAME = 'fulfiller_break_request_change';
-
-export function getStoredBreakRequest(): BreakRequestRecord | null {
+export function getStoredBreakRequest(): DutyRequestRecord | null {
   if (typeof window === 'undefined') return null;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as BreakRequestRecord;
+    return JSON.parse(raw) as DutyRequestRecord;
   } catch {
     return null;
   }
 }
 
-export function saveStoredBreakRequest(record: BreakRequestRecord | null) {
+export function saveStoredBreakRequest(record: DutyRequestRecord | null) {
   if (typeof window === 'undefined') return;
   try {
     if (record) {
@@ -157,7 +162,7 @@ export function saveStoredBreakRequest(record: BreakRequestRecord | null) {
 }
 
 export function useBreakRequest() {
-  const [breakRequest, setBreakRequest] = useState<BreakRequestRecord | null>(null);
+  const [breakRequest, setBreakRequest] = useState<DutyRequestRecord | null>(null);
 
   useEffect(() => {
     setBreakRequest(getStoredBreakRequest());
@@ -175,23 +180,29 @@ export function useBreakRequest() {
     };
   }, []);
 
-  const createBreakRequest = useCallback(
+  const createDutyRequest = useCallback(
     (params: {
       employeeName: string;
       supervisorName: string;
-      breakType: string;
-      durationMinutes: number;
-      reason?: string;
-    }): BreakRequestRecord => {
-      const record: BreakRequestRecord = {
-        id: `brk-${Date.now()}`,
+      requestType: DutyRequestType;
+      title: string;
+      reason: string;
+      customReason?: string;
+      durationMinutes?: number;
+    }): DutyRequestRecord => {
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const record: DutyRequestRecord = {
+        id: `duty-req-${Date.now()}`,
         employeeName: params.employeeName,
         supervisorName: params.supervisorName,
-        breakType: params.breakType,
-        durationMinutes: params.durationMinutes,
+        requestType: params.requestType,
+        title: params.title,
         reason: params.reason,
-        requestedAt: nowLabel(),
+        customReason: params.customReason,
+        durationMinutes: params.durationMinutes,
+        requestedAt: timeStr,
         status: 'pending',
+        breakType: params.title,
       };
       saveStoredBreakRequest(record);
       setBreakRequest(record);
@@ -200,16 +211,35 @@ export function useBreakRequest() {
     [],
   );
 
+  const createBreakRequest = useCallback(
+    (params: {
+      employeeName: string;
+      supervisorName: string;
+      breakType: string;
+      durationMinutes: number;
+      reason?: string;
+    }): DutyRequestRecord => {
+      return createDutyRequest({
+        employeeName: params.employeeName,
+        supervisorName: params.supervisorName,
+        requestType: 'break',
+        title: params.breakType,
+        reason: params.breakType,
+        customReason: params.reason,
+        durationMinutes: params.durationMinutes,
+      });
+    },
+    [createDutyRequest],
+  );
+
   const approveBreakRequest = useCallback(() => {
     const current = getStoredBreakRequest();
     if (!current) return;
-    const startedAt = Date.now();
-    const updated: BreakRequestRecord = {
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const updated: DutyRequestRecord = {
       ...current,
       status: 'approved',
-      respondedAt: nowLabel(),
-      startedAt,
-      endsAt: startedAt + current.durationMinutes * 60_000,
+      respondedAt: timeStr,
     };
     saveStoredBreakRequest(updated);
     setBreakRequest(updated);
@@ -218,10 +248,11 @@ export function useBreakRequest() {
   const rejectBreakRequest = useCallback(() => {
     const current = getStoredBreakRequest();
     if (!current) return;
-    const updated: BreakRequestRecord = {
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const updated: DutyRequestRecord = {
       ...current,
       status: 'rejected',
-      respondedAt: nowLabel(),
+      respondedAt: timeStr,
     };
     saveStoredBreakRequest(updated);
     setBreakRequest(updated);
@@ -239,111 +270,12 @@ export function useBreakRequest() {
 
   return {
     breakRequest,
+    dutyRequest: breakRequest,
+    createDutyRequest,
     createBreakRequest,
     approveBreakRequest,
     rejectBreakRequest,
     cancelBreakRequest,
     completeBreakRequest,
-  };
-}
-
-/* ------------------------------------------------------------------ */
-/* On Duty / Off Duty requests                                         */
-/* ------------------------------------------------------------------ */
-
-const DUTY_STORAGE_KEY = 'fulfiller_duty_request_v1';
-const DUTY_EVENT_NAME = 'fulfiller_duty_request_change';
-
-export function getStoredDutyRequest(): DutyRequestRecord | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = localStorage.getItem(DUTY_STORAGE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as DutyRequestRecord;
-  } catch {
-    return null;
-  }
-}
-
-export function saveStoredDutyRequest(record: DutyRequestRecord | null) {
-  if (typeof window === 'undefined') return;
-  try {
-    if (record) {
-      localStorage.setItem(DUTY_STORAGE_KEY, JSON.stringify(record));
-    } else {
-      localStorage.removeItem(DUTY_STORAGE_KEY);
-    }
-    window.dispatchEvent(new CustomEvent(DUTY_EVENT_NAME, { detail: record }));
-  } catch {
-    // ignore local storage errors
-  }
-}
-
-export function useDutyRequest() {
-  const [dutyRequest, setDutyRequest] = useState<DutyRequestRecord | null>(null);
-
-  useEffect(() => {
-    setDutyRequest(getStoredDutyRequest());
-
-    const handleChange = () => {
-      setDutyRequest(getStoredDutyRequest());
-    };
-
-    window.addEventListener(DUTY_EVENT_NAME, handleChange);
-    window.addEventListener('storage', handleChange);
-
-    return () => {
-      window.removeEventListener(DUTY_EVENT_NAME, handleChange);
-      window.removeEventListener('storage', handleChange);
-    };
-  }, []);
-
-  const createDutyRequest = useCallback(
-    (params: {
-      kind: DutyRequestKind;
-      employeeName: string;
-      employeeId: string;
-      departmentName: string;
-      supervisorName: string;
-      reasonLabel: string;
-      note?: string;
-    }): DutyRequestRecord => {
-      const record: DutyRequestRecord = {
-        id: `duty-${Date.now()}`,
-        kind: params.kind,
-        employeeName: params.employeeName,
-        employeeId: params.employeeId,
-        departmentName: params.departmentName,
-        supervisorName: params.supervisorName,
-        reasonLabel: params.reasonLabel,
-        note: params.note,
-        requestedAt: nowLabel(),
-        status: 'pending',
-      };
-      saveStoredDutyRequest(record);
-      setDutyRequest(record);
-      return record;
-    },
-    [],
-  );
-
-  /** Resolves the pending request as approved: clears it and returns it so the caller can apply the status. */
-  const approveDutyRequest = useCallback((): DutyRequestRecord | null => {
-    const current = getStoredDutyRequest();
-    saveStoredDutyRequest(null);
-    setDutyRequest(null);
-    return current;
-  }, []);
-
-  const cancelDutyRequest = useCallback(() => {
-    saveStoredDutyRequest(null);
-    setDutyRequest(null);
-  }, []);
-
-  return {
-    dutyRequest,
-    createDutyRequest,
-    approveDutyRequest,
-    cancelDutyRequest,
   };
 }

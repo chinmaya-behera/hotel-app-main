@@ -78,7 +78,7 @@ export function FulfillerPerformanceTab({ profile }: { profile?: FulfillerProfil
   ];
 
   return (
-    <div className="flex flex-col gap-4 pb-24 text-xs">
+    <div className="flex flex-col gap-4 pb-6 sm:pb-8 text-xs">
       {/* Header */}
       <div>
         <h2 className={cn('text-sm font-bold flex items-center gap-2', isLight ? 'text-[#353229]' : 'text-white')}>

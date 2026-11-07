@@ -22,7 +22,7 @@ export function FulfillerPoliciesTab() {
   );
 
   return (
-    <div className="flex flex-col gap-3.5 pb-24 text-xs">
+    <div className="flex flex-col gap-3.5 pb-6 sm:pb-8 text-xs">
       {/* Header Banner */}
       <div
         className={cn(
