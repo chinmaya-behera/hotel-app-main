@@ -394,6 +394,8 @@ interface DemoApi {
   /** Phase 4: Guest Reminders (Front Desk & GM VIP) */
   createGuestReminder: (reminder: Omit<GuestReminder, 'id' | 'createdAt'>) => void;
   updateGuestReminderStatus: (id: string, status: GuestReminder['status']) => void;
+  updateGuestReminderTime: (id: string, dueTime: string, dueDateTime?: string) => void;
+  updateGuestReminder: (id: string, patch: Partial<GuestReminder>) => void;
   deleteGuestReminder: (id: string) => void;
   /** Phase 4: Safety Alert Broadcast Engine */
   submitSecuritySafetyAlert: (alert: {
@@ -588,10 +590,15 @@ export function DemoProvider({ children }: { children: ReactNode }) {
                 (bi) => !(saved.items?.general_manager ?? []).some((si) => si.id === bi.id),
               )),
             ],
-            // saves made before the Front Desk console start its queue from the new seed
-            front_desk_coordinator: saved.frontDesk
-              ? (saved.items?.front_desk_coordinator ?? base.items.front_desk_coordinator)
-              : base.items.front_desk_coordinator,
+            front_desk_coordinator: [
+              ...((saved.items?.front_desk_coordinator ?? []).map((si) => {
+                const baseItem = (base.items.front_desk_coordinator ?? []).find((b) => b.id === si.id);
+                return baseItem ? { ...baseItem, ...si } : si;
+              })),
+              ...((base.items.front_desk_coordinator ?? []).filter(
+                (bi) => !(saved.items?.front_desk_coordinator ?? []).some((si) => si.id === bi.id),
+              )),
+            ],
           },
           frontDesk: saved.frontDesk ?? base.frontDesk,
           feed: saved.feed ?? base.feed,
@@ -622,7 +629,15 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           compensationRequests: saved.compensationRequests ?? base.compensationRequests,
           shiftSchedules: saved.shiftSchedules ?? base.shiftSchedules,
           departmentPolicies: saved.departmentPolicies ?? base.departmentPolicies,
-          guestReminders: saved.guestReminders ?? base.guestReminders,
+          guestReminders: [
+            ...((saved.guestReminders ?? []).map((sr) => {
+              const baseRem = (base.guestReminders ?? []).find((b) => b.id === sr.id);
+              return baseRem ? { ...baseRem, ...sr } : sr;
+            })),
+            ...((base.guestReminders ?? []).filter(
+              (br) => !(saved.guestReminders ?? []).some((sr) => sr.id === br.id),
+            )),
+          ],
           safetyAlerts: saved.safetyAlerts ?? base.safetyAlerts,
           diningMenu: saved.diningMenu ?? base.diningMenu,
           diningCategories: saved.diningCategories ?? base.diningCategories,
@@ -5978,6 +5993,38 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     [notify],
   );
 
+  const updateGuestReminderTime = useCallback<DemoApi['updateGuestReminderTime']>(
+    (id, dueTime, dueDateTime) => {
+      setState((prev) => ({
+        ...prev,
+        guestReminders: (prev.guestReminders ?? seedGuestReminders).map((r) =>
+          r.id === id
+            ? {
+                ...r,
+                dueTime,
+                dueDateTime: dueDateTime || `${r.dueDate || 'Today'}, ${dueTime}`,
+              }
+            : r,
+        ),
+      }));
+      notify(`Reminder time updated to ${dueTime}`);
+    },
+    [notify],
+  );
+
+  const updateGuestReminder = useCallback<DemoApi['updateGuestReminder']>(
+    (id, patch) => {
+      setState((prev) => ({
+        ...prev,
+        guestReminders: (prev.guestReminders ?? seedGuestReminders).map((r) =>
+          r.id === id ? { ...r, ...patch } : r,
+        ),
+      }));
+      notify(`Reminder updated for Room ${patch.room ?? ''}`);
+    },
+    [notify],
+  );
+
   const deleteGuestReminder = useCallback<DemoApi['deleteGuestReminder']>(
     (id) => {
       setState((prev) => ({
@@ -7178,6 +7225,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       saveDepartmentServicePolicy,
       createGuestReminder,
       updateGuestReminderStatus,
+      updateGuestReminderTime,
+      updateGuestReminder,
       deleteGuestReminder,
       submitSecuritySafetyAlert,
       validateSafetyAlertByFrontDesk,
@@ -7308,6 +7357,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       saveDepartmentServicePolicy,
       createGuestReminder,
       updateGuestReminderStatus,
+      updateGuestReminderTime,
+      updateGuestReminder,
       deleteGuestReminder,
       submitSecuritySafetyAlert,
       validateSafetyAlertByFrontDesk,
