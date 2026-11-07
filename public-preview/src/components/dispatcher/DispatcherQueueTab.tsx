@@ -27,6 +27,7 @@ import { LinkDuplicateModal } from '@/components/dispatcher/LinkDuplicateModal';
 import { EscalateTaskModal } from '@/components/dispatcher/EscalateTaskModal';
 import { TaskDetailsDrawer } from '@/components/dispatcher/TaskDetailsDrawer';
 import { CreateTaskModal } from '@/components/dispatcher/CreateTaskModal';
+import { DispatcherCompletedTasksTab } from '@/components/dispatcher/DispatcherCompletedTasksTab';
 import type { WorkItem, DispatcherDepartment } from '@/types/demo';
 
 interface DispatcherQueueTabProps {
@@ -39,10 +40,10 @@ export function DispatcherQueueTab({ tasks, activeDept }: DispatcherQueueTabProp
 
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedDept, setSelectedDept] = useState('all');
   const [selectedPriority, setSelectedPriority] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedFloor, setSelectedFloor] = useState('all');
+  const [taskSubTab, setTaskSubTab] = useState<'queue' | 'completed'>('queue');
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
 
   // Modals state
@@ -52,10 +53,62 @@ export function DispatcherQueueTab({ tasks, activeDept }: DispatcherQueueTabProp
   const [detailsDrawerTask, setDetailsDrawerTask] = useState<WorkItem | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  const rawTasks = [
-    ...(state.items.department_dispatcher_supervisor ?? []),
-    ...(state.items.department_dispatcher ?? []),
-  ].filter((t, i, arr) => arr.findIndex((x) => x.id === t.id) === i);
+  const effectiveDept = activeDept || state.activeDispatcherDept || 'Housekeeping';
+
+  const rawTasks = useMemo(() => {
+    if (tasks) return tasks;
+    const all = [
+      ...(state.items.department_dispatcher_supervisor ?? []),
+      ...(state.items.department_dispatcher ?? []),
+    ].filter((t, i, arr) => arr.findIndex((x) => x.id === t.id) === i);
+    return all.filter((t) => {
+      const deptStr = (t.department || '').toLowerCase();
+      const catStr = (t.category || '').toLowerCase();
+      if (effectiveDept === 'Housekeeping') {
+        return (
+          deptStr.includes('housekeeping') ||
+          ['housekeeping', 'lost_found', 'turnover', 'linen'].includes(catStr)
+        );
+      }
+      if (effectiveDept === 'Wellness') {
+        return (
+          deptStr.includes('spa') ||
+          deptStr.includes('wellness') ||
+          ['spa', 'wellness', 'massage', 'hydrotherapy', 'medical', 'therapy'].includes(catStr)
+        );
+      }
+      if (effectiveDept === 'Maintenance & Engineering') {
+        return (
+          deptStr.includes('maintenance') ||
+          deptStr.includes('engineering') ||
+          ['maintenance', 'hvac', 'plumbing', 'electrical', 'repair'].includes(catStr)
+        );
+      }
+      if (effectiveDept === 'Food & Beverages') {
+        return (
+          deptStr.includes('food') ||
+          deptStr.includes('beverage') ||
+          deptStr.includes('f&b') ||
+          ['room_service', 'dining', 'fnb', 'kitchen', 'restaurant', 'bar'].includes(catStr)
+        );
+      }
+      return true;
+    });
+  }, [tasks, state.items.department_dispatcher_supervisor, state.items.department_dispatcher, effectiveDept]);
+
+  const completedCount = useMemo(() => {
+    return rawTasks.filter((t) => {
+      const s = (t.status || '').toLowerCase();
+      return s === 'completed' || s === 'delivered' || s === 'resolved';
+    }).length;
+  }, [rawTasks]);
+
+  const activeQueueCount = useMemo(() => {
+    return rawTasks.filter((t) => {
+      const s = (t.status || '').toLowerCase();
+      return s !== 'completed' && s !== 'delivered' && s !== 'resolved';
+    }).length;
+  }, [rawTasks]);
 
   // Filtered task list
   const filteredTasks = useMemo(() => {
@@ -72,15 +125,6 @@ export function DispatcherQueueTab({ tasks, activeDept }: DispatcherQueueTabProp
         if (!matchTitle && !matchMeta && !matchRef && !matchRoom && !matchDesc && !matchAssignee) {
           return false;
         }
-      }
-
-      // Department filter
-      if (selectedDept !== 'all') {
-        const d = (task.department || '').toLowerCase();
-        const cat = (task.category || '').toLowerCase();
-        if (selectedDept === 'housekeeping' && !d.includes('housekeeping') && cat !== 'housekeeping') return false;
-        if (selectedDept === 'maintenance' && !d.includes('maintenance') && cat !== 'maintenance') return false;
-        if (selectedDept === 'food' && !d.includes('food') && cat !== 'room_service') return false;
       }
 
       // Priority filter
@@ -106,7 +150,7 @@ export function DispatcherQueueTab({ tasks, activeDept }: DispatcherQueueTabProp
 
       return true;
     });
-  }, [rawTasks, searchQuery, selectedDept, selectedPriority, selectedStatus, selectedFloor]);
+  }, [rawTasks, searchQuery, selectedPriority, selectedStatus, selectedFloor]);
 
   const unassignedCount = rawTasks.filter(
     (t) => t.status === 'Unassigned' || t.status === 'Received',
@@ -114,7 +158,6 @@ export function DispatcherQueueTab({ tasks, activeDept }: DispatcherQueueTabProp
 
   const resetFilters = () => {
     setSearchQuery('');
-    setSelectedDept('all');
     setSelectedPriority('all');
     setSelectedStatus('all');
     setSelectedFloor('all');
@@ -122,14 +165,62 @@ export function DispatcherQueueTab({ tasks, activeDept }: DispatcherQueueTabProp
 
   const hasActiveFilters =
     searchQuery !== '' ||
-    selectedDept !== 'all' ||
     selectedPriority !== 'all' ||
     selectedStatus !== 'all' ||
     selectedFloor !== 'all';
 
   return (
     <div className="space-y-6">
-      {/* Top Banner & Batch Action Strip */}
+      {/* Subtab Navigation Switcher: Task Queue vs Completed Task */}
+      <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-ink-900/90 border border-white/10 backdrop-blur-xl w-fit shadow-lg">
+        <button
+          type="button"
+          onClick={() => setTaskSubTab('queue')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+            taskSubTab === 'queue'
+              ? 'bg-amber-400 text-ink-950 shadow-md shadow-amber-400/20'
+              : 'text-mist-300 hover:text-white hover:bg-white/[0.05]'
+          }`}
+        >
+          <Layers className="h-4 w-4" />
+          <span>Task Queue</span>
+          <span
+            className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+              taskSubTab === 'queue'
+                ? 'bg-ink-950/20 text-ink-950'
+                : 'bg-white/10 text-mist-300'
+            }`}
+          >
+            {activeQueueCount}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setTaskSubTab('completed')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+            taskSubTab === 'completed'
+              ? 'bg-amber-400 text-ink-950 shadow-md shadow-amber-400/20'
+              : 'text-mist-300 hover:text-white hover:bg-white/[0.05]'
+          }`}
+        >
+          <CheckCircle2 className="h-4 w-4" />
+          <span>Completed Task</span>
+          <span
+            className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+              taskSubTab === 'completed'
+                ? 'bg-ink-950/20 text-ink-950'
+                : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+            }`}
+          >
+            {completedCount}
+          </span>
+        </button>
+      </div>
+
+      {taskSubTab === 'queue' ? (
+        <>
+          {/* Top Banner & Batch Action Strip */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 rounded-3xl border border-white/10 bg-ink-900/90 p-5 backdrop-blur-xl shadow-xl">
         <div>
           <div className="flex items-center gap-2">
@@ -216,17 +307,6 @@ export function DispatcherQueueTab({ tasks, activeDept }: DispatcherQueueTabProp
 
           {/* Quick Dropdowns */}
           <div className="flex flex-wrap items-center gap-2 text-xs">
-            {/* Department */}
-            <select
-              value={selectedDept}
-              onChange={(e) => setSelectedDept(e.target.value)}
-              className="rounded-xl border border-white/10 bg-ink-950/80 px-3 py-2 text-xs text-mist-200 focus:border-amber-400 focus:outline-none"
-            >
-              <option value="all">All Departments</option>
-              <option value="housekeeping">Housekeeping</option>
-              <option value="maintenance">Maintenance & Eng</option>
-              <option value="food">Food & Beverage</option>
-            </select>
 
             {/* Priority */}
             <select
@@ -372,8 +452,7 @@ export function DispatcherQueueTab({ tasks, activeDept }: DispatcherQueueTabProp
 
                       {/* Task title */}
                       <td className="py-4 px-3 max-w-xs">
-                        <p className="font-semibold text-white truncate">{task.title}</p>
-                        <p className="text-[11px] text-mist-400 truncate">{task.description || task.meta}</p>
+                        <p onClick={() => setDetailsDrawerTask(task)} className="font-semibold text-white truncate cursor-pointer hover:text-amber-300 transition" title="Click to view full details">{task.title}</p>
                         {task.isLinkedDuplicate && (
                           <span className="inline-flex items-center gap-1 text-[10px] text-sky-300 font-mono mt-0.5">
                             <Link2 className="h-3 w-3" />
@@ -532,10 +611,7 @@ export function DispatcherQueueTab({ tasks, activeDept }: DispatcherQueueTabProp
 
                   {/* Title & Description */}
                   <div>
-                    <h3 className="font-bold text-sm text-white line-clamp-1">{task.title}</h3>
-                    <p className="text-xs text-mist-400 mt-1 line-clamp-2">
-                      {task.description || task.meta}
-                    </p>
+                    <h3 onClick={() => setDetailsDrawerTask(task)} className="font-bold text-sm text-white line-clamp-1 cursor-pointer hover:text-amber-300 transition" title="Click to view full details">{task.title}</h3>
                   </div>
 
                   {/* SLA Strip */}
@@ -614,11 +690,21 @@ export function DispatcherQueueTab({ tasks, activeDept }: DispatcherQueueTabProp
           })}
         </div>
       )}
+        </>
+      ) : (
+        <DispatcherCompletedTasksTab
+          tasks={rawTasks}
+          activeDept={effectiveDept}
+          onOpenDetails={(t) => setDetailsDrawerTask(t)}
+        />
+      )}
 
       {/* Render Modals */}
       {assignModalTask && (
         <AssignTaskModal
           task={assignModalTask}
+          department={effectiveDept}
+          lockDepartment={true}
           onClose={() => setAssignModalTask(null)}
         />
       )}

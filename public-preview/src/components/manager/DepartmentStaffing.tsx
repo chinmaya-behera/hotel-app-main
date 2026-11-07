@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, ShieldCheck, Users, X } from 'lucide-react';
 import { useDemo } from '@/lib/store';
 import { departmentId, isOpen, managerDepartment } from '@/lib/manager-domain';
@@ -13,15 +13,24 @@ const shortDate = (date: string) => new Date(date + 'T12:00:00Z').toLocaleDateSt
 const patternFor = (record?: ShiftScheduleRecord) => !record ? 'Unscheduled' : record.status === 'off' ? 'Off' : record.status === 'leave' ? 'Leave' : record.shiftType;
 const role = (staff: StaffAccount) => staff.roleId.replaceAll('_',' ');
 
-export function DepartmentStaffing() {
+type StaffingView = 'schedule' | 'workload';
+
+export function DepartmentStaffing({ view: tab, onViewChange }: {
+  view: StaffingView;
+  onViewChange: (view: StaffingView) => void;
+}) {
   const { state, departmentManagerCommand } = useDemo();
   const department = managerDepartment(state.managerDepartment), now = useManagerClock(), today = localDay(now);
   const [weekStart, setWeekStart] = useState(() => operationalWeek(localDay(Date.now()))[0]);
   const week = operationalWeek(weekStart);
-  const [tab, setTab] = useState('schedule'), [availability, setAvailability] = useState('all'), [roleFilter, setRoleFilter] = useState('all'), [search, setSearch] = useState('');
+  const [availability, setAvailability] = useState('all'), [roleFilter, setRoleFilter] = useState('all'), [search, setSearch] = useState('');
   const [selected, setSelected] = useState<{ staff: StaffAccount; date: string } | null>(null), [loadStaff, setLoadStaff] = useState<StaffAccount | null>(null);
   const [pattern, setPattern] = useState<ShiftPattern>('Morning'), [start, setStart] = useState('07:00'), [end, setEnd] = useState('15:00');
   const dialog = useRef<HTMLDialogElement>(null), workloadDialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    dialog.current?.close();
+    workloadDialog.current?.close();
+  }, [tab]);
   const rows = rosterWorkload(state, department.id, now);
   const visible = rows.filter(row => (availability === 'all' || (availability === 'ready' ? row.available : (row.staff.availability || 'on_duty') === availability)) && (roleFilter === 'all' || row.staff.roleId === roleFilter) && `${row.staff.name} ${row.staff.employeeId} ${row.staff.floorZone}`.toLowerCase().includes(search.toLowerCase()));
   const roles = [...new Set(rows.map(row => row.staff.roleId))];
@@ -45,7 +54,18 @@ export function DepartmentStaffing() {
   const previewIssues = selected && previewRecord ? schedulingConflicts([...staffSchedules(state,selected.staff).filter(record=>record.id!==current?.id).map(record=>({...record,employeeId:selected.staff.employeeId})),previewRecord]).filter(issue=>issue.first===previewRecord.id||issue.second===previewRecord.id) : [];
   const submit = (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); if(!selected)return; const form=new FormData(event.currentTarget); if(departmentManagerCommand({type:'schedule-shift',staffId:selected.staff.id,date:selected.date,pattern,start,end,zone:String(form.get('zone')||''),reason:String(form.get('reason')||'')})){dialog.current?.close();setSelected(null);} };
   return <>
-    <section className="dm-panel"><div className="dm-panel-heading"><div><h2>Staffing & scheduling workspace</h2><p>Weekly shift planning, current availability and the workload roster for {department.name}.</p></div><div className="dm-segmented" aria-label="Staffing workspace view"><button aria-pressed={tab==='schedule'} onClick={()=>setTab('schedule')}>Weekly schedule grid</button><button aria-pressed={tab==='workload'} onClick={()=>setTab('workload')}>Staff workload roster</button></div></div></section>
+    <section className="dm-panel">
+      <div className="dm-panel-heading">
+        <div>
+          <h2>Staffing & scheduling workspace</h2>
+          <p>Weekly shift planning, current availability and the workload roster for {department.name}.</p>
+        </div>
+        <div className="dm-segmented" aria-label="Staffing workspace view">
+          <button aria-pressed={tab === 'schedule'} onClick={() => onViewChange('schedule')}>Weekly schedule grid</button>
+          <button aria-pressed={tab === 'workload'} onClick={() => onViewChange('workload')}>Staff workload roster</button>
+        </div>
+      </div>
+    </section>
     <div className="dm-metric-strip"><div><small>Published coverage · {shortDate(focusDay)}</small><strong>{active.length?Math.round(scheduled/active.length*100):0}%</strong><small>{scheduled} of {active.length} active staff have a shift</small></div><div><small>Ready for dispatch · now</small><strong>{rows.filter(row=>row.available).length} staff</strong><small>On duty, on a published shift and below capacity</small></div><div><small>Evening shift · {shortDate(focusDay)}</small><strong>{evening} scheduled</strong><small>{conflictCount} schedule conflict{conflictCount===1?'':'s'} this week</small></div><div><small>Hotel scheduling rule</small><strong>{REST_HOURS}-hour rest</strong><small>Maximum 12-hour shift · {rows.filter(row=>row.active.length>row.capacity).length} overloaded staff</small></div></div>
     <section className="dm-panel"><div className="dm-toolbar"><input aria-label="Search department staff" placeholder="Search staff, employee ID or work zone" value={search} onChange={e=>setSearch(e.target.value)}/><select aria-label="Staff availability filter" value={availability} onChange={e=>setAvailability(e.target.value)}><option value="all">All availability</option><option value="ready">Ready for dispatch</option><option value="on_duty">On duty</option><option value="break">On break</option><option value="off_duty">Off duty</option></select><select aria-label="Staff role filter" value={roleFilter} onChange={e=>setRoleFilter(e.target.value)}><option value="all">All roles / pods</option>{roles.map(value=><option key={value} value={value}>{value.replaceAll('_',' ')}</option>)}</select></div></section>
     {tab==='schedule'?<section className="dm-panel"><div className="dm-panel-heading"><div><h2><CalendarDays size={17}/> Weekly shift allocation</h2><p>{shortDate(week[0])} – {shortDate(week[6])} · Hotel time (IST). Click a day slot to view or adjust its shift.</p></div><div className="dm-week-controls"><button className="dm-icon-button" aria-label="Previous staffing week" onClick={()=>setWeekStart(addDays(weekStart,-7))}><ChevronLeft size={17}/></button><button className="dm-secondary" onClick={()=>setWeekStart(operationalWeek(today)[0])}>Current week</button><button className="dm-icon-button" aria-label="Next staffing week" onClick={()=>setWeekStart(addDays(weekStart,7))}><ChevronRight size={17}/></button></div></div>

@@ -19,6 +19,8 @@ import {
   Filter,
   SlidersHorizontal,
   X,
+  ChevronRight,
+  Briefcase,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
 import { AssignTaskModal } from '@/components/dispatcher/AssignTaskModal';
@@ -30,30 +32,48 @@ interface DispatcherWorkloadTabProps {
 }
 
 export function DispatcherWorkloadTab({ staffList, department }: DispatcherWorkloadTabProps = {}) {
-  const { state, updateStaffAvailability, redistributeUnstartedTasks, updateStaffCapacity } = useDemo();
-  const [filterDept, setFilterDept] = useState<string>('all');
+  const { state, redistributeUnstartedTasks, updateStaffCapacity } = useDemo();
   const [reassignModalTask, setReassignModalTask] = useState<WorkItem | null>(null);
   const [editingCapacityStaff, setEditingCapacityStaff] = useState<StaffAccount | null>(null);
   const [capacityInput, setCapacityInput] = useState<number>(5);
+  const [selectedStaffModal, setSelectedStaffModal] = useState<StaffAccount | null>(null);
 
-  const staffAccounts = staffList ?? (state.staffAccounts ?? []);
-  const fulfillers = staffAccounts.filter((s) => s.roleId === 'task_fulfiller');
-
-  // Filter fulfillers by department
-  const filteredFulfillers = fulfillers.filter((f) => {
-    if (filterDept === 'all') return true;
-    return f.department.toLowerCase().includes(filterDept.toLowerCase());
+  const staffAccounts = staffList ?? (state.staffAccounts ?? []).filter((s) => {
+    if (!department) return true;
+    const d = s.department.toLowerCase();
+    if (department === 'Housekeeping') return d.includes('house');
+    if (department === 'Wellness') return d.includes('spa') || d.includes('wellness');
+    if (department === 'Maintenance & Engineering') return d.includes('maint') || d.includes('eng');
+    if (department === 'Food & Beverages') return d.includes('food') || d.includes('bev');
+    return true;
   });
+  const fulfillers = staffAccounts.filter((s) => s.roleId === 'task_fulfiller');
+  const filteredFulfillers = fulfillers;
 
   // Calculate active workload and find tasks assigned to each fulfiller
-  const getFulfillerTasks = (employeeId: string) => {
-    return (state.items.task_fulfiller ?? []).filter(
-      (t) => t.assigneeId === employeeId && t.status !== 'Completed' && t.status !== 'Cancelled',
-    );
+  const getFulfillerTasks = (employeeId: string, staffName?: string) => {
+    const allItems = [
+      ...(state.items.task_fulfiller ?? []),
+      ...(state.items.department_dispatcher_supervisor ?? []),
+      ...(state.items.department_dispatcher ?? []),
+    ];
+    // Deduplicate by task ID
+    const uniqueItems = allItems.filter((t, i, arr) => arr.findIndex((x) => x.id === t.id) === i);
+
+    return uniqueItems.filter((t) => {
+      if (t.status === 'Completed' || t.status === 'Cancelled') return false;
+      const matchId = t.assigneeId && (t.assigneeId === employeeId || t.assigneeId.toLowerCase() === employeeId.toLowerCase());
+      const matchName = staffName && t.assignee && (
+        t.assignee.toLowerCase() === staffName.toLowerCase() ||
+        t.assignee.toLowerCase().includes(staffName.toLowerCase()) ||
+        staffName.toLowerCase().includes(t.assignee.toLowerCase())
+      );
+      return Boolean(matchId || matchName);
+    });
   };
 
   const handleRebalance = () => {
-    redistributeUnstartedTasks(filterDept === 'all' ? undefined : filterDept);
+    redistributeUnstartedTasks(department);
   };
 
   const openCapacityModal = (staff: StaffAccount) => {
@@ -98,42 +118,14 @@ export function DispatcherWorkloadTab({ staffList, department }: DispatcherWorkl
 
       {/* Filter and Overview Metrics */}
       <div className="rounded-3xl border border-white/10 bg-ink-900/80 p-4 backdrop-blur-md shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        {/* Department Filters */}
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          {[
-            { id: 'all', label: 'All Field Attendants', count: fulfillers.length },
-            {
-              id: 'housekeeping',
-              label: 'Housekeeping',
-              count: fulfillers.filter((f) => f.department.toLowerCase().includes('housekeeping')).length,
-            },
-            {
-              id: 'maintenance',
-              label: 'Maintenance & Eng',
-              count: fulfillers.filter((f) => f.department.toLowerCase().includes('maintenance')).length,
-            },
-            {
-              id: 'food',
-              label: 'Food & Beverage',
-              count: fulfillers.filter((f) => f.department.toLowerCase().includes('food')).length,
-            },
-          ].map((d) => (
-            <button
-              key={d.id}
-              type="button"
-              onClick={() => setFilterDept(d.id)}
-              className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition flex items-center gap-2 ${
-                filterDept === d.id
-                  ? 'border-amber-400 bg-amber-400/10 text-amber-200'
-                  : 'border-white/10 bg-white/[0.03] text-mist-300 hover:text-white hover:bg-white/[0.06]'
-              }`}
-            >
-              <span>{d.label}</span>
-              <span className="rounded-full bg-white/10 px-1.5 py-0.2 text-[10px] text-mist-200">
-                {d.count}
-              </span>
-            </button>
-          ))}
+        {/* Department Info & Attendant Count */}
+        <div className="flex items-center gap-2">
+          <span className="px-3.5 py-1.5 rounded-xl border border-amber-400/30 bg-amber-400/10 text-amber-200 text-xs font-semibold flex items-center gap-2">
+            <span>{department ? `${department} Field Attendants` : 'Field Attendants'}</span>
+            <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[10px] font-bold text-amber-100">
+              {fulfillers.length}
+            </span>
+          </span>
         </div>
 
         {/* Legend */}
@@ -156,7 +148,7 @@ export function DispatcherWorkloadTab({ staffList, department }: DispatcherWorkl
       {/* Staff Grid Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {filteredFulfillers.map((staff) => {
-          const activeTasks = getFulfillerTasks(staff.employeeId);
+          const activeTasks = getFulfillerTasks(staff.employeeId, staff.name);
           const maxLoad = staff.maxWorkload || 5;
           const remainingCapacity = Math.max(0, maxLoad - activeTasks.length);
           const percentage = Math.round((activeTasks.length / maxLoad) * 100);
@@ -168,11 +160,13 @@ export function DispatcherWorkloadTab({ staffList, department }: DispatcherWorkl
           return (
             <div
               key={staff.id}
-              className={`rounded-3xl border bg-ink-900/90 p-5 backdrop-blur-xl shadow-xl flex flex-col justify-between space-y-4 transition ${
+              onClick={() => setSelectedStaffModal(staff)}
+              className={`rounded-3xl border bg-ink-900/90 p-5 backdrop-blur-xl shadow-xl flex flex-col justify-between space-y-4 transition cursor-pointer hover:border-amber-400/50 hover:shadow-2xl hover:scale-[1.01] ${
                 isFull
                   ? 'border-rose-500/30 ring-1 ring-rose-500/10'
-                  : 'border-white/10 hover:border-white/20'
+                  : 'border-white/10'
               }`}
+              title="Click to view employee details and assigned tasks"
             >
               {/* Header: Name, Employee ID, Availability Dropdown */}
               <div className="space-y-3">
@@ -204,27 +198,34 @@ export function DispatcherWorkloadTab({ staffList, department }: DispatcherWorkl
                     </div>
                   </div>
 
-                  {/* Availability Dropdown */}
-                  <select
-                    value={staff.availability || 'on_duty'}
-                    onChange={(e) =>
-                      updateStaffAvailability(
-                        staff.id,
-                        e.target.value as 'on_duty' | 'break' | 'off_duty',
-                      )
-                    }
-                    className={`rounded-xl border px-2.5 py-1 text-[11px] font-bold focus:outline-none cursor-pointer ${
+                  {/* Availability Badge (Read-only; updated by employee) */}
+                  <div
+                    className={`inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1 text-[11px] font-bold select-none cursor-default ${
                       staff.availability === 'break'
                         ? 'border-amber-400/40 bg-amber-400/10 text-amber-300'
                         : staff.availability === 'off_duty'
                         ? 'border-rose-500/40 bg-rose-500/10 text-rose-300'
                         : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
                     }`}
+                    title="Duty status is managed directly by the employee"
                   >
-                    <option value="on_duty" className="bg-ink-950 text-white">On Duty</option>
-                    <option value="break" className="bg-ink-950 text-white">On Break</option>
-                    <option value="off_duty" className="bg-ink-950 text-white">Off Duty</option>
-                  </select>
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${
+                        staff.availability === 'break'
+                          ? 'bg-amber-400'
+                          : staff.availability === 'off_duty'
+                          ? 'bg-rose-400'
+                          : 'bg-emerald-400 animate-pulse'
+                      }`}
+                    />
+                    <span>
+                      {staff.availability === 'break'
+                        ? 'On Break'
+                        : staff.availability === 'off_duty'
+                        ? 'Off Duty'
+                        : 'On Duty'}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Floor Zone & Shift */}
@@ -265,7 +266,10 @@ export function DispatcherWorkloadTab({ staffList, department }: DispatcherWorkl
 
                     <button
                       type="button"
-                      onClick={() => openCapacityModal(staff)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openCapacityModal(staff);
+                      }}
                       className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border border-white/10 bg-white/[0.04] text-[10px] font-semibold text-mist-200 hover:text-white hover:bg-white/[0.08] transition"
                       title="Configure individual max concurrent task capacity"
                     >
@@ -315,15 +319,38 @@ export function DispatcherWorkloadTab({ staffList, department }: DispatcherWorkl
                           </div>
                           <button
                             type="button"
-                            onClick={() => setReassignModalTask(t)}
-                            className="px-2 py-0.5 rounded-lg border border-white/10 text-[10px] font-bold text-amber-300 hover:bg-amber-400/10 transition shrink-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setReassignModalTask(t);
+                            }}
+                            className="px-2.5 py-1 rounded-lg border border-amber-400/30 bg-amber-400/10 text-[10px] font-bold text-amber-300 hover:bg-amber-400/20 transition shrink-0 flex items-center gap-1 cursor-pointer"
+                            title="Reassign this task"
                           >
-                            Reassign
+                            <UserCheck className="h-3 w-3" />
+                            <span>Reassign</span>
                           </button>
                         </div>
                       ))}
                     </div>
                   )}
+                </div>
+
+                {/* View Details Card Footer */}
+                <div className="pt-2.5 border-t border-white/[0.06] flex items-center justify-between">
+                  <span className="text-[11px] text-mist-400 font-mono">
+                    {activeTasks.length} {activeTasks.length === 1 ? 'task' : 'tasks'} assigned
+                  </span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedStaffModal(staff);
+                    }}
+                    className="text-xs font-bold text-amber-300 hover:text-amber-200 transition flex items-center gap-1 cursor-pointer"
+                  >
+                    <span>View Details & Tasks</span>
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
                 </div>
               </div>
             </div>
@@ -335,6 +362,8 @@ export function DispatcherWorkloadTab({ staffList, department }: DispatcherWorkl
       {reassignModalTask && (
         <AssignTaskModal
           task={reassignModalTask}
+          department={department}
+          lockDepartment={true}
           onClose={() => setReassignModalTask(null)}
         />
       )}
@@ -448,6 +477,240 @@ export function DispatcherWorkloadTab({ staffList, department }: DispatcherWorkl
           </div>
         </div>
       )}
+
+      {/* Employee Details & Assigned Tasks Modal */}
+      {selectedStaffModal && (() => {
+        const staff = selectedStaffModal;
+        const tasks = getFulfillerTasks(staff.employeeId, staff.name);
+        const maxLoad = staff.maxWorkload || 5;
+        const remainingCapacity = Math.max(0, maxLoad - tasks.length);
+        const percentage = Math.round((tasks.length / maxLoad) * 100);
+        const isFull = tasks.length >= maxLoad;
+        const isHeavy = percentage >= 80;
+        const isModerate = percentage >= 60 && percentage < 80;
+
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink-950/80 backdrop-blur-md animate-fade-in"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="employee-modal-title"
+          >
+            <div className="relative w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl border border-white/10 bg-ink-900/95 shadow-2xl backdrop-blur-2xl text-white overflow-hidden">
+              {/* Modal Header */}
+              <div className="flex items-start justify-between border-b border-white/[0.08] p-5 sm:p-6 bg-white/[0.02]">
+                <div className="flex items-center gap-3.5">
+                  <div className="h-12 w-12 rounded-2xl bg-amber-400/10 border border-amber-400/25 text-amber-300 font-extrabold flex items-center justify-center text-sm shadow-inner">
+                    {staff.name
+                      .split(' ')
+                      .map((n) => n[0])
+                      .join('')}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2.5">
+                      <h2 id="employee-modal-title" className="text-lg font-bold font-display text-white">
+                        {staff.name}
+                      </h2>
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${
+                          staff.availability === 'break'
+                            ? 'border-amber-400/40 bg-amber-400/10 text-amber-300'
+                            : staff.availability === 'off_duty'
+                            ? 'border-rose-500/40 bg-rose-500/10 text-rose-300'
+                            : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+                        }`}
+                      >
+                        <span
+                          className={`h-1.5 w-1.5 rounded-full ${
+                            staff.availability === 'break'
+                              ? 'bg-amber-400'
+                              : staff.availability === 'off_duty'
+                              ? 'bg-rose-400'
+                              : 'bg-emerald-400 animate-pulse'
+                          }`}
+                        />
+                        {staff.availability === 'break'
+                          ? 'On Break'
+                          : staff.availability === 'off_duty'
+                          ? 'Off Duty'
+                          : 'On Duty'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-mist-400 font-mono mt-0.5">
+                      {staff.employeeId} · {staff.department} · {staff.shift} Shift · Zone: {staff.floorZone}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedStaffModal(null)}
+                  className="rounded-xl border border-white/10 p-2 text-mist-400 hover:text-white hover:bg-white/[0.06] transition cursor-pointer"
+                  aria-label="Close dialog"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-5 sm:p-6 overflow-y-auto space-y-6">
+                {/* Workload / Capacity Overview Strip */}
+                <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 space-y-3">
+                  <div className="flex items-center justify-between text-xs">
+                    <div>
+                      <span className="text-mist-400">Current Workload: </span>
+                      <strong
+                        className={`font-mono text-sm ${
+                          isFull ? 'text-rose-400' : isModerate ? 'text-amber-300' : 'text-emerald-400'
+                        }`}
+                      >
+                        {tasks.length} / {maxLoad} Tasks ({percentage}%)
+                      </strong>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-mono font-semibold ${remainingCapacity === 0 ? 'text-rose-400' : 'text-emerald-300'}`}>
+                        {remainingCapacity === 0 ? 'Capacity Full' : `${remainingCapacity} slots remaining`}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => openCapacityModal(staff)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-white/10 bg-white/[0.04] text-[11px] font-semibold text-mist-200 hover:text-white hover:bg-white/[0.08] transition cursor-pointer"
+                      >
+                        <SlidersHorizontal className="h-3 w-3 text-amber-300" />
+                        <span>Edit Limit</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="h-2 rounded-full bg-white/[0.08] overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        isFull ? 'bg-rose-500' : isHeavy ? 'bg-rose-400' : isModerate ? 'bg-amber-400' : 'bg-emerald-400'
+                      }`}
+                      style={{ width: `${Math.min(100, percentage)}%` }}
+                    />
+                  </div>
+
+                  {staff.skills && staff.skills.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                      <span className="text-[10px] uppercase font-bold text-mist-400 mr-1">Skills:</span>
+                      {staff.skills.map((sk) => (
+                        <span
+                          key={sk}
+                          className="rounded-lg bg-white/[0.04] border border-white/[0.08] text-[10px] text-mist-300 px-2 py-0.5"
+                        >
+                          {sk}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Assigned Tasks List */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-mist-300 flex items-center gap-2">
+                      <Briefcase className="h-4 w-4 text-amber-300" />
+                      <span>Assigned Tasks ({tasks.length})</span>
+                    </h3>
+                    <span className="text-xs text-mist-400">
+                      Reassign any task to another attendant
+                    </span>
+                  </div>
+
+                  {tasks.length === 0 ? (
+                    <div className="rounded-2xl border border-white/[0.06] bg-white/[0.01] p-8 text-center text-mist-400 space-y-2">
+                      <CheckCircle2 className="h-8 w-8 mx-auto text-emerald-400/60" />
+                      <p className="font-semibold text-white text-sm">No Active Tasks Assigned</p>
+                      <p className="text-xs text-mist-500 max-w-xs mx-auto">
+                        This attendant currently has no queued tasks and is ready for immediate work orders.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {tasks.map((t) => (
+                        <div
+                          key={t.id}
+                          className="rounded-2xl border border-white/[0.08] bg-ink-950/70 p-3.5 sm:p-4 hover:border-white/20 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md"
+                        >
+                          <div className="space-y-1.5 min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-mono font-bold text-xs text-amber-300">
+                                {t.ref || t.id.slice(0, 8)}
+                              </span>
+                              <span
+                                className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                                  t.priority === 'critical' || t.priority === 'safety' || t.priority === 'urgent'
+                                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                                    : t.priority === 'vip'
+                                    ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                                    : 'bg-white/10 text-mist-300'
+                                }`}
+                              >
+                                {t.priority || 'Normal'}
+                              </span>
+                              <span className="px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/10 text-[10px] font-mono text-mist-300">
+                                {t.status}
+                              </span>
+                            </div>
+
+                            <h4 className="font-bold text-sm text-white truncate">{t.title}</h4>
+
+                            {(t.description || t.meta) && (
+                              <p className="text-xs text-mist-400 line-clamp-2">
+                                {t.description || t.meta}
+                              </p>
+                            )}
+
+                            <div className="flex flex-wrap items-center gap-3 text-[11px] text-mist-400 pt-1 font-mono">
+                              <span className="flex items-center gap-1 text-white">
+                                <MapPin className="h-3 w-3 text-amber-300" />
+                                {t.room ? `Room ${t.room}` : 'Property'}
+                              </span>
+                              {t.slaDue && (
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3 text-mist-400" />
+                                  Target SLA: {t.slaDue}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Task Reassign Button on the side */}
+                          <div className="sm:pl-3 sm:border-l border-white/[0.08] flex items-center shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => setReassignModalTask(t)}
+                              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl border border-amber-400/40 bg-amber-400/10 text-xs font-bold text-amber-300 hover:bg-amber-400/20 hover:border-amber-400/70 transition cursor-pointer shadow-sm active:scale-95"
+                              title="Reassign this task to another attendant"
+                            >
+                              <UserCheck className="h-3.5 w-3.5" />
+                              <span>Reassign Task</span>
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="border-t border-white/[0.08] p-4 bg-white/[0.02] flex items-center justify-between text-xs text-mist-400">
+                <span>{tasks.length} active work orders</span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedStaffModal(null)}
+                  className="px-4 py-2 rounded-xl bg-white/[0.06] hover:bg-white/10 text-white font-semibold transition cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
     </div>
   );
 }

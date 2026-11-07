@@ -13,6 +13,7 @@ import {
   Moon,
   RotateCcw,
   ShieldCheck,
+  ShieldAlert,
   Sun,
   User,
   X,
@@ -36,9 +37,10 @@ import type { ActiveId, RoleId, StaffAccount } from '@/types/demo';
 interface TopBarProps {
   active: ActiveId;
   showRail?: boolean;
+  hideGestureButton?: boolean;
 }
 
-export function TopBar({ active, showRail = true }: TopBarProps) {
+export function TopBar({ active, showRail = true, hideGestureButton = false }: TopBarProps) {
   const router = useRouter();
   const { state, reset, setTheme, markNotificationRead, clearAllNotifications, departmentManagerCommand, gestureGuideOpen, setGestureGuideOpen } = useDemo();
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
@@ -52,9 +54,16 @@ export function TopBar({ active, showRail = true }: TopBarProps) {
   const roleId = isRole ? (active as RoleId) : null;
   const role = roleId ? roleById[roleId] : null;
 
+  const isDispatcherSupervisor =
+    roleId === 'department_dispatcher_supervisor' ||
+    roleId === 'department_dispatcher' ||
+    roleId === 'department_supervisor';
+
+  const shouldHideGestureButton = hideGestureButton || isDispatcherSupervisor;
+
   // Active employee record from shared staff roster
   const department = managerDepartment(state.managerDepartment);
-  const managerStaff: StaffAccount | null = roleId === 'department_manager' ? ({ id: `MGR-${department.id.toUpperCase()}`, name: state.managerProfiles?.[department.id]?.name || department.person, employeeId: `MGR-${department.id.toUpperCase()}`, department: department.name, shift: 'Day' as const, email: department.email, floorZone: 'Property-Wide', financialLimit: 16000, roleId: 'department_manager', status: 'active', createdAt: '2026-01-01' } as StaffAccount) : null;
+  const managerStaff = roleId === 'department_manager' ? { name: state.managerProfiles?.[department.id]?.name || department.person, employeeId: `MGR-${department.id.toUpperCase()}`, department: department.name, shift: 'Day' as const, floorZone: 'Property-Wide', email: `${department.id}@thegrandadp.com`, financialLimit: 15000 } : null;
   const staff = managerStaff ?? (roleId
     ? (state.staffAccounts ?? []).find((s) => {
         if (
@@ -263,7 +272,7 @@ export function TopBar({ active, showRail = true }: TopBarProps) {
                       className={cn(
                         'staff-profile-card absolute right-0 top-full mt-2 w-84 sm:w-96 rounded-3xl p-5 z-50 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-2xl shadow-2xl overflow-hidden border-2',
                         isLight
-                          ? 'border-slate-300 shadow-[0_25px_60px_-15px_rgba(231,226,215,0.18)]'
+                          ? 'border-slate-300 shadow-[0_25px_60px_-15px_rgba(1,31,75,0.18)]'
                           : 'border-slate-600/90 shadow-[0_25px_60px_-10px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.15)] ring-1 ring-amber-400/30'
                       )}
                       style={{
@@ -577,6 +586,22 @@ export function TopBar({ active, showRail = true }: TopBarProps) {
                         </div>
                       </div>
 
+                      {/* Security Safety Alert Highlight Banner */}
+                      <div className="mt-3 p-2.5 rounded-xl border border-rose-500/30 bg-rose-500/10 flex items-start gap-2.5 text-left text-xs text-rose-200">
+                        <ShieldAlert className="h-4 w-4 text-rose-400 shrink-0 mt-0.5 animate-pulse" />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="font-bold text-white text-[11px] uppercase tracking-wide">
+                              Safety Alert (From Security)
+                            </span>
+                            <span className="text-[10px] text-rose-300 font-mono">SFT-SEC-01</span>
+                          </div>
+                          <p className="text-[11px] text-rose-200/90 leading-tight mt-0.5">
+                            Level 3 Emergency Fire Door breach sensor active. Patrol Unit 1 deployed.
+                          </p>
+                        </div>
+                      </div>
+
                       <div className="mt-3 max-h-72 space-y-2 overflow-y-auto no-scrollbar">
                         {roleNotifications.length === 0 ? (
                           <p className="py-6 text-center text-xs text-mist-400">No new notifications for your shift.</p>
@@ -625,16 +650,18 @@ export function TopBar({ active, showRail = true }: TopBarProps) {
                   {isLight ? <Moon className="h-4 w-4" aria-hidden /> : <Sun className="h-4 w-4" aria-hidden />}
                 </button>
 
-                {/* Gesture Guide Emoji Button (Only emoji, no text) */}
-                <button
-                  type="button"
-                  onClick={() => setGestureGuideOpen(true)}
-                  className={cn("grid place-items-center border border-white/10 bg-white/[0.04] transition-all hover:border-amber-400/40 hover:bg-amber-400/10 hover:scale-105 active:scale-95 cursor-pointer", isFd ? "h-8 w-8 rounded-lg text-sm" : "h-9 w-9 rounded-xl text-base")}
-                  title="Gesture & Keyboard Shortcuts"
-                  aria-label="Gesture and keyboard shortcut instructions"
-                >
-                  🖐️
-                </button>
+                {/* Gesture Guide Emoji Button (Only emoji, no text) - hidden in Department Dispatcher / Supervisor portal */}
+                {!shouldHideGestureButton && (
+                  <button
+                    type="button"
+                    onClick={() => setGestureGuideOpen(true)}
+                    className="grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-base transition-all hover:border-amber-400/40 hover:bg-amber-400/10 hover:scale-105 active:scale-95 cursor-pointer"
+                    title="Gesture & Keyboard Shortcuts"
+                    aria-label="Gesture and keyboard shortcut instructions"
+                  >
+                    🖐️
+                  </button>
+                )}
 
                 {/* Logout Button */}
                 <button
@@ -763,10 +790,12 @@ export function TopBar({ active, showRail = true }: TopBarProps) {
         />
       )}
       {/* Reusable Gesture & Shortcut Guide Modal */}
-      <GestureGuideModal
-        isOpen={gestureGuideOpen}
-        onClose={() => setGestureGuideOpen(false)}
-      />
+      {!shouldHideGestureButton && (
+        <GestureGuideModal
+          isOpen={gestureGuideOpen}
+          onClose={() => setGestureGuideOpen(false)}
+        />
+      )}
     </>
   );
 }
