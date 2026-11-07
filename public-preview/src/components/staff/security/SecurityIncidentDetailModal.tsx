@@ -953,19 +953,11 @@ export function SecurityIncidentDetailModal({
                 <div className="pt-2 flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setShowBackupModal(true)}
-                    className="dm-small-button flex-1 justify-center"
-                  >
-                    <Users size={14} />
-                    <span>Request Backup</span>
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => setShowEscalateModal(true)}
-                    className="dm-small-button flex-1 justify-center"
+                    className="dm-small-button w-full justify-center"
                   >
                     <ArrowUpRight size={14} />
-                    <span>Escalate to DM</span>
+                    <span>Escalate to GM</span>
                   </button>
                 </div>
               )}
