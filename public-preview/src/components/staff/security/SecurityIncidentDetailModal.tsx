@@ -25,6 +25,8 @@ import {
   Shield,
   Activity,
   FileText,
+  Video,
+  Eye,
 } from 'lucide-react';
 import type { WorkItem } from '@/types/demo';
 import { SecurityFloorPlanModal } from './SecurityFloorPlanModal';
@@ -70,14 +72,30 @@ export function SecurityIncidentDetailModal({
   const [solvePhotoUrl, setSolvePhotoUrl] = useState<string | null>(null);
   const [solveError, setSolveError] = useState<string | null>(null);
   const [enlargedPhoto, setEnlargedPhoto] = useState<string | null>(null);
+  const [enlargedPhotoTitle, setEnlargedPhotoTitle] = useState<string>('View of Incident');
 
   // Post-resolution additional photo upload state
   const [postPhotoUrl, setPostPhotoUrl] = useState<string | null>(null);
   const [isUploadingPostPhoto, setIsUploadingPostPhoto] = useState(false);
 
+  // Incoming incident photo / CCTV frame evidence state
+  const [incomingPhoto, setIncomingPhoto] = useState<string | null>(null);
+  const incomingFileInputRef = useRef<HTMLInputElement>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const postFileInputRef = useRef<HTMLInputElement>(null);
   const scrollBodyRef = useRef<HTMLDivElement>(null);
+
+  const handleIncomingPhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setIncomingPhoto(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   // Allow mouse-wheel scrolling even if cursor is over pinned header or footer
   const handleModalWheel = (e: React.WheelEvent) => {
@@ -231,7 +249,47 @@ export function SecurityIncidentDetailModal({
   };
 
   const protocol = getProtocolInstructions();
-  const displayPhoto = postPhotoUrl || item.securityReport?.photoUrl || item.photoUrl;
+  const displayPhoto = postPhotoUrl || item.securityReport?.photoUrl || (isResolved ? item.photoUrl : null);
+
+  const FALLBACK_INCIDENT_MEDIA: Record<string, { photo: string; cam: string; time: string; source: string }> = {
+    'sec-1': {
+      photo: 'https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?auto=format&fit=crop&w=1200&q=80',
+      cam: 'CCTV CAM-04 (West Pool Deck)',
+      time: 'Today 09:44:12',
+      source: 'Automated CCTV Sensor Trip',
+    },
+    'sec-2': {
+      photo: 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1200&q=80',
+      cam: 'CAM-512 (Floor 5 East Corridor)',
+      time: 'Today 09:18:04',
+      source: 'BMS Smoke Alarm Sensor Telemetry',
+    },
+    'sec-3': {
+      photo: 'https://images.unsplash.com/photo-1517646287270-a5a9ca602e5c?auto=format&fit=crop&w=1200&q=80',
+      cam: 'CAM-B02 (Basement Switchgear Vault)',
+      time: 'Today 02:13:45',
+      source: 'RFID Access Rejection Automated Capture',
+    },
+    'sec-4': {
+      photo: 'https://images.unsplash.com/photo-1565538810643-b5bdb714032a?auto=format&fit=crop&w=1200&q=80',
+      cam: 'CAM-01 (East Lobby Entrance Portico)',
+      time: 'Today 08:30:20',
+      source: 'Concierge Incident Dispatch Photo',
+    },
+    'sec-5': {
+      photo: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80',
+      cam: 'CAM-304 (Floor 3 Hallway North)',
+      time: 'Yesterday 23:40:15',
+      source: 'Floor 3 Security Patrol Camera',
+    },
+  };
+
+  const fallbackData = FALLBACK_INCIDENT_MEDIA[item.id] || FALLBACK_INCIDENT_MEDIA[item.ref || ''];
+  const currentIncomingPhoto =
+    incomingPhoto || item.incidentPhotoUrl || fallbackData?.photo || (!isResolved ? item.photoUrl : null);
+  const activeCameraId = item.cctvCameraId || fallbackData?.cam;
+  const activeTimestamp = item.cctvTimestamp || fallbackData?.time || 'Incident Alarm Trigger';
+  const activePhotoSource = item.incidentPhotoSource || fallbackData?.source || 'Front Desk / Security CCTV Telemetry';
 
   const PIPELINE_STEPS = [
     { label: 'Triggered', sub: 'New Alert', step: 0 },
@@ -488,13 +546,29 @@ export function SecurityIncidentDetailModal({
                   </p>
                 </div>
               </div>
-              <button
-                onClick={() => setShowFloorPlan(true)}
-                className="dm-small-button flex items-center gap-1.5 cursor-pointer shrink-0"
-              >
-                <Compass size={14} />
-                <span>Floor Plan</span>
-              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (currentIncomingPhoto) {
+                      setEnlargedPhoto(currentIncomingPhoto);
+                      setEnlargedPhotoTitle(`View of Incident • ${item.title}`);
+                    }
+                  }}
+                  className="dm-primary text-xs py-1.5 px-3 rounded-lg flex items-center gap-1.5 cursor-pointer bg-stone-900 hover:bg-stone-800 text-white font-semibold shadow-sm transition-all"
+                  title="Open incoming photo of what incident happened"
+                >
+                  <Eye size={14} />
+                  <span>View of Incident</span>
+                </button>
+                <button
+                  onClick={() => setShowFloorPlan(true)}
+                  className="dm-small-button flex items-center gap-1.5 cursor-pointer shrink-0"
+                >
+                  <Compass size={14} />
+                  <span>Floor Plan</span>
+                </button>
+              </div>
             </div>
 
             {/* ================= 2. INCIDENT DESCRIPTION & VALIDATION ================= */}
@@ -1043,25 +1117,42 @@ export function SecurityIncidentDetailModal({
       {/* ================= ENLARGED PHOTO LIGHTBOX MODAL ================= */}
       {enlargedPhoto && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-150"
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-in fade-in duration-150"
           onClick={() => setEnlargedPhoto(null)}
         >
-          <div className="relative max-w-3xl max-h-[90vh] bg-stone-900 rounded-2xl overflow-hidden shadow-2xl p-2" onClick={(e) => e.stopPropagation()}>
-            <img
-              src={enlargedPhoto}
-              alt="Enlarged evidence"
-              className="w-full h-auto max-h-[80vh] object-contain rounded-xl"
-            />
-            <div className="p-3 text-white flex items-center justify-between text-xs">
-              <span className="flex items-center gap-1.5 font-semibold text-emerald-400">
-                <CheckCircle2 size={15} /> Incident Problem Solved Photo Evidence
-              </span>
+          <div
+            className="relative max-w-4xl w-full max-h-[92vh] bg-stone-900 border border-stone-700 rounded-2xl overflow-hidden shadow-2xl p-3 flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-2 mb-2 border-b border-stone-800 text-white text-xs">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-ping inline-block shrink-0" />
+                <span className="font-bold text-rose-300 flex items-center gap-1.5 truncate">
+                  <Video size={15} className="shrink-0" /> {enlargedPhotoTitle}
+                </span>
+                {activeCameraId && (
+                  <span className="px-2 py-0.5 rounded bg-black/50 text-[10px] font-mono text-stone-300 border border-stone-700 hidden sm:inline shrink-0">
+                    {activeCameraId}
+                  </span>
+                )}
+              </div>
               <button
                 onClick={() => setEnlargedPhoto(null)}
-                className="px-3 py-1 rounded-lg bg-white/20 hover:bg-white/30 text-white font-medium"
+                className="px-3 py-1 rounded-lg bg-white/20 hover:bg-white/30 text-white font-medium cursor-pointer shrink-0"
               >
-                Close
+                Close ✕
               </button>
+            </div>
+            <div className="relative flex-1 min-h-0 flex items-center justify-center bg-black/40 rounded-xl overflow-hidden">
+              <img
+                src={enlargedPhoto}
+                alt={enlargedPhotoTitle}
+                className="w-full h-auto max-h-[75vh] object-contain rounded-xl"
+              />
+            </div>
+            <div className="pt-2 mt-2 border-t border-stone-800 text-[11px] text-stone-400 flex items-center justify-between">
+              <span>{activePhotoSource || 'Security Visual Evidence'}</span>
+              <span className="text-stone-500 text-[10px]">{activeTimestamp} • {item.location}</span>
             </div>
           </div>
         </div>

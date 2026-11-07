@@ -33,6 +33,9 @@ import {
   PhoneCall,
   Volume2,
   VolumeX,
+  Camera,
+  Eye,
+  Video,
   type LucideIcon,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
@@ -79,6 +82,18 @@ const statusClass = (status: string) =>
     : /critical|escalat|blocked|reopened|high/i.test(status)
       ? 'dm-status urgent'
       : 'dm-status';
+
+const getIncidentPhoto = (item: WorkItem) => {
+  if (item.incidentPhotoUrl) return item.incidentPhotoUrl;
+  if (item.photoUrl) return item.photoUrl;
+  if (item.securityReport?.photoUrl) return item.securityReport.photoUrl;
+  if (item.id === 'sec-1') return 'https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?auto=format&fit=crop&w=1200&q=80';
+  if (item.id === 'sec-2') return 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1200&q=80';
+  if (item.id === 'sec-3') return 'https://images.unsplash.com/photo-1517646287270-a5a9ca602e5c?auto=format&fit=crop&w=1200&q=80';
+  if (item.id === 'sec-4') return 'https://images.unsplash.com/photo-1565538810643-b5bdb714032a?auto=format&fit=crop&w=1200&q=80';
+  if (item.id === 'sec-5') return 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80';
+  return null;
+};
 
 export function SecurityApp() {
   const {
@@ -778,10 +793,35 @@ export function SecurityApp() {
                     {items.map((item) => (
                       <tr key={item.id}>
                         <td>
-                          <strong>{item.title}</strong>
-                          <small>
-                            {item.ref || item.id} {item.room ? `· ${item.room}` : ''}
-                          </small>
+                          <div className="flex items-center gap-3">
+                            {getIncidentPhoto(item) ? (
+                              <div
+                                onClick={() => setSelectedIncident(item)}
+                                className="relative w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-[var(--dm-line)] cursor-pointer group shadow-sm bg-stone-900"
+                                title="Click to view incident photo & details"
+                              >
+                                <img
+                                  src={getIncidentPhoto(item)!}
+                                  alt={item.title}
+                                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200"
+                                />
+                                <span className="absolute bottom-0 right-0 p-0.5 bg-black/75 text-white rounded-tl">
+                                  <Camera size={10} />
+                                </span>
+                              </div>
+                            ) : null}
+                            <div className="min-w-0">
+                              <strong
+                                className="cursor-pointer hover:underline block truncate"
+                                onClick={() => setSelectedIncident(item)}
+                              >
+                                {item.title}
+                              </strong>
+                              <small className="text-[var(--dm-muted)] block">
+                                {item.ref || item.id} {item.room ? `· ${item.room}` : ''}
+                              </small>
+                            </div>
+                          </div>
                         </td>
                         <td>{item.assignee || 'Awaiting assignment'}</td>
                         <td>
@@ -800,7 +840,7 @@ export function SecurityApp() {
                         </td>
                         <td>
                           <button
-                            className="dm-text-button"
+                            className="dm-text-button font-semibold"
                             onClick={() => setSelectedIncident(item)}
                           >
                             Review &gt;
@@ -874,10 +914,35 @@ export function SecurityApp() {
                     visibleIncidents.map((item) => (
                       <tr key={item.id}>
                         <td>
-                          <strong>{item.title}</strong>
-                          <small>
-                            {item.ref || item.id} {item.room ? `· ${item.room}` : ''}
-                          </small>
+                          <div className="flex items-center gap-3">
+                            {getIncidentPhoto(item) ? (
+                              <div
+                                onClick={() => setSelectedIncident(item)}
+                                className="relative w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-[var(--dm-line)] cursor-pointer group shadow-sm bg-stone-900"
+                                title="Click to view incident photo & details"
+                              >
+                                <img
+                                  src={getIncidentPhoto(item)!}
+                                  alt={item.title}
+                                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200"
+                                />
+                                <span className="absolute bottom-0 right-0 p-0.5 bg-black/75 text-white rounded-tl">
+                                  <Camera size={10} />
+                                </span>
+                              </div>
+                            ) : null}
+                            <div className="min-w-0">
+                              <strong
+                                className="cursor-pointer hover:underline block truncate"
+                                onClick={() => setSelectedIncident(item)}
+                              >
+                                {item.title}
+                              </strong>
+                              <small className="text-[var(--dm-muted)] block">
+                                {item.ref || item.id} {item.room ? `· ${item.room}` : ''}
+                              </small>
+                            </div>
+                          </div>
                         </td>
                         <td>{item.assignee || 'Awaiting assignment'}</td>
                         <td>
@@ -896,7 +961,7 @@ export function SecurityApp() {
                         </td>
                         <td>
                           <button
-                            className="dm-text-button"
+                            className="dm-text-button font-semibold"
                             onClick={() => setSelectedIncident(item)}
                           >
                             Review &gt;

@@ -178,6 +178,14 @@ export interface WorkItem {
   department?: string;
   /** Floor number for spatial assignment */
   floor?: number;
+  /** Incoming incident photo / CCTV frame evidence URL */
+  incidentPhotoUrl?: string;
+  /** Specific CCTV camera ID/location that captured incident */
+  cctvCameraId?: string;
+  /** Exact CCTV / dispatch capture timestamp */
+  cctvTimestamp?: string;
+  /** Origin source of incoming visual evidence */
+  incidentPhotoSource?: string;
   /** Security Responder Report details filed upon resolution */
   securityReport?: {
     summary: string;

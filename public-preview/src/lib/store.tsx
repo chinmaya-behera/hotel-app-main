@@ -569,6 +569,19 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           items: {
             ...base.items,
             ...saved.items,
+            security_responder: (saved.items?.security_responder ?? base.items.security_responder ?? []).map((s) => {
+              const b = (base.items.security_responder ?? []).find((x) => x.id === s.id);
+              return b
+                ? {
+                    ...b,
+                    ...s,
+                    incidentPhotoUrl: s.incidentPhotoUrl || b.incidentPhotoUrl,
+                    cctvCameraId: s.cctvCameraId || b.cctvCameraId,
+                    cctvTimestamp: s.cctvTimestamp || b.cctvTimestamp,
+                    incidentPhotoSource: s.incidentPhotoSource || b.incidentPhotoSource,
+                  }
+                : s;
+            }),
             department_dispatcher_supervisor: [
               ...(saved.items?.department_dispatcher_supervisor ?? []).map((s) => {
                 const b = (base.items.department_dispatcher_supervisor ?? []).find((x) => x.id === s.id);
