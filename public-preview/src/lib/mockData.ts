@@ -5857,6 +5857,19 @@ export const seedTransactions: FinanceTransaction[] = [
 
 export const seedRefundRequests: FinanceRefundRequest[] = [
   {
+    id: 'RFD-DSP-2026-006',
+    invoiceId: 'INV-2026-0845',
+    guestName: 'David Miller',
+    roomNumber: '402',
+    amount: 2400,
+    reason: 'Duplicate Payment · POS terminal duplicate card charge',
+    requestedAt: 'Today, 10:30 AM',
+    requestedBy: 'Front Desk · Sunita Patel',
+    status: 'Pending Review',
+    sourceCaseRef: 'DSP-2026-006',
+    cardMask: '•••• 5542',
+  },
+  {
     id: 'REF-2026-01',
     invoiceId: 'INV-2026-0841',
     guestName: 'Elena Rostova',
