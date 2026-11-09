@@ -208,17 +208,22 @@ export function SecurityAlertsTab() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" style={{ color: 'var(--dm-ink)' }}>
       {/* ================= 1. SAFETY BROADCAST STATUS OVERVIEW ================= */}
-      <section className="dm-panel">
+      <section className="dm-panel" style={{ background: 'var(--dm-paper)', borderColor: 'var(--dm-line)' }}>
         <div className="dm-panel-heading">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-600 shrink-0">
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+              style={{ background: 'rgba(156, 64, 51, 0.12)', border: '1px solid rgba(156, 64, 51, 0.25)', color: 'var(--dm-danger, #9c4033)' }}
+            >
               <Radio size={22} className="animate-pulse" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-[var(--dm-ink)]">Safety Alerts &amp; Incident Broadcast Center</h2>
-              <p className="text-xs text-[var(--dm-muted)]">
+              <h2 className="text-base font-bold" style={{ color: 'var(--dm-ink)' }}>
+                Safety Alerts &amp; Incident Broadcast Center
+              </h2>
+              <p className="text-xs" style={{ color: 'var(--dm-muted)' }}>
                 Broadcast operational safety alerts for current incidents with photo evidence to Front Desk, Duty Manager, and Guests.
               </p>
             </div>
@@ -227,7 +232,7 @@ export function SecurityAlertsTab() {
           <div className="dm-heading-actions">
             <button
               onClick={() => setShowComposer(!showComposer)}
-              className="dm-primary flex items-center gap-1.5 text-xs font-semibold"
+              className="dm-primary flex items-center gap-1.5 text-xs font-semibold cursor-pointer"
             >
               <Send size={14} />
               <span>{showComposer ? 'Hide Composer' : '+ Send Incident Alert'}</span>
@@ -236,29 +241,32 @@ export function SecurityAlertsTab() {
         </div>
 
         {/* Status Callout Bar */}
-        <div className="p-4 bg-[var(--dm-surface)] border-t border-[var(--dm-line)] flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div
+          className="p-4 flex flex-wrap items-center justify-between gap-3 text-xs"
+          style={{ background: 'var(--dm-surface)', borderTop: '1px solid var(--dm-line)', color: 'var(--dm-ink)' }}
+        >
           <div className="flex items-center gap-2">
             <span
               className={`w-2.5 h-2.5 rounded-full ${
-                activeBroadcastCount > 0 ? 'bg-rose-500 animate-ping' : 'bg-emerald-500'
+                activeBroadcastCount > 0 ? 'bg-rose-600 animate-ping' : 'bg-emerald-600'
               }`}
             />
-            <span className="font-semibold text-[var(--dm-ink)]">
+            <span className="font-semibold" style={{ color: 'var(--dm-ink)' }}>
               {activeBroadcastCount > 0
                 ? `${activeBroadcastCount} Hotel-Wide Active Emergency Broadcast in Progress`
                 : 'Perimeter Normal · No Active Broadcast Alarms'}
             </span>
           </div>
 
-          <div className="flex items-center gap-4 text-[var(--dm-muted)]">
+          <div className="flex items-center gap-4" style={{ color: 'var(--dm-muted)' }}>
             <span>
-              Active Broadcasts: <strong className="text-[var(--dm-ink)]">{activeBroadcastCount}</strong>
+              Active Broadcasts: <strong style={{ color: 'var(--dm-ink)' }}>{activeBroadcastCount}</strong>
             </span>
             <span>
-              Pending Validation: <strong className="text-[var(--dm-ink)]">{pendingCount}</strong>
+              Pending Validation: <strong style={{ color: 'var(--dm-ink)' }}>{pendingCount}</strong>
             </span>
             <span>
-              Total Logged: <strong className="text-[var(--dm-ink)]">{alerts.length}</strong>
+              Total Logged: <strong style={{ color: 'var(--dm-ink)' }}>{alerts.length}</strong>
             </span>
           </div>
         </div>
@@ -266,11 +274,16 @@ export function SecurityAlertsTab() {
 
       {/* Confirmation Toast after sending */}
       {sentSuccessRef && (
-        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 flex items-center gap-3 shadow-md animate-in fade-in">
-          <CheckCircle2 size={20} className="text-emerald-600 shrink-0" />
+        <div
+          className="p-4 rounded-xl flex items-center gap-3 shadow-md animate-in fade-in"
+          style={{ background: 'var(--warm-highlight)', border: '1px solid var(--dm-line)', color: 'var(--dm-ink)' }}
+        >
+          <CheckCircle2 size={20} className="text-emerald-700 shrink-0" />
           <div className="text-xs">
-            <strong className="block text-sm font-bold">Safety Alert Submitted Successfully!</strong>
-            <span>
+            <strong className="block text-sm font-bold" style={{ color: 'var(--dm-ink)' }}>
+              Safety Alert Submitted Successfully!
+            </strong>
+            <span style={{ color: 'var(--dm-muted)' }}>
               &ldquo;{sentSuccessRef}&rdquo; has been routed to Front Desk Lead Maya Lin and Duty Manager Marcus Vance for broadcast validation.
             </span>
           </div>
@@ -279,29 +292,42 @@ export function SecurityAlertsTab() {
 
       {/* ================= 2. SEND CURRENT INCIDENT ALERT COMPOSER ================= */}
       {showComposer && (
-        <section className="dm-panel border-2 border-rose-600/30 shadow-md">
-          <div className="dm-panel-heading bg-rose-50/50">
+        <section
+          className="dm-panel shadow-md"
+          style={{ background: 'var(--dm-paper)', borderColor: 'var(--dm-line)' }}
+        >
+          <div
+            className="dm-panel-heading"
+            style={{ background: 'var(--warm-soft)', borderBottom: '1px solid var(--dm-line)' }}
+          >
             <div>
-              <h3 className="text-sm font-bold text-[var(--dm-ink)] flex items-center gap-2">
-                <ShieldAlert size={16} className="text-rose-600" />
+              <h3 className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--dm-ink)' }}>
+                <ShieldAlert size={16} style={{ color: 'var(--dm-danger, #9c4033)' }} />
                 <span>Send Safety Alert for Current Incident</span>
               </h3>
-              <p className="text-xs text-[var(--dm-muted)]">
+              <p className="text-xs" style={{ color: 'var(--dm-muted)' }}>
                 Select an active incident, provide field directives, and attach photo evidence for instant triage and broadcast.
               </p>
             </div>
             <span className="dm-status urgent font-semibold text-[11px]">Priority Channel</span>
           </div>
 
-          <form onSubmit={handleSubmitAlert} className="p-5 sm:p-6 space-y-5 bg-[var(--dm-paper)]">
+          <form
+            onSubmit={handleSubmitAlert}
+            className="p-5 sm:p-6 space-y-5"
+            style={{ background: 'var(--dm-paper)' }}
+          >
             {/* Step 1: Select Current Incident */}
-            <div className="p-4 rounded-xl bg-[var(--dm-surface)] border border-[var(--dm-line)] space-y-3">
-              <label className="block text-xs font-bold text-[var(--dm-ink)] flex items-center justify-between">
+            <div
+              className="p-4 rounded-xl space-y-3"
+              style={{ background: 'var(--warm-soft)', border: '1px solid var(--dm-line)' }}
+            >
+              <label className="block text-xs font-bold flex items-center justify-between" style={{ color: 'var(--dm-ink)' }}>
                 <span className="flex items-center gap-1.5">
-                  <Activity size={14} className="text-rose-600" />
+                  <Activity size={14} style={{ color: 'var(--dm-danger, #9c4033)' }} />
                   <span>1. Choose Current Incident to Alert:</span>
                 </span>
-                <span className="text-[11px] font-normal text-[var(--dm-muted)]">
+                <span className="text-[11px] font-normal" style={{ color: 'var(--dm-muted)' }}>
                   {activeIncidents.length} active security incidents
                 </span>
               </label>
@@ -309,7 +335,12 @@ export function SecurityAlertsTab() {
               <select
                 value={selectedIncidentId}
                 onChange={(e) => handleIncidentSelect(e.target.value)}
-                className="w-full text-xs font-medium p-2.5 rounded-xl border border-[var(--dm-line)] bg-white text-[var(--dm-ink)] focus:outline-none focus:ring-2 focus:ring-rose-500"
+                className="w-full text-xs font-medium p-2.5 rounded-xl cursor-pointer"
+                style={{
+                  background: 'var(--dm-paper)',
+                  color: 'var(--dm-ink)',
+                  border: '1px solid var(--dm-line)',
+                }}
               >
                 <optgroup label="Live Active Incidents">
                   {activeIncidents.map((inc) => (
@@ -328,9 +359,9 @@ export function SecurityAlertsTab() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
               {/* Alert Title */}
               <div className="space-y-1.5 md:col-span-2">
-                <label className="font-bold text-[var(--dm-ink)] flex items-center gap-1">
+                <label className="font-bold flex items-center gap-1" style={{ color: 'var(--dm-ink)' }}>
                   <span>Alert Headline / Title</span>
-                  <span className="text-rose-500">*</span>
+                  <span style={{ color: 'var(--dm-danger, #9c4033)' }}>*</span>
                 </label>
                 <input
                   type="text"
@@ -338,17 +369,27 @@ export function SecurityAlertsTab() {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="e.g. Critical Safety Alert: Panic alarm · Pool deck"
-                  className="w-full p-2.5 rounded-xl border border-[var(--dm-line)] bg-white text-[var(--dm-ink)] font-medium"
+                  className="w-full p-2.5 rounded-xl font-medium"
+                  style={{
+                    background: 'var(--dm-surface)',
+                    color: 'var(--dm-ink)',
+                    border: '1px solid var(--dm-line)',
+                  }}
                 />
               </div>
 
               {/* Severity / Priority */}
               <div className="space-y-1.5">
-                <label className="font-bold text-[var(--dm-ink)]">Alert Severity Level</label>
+                <label className="font-bold" style={{ color: 'var(--dm-ink)' }}>Alert Severity Level</label>
                 <select
                   value={priority}
                   onChange={(e) => setPriority(e.target.value as SafetyAlertRecord['priority'])}
-                  className="w-full p-2.5 rounded-xl border border-[var(--dm-line)] bg-white text-[var(--dm-ink)] font-medium"
+                  className="w-full p-2.5 rounded-xl font-medium cursor-pointer"
+                  style={{
+                    background: 'var(--dm-surface)',
+                    color: 'var(--dm-ink)',
+                    border: '1px solid var(--dm-line)',
+                  }}
                 >
                   <option value="critical">🔴 Critical (Immediate Life-Safety Hazard)</option>
                   <option value="urgent">🟠 Urgent (High Operational Hazard)</option>
@@ -358,11 +399,16 @@ export function SecurityAlertsTab() {
 
               {/* Category */}
               <div className="space-y-1.5">
-                <label className="font-bold text-[var(--dm-ink)]">Incident Category</label>
+                <label className="font-bold" style={{ color: 'var(--dm-ink)' }}>Incident Category</label>
                 <select
                   value={incidentType}
                   onChange={(e) => setIncidentType(e.target.value as SafetyAlertRecord['incidentType'])}
-                  className="w-full p-2.5 rounded-xl border border-[var(--dm-line)] bg-white text-[var(--dm-ink)] font-medium"
+                  className="w-full p-2.5 rounded-xl font-medium cursor-pointer"
+                  style={{
+                    background: 'var(--dm-surface)',
+                    color: 'var(--dm-ink)',
+                    border: '1px solid var(--dm-line)',
+                  }}
                 >
                   <option value="life_safety">Life Safety / Medical Emergency</option>
                   <option value="fire_sensor">Fire Alarm / Smoke Sensor</option>
@@ -374,10 +420,10 @@ export function SecurityAlertsTab() {
 
               {/* Location */}
               <div className="space-y-1.5">
-                <label className="font-bold text-[var(--dm-ink)] flex items-center gap-1">
-                  <MapPin size={13} className="text-sky-600" />
+                <label className="font-bold flex items-center gap-1" style={{ color: 'var(--dm-ink)' }}>
+                  <MapPin size={13} style={{ color: 'var(--dm-muted)' }} />
                   <span>Location / Impacted Zone</span>
-                  <span className="text-rose-500">*</span>
+                  <span style={{ color: 'var(--dm-danger, #9c4033)' }}>*</span>
                 </label>
                 <input
                   type="text"
@@ -385,20 +431,30 @@ export function SecurityAlertsTab() {
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   placeholder="e.g. Pool Deck & Cabanas (West Wing), Level 1"
-                  className="w-full p-2.5 rounded-xl border border-[var(--dm-line)] bg-white text-[var(--dm-ink)] font-medium"
+                  className="w-full p-2.5 rounded-xl font-medium"
+                  style={{
+                    background: 'var(--dm-surface)',
+                    color: 'var(--dm-ink)',
+                    border: '1px solid var(--dm-line)',
+                  }}
                 />
               </div>
 
               {/* Broadcast Audience Scope */}
               <div className="space-y-1.5">
-                <label className="font-bold text-[var(--dm-ink)] flex items-center gap-1">
-                  <Users size={13} className="text-indigo-600" />
+                <label className="font-bold flex items-center gap-1" style={{ color: 'var(--dm-ink)' }}>
+                  <Users size={13} style={{ color: 'var(--dm-muted)' }} />
                   <span>Broadcast Audience Scope</span>
                 </label>
                 <select
                   value={broadcastScope}
                   onChange={(e) => setBroadcastScope(e.target.value as SafetyAlertRecord['broadcastScope'])}
-                  className="w-full p-2.5 rounded-xl border border-[var(--dm-line)] bg-white text-[var(--dm-ink)] font-medium"
+                  className="w-full p-2.5 rounded-xl font-medium cursor-pointer"
+                  style={{
+                    background: 'var(--dm-surface)',
+                    color: 'var(--dm-ink)',
+                    border: '1px solid var(--dm-line)',
+                  }}
                 >
                   <option value="hotel_wide">Property-Wide (All Guests &amp; Staff Consoles)</option>
                   <option value="all_staff">All Hotel Operations Staff (Front Desk, Housekeeping, Dispatch, Security)</option>
@@ -408,10 +464,10 @@ export function SecurityAlertsTab() {
 
               {/* Description & Directives */}
               <div className="space-y-1.5 md:col-span-2">
-                <label className="font-bold text-[var(--dm-ink)] flex items-center gap-1">
-                  <FileText size={13} className="text-amber-600" />
+                <label className="font-bold flex items-center gap-1" style={{ color: 'var(--dm-ink)' }}>
+                  <FileText size={13} style={{ color: 'var(--dm-muted)' }} />
                   <span>Incident Information, Field Observations &amp; Directives</span>
-                  <span className="text-rose-500">*</span>
+                  <span style={{ color: 'var(--dm-danger, #9c4033)' }}>*</span>
                 </label>
                 <textarea
                   required
@@ -419,22 +475,33 @@ export function SecurityAlertsTab() {
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Describe incident status, immediate actions taken, and instructions for staff/guests..."
-                  className="w-full p-3 rounded-xl border border-[var(--dm-line)] bg-white text-[var(--dm-ink)] font-medium leading-relaxed"
+                  className="w-full p-3 rounded-xl font-medium leading-relaxed"
+                  style={{
+                    background: 'var(--dm-surface)',
+                    color: 'var(--dm-ink)',
+                    border: '1px solid var(--dm-line)',
+                  }}
                 />
               </div>
             </div>
 
             {/* Step 3: PICTURE ATTACHMENT SECTION (User Requested Feature) */}
-            <div className="p-4 rounded-xl bg-[var(--dm-surface)] border border-[var(--dm-line)] space-y-3">
+            <div
+              className="p-4 rounded-xl space-y-3"
+              style={{ background: 'var(--warm-soft)', border: '1px solid var(--dm-line)' }}
+            >
               <div className="flex items-center justify-between">
-                <label className="font-bold text-xs text-[var(--dm-ink)] flex items-center gap-2">
-                  <Camera size={16} className="text-rose-600" />
+                <label className="font-bold text-xs flex items-center gap-2" style={{ color: 'var(--dm-ink)' }}>
+                  <Camera size={16} style={{ color: 'var(--dm-danger, #9c4033)' }} />
                   <span>Incident Picture / Visual Evidence:</span>
-                  <span className="text-[11px] font-normal text-rose-600">(Recommended)</span>
+                  <span className="text-[11px] font-normal" style={{ color: 'var(--dm-muted)' }}>(Recommended)</span>
                 </label>
                 {attachedPhotoUrl && (
-                  <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
-                    <CheckCircle2 size={12} /> 1 Picture Attached
+                  <span
+                    className="text-[11px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1"
+                    style={{ background: 'var(--dm-surface)', border: '1px solid var(--dm-line)', color: 'var(--dm-ink)' }}
+                  >
+                    <CheckCircle2 size={12} className="text-emerald-700" /> 1 Picture Attached
                   </span>
                 )}
               </div>
@@ -451,10 +518,14 @@ export function SecurityAlertsTab() {
 
               {attachedPhotoUrl ? (
                 /* Picture Preview Card */
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-3 rounded-xl bg-white border border-[var(--dm-line)] shadow-sm">
+                <div
+                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-3 rounded-xl shadow-sm"
+                  style={{ background: 'var(--dm-paper)', border: '1px solid var(--dm-line)' }}
+                >
                   <div className="flex items-center gap-3">
                     <div
-                      className="relative w-20 h-16 rounded-lg overflow-hidden border border-[var(--dm-line)] group cursor-pointer shrink-0 shadow-sm"
+                      className="relative w-20 h-16 rounded-lg overflow-hidden group cursor-pointer shrink-0 shadow-sm"
+                      style={{ border: '1px solid var(--dm-line)' }}
                       onClick={() =>
                         setLightboxPhoto({
                           url: attachedPhotoUrl,
@@ -468,15 +539,15 @@ export function SecurityAlertsTab() {
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                       />
                       <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <ZoomIn size={16} className="text-white" />
+                        <ZoomIn size={16} style={{ color: '#ffffff' }} />
                       </div>
                     </div>
 
                     <div>
-                      <strong className="text-xs text-[var(--dm-ink)] block font-semibold">
+                      <strong className="text-xs block font-semibold" style={{ color: 'var(--dm-ink)' }}>
                         Scene Visual Evidence Attached
                       </strong>
-                      <span className="text-[11px] text-[var(--dm-muted)]">
+                      <span className="text-[11px]" style={{ color: 'var(--dm-muted)' }}>
                         Click thumbnail to inspect full-size photo
                       </span>
                     </div>
@@ -507,7 +578,8 @@ export function SecurityAlertsTab() {
                     <button
                       type="button"
                       onClick={() => setAttachedPhotoUrl(null)}
-                      className="dm-small-button text-rose-600 hover:text-rose-700 hover:bg-rose-50 flex items-center gap-1 text-xs"
+                      className="dm-small-button flex items-center gap-1 text-xs"
+                      style={{ color: 'var(--dm-danger, #9c4033)' }}
                       title="Remove picture"
                     >
                       <Trash2 size={13} />
@@ -519,15 +591,22 @@ export function SecurityAlertsTab() {
                 /* No Picture: Upload Box */
                 <div
                   onClick={() => fileInputRef.current?.click()}
-                  className="cursor-pointer p-6 rounded-xl border-2 border-dashed border-[var(--dm-line)] hover:border-rose-400 bg-white/70 hover:bg-white text-center transition-all group"
+                  className="cursor-pointer p-6 rounded-xl border-2 border-dashed text-center transition-all group"
+                  style={{
+                    background: 'var(--dm-paper)',
+                    borderColor: 'var(--dm-line)',
+                  }}
                 >
-                  <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-600 mx-auto flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                  <div
+                    className="w-10 h-10 rounded-full mx-auto flex items-center justify-center mb-2 group-hover:scale-110 transition-transform"
+                    style={{ background: 'var(--dm-surface)', color: 'var(--dm-danger, #9c4033)' }}
+                  >
                     <Camera size={20} />
                   </div>
-                  <strong className="text-xs font-semibold text-[var(--dm-ink)] block">
+                  <strong className="text-xs font-semibold block" style={{ color: 'var(--dm-ink)' }}>
                     Upload or Capture Incident Photo
                   </strong>
-                  <p className="text-[11px] text-[var(--dm-muted)] mt-0.5">
+                  <p className="text-[11px] mt-0.5" style={{ color: 'var(--dm-muted)' }}>
                     Click to select JPG/PNG from device or snap a photo of the incident area
                   </p>
                 </div>
@@ -535,9 +614,12 @@ export function SecurityAlertsTab() {
             </div>
 
             {/* Broadcast Notice & Submission */}
-            <div className="pt-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-t border-[var(--dm-line)]">
-              <span className="text-[11px] text-[var(--dm-muted)] flex items-center gap-1">
-                <Radio size={13} className="text-rose-600 shrink-0" />
+            <div
+              className="pt-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+              style={{ borderTop: '1px solid var(--dm-line)' }}
+            >
+              <span className="text-[11px] flex items-center gap-1" style={{ color: 'var(--dm-muted)' }}>
+                <Radio size={13} style={{ color: 'var(--dm-danger, #9c4033)' }} className="shrink-0" />
                 <span>Alert triggers Front Desk triage and General Manager broadcast sign-off.</span>
               </span>
 
@@ -545,13 +627,13 @@ export function SecurityAlertsTab() {
                 <button
                   type="button"
                   onClick={() => handleIncidentSelect(selectedIncidentId)}
-                  className="dm-secondary text-xs px-3 py-2 rounded-xl"
+                  className="dm-secondary text-xs px-3 py-2 rounded-xl cursor-pointer"
                 >
                   Reset Form
                 </button>
                 <button
                   type="submit"
-                  className="dm-primary text-xs px-5 py-2.5 rounded-xl font-bold flex items-center gap-1.5 shadow-md bg-rose-700 hover:bg-rose-800 border-rose-700 text-white cursor-pointer"
+                  className="dm-primary text-xs px-5 py-2.5 rounded-xl font-bold flex items-center gap-1.5 shadow-md cursor-pointer"
                 >
                   <Send size={14} />
                   <span>Send &amp; Broadcast Safety Alert</span>
@@ -563,14 +645,14 @@ export function SecurityAlertsTab() {
       )}
 
       {/* ================= 3. ACTIVE & SENT SAFETY ALERTS FEED ================= */}
-      <section className="dm-panel">
+      <section className="dm-panel" style={{ background: 'var(--dm-paper)', borderColor: 'var(--dm-line)' }}>
         <div className="dm-panel-heading">
           <div>
-            <h3 className="text-sm font-bold text-[var(--dm-ink)] flex items-center gap-2">
-              <Radio size={16} className="text-rose-600" />
+            <h3 className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--dm-ink)' }}>
+              <Radio size={16} style={{ color: 'var(--dm-danger, #9c4033)' }} />
               <span>Safety Alerts Log &amp; Broadcast Feed ({alerts.length})</span>
             </h3>
-            <p className="text-xs text-[var(--dm-muted)]">
+            <p className="text-xs" style={{ color: 'var(--dm-muted)' }}>
               Real-time property safety alerts, active guest announcements, and operational stand-downs.
             </p>
           </div>
@@ -579,41 +661,49 @@ export function SecurityAlertsTab() {
           <div className="flex items-center gap-1.5 text-xs">
             <button
               onClick={() => setFilterType('all')}
-              className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition ${
-                filterType === 'all'
-                  ? 'bg-[var(--dm-ink)] text-white shadow-sm'
-                  : 'bg-[var(--dm-surface)] border border-[var(--dm-line)] text-[var(--dm-ink)] hover:bg-white'
-              }`}
+              className="dm-small-button text-xs cursor-pointer"
+              style={{
+                background: filterType === 'all' ? 'var(--dm-surface)' : 'transparent',
+                fontWeight: filterType === 'all' ? '700' : '500',
+                color: 'var(--dm-ink)',
+                borderColor: filterType === 'all' ? 'var(--dm-line)' : 'transparent',
+              }}
             >
               All ({alerts.length})
             </button>
             <button
               onClick={() => setFilterType('broadcast_active')}
-              className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition ${
-                filterType === 'broadcast_active'
-                  ? 'bg-rose-600 text-white shadow-sm'
-                  : 'bg-[var(--dm-surface)] border border-[var(--dm-line)] text-[var(--dm-ink)] hover:bg-white'
-              }`}
+              className="dm-small-button text-xs cursor-pointer"
+              style={{
+                background: filterType === 'broadcast_active' ? 'var(--dm-surface)' : 'transparent',
+                fontWeight: filterType === 'broadcast_active' ? '700' : '500',
+                color: 'var(--dm-ink)',
+                borderColor: filterType === 'broadcast_active' ? 'var(--dm-line)' : 'transparent',
+              }}
             >
               Active Broadcasts ({activeBroadcastCount})
             </button>
             <button
               onClick={() => setFilterType('pending')}
-              className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition ${
-                filterType === 'pending'
-                  ? 'bg-amber-600 text-white shadow-sm'
-                  : 'bg-[var(--dm-surface)] border border-[var(--dm-line)] text-[var(--dm-ink)] hover:bg-white'
-              }`}
+              className="dm-small-button text-xs cursor-pointer"
+              style={{
+                background: filterType === 'pending' ? 'var(--dm-surface)' : 'transparent',
+                fontWeight: filterType === 'pending' ? '700' : '500',
+                color: 'var(--dm-ink)',
+                borderColor: filterType === 'pending' ? 'var(--dm-line)' : 'transparent',
+              }}
             >
               Pending Approval ({pendingCount})
             </button>
             <button
               onClick={() => setFilterType('resolved')}
-              className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition ${
-                filterType === 'resolved'
-                  ? 'bg-emerald-700 text-white shadow-sm'
-                  : 'bg-[var(--dm-surface)] border border-[var(--dm-line)] text-[var(--dm-ink)] hover:bg-white'
-              }`}
+              className="dm-small-button text-xs cursor-pointer"
+              style={{
+                background: filterType === 'resolved' ? 'var(--dm-surface)' : 'transparent',
+                fontWeight: filterType === 'resolved' ? '700' : '500',
+                color: 'var(--dm-ink)',
+                borderColor: filterType === 'resolved' ? 'var(--dm-line)' : 'transparent',
+              }}
             >
               Resolved / Stood Down
             </button>
@@ -623,7 +713,10 @@ export function SecurityAlertsTab() {
         {/* Alerts Cards List */}
         <div className="p-5 space-y-4">
           {filteredAlerts.length === 0 ? (
-            <div className="p-8 text-center rounded-2xl border border-dashed border-[var(--dm-line)] text-xs text-[var(--dm-muted)]">
+            <div
+              className="p-8 text-center rounded-2xl border border-dashed text-xs"
+              style={{ borderColor: 'var(--dm-line)', color: 'var(--dm-muted)' }}
+            >
               No safety alerts found matching the selected filter.
             </div>
           ) : (
@@ -634,40 +727,64 @@ export function SecurityAlertsTab() {
               return (
                 <div
                   key={alert.id}
-                  className={`p-5 rounded-2xl border transition-all space-y-4 bg-white ${
-                    isBroadcast
-                      ? 'border-rose-400 bg-rose-50/20 shadow-md ring-1 ring-rose-300'
-                      : 'border-[var(--dm-line)] shadow-sm'
-                  }`}
+                  className="p-5 rounded-2xl transition-all space-y-4 shadow-sm"
+                  style={{
+                    background: isBroadcast ? 'var(--warm-soft)' : 'var(--dm-paper)',
+                    border: isBroadcast ? '1.5px solid var(--dm-danger, #9c4033)' : '1px solid var(--dm-line)',
+                    color: 'var(--dm-ink)',
+                  }}
                 >
                   {/* Card Header */}
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
                         {statusBadge(alert.status)}
-                        <span className="font-mono text-xs font-bold text-[var(--dm-muted)] bg-[var(--dm-surface)] px-2 py-0.5 rounded border border-[var(--dm-line)]">
+                        <span
+                          className="font-mono text-xs font-bold px-2 py-0.5 rounded"
+                          style={{
+                            background: 'var(--dm-surface)',
+                            border: '1px solid var(--dm-line)',
+                            color: 'var(--dm-ink)',
+                          }}
+                        >
                           {alert.ref}
                         </span>
-                        <span className="text-[11px] text-[var(--dm-muted)]">
-                          Reported by <strong className="text-[var(--dm-ink)]">{alert.reportedBy}</strong> · {alert.reportedAt}
+                        <span className="text-[11px]" style={{ color: 'var(--dm-muted)' }}>
+                          Reported by <strong style={{ color: 'var(--dm-ink)' }}>{alert.reportedBy}</strong> · {alert.reportedAt}
                         </span>
                       </div>
-                      <h4 className="text-sm font-bold text-[var(--dm-ink)]">{alert.title}</h4>
+                      <h4 className="text-sm font-bold" style={{ color: 'var(--dm-ink)' }}>{alert.title}</h4>
                     </div>
 
                     <div className="flex items-center gap-2">
                       <span
-                        className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${
-                          alert.priority === 'critical'
-                            ? 'bg-rose-100 text-rose-800 border border-rose-200'
-                            : alert.priority === 'urgent'
-                            ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                            : 'bg-sky-100 text-sky-800 border border-sky-200'
-                        }`}
+                        className="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider"
+                        style={{
+                          background:
+                            alert.priority === 'critical'
+                              ? 'rgba(156, 64, 51, 0.12)'
+                              : alert.priority === 'urgent'
+                              ? 'rgba(128, 87, 30, 0.14)'
+                              : 'var(--dm-surface)',
+                          color:
+                            alert.priority === 'critical'
+                              ? 'var(--dm-danger, #9c4033)'
+                              : alert.priority === 'urgent'
+                              ? 'var(--dm-warning, #80571e)'
+                              : 'var(--dm-ink)',
+                          border: '1px solid var(--dm-line)',
+                        }}
                       >
                         {alert.priority}
                       </span>
-                      <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-[var(--dm-surface)] border border-[var(--dm-line)] text-[var(--dm-ink)]">
+                      <span
+                        className="text-[10px] font-bold px-2.5 py-1 rounded-full"
+                        style={{
+                          background: 'var(--dm-surface)',
+                          border: '1px solid var(--dm-line)',
+                          color: 'var(--dm-ink)',
+                        }}
+                      >
                         {alert.broadcastScope === 'hotel_wide'
                           ? 'Property-Wide'
                           : alert.broadcastScope === 'all_staff'
@@ -678,14 +795,18 @@ export function SecurityAlertsTab() {
                   </div>
 
                   {/* Body: Description */}
-                  <p className="text-xs text-[var(--dm-ink)] leading-relaxed">{alert.description}</p>
+                  <p className="text-xs leading-relaxed" style={{ color: 'var(--dm-ink)' }}>{alert.description}</p>
 
                   {/* Visual Evidence / Photo if attached */}
                   {alert.photoUrl && (
-                    <div className="p-3 rounded-xl bg-[var(--dm-surface)] border border-[var(--dm-line)] flex items-center justify-between gap-3">
+                    <div
+                      className="p-3 rounded-xl flex items-center justify-between gap-3 shadow-sm"
+                      style={{ background: 'var(--dm-surface)', border: '1px solid var(--dm-line)' }}
+                    >
                       <div className="flex items-center gap-3">
                         <div
-                          className="relative w-16 h-12 rounded-lg overflow-hidden border border-[var(--dm-line)] cursor-pointer group shadow-sm shrink-0"
+                          className="relative w-16 h-12 rounded-lg overflow-hidden cursor-pointer group shadow-sm shrink-0"
+                          style={{ border: '1px solid var(--dm-line)' }}
                           onClick={() =>
                             setLightboxPhoto({
                               url: alert.photoUrl!,
@@ -699,16 +820,16 @@ export function SecurityAlertsTab() {
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                           />
                           <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <ZoomIn size={14} className="text-white" />
+                            <ZoomIn size={14} style={{ color: '#ffffff' }} />
                           </div>
                         </div>
 
                         <div>
-                          <strong className="text-xs text-[var(--dm-ink)] block font-semibold flex items-center gap-1.5">
-                            <Camera size={13} className="text-rose-600" />
+                          <strong className="text-xs block font-semibold flex items-center gap-1.5" style={{ color: 'var(--dm-ink)' }}>
+                            <Camera size={13} style={{ color: 'var(--dm-danger, #9c4033)' }} />
                             <span>Incident Photo Evidence</span>
                           </strong>
-                          <span className="text-[11px] text-[var(--dm-muted)]">
+                          <span className="text-[11px]" style={{ color: 'var(--dm-muted)' }}>
                             Captured by Security Responder
                           </span>
                         </div>
@@ -722,7 +843,7 @@ export function SecurityAlertsTab() {
                             title: `${alert.ref} • ${alert.title}`,
                           })
                         }
-                        className="dm-small-button flex items-center gap-1 text-xs shrink-0"
+                        className="dm-small-button flex items-center gap-1 text-xs shrink-0 cursor-pointer"
                       >
                         <Eye size={12} />
                         <span>View Photo</span>
@@ -731,11 +852,14 @@ export function SecurityAlertsTab() {
                   )}
 
                   {/* Location & Metadata info */}
-                  <div className="pt-2 border-t border-[var(--dm-line)] grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-[var(--dm-muted)]">
+                  <div
+                    className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs"
+                    style={{ borderTop: '1px solid var(--dm-line)', color: 'var(--dm-muted)' }}
+                  >
                     <div className="flex items-center gap-1.5 truncate">
-                      <MapPin size={14} className="text-sky-600 shrink-0" />
+                      <MapPin size={14} className="shrink-0" style={{ color: 'var(--dm-muted)' }} />
                       <span className="truncate">
-                        Zone: <strong className="text-[var(--dm-ink)]">{alert.location}</strong>
+                        Zone: <strong style={{ color: 'var(--dm-ink)' }}>{alert.location}</strong>
                       </span>
                     </div>
 
@@ -743,7 +867,8 @@ export function SecurityAlertsTab() {
                       <button
                         type="button"
                         onClick={() => setSelectedAuditAlert(alert)}
-                        className="text-[11px] font-semibold text-sky-700 hover:text-sky-800 flex items-center gap-1"
+                        className="dm-text-button text-[11px] font-semibold flex items-center gap-1 cursor-pointer"
+                        style={{ color: 'var(--dm-ink)' }}
                       >
                         <History size={12} />
                         <span>Audit Trail ({alert.auditHistory?.length ?? 0})</span>
@@ -753,10 +878,13 @@ export function SecurityAlertsTab() {
                   </div>
 
                   {/* Actions Bar */}
-                  <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-[var(--dm-line)]">
-                    <div className="text-[11px] text-[var(--dm-muted)]">
+                  <div
+                    className="pt-2 flex flex-wrap items-center justify-between gap-2"
+                    style={{ borderTop: '1px solid var(--dm-line)' }}
+                  >
+                    <div className="text-[11px]" style={{ color: 'var(--dm-muted)' }}>
                       {alert.validatedBy ? (
-                        <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                        <span className="font-semibold flex items-center gap-1 text-emerald-800">
                           <CheckCircle2 size={12} /> Validated by Front Desk ({alert.validatedBy})
                         </span>
                       ) : (
@@ -769,7 +897,7 @@ export function SecurityAlertsTab() {
                         <button
                           type="button"
                           onClick={() => acknowledgeSafetyAlert(alert.id, 'security_responder')}
-                          className="dm-primary text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 font-semibold"
+                          className="dm-primary text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 font-semibold cursor-pointer"
                         >
                           <CheckCheck size={14} />
                           <span>Acknowledge</span>
@@ -782,7 +910,8 @@ export function SecurityAlertsTab() {
                           onClick={() =>
                             resolveSafetyAlert(alert.id, 'Stand down ordered by Senior Officer Roy')
                           }
-                          className="dm-secondary text-xs px-3 py-1.5 rounded-lg text-rose-700 hover:bg-rose-50"
+                          className="dm-secondary text-xs px-3 py-1.5 rounded-lg cursor-pointer"
+                          style={{ color: 'var(--dm-danger, #9c4033)' }}
                         >
                           Stand Down / Clear
                         </button>
@@ -799,27 +928,32 @@ export function SecurityAlertsTab() {
       {/* ================= 4. ENLARGED PHOTO LIGHTBOX MODAL ================= */}
       {lightboxPhoto && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-150"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-150"
+          style={{ background: 'rgba(27, 25, 24, 0.75)' }}
           onClick={() => setLightboxPhoto(null)}
         >
           <div
-            className="relative max-w-3xl w-full max-h-[90vh] bg-stone-900 rounded-2xl overflow-hidden shadow-2xl p-2 border border-white/10"
+            className="relative max-w-3xl w-full max-h-[90vh] rounded-2xl overflow-hidden shadow-2xl p-3"
+            style={{ background: 'var(--dm-paper)', border: '1px solid var(--dm-line)' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-3 text-white flex items-center justify-between border-b border-white/10 text-xs">
-              <span className="font-semibold text-rose-400 flex items-center gap-1.5 truncate">
-                <Camera size={14} /> {lightboxPhoto.title}
+            <div
+              className="p-3 flex items-center justify-between text-xs"
+              style={{ borderBottom: '1px solid var(--dm-line)', color: 'var(--dm-ink)' }}
+            >
+              <span className="font-semibold flex items-center gap-1.5 truncate" style={{ color: 'var(--dm-ink)' }}>
+                <Camera size={14} style={{ color: 'var(--dm-danger, #9c4033)' }} /> {lightboxPhoto.title}
               </span>
               <button
                 type="button"
                 onClick={() => setLightboxPhoto(null)}
-                className="px-2.5 py-1 rounded-lg bg-white/20 hover:bg-white/30 text-white font-medium cursor-pointer"
+                className="dm-secondary text-xs px-2.5 py-1 rounded-lg font-medium cursor-pointer"
               >
                 Close
               </button>
             </div>
 
-            <div className="p-2 flex items-center justify-center bg-black/50">
+            <div className="p-2 flex items-center justify-center" style={{ background: 'var(--dm-surface)' }}>
               <img
                 src={lightboxPhoto.url}
                 alt="Enlarged incident evidence"
@@ -833,22 +967,28 @@ export function SecurityAlertsTab() {
       {/* ================= 5. AUDIT TRAIL MODAL ================= */}
       {selectedAuditAlert && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in"
+          style={{ background: 'rgba(27, 25, 24, 0.5)' }}
           onClick={() => setSelectedAuditAlert(null)}
         >
           <div
-            className="relative w-full max-w-md rounded-2xl bg-white border border-[var(--dm-line)] p-5 shadow-2xl space-y-4"
+            className="relative w-full max-w-md rounded-2xl p-5 shadow-2xl space-y-4"
+            style={{ background: 'var(--dm-paper)', border: '1px solid var(--dm-line)' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-[var(--dm-line)] pb-3">
-              <h3 className="text-sm font-bold text-[var(--dm-ink)] flex items-center gap-2">
-                <History size={16} className="text-sky-600" />
+            <div
+              className="flex items-center justify-between pb-3"
+              style={{ borderBottom: '1px solid var(--dm-line)' }}
+            >
+              <h3 className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--dm-ink)' }}>
+                <History size={16} />
                 <span>Audit History: {selectedAuditAlert.ref}</span>
               </h3>
               <button
                 type="button"
                 onClick={() => setSelectedAuditAlert(null)}
-                className="text-[var(--dm-muted)] hover:text-[var(--dm-ink)]"
+                className="cursor-pointer"
+                style={{ color: 'var(--dm-muted)' }}
               >
                 <X size={16} />
               </button>
@@ -856,14 +996,21 @@ export function SecurityAlertsTab() {
 
             <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
               {selectedAuditAlert.auditHistory?.map((step, idx) => (
-                <div key={idx} className="p-3 rounded-xl bg-[var(--dm-surface)] border border-[var(--dm-line)] text-xs space-y-1">
+                <div
+                  key={idx}
+                  className="p-3 rounded-xl text-xs space-y-1"
+                  style={{ background: 'var(--warm-soft)', border: '1px solid var(--dm-line)' }}
+                >
                   <div className="flex items-center justify-between">
-                    <strong className="text-[var(--dm-ink)]">{step.actor}</strong>
-                    <span className="text-[10px] text-[var(--dm-muted)]">{step.at}</span>
+                    <strong style={{ color: 'var(--dm-ink)' }}>{step.actor}</strong>
+                    <span className="text-[10px]" style={{ color: 'var(--dm-muted)' }}>{step.at}</span>
                   </div>
-                  <p className="text-[var(--dm-ink)] text-[11px]">{step.action}</p>
+                  <p className="text-[11px]" style={{ color: 'var(--dm-ink)' }}>{step.action}</p>
                   {step.notes && (
-                    <p className="text-amber-800 text-[10px] italic bg-amber-50 p-1.5 rounded border border-amber-200">
+                    <p
+                      className="text-[10px] italic p-1.5 rounded"
+                      style={{ background: 'var(--dm-surface)', color: 'var(--dm-ink)', border: '1px solid var(--dm-line)' }}
+                    >
                       &ldquo;{step.notes}&rdquo;
                     </p>
                   )}
@@ -871,11 +1018,11 @@ export function SecurityAlertsTab() {
               ))}
             </div>
 
-            <div className="pt-2 border-t border-[var(--dm-line)] flex justify-end">
+            <div className="pt-2 flex justify-end" style={{ borderTop: '1px solid var(--dm-line)' }}>
               <button
                 type="button"
                 onClick={() => setSelectedAuditAlert(null)}
-                className="dm-secondary text-xs px-4 py-2 rounded-xl"
+                className="dm-secondary text-xs px-4 py-2 rounded-xl cursor-pointer"
               >
                 Close
               </button>
