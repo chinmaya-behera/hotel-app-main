@@ -1,7 +1,7 @@
-import { nextOperationalReference } from './operational-references.ts';
+import { nextOperationalReference } from './operational-references';
 import type { DemoState, WorkItem, SupervisorInspection } from '../types/demo';
-import { applyManagerWorkflow, type WorkflowCommand } from './manager-workflows.ts';
-import { applyScheduleCommand, type ScheduleCommand } from './manager-scheduling.ts';
+import { applyManagerWorkflow, type WorkflowCommand } from './manager-workflows';
+import { applyScheduleCommand, type ScheduleCommand } from './manager-scheduling';
 
 export const MANAGER_DEPARTMENTS = [
   { id: 'housekeeping', name: 'Housekeeping', person: 'Ananya Rao', email: 'housekeeping.manager@thegrandadp.com', focus: 'Room readiness, spotless spaces and thoughtful guest care.', standard: 'Verify linen, amenities, sanitation and room presentation.' },

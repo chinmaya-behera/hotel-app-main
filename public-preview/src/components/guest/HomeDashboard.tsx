@@ -31,6 +31,7 @@ import { useEmergencyBroadcast } from '@/lib/emergencyBroadcast';
 import { cn } from '@/lib/utils';
 import { GuestSheet } from '@/components/guest/guestUi';
 import type { GuestTabProps } from '@/components/guest/types';
+import { GuestAlarmTimePicker } from './GuestAlarmTimePicker';
 
 interface PendingTimelineItem {
   id: string;
@@ -128,6 +129,7 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
 
   const [reminderSheetOpen, setReminderSheetOpen] = useState(false);
   const [remTitle, setRemTitle] = useState('Wake-up Call');
+  const [remCustomDesc, setRemCustomDesc] = useState('');
   const [remTime, setRemTime] = useState('07:00 AM');
   const [remNotes, setRemNotes] = useState('Please ring room telephone twice');
 
@@ -169,18 +171,31 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
 
   function handleSendReminder(e: React.FormEvent) {
     e.preventDefault();
+    if (remTitle === 'Others' && !remCustomDesc.trim()) {
+      showToast('Please provide a description for the reminder.');
+      return;
+    }
+
+    const finalTitle = remTitle === 'Others' ? (remCustomDesc.trim() || 'Custom Reminder') : remTitle;
+    const finalDetails = remTitle === 'Others'
+      ? `${remCustomDesc.trim()} — scheduled for ${remTime}.${remNotes ? ` Note: ${remNotes}` : ''}`
+      : `${remTitle} scheduled for ${remTime}.${remNotes ? ` Note: ${remNotes}` : ''}`;
+
     createGuestReminder({
       guestName,
       room,
-      title: remTitle,
-      text: `${remTitle} scheduled for ${remTime}. ${remNotes}`,
+      title: finalTitle,
+      text: finalDetails,
       dueDateTime: `Tomorrow, ${remTime}`,
+      dueDate: 'Tomorrow',
+      dueTime: remTime,
       priority: 'normal',
       assignedTo: 'Front Desk Coordinator',
-      specialInstructions: remNotes,
+      specialInstructions: remNotes || undefined,
     });
     setReminderSheetOpen(false);
-    showToast(`Reminder set for ${remTime}`);
+    setRemCustomDesc('');
+    showToast(`Reminder "${finalTitle}" set for ${remTime}`);
   }
 
   // Deduplicate work items
@@ -995,7 +1010,8 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
               <button
                 type="button"
                 onClick={handleSendReminder}
-                className="flex-2 py-2.5 px-3 rounded-xl bg-amber-400 text-ink-950 text-xs font-bold hover:bg-amber-300 shadow-md flex items-center justify-center gap-1.5"
+                disabled={remTitle === 'Others' && !remCustomDesc.trim()}
+                className="flex-2 py-2.5 px-3 rounded-xl bg-amber-400 text-ink-950 text-xs font-bold hover:bg-amber-300 shadow-md flex items-center justify-center gap-1.5 disabled:opacity-40"
               >
                 <Clock className="h-3.5 w-3.5" />
                 <span>Set Reminder</span>
@@ -1026,41 +1042,39 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
                 <option value="Checkout Reminder" className="bg-ink-900 text-white">
                   Checkout Reminder
                 </option>
+                <option value="Others" className="bg-ink-900 text-white">
+                  Others
+                </option>
               </select>
             </div>
 
+            {/* Custom Reminder Description (Mandatory for Others) */}
+            {remTitle === 'Others' && (
+              <div className="space-y-1 animate-in fade-in duration-150">
+                <label htmlFor="qrem-custom-desc" className="text-mist-300 font-semibold block">
+                  Custom Reminder Description *
+                </label>
+                <input
+                  id="qrem-custom-desc"
+                  type="text"
+                  required
+                  value={remCustomDesc}
+                  onChange={(e) => setRemCustomDesc(e.target.value)}
+                  placeholder="e.g. Call for medication reminder, verify taxi arrived..."
+                  className="guest-field w-full px-3 py-2 text-xs text-white"
+                />
+              </div>
+            )}
+
+            {/* Customised Alarm-Style Time Picker */}
             <div className="space-y-1">
-              <label htmlFor="qrem-time" className="text-mist-300 font-semibold block">
-                Time
-              </label>
-              <select
-                id="qrem-time"
+              <GuestAlarmTimePicker
+                id="qrem-time-alarm"
+                label="Time"
                 value={remTime}
-                onChange={(e) => setRemTime(e.target.value)}
-                className="guest-field w-full px-3 py-2 text-xs text-white"
-              >
-                <option value="06:00 AM" className="bg-ink-900 text-white">
-                  06:00 AM
-                </option>
-                <option value="06:30 AM" className="bg-ink-900 text-white">
-                  06:30 AM
-                </option>
-                <option value="07:00 AM" className="bg-ink-900 text-white">
-                  07:00 AM
-                </option>
-                <option value="07:30 AM" className="bg-ink-900 text-white">
-                  07:30 AM
-                </option>
-                <option value="08:00 AM" className="bg-ink-900 text-white">
-                  08:00 AM
-                </option>
-                <option value="09:00 AM" className="bg-ink-900 text-white">
-                  09:00 AM
-                </option>
-                <option value="10:30 AM (Pre-Checkout)" className="bg-ink-900 text-white">
-                  10:30 AM (Pre-Checkout)
-                </option>
-              </select>
+                onChange={setRemTime}
+                showImmediately={false}
+              />
             </div>
 
             <div className="space-y-1">
@@ -1072,7 +1086,7 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
                 type="text"
                 value={remNotes}
                 onChange={(e) => setRemNotes(e.target.value)}
-                placeholder="e.g. Ring room phone twice"
+                placeholder="e.g. Please ring room telephone twice"
                 className="guest-field w-full px-3 py-2 text-xs text-white"
               />
             </div>

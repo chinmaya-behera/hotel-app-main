@@ -201,6 +201,7 @@ export interface GuestRequestInput {
   photoUrl?: string;
   chip?: string;
   tone?: WorkItem['tone'];
+  amount?: number;
   /** optional immediate charge posted to the room folio (e.g. a spa booking) */
   folioCharge?: { label: string; amount: number };
   /** override the default simulated status timeline */
@@ -586,7 +587,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       if (raw) {
         const saved = JSON.parse(raw) as Partial<DemoState>;
         const base = seedState(false);
-        setStoredState(initialiseDepartmentHistory(migrateOperationalReferences(ensureManagerState({
+        const mergedState: DemoState = {
           departmentRecordHistory: saved.departmentRecordHistory,
           departmentServiceTargets: saved.departmentServiceTargets,
           managerDepartment: saved.managerDepartment,
@@ -711,7 +712,17 @@ export function DemoProvider({ children }: { children: ReactNode }) {
             )),
           ],
           safetyAlerts: saved.safetyAlerts ?? base.safetyAlerts,
-          diningMenu: saved.diningMenu ?? base.diningMenu,
+          diningMenu: saved.diningMenu
+            ? [
+                ...saved.diningMenu.map((sd) => {
+                  const baseDish = (base.diningMenu ?? []).find((b) => b.id === sd.id);
+                  return baseDish ? { ...baseDish, ...sd, image: sd.image || baseDish.image } : sd;
+                }),
+                ...((base.diningMenu ?? []).filter(
+                  (bd) => !saved.diningMenu?.some((sd) => sd.id === bd.id),
+                )),
+              ]
+            : base.diningMenu,
           diningCategories: saved.diningCategories ?? base.diningCategories,
           activeDispatcherDept: saved.activeDispatcherDept ?? base.activeDispatcherDept ?? 'Housekeeping',
           customDiningRequests: saved.customDiningRequests ?? base.customDiningRequests,
@@ -741,7 +752,11 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           dutyStatusRequests: saved.dutyStatusRequests ?? base.dutyStatusRequests,
           guestComplaints: saved.guestComplaints ?? base.guestComplaints,
           taskReassignRequests: saved.taskReassignRequests ?? base.taskReassignRequests,
-        }))));
+        };
+        const managerState = ensureManagerState(mergedState);
+        const migratedState = migrateOperationalReferences(managerState);
+        const hydratedState = initialiseDepartmentHistory(migratedState);
+        setStoredState(hydratedState);
       }
     } catch {
       /* corrupted or unavailable storage: fall back to seed data */
@@ -1017,6 +1032,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         category: input.category,
         description: input.description,
         priority: input.priority ?? 'normal',
+        amount: input.amount,
         ref,
         createdAt,
         dnd: input.dnd,
@@ -6388,7 +6404,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         } else if (action === 'reject') {
           notifs.unshift({
             id: uid(),
-            roleId: 'front_desk',
+            roleId: 'front_desk_coordinator',
             title: 'Claim Rejected by General Manager',
             message: `GM Priya Nair declined the claim for Room ${target.room} (${target.ref}): ${comments}`,
             timestamp,
@@ -6429,12 +6445,12 @@ export function DemoProvider({ children }: { children: ReactNode }) {
             title: action === 'forward_to_finance' ? 'Your financial claim was approved by GM' : 'Update on your financial claim',
             message:
               action === 'forward_to_finance'
-                ? `General Manager Priya Nair approved your ₹${target.amount.toLocaleString('en-IN')} ${target.category.toLowerCase()}. Forwarded to Finance for final settlement.`
+                ? `General Manager Priya Nair approved your ₹${target.amount.toLocaleString('en-IN')} ${target.category?.toLowerCase() || 'claim'}. Forwarded to Finance for final settlement.`
                 : `General Manager Priya Nair reviewed your claim: ${comments}`,
             date: 'Today',
             time: timestamp,
             read: false,
-            targetTab: 'services',
+            targetTab: 'services' as const,
             targetSubtab: 'compensation',
           };
           updatedGuestNotifs = [guestNote, ...(prev.guestNotifications ?? [])];

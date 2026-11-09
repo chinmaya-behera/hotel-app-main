@@ -134,7 +134,7 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
           )}
         >
           <Bell className="h-4 w-4 shrink-0" />
-          <span>Updates</span>
+          <span>All Notifications</span>
           {updatesUnreadCount > 0 && (
             <span
               className={cn(
@@ -168,7 +168,7 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
           )}
         >
           <ShieldAlert className="h-4 w-4 shrink-0" />
-          <span>Hotel & Safety Alerts</span>
+          <span>Security Alerts</span>
           {safetyUnreadCount > 0 && (
             <span
               className={cn(
@@ -212,8 +212,8 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
             )}
           >
             {mainTab === 'updates'
-              ? `All Updates (${updateNotifications.length})`
-              : `All Alerts (${allSafetyAlerts.length})`}
+              ? `All Notifications (${updateNotifications.length})`
+              : `Security Alerts (${allSafetyAlerts.length})`}
           </button>
 
           <button
@@ -322,7 +322,7 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
       {/* Activity Log Header (matching reference Image 1) */}
       <div className="flex items-center justify-between px-1 pt-0.5">
         <h3 className={cn('text-[11px] font-bold uppercase tracking-wider', isLight ? 'text-[#8b7550]' : 'text-[#dfc187]')}>
-          {mainTab === 'updates' ? 'ACTIVITY LOG' : 'SAFETY LOG'}
+          {mainTab === 'updates' ? 'ACTIVITY LOG' : 'SECURITY ALERTS LOG'}
         </h3>
         <p className={cn('text-[11px] font-mono', isLight ? 'text-[#8c8472]' : 'text-mist-400')}>
           {mainTab === 'updates' ? `${displayedUpdates.length} notifications displayed` : `${displayedSafety.length} alerts displayed`}
@@ -348,18 +348,18 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
                 : 'border-[rgba(165,130,95,0.3)] bg-white/[0.04] text-[#dfc187]',
             )}
           >
-            {mainTab === 'updates' ? <Bell className="h-6 w-6" /> : <ShieldAlert className="h-6 w-6" />}
+            {mainTab === 'updates' ? <Bell className="h-6 w-6" /> : <ShieldAlert className="h-6 w-6 text-rose-400" />}
           </div>
           <div className="space-y-1">
             <p className={cn('text-sm font-bold', isLight ? 'text-[#353229]' : 'text-[#f7f4ed]')}>
-              {mainTab === 'updates' ? 'No notifications found' : 'No safety alerts found'}
+              {mainTab === 'updates' ? 'No notifications found' : 'No security alerts found'}
             </p>
             <p className={cn('text-xs max-w-sm mx-auto leading-relaxed', isLight ? 'text-[#686252]' : 'text-[#ded6c9]')}>
               {unreadOnly
-                ? 'All notifications have been acknowledged. Turn off "Unread" to view previous activity.'
+                ? 'All alerts have been acknowledged. Turn off "Unread" to view previous activity.'
                 : mainTab === 'updates'
                   ? 'When supervisors assign tasks, dispatch updates, or update your work roster, they will appear here.'
-                  : 'Property-wide broadcasts, emergency alerts, and safety protocols will appear here.'}
+                  : 'Property-wide broadcasts, emergency alerts, and safety protocols from security will appear here.'}
             </p>
           </div>
         </div>

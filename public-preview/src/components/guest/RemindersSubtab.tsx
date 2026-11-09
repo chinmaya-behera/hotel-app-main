@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils';
 import { GuestEmptyState, GuestPill, GuestSectionHeader } from '@/components/guest/guestUi';
 import type { GuestTabProps } from '@/components/guest/types';
 import type { GuestReminder } from '@/types/demo';
+import { GuestAlarmTimePicker } from './GuestAlarmTimePicker';
 
 const QUICK_PRESETS = [
   {
@@ -61,6 +62,8 @@ export function RemindersSubtab({ room, guestName }: GuestTabProps) {
   const [filter, setFilter] = useState<'all' | 'pending' | 'completed'>('all');
 
   // Form states
+  const [reminderType, setReminderType] = useState<string>('Wake-up Call');
+  const [customDesc, setCustomDesc] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [dueDateTime, setDueDateTime] = useState('Tomorrow, 07:00 AM');
@@ -81,17 +84,20 @@ export function RemindersSubtab({ room, guestName }: GuestTabProps) {
 
   function handleCreateReminder(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (reminderType === 'Others' && !customDesc.trim()) return;
+
+    const finalTitle = reminderType === 'Others' ? customDesc.trim() : (title.trim() || reminderType);
+    if (!finalTitle.trim()) return;
 
     createGuestReminder({
       guestName,
       room,
-      title: title.trim(),
-      text: description.trim() || title.trim(),
+      title: finalTitle.trim(),
+      text: description.trim() || (reminderType === 'Others' ? customDesc.trim() : `${finalTitle} scheduled for ${dueDateTime}`),
       notes: specialInstructions.trim() || undefined,
       specialInstructions: specialInstructions.trim() || undefined,
       dueDateTime,
-      dueDate: dueDateTime.split(',')[0]?.trim() || 'Today',
+      dueDate: dueDateTime.split(',')[0]?.trim() || 'Tomorrow',
       dueTime: dueDateTime.split(',')[1]?.trim() || dueDateTime,
       status: 'pending',
       priority,
@@ -101,14 +107,16 @@ export function RemindersSubtab({ room, guestName }: GuestTabProps) {
     });
 
     setTitle('');
+    setCustomDesc('');
     setDescription('');
     setSpecialInstructions('');
     setIsModalOpen(false);
-    setSuccessToast(`Reminder "${title.trim()}" dispatched to Front Desk`);
+    setSuccessToast(`Reminder "${finalTitle.trim()}" dispatched to Front Desk`);
     setTimeout(() => setSuccessToast(null), 5000);
   }
 
   function applyPreset(p: (typeof QUICK_PRESETS)[0]) {
+    setReminderType(p.title.includes('Wake-Up') ? 'Wake-up Call' : p.title.includes('Airport') ? 'Airport Taxi Transfer' : p.title.includes('Luggage') ? 'Luggage Collection' : 'Checkout Reminder');
     setTitle(p.title);
     setDescription(p.description);
     setDueDateTime(p.dueTime);
@@ -313,47 +321,56 @@ export function RemindersSubtab({ room, guestName }: GuestTabProps) {
 
             <form onSubmit={handleCreateReminder} className="space-y-3 text-xs">
               <div>
-                <label className="block text-mist-300 font-semibold mb-1">Reminder Title *</label>
-                <input
-                  type="text"
-                  required
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. Wake-up call, Taxi arrangement, Checkout prep"
-                  className="w-full px-3 py-2 rounded-xl border border-white/10 bg-ink-950 text-white placeholder-mist-500 focus:border-amber-400 focus:outline-none"
-                />
+                <label className="block text-mist-300 font-semibold mb-1">Reminder Type</label>
+                <select
+                  value={reminderType}
+                  onChange={(e) => {
+                    setReminderType(e.target.value);
+                    if (e.target.value !== 'Others') {
+                      setTitle(e.target.value);
+                    }
+                  }}
+                  className="w-full px-3 py-2 rounded-xl border border-white/10 bg-ink-950 text-white focus:border-amber-400 focus:outline-none"
+                >
+                  <option value="Wake-up Call">Wake-up Call</option>
+                  <option value="Airport Taxi Transfer">Airport Taxi Transfer</option>
+                  <option value="Luggage Collection">Luggage Collection</option>
+                  <option value="Checkout Reminder">Checkout Reminder</option>
+                  <option value="Others">Others</option>
+                </select>
               </div>
 
+              {reminderType === 'Others' && (
+                <div className="animate-in fade-in duration-150">
+                  <label className="block text-mist-300 font-semibold mb-1">Custom Reminder Description *</label>
+                  <input
+                    type="text"
+                    required
+                    value={customDesc}
+                    onChange={(e) => setCustomDesc(e.target.value)}
+                    placeholder="Describe your reminder (e.g. Call for medication, taxi verification)..."
+                    className="w-full px-3 py-2 rounded-xl border border-white/10 bg-ink-950 text-white placeholder-mist-500 focus:border-amber-400 focus:outline-none"
+                  />
+                </div>
+              )}
+
               <div>
-                <label className="block text-mist-300 font-semibold mb-1">Date &amp; Time Window *</label>
-                <input
-                  type="text"
-                  required
+                <GuestAlarmTimePicker
+                  id="rem-alarm-time-subtab"
+                  label="Date & Time Window *"
                   value={dueDateTime}
-                  onChange={(e) => setDueDateTime(e.target.value)}
-                  placeholder="e.g. Tomorrow, 06:30 AM or 2026-10-24 14:00"
-                  className="w-full px-3 py-2 rounded-xl border border-white/10 bg-ink-950 text-white placeholder-mist-500 focus:border-amber-400 focus:outline-none"
+                  onChange={setDueDateTime}
+                  showImmediately={false}
                 />
               </div>
 
               <div>
-                <label className="block text-mist-300 font-semibold mb-1">Description / Request Details</label>
-                <textarea
-                  rows={2}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Provide context for the Front Desk team..."
-                  className="w-full px-3 py-2 rounded-xl border border-white/10 bg-ink-950 text-white placeholder-mist-500 focus:border-amber-400 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-mist-300 font-semibold mb-1">Special Instructions for Front Desk</label>
+                <label className="block text-mist-300 font-semibold mb-1">Instructions for Front Desk</label>
                 <textarea
                   rows={2}
                   value={specialInstructions}
                   onChange={(e) => setSpecialInstructions(e.target.value)}
-                  placeholder="e.g. If no answer on phone, please send attendant to knock gently."
+                  placeholder="e.g. Please ring room telephone twice, knock gently if no answer."
                   className="w-full px-3 py-2 rounded-xl border border-white/10 bg-ink-950 text-white placeholder-mist-500 focus:border-amber-400 focus:outline-none"
                 />
               </div>
@@ -398,7 +415,7 @@ export function RemindersSubtab({ room, guestName }: GuestTabProps) {
                 </button>
                 <button
                   type="submit"
-                  disabled={!title.trim()}
+                  disabled={reminderType === 'Others' ? !customDesc.trim() : false}
                   className="px-4 py-2 rounded-xl bg-amber-400 text-ink-950 font-bold hover:bg-amber-300 disabled:opacity-40"
                 >
                   Schedule Reminder
