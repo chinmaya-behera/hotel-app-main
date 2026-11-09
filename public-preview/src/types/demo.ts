@@ -77,6 +77,8 @@ export interface WorkItem {
   history?: GuestHistoryEntry[];
   dnd?: boolean;
   photoAttached?: boolean;
+  review?: string;
+  rating?: number;
   feedback?: {
     rating: number;
     comment?: string;
@@ -130,6 +132,8 @@ export interface WorkItem {
   escalationReason?: string;
   requestedAction?: string;
   internalNotes?: string;
+  supervisorAcknowledged?: boolean;
+  acknowledgedBySupervisorAt?: string;
   /** Complaint properties (Front Desk Complaints workflow) */
   complaintId?: string;
   guestName?: string;
@@ -921,6 +925,47 @@ export interface IncidentRecord {
   relatedTaskRef?: string;
 }
 
+export interface SupervisorEscalationRecord {
+  id: string;
+  taskRef: string;
+  taskId?: string;
+  title: string;
+  department: string;
+  room?: string;
+  floor?: number;
+  priority: 'urgent' | 'critical' | 'normal';
+  escalatedAt: string;
+  escalatedBy?: string;
+  fulfillerName?: string;
+  reason: string;
+  notes?: string;
+  photoUrl?: string;
+  status: 'Not Viewed' | 'Acknowledged' | 'Rejected';
+  managerReview?: string;
+  managerReviewedAt?: string;
+  managerName?: string;
+}
+
+export type DutyStatusType = 'on_duty' | 'break' | 'off_duty';
+
+export interface DutyStatusRequest {
+  id: string;
+  staffId: string;
+  employeeId: string;
+  employeeName: string;
+  avatar?: string;
+  department: DispatcherDepartment;
+  role: string;
+  currentStatus: DutyStatusType;
+  requestedStatus: DutyStatusType;
+  reason: string;
+  submittedAt: string;
+  status: 'pending' | 'approved' | 'rejected';
+  supervisorReviewNotes?: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
+}
+
 /* ---- Phase 3: Compensation & Multi-Tier Financial Escalations ---- */
 
 export type CompensationStatus =
@@ -1136,6 +1181,10 @@ export interface DemoState {
   refundRequests?: FinanceRefundRequest[];
   /** Room Turnover & Quality Inspections (Department Supervisor) */
   inspections?: SupervisorInspection[];
+  /** Dispatcher/Supervisor Escalations to Department Manager (For Me / From Me) */
+  supervisorEscalations?: SupervisorEscalationRecord[];
+  /** Staff Duty Status Change Requests (On Duty / Break / Off Duty) */
+  dutyStatusRequests?: DutyStatusRequest[];
   /** Guest-facing and internal hotel services created by Department Manager */
   hotelServices?: HotelServiceItem[];
   /** Guest personal preferences indexed by room number */
