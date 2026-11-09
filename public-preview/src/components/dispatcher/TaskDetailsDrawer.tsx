@@ -16,6 +16,9 @@ import {
   UserCheck,
   Sparkles,
   Star,
+  Play,
+  Check,
+  RotateCcw,
 } from 'lucide-react';
 import type { WorkItem } from '@/types/demo';
 
@@ -26,6 +29,8 @@ interface TaskDetailsDrawerProps {
   onOpenDuplicate: () => void;
   onOpenEscalate: () => void;
   onAutoAssign: () => void;
+  onUpdateStatus?: (status: string) => void;
+  onUpdatePriority?: (priority: string) => void;
 }
 
 export function TaskDetailsDrawer({
@@ -35,6 +40,8 @@ export function TaskDetailsDrawer({
   onOpenDuplicate,
   onOpenEscalate,
   onAutoAssign,
+  onUpdateStatus,
+  onUpdatePriority,
 }: TaskDetailsDrawerProps) {
   const isOverdue =
     task.ackStatus === 'overdue' ||
@@ -378,11 +385,45 @@ export function TaskDetailsDrawer({
                 </>
               )}
 
+              {/* Status Update Quick Buttons */}
+              {onUpdateStatus && task.status !== 'Completed' && task.status !== 'In progress' && (
+                <button
+                  type="button"
+                  onClick={() => onUpdateStatus('In progress')}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-blue-500/30 bg-blue-500/10 text-xs font-semibold text-blue-300 hover:bg-blue-500/20 transition cursor-pointer"
+                >
+                  <Play className="h-3.5 w-3.5" />
+                  <span>Start Task</span>
+                </button>
+              )}
+
+              {onUpdateStatus && task.status !== 'Completed' && (
+                <button
+                  type="button"
+                  onClick={() => onUpdateStatus('Completed')}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-xs font-semibold text-emerald-300 hover:bg-emerald-500 hover:text-white transition cursor-pointer"
+                >
+                  <Check className="h-3.5 w-3.5" />
+                  <span>Mark Done</span>
+                </button>
+              )}
+
+              {task.status !== 'Unassigned' && (
+                <button
+                  type="button"
+                  onClick={onOpenAssign}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-white/10 bg-white/[0.04] text-xs font-semibold text-mist-200 hover:text-white hover:bg-white/[0.08] transition cursor-pointer"
+                >
+                  <UserCheck className="h-3.5 w-3.5 text-amber-300" />
+                  <span>Reassign</span>
+                </button>
+              )}
+
               {!task.isLinkedDuplicate && (
                 <button
                   type="button"
                   onClick={onOpenDuplicate}
-                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-white/10 text-xs font-semibold text-mist-300 hover:text-white hover:bg-white/[0.05] transition"
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-white/10 text-xs font-semibold text-mist-300 hover:text-white hover:bg-white/[0.05] transition cursor-pointer"
                 >
                   <Link2 className="h-4 w-4 text-sky-400" />
                   <span>Link Duplicate</span>
@@ -392,7 +433,7 @@ export function TaskDetailsDrawer({
               <button
                 type="button"
                 onClick={onOpenEscalate}
-                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-rose-500/30 bg-rose-500/10 text-xs font-semibold text-rose-300 hover:bg-rose-500/20 transition"
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-rose-500/30 bg-rose-500/10 text-xs font-semibold text-rose-300 hover:bg-rose-500/20 transition cursor-pointer"
               >
                 <Send className="h-4 w-4 text-rose-400" />
                 <span>Escalate to Duty Mgr</span>

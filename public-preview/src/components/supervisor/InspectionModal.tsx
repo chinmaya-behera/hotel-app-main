@@ -14,6 +14,7 @@ import {
   Clock,
   ShieldAlert,
   ClipboardCheck,
+  MapPin,
 } from 'lucide-react';
 import type { SupervisorInspection, InspectionCheckItem } from '@/types/demo';
 
@@ -205,12 +206,23 @@ export function InspectionModal({
         )}
 
         {/* Quality Score & Meta Strip */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 rounded-2xl bg-white/[0.02] border border-white/[0.06]">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-2xl bg-white/[0.02] border border-white/[0.06]">
+          <div>
+            <p className="text-[11px] uppercase tracking-wider text-mist-400">Floor / Zone</p>
+            <div className="flex items-center gap-1.5 mt-1 font-semibold text-white text-xs">
+              <MapPin className="h-4 w-4 text-amber-300 shrink-0" />
+              <span>
+                {inspection.scope === 'all_rooms'
+                  ? 'All Floors (1–5)'
+                  : `Floor ${inspection.floor} · Zone ${inspection.floorZone || 'Main'}`}
+              </span>
+            </div>
+          </div>
           <div>
             <p className="text-[11px] uppercase tracking-wider text-mist-400">Quality Score</p>
             <div className="flex items-center gap-2 mt-1">
               <span
-                className={`text-2xl font-bold font-mono ${
+                className={`text-xl font-bold font-mono ${
                   scorePercent >= 90
                     ? 'text-emerald-300'
                     : scorePercent >= 75
@@ -220,8 +232,8 @@ export function InspectionModal({
               >
                 {scorePercent}%
               </span>
-              <span className="text-xs text-mist-400">
-                ({passedCount}/{totalCount} checks)
+              <span className="text-[11px] text-mist-400">
+                ({passedCount}/{totalCount})
               </span>
             </div>
           </div>

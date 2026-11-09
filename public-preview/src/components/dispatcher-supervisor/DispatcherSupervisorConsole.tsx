@@ -350,7 +350,7 @@ export function DispatcherSupervisorConsole() {
   }, [allTasks, currentDept]);
 
   const pendingDutyRequestsCount = useMemo(() => {
-    return (state.dutyStatusRequests ?? []).filter((r) => {
+    const dutyCount = (state.dutyStatusRequests ?? []).filter((r) => {
       const isPending = r.status === 'pending';
       const d1 = (r.department || '').toLowerCase();
       const d2 = currentDept.toLowerCase();
@@ -362,7 +362,22 @@ export function DispatcherSupervisorConsole() {
         ((d2.includes('food') || d2.includes('bev')) && (d1.includes('food') || d1.includes('bev')));
       return isPending && inDept;
     }).length;
-  }, [state.dutyStatusRequests, currentDept]);
+
+    const reassignCount = (state.taskReassignRequests ?? []).filter((r) => {
+      const isPending = r.status === 'pending';
+      const d1 = (r.department || '').toLowerCase();
+      const d2 = currentDept.toLowerCase();
+      const inDept =
+        d1 === d2 ||
+        (d2.includes('house') && d1.includes('house')) ||
+        ((d2.includes('maint') || d2.includes('eng')) && (d1.includes('maint') || d1.includes('eng'))) ||
+        ((d2.includes('spa') || d2.includes('wellness')) && (d1.includes('spa') || d1.includes('wellness'))) ||
+        ((d2.includes('food') || d2.includes('bev')) && (d1.includes('food') || d1.includes('bev')));
+      return isPending && inDept;
+    }).length;
+
+    return dutyCount + reassignCount;
+  }, [state.dutyStatusRequests, state.taskReassignRequests, currentDept]);
 
   const navItems: NavItem[] = [
     {

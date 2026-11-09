@@ -504,6 +504,8 @@ export interface SupervisorInspection {
   roomNumber: string;
   roomType: string;
   floor: number;
+  floorZone?: string;
+  zone?: string;
   attendantName: string;
   attendantId: string;
   type: InspectionType;
@@ -979,6 +981,28 @@ export interface DutyStatusRequest {
   reviewedBy?: string;
 }
 
+export interface TaskReassignRequest {
+  id: string;
+  taskId: string;
+  taskTitle: string;
+  taskRef?: string;
+  room?: string;
+  department: DispatcherDepartment;
+  priority: 'low' | 'normal' | 'urgent' | 'vip' | 'critical';
+  requesterStaffId: string;
+  requesterEmployeeId: string;
+  requesterName: string;
+  requesterAvatar?: string;
+  reason: string;
+  submittedAt: string;
+  status: 'pending' | 'reassigned' | 'rejected';
+  reassignedToStaffId?: string;
+  reassignedToName?: string;
+  supervisorNotes?: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
+}
+
 /* ---- Phase 3: Compensation & Multi-Tier Financial Escalations ---- */
 
 export type CompensationStatus =
@@ -1201,6 +1225,8 @@ export interface DemoState {
   supervisorEscalations?: SupervisorEscalationRecord[];
   /** Staff Duty Status Change Requests (On Duty / Break / Off Duty) */
   dutyStatusRequests?: DutyStatusRequest[];
+  /** Staff Task Reassignment Requests from Fulfillers to Supervisor */
+  taskReassignRequests?: TaskReassignRequest[];
   /** Guest-facing and internal hotel services created by Department Manager */
   hotelServices?: HotelServiceItem[];
   /** Guest personal preferences indexed by room number */
