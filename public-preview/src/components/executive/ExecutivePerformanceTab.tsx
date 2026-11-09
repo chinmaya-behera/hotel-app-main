@@ -3,13 +3,23 @@
 import { useState, useMemo } from 'react';
 import {
   Activity,
+  AlertTriangle,
   ArrowRight,
   BarChart3,
+  Building2,
+  Calendar,
+  CheckCircle2,
   Clock,
+  Filter,
   Layers,
+  Search,
+  ShieldAlert,
+  ShieldCheck,
   Sparkles,
   Star,
   Timer,
+  TrendingDown,
+  TrendingUp,
   UserCheck,
   Users,
   Wrench,
@@ -36,54 +46,9 @@ interface DepartmentDetail {
   weeklyTrend: number[];
 }
 
-function getStaffDesignation(staff: StaffAccount): string {
-  const deptLower = (staff.department || '').toLowerCase();
-
-  if (staff.roleId === 'department_dispatcher_supervisor') {
-    if (deptLower.includes('maintenance') || deptLower.includes('engineering')) return 'Engineering Shift Supervisor';
-    if (deptLower.includes('housekeeping')) return 'Housekeeping Shift Supervisor';
-    if (deptLower.includes('food') || deptLower.includes('beverage')) return 'F&B Shift Supervisor';
-    if (deptLower.includes('spa') || deptLower.includes('wellness')) return 'Wellness Shift Supervisor';
-    return 'Shift Supervisor';
-  }
-
-  if (staff.roleId === 'department_dispatcher') {
-    if (deptLower.includes('housekeeping')) return 'Housekeeping Dispatcher';
-    if (deptLower.includes('maintenance') || deptLower.includes('engineering')) return 'Maintenance Dispatcher';
-    if (deptLower.includes('food') || deptLower.includes('beverage')) return 'F&B Dispatcher';
-    if (deptLower.includes('spa') || deptLower.includes('wellness')) return 'Wellness Dispatcher';
-    return 'Department Dispatcher';
-  }
-
-  if (staff.roleId === 'department_manager') {
-    return 'Department Operations Manager';
-  }
-
-  if (staff.roleId === 'task_fulfiller') {
-    if (deptLower.includes('maintenance') || deptLower.includes('engineering')) {
-      if (staff.skills?.some((s) => s.toLowerCase().includes('hvac'))) return 'HVAC & Maintenance Technician';
-      return 'Maintenance Technician';
-    }
-    if (deptLower.includes('housekeeping')) {
-      return 'Housekeeping Associate';
-    }
-    if (deptLower.includes('food') || deptLower.includes('beverage')) {
-      return 'F&B Server / Runner';
-    }
-    if (deptLower.includes('spa') || deptLower.includes('wellness')) {
-      return 'Spa Therapist & Specialist';
-    }
-    return 'Field Operations Fulfiller';
-  }
-
-  return staff.roleId
-    .split('_')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
-}
-
 export function ExecutivePerformanceTab() {
   const { state } = useDemo();
+  const [selectedDeptFilter, setSelectedDeptFilter] = useState<string>('all');
   const [timeRange, setTimeRange] = useState<'today' | '7days' | '30days'>('today');
   const [inspectingDept, setInspectingDept] = useState<DepartmentDetail | null>(null);
 
@@ -106,8 +71,9 @@ export function ExecutivePerformanceTab() {
 
   const allStaff = state.staffAccounts ?? [];
   const incidents = state.incidents ?? [];
+  const complaints = state.frontDesk?.complaints ?? [];
 
-  // Compute metrics for the 4 operating departments
+  // Compute metrics for the 6 departments
   const departments: DepartmentDetail[] = useMemo(() => {
     return [
       {
@@ -149,6 +115,25 @@ export function ExecutivePerformanceTab() {
         weeklyTrend: [95, 96, 94, 97, 98, 96, 96.8],
       },
       {
+        id: 'front_office',
+        name: 'Front Office & Stays',
+        leadName: 'Sunita Patel',
+        leadEmpId: 'EMP-0102',
+        icon: Building2,
+        taskCompletionRate: 95.2,
+        avgResolutionMinutes: 6,
+        overdueTasksCount: 0,
+        escalationsCount: complaints.filter((c) => !c.compApplied).length,
+        staffOnDutyCount: allStaff.filter(
+          (s) => s.department.toLowerCase().includes('front') && s.availability === 'on_duty',
+        ).length || 2,
+        totalStaffCount: allStaff.filter((s) => s.department.toLowerCase().includes('front')).length || 3,
+        guestSatisfactionScore: 4.7,
+        activeTasks: allTasks.filter((t) => t.department?.toLowerCase().includes('front') || t.room !== undefined),
+        staffMembers: allStaff.filter((s) => s.department.toLowerCase().includes('front')),
+        weeklyTrend: [93, 94, 96, 95, 94, 95, 95.2],
+      },
+      {
         id: 'food_beverage',
         name: 'Food & Beverage',
         leadName: 'Kabir Sen',
@@ -184,12 +169,36 @@ export function ExecutivePerformanceTab() {
         staffMembers: allStaff.filter((s) => s.department.toLowerCase().includes('spa') || s.department.toLowerCase().includes('wellness')),
         weeklyTrend: [97, 98, 99, 98, 97, 99, 98.5],
       },
+      {
+        id: 'security',
+        name: 'Safety & Security',
+        leadName: 'Inspector Roy',
+        leadEmpId: 'EMP-0108',
+        icon: ShieldAlert,
+        taskCompletionRate: 97.1,
+        avgResolutionMinutes: 4,
+        overdueTasksCount: 0,
+        escalationsCount: 1,
+        staffOnDutyCount: allStaff.filter(
+          (s) => s.department.toLowerCase().includes('security') && s.availability === 'on_duty',
+        ).length || 2,
+        totalStaffCount: allStaff.filter((s) => s.department.toLowerCase().includes('security')).length || 2,
+        guestSatisfactionScore: 4.8,
+        activeTasks: allTasks.filter((t) => t.department?.toLowerCase().includes('security')),
+        staffMembers: allStaff.filter((s) => s.department.toLowerCase().includes('security')),
+        weeklyTrend: [96, 97, 98, 96, 97, 98, 97.1],
+      },
     ];
-  }, [allStaff, allTasks, incidents]);
+  }, [allStaff, allTasks, incidents, complaints]);
+
+  const filteredDepts = useMemo(() => {
+    if (selectedDeptFilter === 'all') return departments;
+    return departments.filter((d) => d.id === selectedDeptFilter);
+  }, [departments, selectedDeptFilter]);
 
   return (
     <div className="space-y-6">
-      {/* Header & Controls */}
+      {/* Header & Filter Controls */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-3xl border border-white/10 bg-white/70 dark:bg-ink-900/80 backdrop-blur-xl shadow-lg">
         <div>
           <div className="flex items-center gap-2">
@@ -202,11 +211,26 @@ export function ExecutivePerformanceTab() {
             </span>
           </div>
           <p className="text-xs text-slate-500 dark:text-mist-400 mt-0.5">
-            Turnaround velocity, SLA breach rates, staffing saturation, and service satisfaction across operating departments.
+            Turnaround velocity, SLA breach rates, staffing saturation, and service satisfaction across all 6 departments.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Department filter */}
+          <select
+            value={selectedDeptFilter}
+            onChange={(e) => setSelectedDeptFilter(e.target.value)}
+            className="px-3 py-2 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-ink-950/70 text-xs font-semibold text-navy-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+          >
+            <option value="all">All 6 Operating Units</option>
+            <option value="maintenance">Maintenance & Engineering</option>
+            <option value="housekeeping">Housekeeping & Rooms</option>
+            <option value="front_office">Front Office & Stays</option>
+            <option value="food_beverage">Food & Beverage</option>
+            <option value="spa_wellness">Wellness</option>
+            <option value="security">Safety & Security</option>
+          </select>
+
           {/* Time range */}
           <div className="flex items-center p-1 rounded-2xl border border-slate-200 dark:border-white/10 bg-black/5 dark:bg-ink-950/80">
             {(['today', '7days', '30days'] as const).map((r) => (
@@ -228,8 +252,8 @@ export function ExecutivePerformanceTab() {
       </div>
 
       {/* Department Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-5">
-        {departments.map((dept) => {
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        {filteredDepts.map((dept) => {
           const Icon = dept.icon;
           const isHealthy = dept.taskCompletionRate >= 94;
 
@@ -393,10 +417,7 @@ export function ExecutivePerformanceTab() {
                         <div className="text-xs font-bold text-navy-950 dark:text-white">
                           {staff.name}
                         </div>
-                        <div className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
-                          {getStaffDesignation(staff)}
-                        </div>
-                        <div className="text-[10px] text-slate-400 dark:text-mist-500 font-mono mt-0.5">
+                        <div className="text-[11px] text-slate-400 dark:text-mist-500 font-mono">
                           {staff.employeeId} · Shift: {staff.shift}
                         </div>
                       </div>
@@ -431,46 +452,37 @@ export function ExecutivePerformanceTab() {
                     No active tasks currently pending in this queue.
                   </div>
                 ) : (
-                  <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02]">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="border-b border-slate-200 dark:border-white/10 bg-slate-100/60 dark:bg-white/[0.04] text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-mist-400">
-                          <th className="px-4 py-2.5">Description</th>
-                          <th className="px-4 py-2.5 text-center w-28">Priority</th>
-                          <th className="px-4 py-2.5 text-right w-28">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-200/60 dark:divide-white/[0.05] text-xs">
-                        {inspectingDept.activeTasks.slice(0, 5).map((task) => (
-                          <tr key={task.id} className="hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition">
-                            <td className="px-4 py-3">
-                              <div className="font-semibold text-navy-950 dark:text-white">
-                                {task.title}
-                              </div>
-                              <div className="text-[11px] text-slate-400 dark:text-mist-500">
-                                {task.ref || task.id} · {task.meta}
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              <span
-                                className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                  task.priority === 'critical'
-                                    ? 'bg-rose-500/15 text-rose-600 dark:text-rose-300'
-                                    : 'bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-mist-300'
-                                }`}
-                              >
-                                {task.priority || 'Normal'}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              <span className="text-[11px] font-mono font-bold text-navy-950 dark:text-white">
-                                {task.status}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div className="space-y-2">
+                    {inspectingDept.activeTasks.slice(0, 5).map((task) => (
+                      <div
+                        key={task.id}
+                        className="p-3 rounded-2xl border border-slate-200 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] flex items-center justify-between text-xs"
+                      >
+                        <div>
+                          <div className="font-semibold text-navy-950 dark:text-white">
+                            {task.title}
+                          </div>
+                          <div className="text-[11px] text-slate-400 dark:text-mist-500">
+                            {task.ref || task.id} · {task.meta}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              task.priority === 'critical'
+                                ? 'bg-rose-500/15 text-rose-600 dark:text-rose-300'
+                                : 'bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-mist-300'
+                            }`}
+                          >
+                            {task.priority || 'Normal'}
+                          </span>
+                          <span className="text-[11px] font-mono font-bold text-navy-950 dark:text-white">
+                            {task.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

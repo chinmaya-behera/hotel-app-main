@@ -30,17 +30,9 @@ import {
 import { useDemo } from '@/lib/store';
 import type { ResourceRequest, WorkItem } from '@/types/demo';
 
-export type FinanceCategory = 'all' | 'financial' | 'requisitions';
-
-export function normalizeFinanceCategory(cat?: string): FinanceCategory {
-  if (cat === 'financial' || cat === 'purchases' || cat === 'equipment') return 'financial';
-  if (cat === 'requisitions' || cat === 'resources') return 'requisitions';
-  return 'all';
-}
-
 interface ExecutiveFinanceTabProps {
   permissionMode: 'viewer' | 'approver';
-  initialCategory?: 'all' | 'financial' | 'requisitions' | 'purchases' | 'equipment' | 'resources';
+  initialCategory?: 'all' | 'purchases' | 'equipment' | 'resources';
   onReviewItem?: (item: WorkItem) => void;
 }
 
@@ -50,9 +42,7 @@ export function ExecutiveFinanceTab({
   onReviewItem,
 }: ExecutiveFinanceTabProps) {
   const { state, reviewResourceRequest, reviewExecutiveItem } = useDemo();
-  const [activeCategory, setActiveCategory] = useState<FinanceCategory>(() =>
-    normalizeFinanceCategory(initialCategory),
-  );
+  const [activeCategory, setActiveCategory] = useState<'all' | 'purchases' | 'equipment' | 'resources'>(initialCategory);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedReq, setSelectedReq] = useState<ResourceRequest | null>(null);
   const [selectedCapexItem, setSelectedCapexItem] = useState<WorkItem | null>(null);
@@ -60,7 +50,7 @@ export function ExecutiveFinanceTab({
   // Sync initialCategory from parent props
   useEffect(() => {
     if (initialCategory) {
-      setActiveCategory(normalizeFinanceCategory(initialCategory));
+      setActiveCategory(initialCategory);
     }
   }, [initialCategory]);
 
@@ -93,23 +83,12 @@ export function ExecutiveFinanceTab({
     .reduce((acc, curr) => acc + (curr.amount || 0), 0);
   const remainingHeadroom = Math.max(0, 200000 - totalApprovedMTD);
 
-  // Requisitions list categorized by All categories, Financial, and Requisitions & Material order
+  // Requisitions list combining executive capex and department requisitions
   const filteredResourceRequests = useMemo(() => {
     return resourceRequests.filter((r) => {
-      if (activeCategory === 'financial') {
-        const isFinancial =
-          r.category === 'Staffing' ||
-          r.category === 'Equipment' ||
-          (r as any).category === 'Financial';
-        if (!isFinancial) return false;
-      } else if (activeCategory === 'requisitions') {
-        const isRequisition =
-          r.category === 'Supply' ||
-          r.category === 'Maintenance' ||
-          (r as any).category === 'Material' ||
-          (r as any).category === 'Requisitions & Material order';
-        if (!isRequisition) return false;
-      }
+      if (activeCategory === 'purchases' && r.category !== 'Equipment' && r.category !== 'Supply') return false;
+      if (activeCategory === 'equipment' && r.category !== 'Equipment' && r.category !== 'Maintenance') return false;
+      if (activeCategory === 'resources' && r.category !== 'Staffing' && r.category !== 'Supply') return false;
 
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -183,14 +162,15 @@ export function ExecutiveFinanceTab({
           {/* Category Tabs */}
           <div className="flex items-center gap-1.5 p-1 rounded-2xl border border-slate-200 dark:border-white/10 bg-black/5 dark:bg-ink-950/80">
             {[
-              { id: 'all' as const, label: 'All categories' },
-              { id: 'financial' as const, label: 'Financial' },
-              { id: 'requisitions' as const, label: 'Requisitions & Material order' },
+              { id: 'all', label: 'All Categories' },
+              { id: 'purchases', label: 'Purchases & Capex' },
+              { id: 'equipment', label: 'Equipment & Spares' },
+              { id: 'resources', label: 'Staffing & Supplies' },
             ].map((tab) => (
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setActiveCategory(tab.id)}
+                onClick={() => setActiveCategory(tab.id as any)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
                   activeCategory === tab.id
                     ? 'bg-amber-500 text-white shadow-sm'
@@ -235,14 +215,14 @@ export function ExecutiveFinanceTab({
             </div>
           </div>
 
-          {/* List of Capex Items - Title only in box, click for elaborated details */}
-          <div className="flex flex-col space-y-2.5">
+          {/* Grid of Capex Items - Title only in box, click for elaborated details */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {executiveCapexItems.map((item) => {
               return (
                 <div
                   key={item.id}
                   onClick={() => setSelectedCapexItem(item)}
-                  className="w-full p-4 rounded-2xl border border-white/10 bg-white/70 dark:bg-ink-950/70 shadow-sm hover:shadow-md hover:border-purple-400 dark:hover:border-purple-500/50 cursor-pointer transition flex items-center justify-between group"
+                  className="p-4 rounded-2xl border border-white/10 bg-white/70 dark:bg-ink-950/70 shadow-sm hover:shadow-md hover:border-purple-400 dark:hover:border-purple-500/50 cursor-pointer transition flex items-center justify-between group"
                   role="button"
                   tabIndex={0}
                   title="Click to view detailed request"
@@ -269,11 +249,7 @@ export function ExecutiveFinanceTab({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-bold text-navy-950 dark:text-white">
-              {activeCategory === 'financial'
-                ? 'Financial Authorizations'
-                : activeCategory === 'requisitions'
-                ? 'Requisitions & Material Orders'
-                : 'Department Requisitions & Material Orders'}
+              Department Requisitions &amp; Material Orders
             </h3>
             <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-mist-300">
               {filteredResourceRequests.length}

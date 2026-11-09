@@ -28,6 +28,7 @@ import {
   Moon,
   Phone,
   RotateCcw,
+  Save,
   Search,
   Shield,
   ShieldAlert,
@@ -54,7 +55,7 @@ import type {
 } from '@/types/demo';
 
 interface ExecutiveProfileTabProps {
-  initialSubTab?: 'profile' | 'notifications';
+  initialSubTab?: 'profile' | 'notifications' | 'settings';
   permissionMode: 'viewer' | 'approver';
   onTogglePermissionMode: (mode: 'viewer' | 'approver') => void;
   onNavigateTab?: (tabId: string) => void;
@@ -273,7 +274,7 @@ function resolveNotificationDetails(notif: InAppNotification, state: any): Resol
       location: 'Hotel Operations',
       deadline: 'Immediate Attendant Dispatch',
       targetTab: 'escalations',
-      targetTabName: 'Escalations',
+      targetTabName: 'High Escalations',
       description: taskMatch.description || notif.message || '',
       justification: taskMatch.meta,
     };
@@ -292,7 +293,7 @@ function resolveNotificationDetails(notif: InAppNotification, state: any): Resol
     targetTabName = 'Department Inspections';
   } else if (lowerTitle.includes('escalat') || lowerMsg.includes('escalat')) {
     targetTab = 'escalations';
-    targetTabName = 'Escalations';
+    targetTabName = 'High Escalations';
   }
 
   return {
@@ -322,7 +323,13 @@ export function ExecutiveProfileTab({
   onNavigateToItem,
 }: ExecutiveProfileTabProps) {
   const { state, markNotificationRead, clearAllNotifications, notify } = useDemo();
-  const [subTab, setSubTab] = useState<'profile' | 'notifications'>(initialSubTab ?? 'profile');
+  const [subTab, setSubTab] = useState<'profile' | 'notifications' | 'settings'>(initialSubTab);
+
+  // Settings state (frontend only)
+  const [emailAlerts, setEmailAlerts] = useState(true);
+  const [smsUrgent, setSmsUrgent] = useState(true);
+  const [autoRefreshInterval, setAutoRefreshInterval] = useState('30s');
+  const [displayDensity, setDisplayDensity] = useState('comfortable');
 
   // Notifications details modal & filter state
   const [selectedNotificationForDetails, setSelectedNotificationForDetails] = useState<InAppNotification | null>(null);
@@ -374,6 +381,10 @@ export function ExecutiveProfileTab({
     });
   }, [notifications, notificationFilter, notificationSearch]);
 
+  const handleSaveSettings = () => {
+    notify('Executive account preferences updated successfully');
+  };
+
   const activeNotificationDetails = useMemo(() => {
     if (!selectedNotificationForDetails) return null;
     return resolveNotificationDetails(selectedNotificationForDetails, state);
@@ -387,7 +398,7 @@ export function ExecutiveProfileTab({
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-black text-navy-950 dark:text-white flex items-center gap-2">
               <Crown className="h-5 w-5 text-amber-500" />
-              Executive Profile & Delegated Authority
+              Executive Profile & Workspace Settings
             </h2>
             <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/20">
               Priya Nair · General Manager
@@ -402,6 +413,7 @@ export function ExecutiveProfileTab({
           {[
             { id: 'profile', label: 'My Profile' },
             { id: 'notifications', label: 'Notifications', count: unreadCount },
+            { id: 'settings', label: 'Preferences' },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -794,6 +806,85 @@ export function ExecutiveProfileTab({
         </div>
       )}
 
+      {/* Subtab 3: Preferences / Settings */}
+      {subTab === 'settings' && (
+        <div className="p-6 rounded-3xl border border-white/10 bg-white/70 dark:bg-ink-900/80 backdrop-blur-xl shadow-lg space-y-6">
+          <div className="space-y-1">
+            <h3 className="text-base font-bold text-navy-950 dark:text-white">
+              Executive Console Preferences
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-mist-400">
+              Customize real-time telemetry polling, notification thresholds, and currency formats.
+            </p>
+          </div>
+
+          <div className="space-y-4 max-w-xl">
+            {/* Toggle 1: Email Alerts */}
+            <div className="flex items-center justify-between p-3.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02]">
+              <div>
+                <span className="text-xs font-bold text-navy-950 dark:text-white block">
+                  Email Dispatch on Capex &gt; ₹25,000
+                </span>
+                <span className="text-[11px] text-slate-500 dark:text-mist-400">
+                  Sends formal quotation packages directly to Priya Nair's executive inbox.
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                checked={emailAlerts}
+                onChange={(e) => setEmailAlerts(e.target.checked)}
+                className="h-4 w-4 rounded text-amber-500 focus:ring-amber-500"
+              />
+            </div>
+
+            {/* Toggle 2: SMS Alerts */}
+            <div className="flex items-center justify-between p-3.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02]">
+              <div>
+                <span className="text-xs font-bold text-navy-950 dark:text-white block">
+                  SMS / WhatsApp on Critical Incidents
+                </span>
+                <span className="text-[11px] text-slate-500 dark:text-mist-400">
+                  Immediate pager notification when security panic alarms or major water leaks occur.
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                checked={smsUrgent}
+                onChange={(e) => setSmsUrgent(e.target.checked)}
+                className="h-4 w-4 rounded text-amber-500 focus:ring-amber-500"
+              />
+            </div>
+
+            {/* Polling Interval */}
+            <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] space-y-1.5">
+              <label className="text-xs font-bold text-navy-950 dark:text-white block">
+                Telemetry Auto-Refresh Cadence
+              </label>
+              <select
+                value={autoRefreshInterval}
+                onChange={(e) => setAutoRefreshInterval(e.target.value)}
+                className="w-full px-3 py-2 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-ink-950/70 text-xs text-navy-950 dark:text-white"
+              >
+                <option value="15s">15 seconds (High Frequency)</option>
+                <option value="30s">30 seconds (Standard)</option>
+                <option value="60s">60 seconds (Conservative)</option>
+              </select>
+            </div>
+
+            {/* Save Button */}
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={handleSaveSettings}
+                className="px-5 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition shadow-md flex items-center gap-2"
+              >
+                <Save className="h-4 w-4" />
+                <span>Save Executive Preferences</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Detailed Request Inspection Modal */}
       {selectedNotificationForDetails && activeNotificationDetails && (

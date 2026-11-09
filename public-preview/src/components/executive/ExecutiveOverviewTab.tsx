@@ -1266,11 +1266,11 @@ export function ExecutiveOverviewTab({
               </button>
               <button
                 type="button"
-                onClick={() => onNavigateTab('inspections')}
+                onClick={() => onNavigateTab('audit')}
                 className="p-3 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 text-left transition"
               >
-                <div className="text-xs font-bold text-navy-950 dark:text-white">Inspections</div>
-                <div className="text-[10px] text-slate-500 dark:text-mist-400 mt-0.5">Quality & Standards</div>
+                <div className="text-xs font-bold text-navy-950 dark:text-white">Audit Ledger</div>
+                <div className="text-[10px] text-slate-500 dark:text-mist-400 mt-0.5">Immutable records</div>
               </button>
             </div>
           </div>
