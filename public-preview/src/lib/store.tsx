@@ -583,7 +583,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       if (raw) {
         const saved = JSON.parse(raw) as Partial<DemoState>;
         const base = seedState(false);
-        setStoredState(initialiseDepartmentHistory(migrateOperationalReferences(ensureManagerState({
+        const mergedState: DemoState = {
           departmentRecordHistory: saved.departmentRecordHistory,
           departmentServiceTargets: saved.departmentServiceTargets,
           managerDepartment: saved.managerDepartment,
@@ -701,7 +701,11 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           supervisorEscalations: saved.supervisorEscalations ?? base.supervisorEscalations,
           dutyStatusRequests: saved.dutyStatusRequests ?? base.dutyStatusRequests,
           taskReassignRequests: saved.taskReassignRequests ?? base.taskReassignRequests,
-        })));
+        };
+        const managerState = ensureManagerState(mergedState);
+        const migratedState = migrateOperationalReferences(managerState);
+        const hydratedState = initialiseDepartmentHistory(migratedState);
+        setStoredState(hydratedState);
       }
     } catch {
       /* corrupted or unavailable storage: fall back to seed data */
@@ -6334,7 +6338,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         } else if (action === 'reject') {
           notifs.unshift({
             id: uid(),
-            roleId: 'front_desk',
+            roleId: 'front_desk_coordinator',
             title: 'Claim Rejected by General Manager',
             message: `GM Priya Nair declined the claim for Room ${target.room} (${target.ref}): ${comments}`,
             timestamp,
@@ -6375,12 +6379,12 @@ export function DemoProvider({ children }: { children: ReactNode }) {
             title: action === 'forward_to_finance' ? 'Your financial claim was approved by GM' : 'Update on your financial claim',
             message:
               action === 'forward_to_finance'
-                ? `General Manager Priya Nair approved your ₹${target.amount.toLocaleString('en-IN')} ${target.category.toLowerCase()}. Forwarded to Finance for final settlement.`
+                ? `General Manager Priya Nair approved your ₹${target.amount.toLocaleString('en-IN')} ${target.category?.toLowerCase() || 'claim'}. Forwarded to Finance for final settlement.`
                 : `General Manager Priya Nair reviewed your claim: ${comments}`,
             date: 'Today',
             time: timestamp,
             read: false,
-            targetTab: 'services',
+            targetTab: 'services' as const,
             targetSubtab: 'compensation',
           };
           updatedGuestNotifs = [guestNote, ...(prev.guestNotifications ?? [])];
