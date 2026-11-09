@@ -338,6 +338,39 @@
   color: #92400e;
 }
 
+:root[data-theme='light'] .fd-dialog {
+  background-color: #ffffff !important;
+  border-color: rgba(100, 151, 177, 0.35) !important;
+  color: #011f4b;
+}
+:root[data-theme='light'] .fd-dialog .text-white {
+  color: #011f4b !important;
+}
+:root[data-theme='light'] .fd-dialog .text-mist-400 {
+  color: #355c7d !important;
+}
+:root[data-theme='light'] .fd-dialog .text-mist-300 {
+  color: #1e3a5f !important;
+}
+:root[data-theme='light'] .fd-dialog .text-mist-200 {
+  color: #0f2744 !important;
+}
+:root[data-theme='light'] .fd-dialog [class*='bg-white/'] {
+  background-color: rgba(240, 246, 252, 0.8) !important;
+}
+:root[data-theme='light'] .fd-dialog [class*='border-white/'] {
+  border-color: rgba(100, 151, 177, 0.25) !important;
+}
+:root[data-theme='light'] [role='tablist'] button:not([aria-selected='true']) {
+  background-color: rgba(255, 255, 255, 0.85);
+  border-color: rgba(100, 151, 177, 0.3);
+  color: #03396c;
+}
+:root[data-theme='light'] [role='tablist'] button:not([aria-selected='true']):hover {
+  background-color: #ffffff;
+  color: #005b96;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .fd-stagger > *,
   .fd-enter,

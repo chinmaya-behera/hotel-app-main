@@ -22,6 +22,7 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
+import { claimView } from '@/lib/financialClaims';
 import { money } from '@/lib/utils';
 import { GuestSheet, GuestPill } from '@/components/guest/guestUi';
 import type {
@@ -115,8 +116,10 @@ export function CompensationRefundSection({
 
   // Requests for this room
   const myRequests = useMemo(() => {
-    return (state.guestCompensationRefundRequests ?? []).filter((r) => r.room === room);
-  }, [state.guestCompensationRefundRequests, room]);
+    return (state.guestCompensationRefundRequests ?? [])
+      .filter((r) => r.room === room)
+      .map((r) => claimView(state, r));
+  }, [state, room]);
 
   // Folio lines for transaction reference
   const folioLines = state.folios?.[room] ?? [];

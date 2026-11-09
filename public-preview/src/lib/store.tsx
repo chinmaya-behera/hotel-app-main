@@ -56,6 +56,7 @@ import {
   MANAGER_COMPENSATION_THRESHOLD,
 } from '@/lib/mockData';
 import { afterAdvance, markCheckedOut, type FdResult } from '@/lib/frontDesk';
+import { seedFrontDeskClaims } from '@/lib/financialClaims';
 import { roleById } from '@/lib/roles';
 import { reviewDepartmentInspection } from '@/lib/manager-workflows';
 import { applyManagerCommand, ensureManagerState, reviewManagerEscalation, type ManagerCommand, type ManagerDepartmentId } from '@/lib/manager-domain';
@@ -164,7 +165,7 @@ function seedState(normalize = true): DemoState {
     diningCategories: INITIAL_DINING_CATEGORIES,
     activeDispatcherDept: 'Housekeeping' as DispatcherDepartment,
     customDiningRequests: seedCustomDiningRequests,
-    guestCompensationRefundRequests: seedCompensationRefundRequests,
+    guestCompensationRefundRequests: [...seedFrontDeskClaims, ...seedCompensationRefundRequests],
     guestIncidents: seedGuestIncidents,
     supervisorEscalations: seedSupervisorEscalations,
     dutyStatusRequests: seedDutyStatusRequests,
@@ -6104,12 +6105,67 @@ export function DemoProvider({ children }: { children: ReactNode }) {
             type: 'alert',
             itemId: target.id,
           });
+        } else if (action === 'reject') {
+          notifs.unshift({
+            id: uid(),
+            roleId: 'front_desk',
+            title: 'Claim Rejected by General Manager',
+            message: `GM Priya Nair declined the claim for Room ${target.room} (${target.ref}): ${comments}`,
+            timestamp,
+            read: false,
+            type: 'alert',
+            itemId: target.id,
+          });
+        }
+
+        let updatedRefunds = prev.refundRequests;
+        if (action === 'forward_to_finance' && target.category === 'Guest refund') {
+          const refundId = `RFD-${target.ref}`;
+          if (!updatedRefunds?.some((r) => r.id === refundId)) {
+            const invoice = prev.invoices?.find((i) => i.roomNumber === target.room);
+            const newRefund: FinanceRefundRequest = {
+              id: refundId,
+              invoiceId: invoice?.id ?? `FOL-${target.room}`,
+              guestName: target.guestName,
+              roomNumber: target.room,
+              amount: target.amount,
+              reason: target.reason,
+              requestedAt: `Today, ${timestamp}`,
+              requestedBy: 'Priya Nair (General Manager via Front Desk)',
+              status: 'Pending Review',
+              sourceCaseRef: target.ref.replace(/-GM$/, ''),
+              cardMask: '•••• 4242',
+            };
+            updatedRefunds = [newRefund, ...(updatedRefunds ?? [])];
+          }
+        }
+
+        let updatedGuestNotifs = prev.guestNotifications;
+        if (target.room) {
+          const guestNote = {
+            id: uid(),
+            room: target.room,
+            category: 'Payment/Billing Updates' as const,
+            title: action === 'forward_to_finance' ? 'Your financial claim was approved by GM' : 'Update on your financial claim',
+            message:
+              action === 'forward_to_finance'
+                ? `General Manager Priya Nair approved your ₹${target.amount.toLocaleString('en-IN')} ${target.category.toLowerCase()}. Forwarded to Finance for final settlement.`
+                : `General Manager Priya Nair reviewed your claim: ${comments}`,
+            date: 'Today',
+            time: timestamp,
+            read: false,
+            targetTab: 'services',
+            targetSubtab: 'compensation',
+          };
+          updatedGuestNotifs = [guestNote, ...(prev.guestNotifications ?? [])];
         }
 
         return {
           ...prev,
           compensationRequests: requests.map((r) => (r.id === requestId ? updatedRequest : r)),
+          refundRequests: updatedRefunds,
           notifications: notifs.slice(0, 50),
+          guestNotifications: updatedGuestNotifs,
           feed: [
             {
               id: uid(),

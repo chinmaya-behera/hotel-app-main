@@ -32,6 +32,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
+import { claimView } from '@/lib/financialClaims';
 import { cn, money, statusTone } from '@/lib/utils';
 import { GuestPill, GuestSectionHeader } from '@/components/guest/guestUi';
 import type { GuestTabProps } from '@/components/guest/types';
@@ -306,7 +307,9 @@ export function ToFrontDeskSubtab({ room, guestName, onNavigate, initialSubtab }
 
   // Room records for display
   const myComplaints = (state.guestComplaints ?? []).filter((c) => c.room === room);
-  const myFinancial = (state.guestCompensationRefundRequests ?? []).filter((cr) => cr.room === room);
+  const myFinancial = (state.guestCompensationRefundRequests ?? [])
+    .filter((cr) => cr.room === room)
+    .map((cr) => claimView(state, cr));
   const myMessages = (state.frontDeskMessages ?? []).filter((m) => m.room === room);
   const myIncidents = (state.guestIncidents ?? []).filter((i) => i.room === room);
   const folioLines = state.folios?.[room] ?? [];
@@ -1016,6 +1019,29 @@ export function ToFrontDeskSubtab({ room, guestName, onNavigate, initialSubtab }
                             Approved Amount: ₹{r.approvedAmount.toLocaleString('en-IN')}
                           </p>
                         )}
+                        {r.resolutionDetails && (
+                          <p className="text-emerald-300 text-[11px] pt-1">
+                            {r.resolutionDetails}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {r.history && r.history.length > 0 && (
+                      <div className="pt-2 border-t border-white/5 space-y-1.5">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-mist-400">
+                          Activity Timeline
+                        </span>
+                        <div className="space-y-1">
+                          {r.history.map((h, i) => (
+                            <div key={i} className="flex items-center gap-2 text-[11px] text-mist-300">
+                              <span className="font-mono text-mist-400">{h.at}</span>
+                              <span>·</span>
+                              <span className="font-semibold text-white">{h.status}</span>
+                              {h.note && <span className="text-mist-400">— {h.note}</span>}
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
 

@@ -480,6 +480,7 @@ export interface FinanceRefundRequest {
   transactionRef?: string;
   /** Front Desk case this refund proposal came from (blocks duplicate submissions) */
   sourceCaseRef?: string;
+  cardMask?: string;
 }
 
 export type InspectionStatus = 'pending' | 'passed' | 'reopened' | 'escalated';
@@ -1621,6 +1622,17 @@ export interface CompensationRefundRequest {
   additionalInfoProvided?: string;
   feedback?: { rating: number; tags?: string[]; comment?: string; submittedAt?: string };
   history?: Array<{ at: string; status: CompensationRefundStatus; note?: string; staff?: string }>;
+  /** Front Desk decision workflow (see src/lib/financialClaims.ts) */
+  decision?: 'compensation' | 'refund';
+  decidedAmount?: number;
+  compensationMethod?: string;
+  /** over-limit claims are mirrored as a General Manager approval (CompensationRequest id) */
+  linkedCompId?: string;
+  /** within-limit refunds are sent to the Financial Officer refund queue (FinanceRefundRequest id) */
+  linkedRefundId?: string;
+  rejectionReason?: string;
+  decidedBy?: string;
+  decidedAt?: string;
 }
 
 

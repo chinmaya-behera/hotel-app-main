@@ -111,6 +111,11 @@ export function ReviewRefundModal({ refund, isOpen, onClose, onSubmit }: ReviewR
               <div>
                 <span>Requested By:</span> <span className="text-white font-medium">{refund.requestedBy}</span>
               </div>
+              {refund.cardMask && (
+                <div className="col-span-2">
+                  <span>Card / Account Mask:</span> <span className="font-mono text-white font-medium">{refund.cardMask}</span>
+                </div>
+              )}
             </div>
 
             {refund.reviewedBy && (
