@@ -45,6 +45,7 @@ import 'lenis/dist/lenis.css';
 import gsap from 'gsap';
 import { SecurityIncidentDetailModal } from './SecurityIncidentDetailModal';
 import { SecurityLogIncidentModal } from './SecurityLogIncidentModal';
+import { SecurityAlertsTab } from './SecurityAlertsTab';
 import { playSecurityChime, playPanicSiren } from './securityChime';
 import '../../shared/warm-theme.css';
 import '../../manager/department-manager.css';
@@ -52,6 +53,7 @@ import '../../manager/department-manager.css';
 const NAV = [
   ['overview', 'Overview', Gauge, 'Workspace'],
   ['incidents', 'Incident Monitoring', Activity, 'Workspace'],
+  ['alerts', 'Safety Alerts', ShieldAlert, 'Workspace'],
   ['recovery', 'Escalations & Recovery', Handshake, 'Workspace'],
   ['policies', 'PlayBook', BookOpen, 'Management'],
   ['handover', 'Shift Handover', Send, 'Management'],
@@ -485,7 +487,9 @@ export function SecurityApp() {
                   ? recoveryItems.length || 3
                   : id === 'incidents'
                     ? activeIncidents.length
-                    : 0;
+                    : id === 'alerts'
+                      ? (state.safetyAlerts ?? []).filter((a) => a.status === 'broadcast_active' || a.status === 'draft_pending_validation' || a.status === 'approved_ready_broadcast').length
+                      : 0;
 
             return (
               <Fragment key={id}>
@@ -992,6 +996,9 @@ export function SecurityApp() {
         )}
 
 
+
+        {/* ===================== TAB: SAFETY ALERTS & BROADCASTS ===================== */}
+        {tab === 'alerts' && <SecurityAlertsTab />}
 
         {/* ===================== TAB: ESCALATIONS & RECOVERY ===================== */}
         {tab === 'recovery' && (

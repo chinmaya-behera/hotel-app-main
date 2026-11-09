@@ -1,6 +1,25 @@
 import type { CSSProperties } from 'react';
 import type { Tone } from '@/types/demo';
 
+const referenceDate = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: '2-digit',
+});
+
+export function formatReferenceNumber(initial: string, roomNumber: string | number, dateInput: Date | string = new Date()): string {
+  const date = typeof dateInput === 'string'
+    ? new Date(dateInput.replace(/^(\d{2})[-/](\d{2})[-/](\d{4})$/, '$3-$2-$1'))
+    : dateInput;
+  const room = String(roomNumber).trim().replace(/^Room\s+(?:No\.?\s*)?/i, '');
+  const code = room.match(/^\d+[A-Z]?\b/i)?.[0] || room.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return `${initial.toUpperCase()}-${code || 'GEN'}-${referenceDate.format(Number.isNaN(+date) ? new Date() : date).replaceAll('/', '')}`;
+}
+
+export function uniqueReferenceNumber(base: string, taken: ReadonlySet<string>): string {
+  let reference = base;
+  for (let suffix = 2; taken.has(reference); suffix++) reference = `${base}-${suffix}`;
+  return reference;
+}
+
 export function cn(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(' ');
 }

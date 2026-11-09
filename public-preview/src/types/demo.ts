@@ -65,8 +65,8 @@ export interface WorkItem {
   guest?: boolean;
   /** acted on / requested by the current persona (separation of duties) */
   selfRequested?: boolean;
-  priority?: 'normal' | 'vip' | 'critical' | 'urgent' | 'safety';
-  /** reference number shown to the guest, e.g. "HK-402-003" */
+  priority?: 'low' | 'normal' | 'high' | 'vip' | 'critical' | 'urgent' | 'safety';
+  /** reference number shown to the guest, e.g. "HK-402-081126" */
   ref?: string;
   /** guest-portal originating module, when this item came from the Guest Portal */
   category?: 'housekeeping' | 'maintenance' | 'spa' | 'concierge' | 'recreation' | 'room_service' | 'folio' | 'lost_found' | 'safety' | 'laundry' | 'front_desk' | 'medical' | 'therapy';
@@ -90,6 +90,7 @@ export interface WorkItem {
   dishFeedback?: Record<string, { rating: number; comment?: string; submittedAt: string }>;
   orderedAt?: string;
   requestedServiceAt?: string;
+  scheduledAt?: string;
   demoSource?: 'dining-showcase';
   repairCategory?: string;
   customDiningId?: string;
@@ -127,6 +128,13 @@ export interface WorkItem {
   assignedAt?: string;
   /** Escalation properties (Front Desk Fulfillers workflow) */
   escalationId?: string;
+  managerEscalation?: {
+    status: 'Pending' | 'Acknowledged' | 'Approved' | 'Rejected' | 'Escalated' | 'GM Approved' | 'GM Rejected' | 'Info Requested';
+    source?: string;
+    sentBy?: string[];
+    target: string;
+    history: GuestHistoryEntry[];
+  };
   originalTaskId?: string;
   fulfillerName?: string;
   escalationReason?: string;
@@ -472,6 +480,7 @@ export interface FinanceRefundRequest {
   transactionRef?: string;
   /** Front Desk case this refund proposal came from (blocks duplicate submissions) */
   sourceCaseRef?: string;
+  cardMask?: string;
 }
 
 export type InspectionStatus = 'pending' | 'passed' | 'reopened' | 'escalated';
@@ -486,6 +495,8 @@ export interface InspectionCheckItem {
 }
 
 export interface SupervisorInspection {
+  ref?: string;
+  scheduledAt?: string;
   batchId?: string;
   typeLabel?: string;
   id: string;
@@ -706,6 +717,8 @@ export interface SyncIssue {
 
 /** F32: complaint & recovery case. */
 export interface ComplaintCase {
+  resolvedAt?: string;
+  resolvedBy?: string;
   department?: string;
   priority?: 'normal' | 'urgent' | 'critical';
   history?: GuestHistoryEntry[];
@@ -1070,6 +1083,9 @@ export interface ShiftScheduleRecord {
 /* ---- Phase 3: Department Service Policies ---- */
 
 export interface DepartmentServicePolicy {
+  operatingWindow?: { start: string; end: string };
+  quietHours?: { start: string; end: string };
+  slaMinutes?: number;
   id: string;
   department: string;
   title: string;
@@ -1315,6 +1331,8 @@ export interface SafetyAlertRecord {
   broadcastScope: 'all_staff' | 'hotel_wide' | 'security_only';
   auditHistory: SafetyAlertAuditStep[];
   acknowledgedBy?: string[];
+  photoUrl?: string;
+  incidentId?: string;
 }
 
 /* ---- Guest Side Domain Models (Six Main Sections) ---- */
@@ -1372,6 +1390,7 @@ export type ComplaintCategory =
   | 'Other';
 
 export interface GuestComplaintRecord {
+  resolvedBy?: string;
   id: string;
   complaintId: string;
   room: string;
@@ -1631,6 +1650,17 @@ export interface CompensationRefundRequest {
   additionalInfoProvided?: string;
   feedback?: { rating: number; tags?: string[]; comment?: string; submittedAt?: string };
   history?: Array<{ at: string; status: CompensationRefundStatus; note?: string; staff?: string }>;
+  /** Front Desk decision workflow (see src/lib/financialClaims.ts) */
+  decision?: 'compensation' | 'refund';
+  decidedAmount?: number;
+  compensationMethod?: string;
+  /** over-limit claims are mirrored as a General Manager approval (CompensationRequest id) */
+  linkedCompId?: string;
+  /** within-limit refunds are sent to the Financial Officer refund queue (FinanceRefundRequest id) */
+  linkedRefundId?: string;
+  rejectionReason?: string;
+  decidedBy?: string;
+  decidedAt?: string;
 }
 
 

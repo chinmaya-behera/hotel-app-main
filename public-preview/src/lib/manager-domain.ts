@@ -1,3 +1,4 @@
+import { nextOperationalReference } from './operational-references.ts';
 import type { DemoState, WorkItem, SupervisorInspection } from '../types/demo';
 import { applyManagerWorkflow, type WorkflowCommand } from './manager-workflows.ts';
 import { applyScheduleCommand, type ScheduleCommand } from './manager-scheduling.ts';
@@ -35,6 +36,27 @@ export function managerTasks(s: DemoState, id: ManagerDepartmentId) {
     for (const item of s.items[key] ?? []) if (taskDepartment(item) === id && !unique.has(item.ref ?? item.id)) unique.set(item.ref ?? item.id, item);
   return [...unique.values()];
 }
+export function managerEscalations(state: DemoState, department: ManagerDepartmentId, direction: 'to' | 'from') {
+  return (state.items.department_manager ?? []).filter(item => {
+    const route = item.managerEscalation;
+    if (route) return direction === 'to' ? route.target === department : route.sentBy?.includes(department) || route.source === department;
+    return direction === 'to' && taskDepartment(item) === department && /^(ESC|REC)-/.test(item.ref || '');
+  });
+}
+
+export function managerEscalationStatus(task: WorkItem) {
+  if (task.managerEscalation) return task.managerEscalation.status;
+  switch (task.status) {
+    case 'Acknowledged': case 'Approved': case 'Rejected': case 'Resolved':
+    case 'GM Approved': case 'GM Rejected': case 'Info Requested':
+      return task.status;
+    case 'Escalated to GM':
+      return 'Escalated';
+    default:
+      return 'Pending';
+  }
+}
+
 export function managerInspections(s: DemoState, id: ManagerDepartmentId) {
   return (s.inspections ?? []).filter(i => (departmentId(i.department) ?? (i.type === 'maintenance_check' ? 'engineering' : 'housekeeping')) === id);
 }
@@ -88,11 +110,12 @@ export type ManagerCommand =
   | { type: 'asset-service'; assetId: string }
   | { type: 'menu-availability'; menuId: string; available: boolean }
   | { type: 'inspection'; location: string; instructions: string; supervisorId: string; inspectionId?: string }
+  | { type: 'escalation-action'; itemId: string; action: 'acknowledge' | 'approve' | 'reject' | 'escalate'; note?: string; target?: string }
   | { type: 'recovery'; taskId: string; decision: 'resolve' | 'escalate'; note: string }
   | { type: 'availability'; staffId: string; value: 'on_duty' | 'break' | 'off_duty' }
   | { type: 'handover'; incoming: string; notes: string }
   | { type: 'acknowledge'; handoverId: string }
-  | { type: 'policy'; title: string; content: string }
+  | { type: 'policy'; title: string; content: string; opensAt?: string; closesAt?: string; quietStart?: string; quietEnd?: string; slaMinutes?: number }
   | { type: 'read'; notificationId: string }
   | { type: 'profile'; name: string; phone: string };
 
@@ -104,12 +127,47 @@ export function applyManagerCommand(state: DemoState, command: ManagerCommand, u
   const pushNotification = (roleId: 'department_manager' | 'department_dispatcher_supervisor' | 'general_manager', title: string, message: string, itemId: string) => {
     s.notifications = [{ id: `${uid}-${roleId}`, roleId, title, message, itemId, department: d.name, timestamp: now, read: false, type: 'alert' }, ...(s.notifications ?? [])];
   };
-  if (command.type === 'schedule-shift') {
+  let auditAction: string = command.type;
+  let auditResource: string = d.name;
+  let auditDetails: string | undefined;
+  if (command.type === 'escalation-action') {
+    const item = managerEscalations(s, d.id, 'to').find(record => record.id === command.itemId);
+    if (!item) throw Error('Escalation unavailable in your inbox.');
+    const previous = item.managerEscalation;
+    const currentStatus = managerEscalationStatus(item);
+    if (currentStatus !== 'Pending' && currentStatus !== 'Acknowledged') throw Error('This escalation is no longer awaiting a department decision.');
+    if (command.action === 'acknowledge' && currentStatus === 'Acknowledged') throw Error('This escalation is already acknowledged.');
+    const outgoing = command.action === 'escalate';
+    const status = { acknowledge: 'Acknowledged', approve: 'Approved', reject: 'Rejected', escalate: 'Escalated' } as const;
+    const outcome = status[command.action];
+    const note = outgoing || command.action === 'reject' ? required(command.note || '') : command.note?.trim();
+    const target = outgoing ? command.target : d.id;
+    if (!target || outgoing && (target === d.id || !['general_manager', ...MANAGER_DEPARTMENTS.map(department => department.id)].includes(target))) {
+      throw Error('Choose a recipient for the escalation.');
+    }
+    const history = [...(previous?.history ?? []), { at: now, actor: person, status: outcome, note }];
+    item.managerEscalation = {
+      status: outgoing && target !== 'general_manager' ? 'Pending' : outcome,
+      source: outgoing ? d.id : previous?.source,
+      sentBy: outgoing ? [...new Set([...(previous?.sentBy ?? []), d.id])] : previous?.sentBy,
+      target, history,
+    };
+    if (outgoing && target === 'general_manager') {
+      const id = 'gm-department-' + uid;
+      s.items.general_manager.unshift({ ...item, id, linkedRef: item.ref || item.id, amount: undefined, status: 'Needs approval', escalatedTo: 'General Manager', escalatedAt: now, notes: note });
+      pushNotification('general_manager', 'Department escalation: ' + item.title, note || '', id);
+    } else if (outgoing) {
+      s.notifications = [{ id: uid, roleId: 'department_manager', department: managerDepartment(target).name, title: 'Escalation from ' + d.name, message: note || '', itemId: item.id, timestamp: now, read: false, type: 'alert' }, ...(s.notifications ?? [])];
+    }
+    auditAction = 'Escalation ' + outcome.toLowerCase();
+    auditResource = item.ref || item.id;
+    auditDetails = note;
+  } else if (command.type === 'schedule-shift') {
     applyScheduleCommand(s, command, uid, now);
   } else if (command.type === 'service-targets') {
     if (![command.inspectionMinutes, command.complaintMinutes].every(value => Number.isInteger(value) && value >= 1 && value <= 10080)) throw Error('Service targets must be whole minutes between 1 and 10,080.');
     s.departmentServiceTargets = { ...s.departmentServiceTargets, [d.id]: { inspectionMinutes: command.inspectionMinutes, complaintMinutes: command.complaintMinutes } };
-  } else if (['medical-create', 'medical-update', 'complaint-create', 'complaint-update', 'repair-create', 'repair-update', 'repair-category', 'menu-save', 'menu-delete', 'inspection-launch'].includes(command.type)) {
+  } else if (['task-update', 'medical-create', 'medical-update', 'complaint-create', 'complaint-update', 'repair-create', 'repair-update', 'repair-category', 'menu-save', 'menu-delete', 'inspection-launch'].includes(command.type)) {
     s.managerOperations ??= seedManagerOperations();
     applyManagerWorkflow(s, command as WorkflowCommand, uid, now);
   } else if (['stock-count', 'replenish', 'room-cleaning', 'appointment', 'appointment-status', 'asset-work-order', 'asset-service', 'menu-availability'].includes(command.type)) {
@@ -123,7 +181,7 @@ export function applyManagerCommand(state: DemoState, command: ManagerCommand, u
       if (!inspection || inspection.status !== 'pending') throw Error('Only pending inspections in your department can be assigned.');
       Object.assign(inspection, { assignedSupervisorId: supervisor.id, assignedSupervisorName: supervisor.name, instructions });
     } else {
-      const inspection: SupervisorInspection = { id: uid, department: d.name, roomNumber: location, roomType: d.name, floor: Number(location[0]) || 1, attendantId: '', attendantName: 'Awaiting assignment', type: d.id === 'engineering' ? 'maintenance_check' : 'periodic', status: 'pending', priority: 'normal', completedAt: '', createdAt: now, initiatedBy: person, initiatedRole: 'department_manager', assignedSupervisorId: supervisor.id, assignedSupervisorName: supervisor.name, instructions, items: [{ id: `${uid}-standard`, category: 'Safety & Keycard', label: d.standard, passed: false }] };
+      const inspection: SupervisorInspection = { id: uid, ref: nextOperationalReference(s, 'INS', location, now), department: d.name, roomNumber: location, roomType: d.name, floor: Number(location[0]) || 1, attendantId: '', attendantName: 'Awaiting assignment', type: d.id === 'engineering' ? 'maintenance_check' : 'periodic', status: 'pending', priority: 'normal', completedAt: '', createdAt: now, initiatedBy: person, initiatedRole: 'department_manager', assignedSupervisorId: supervisor.id, assignedSupervisorName: supervisor.name, instructions, items: [{ id: `${uid}-standard`, category: 'Safety & Keycard', label: d.standard, passed: false }] };
       s.inspections = [inspection, ...(s.inspections ?? [])];
     }
     pushNotification('department_dispatcher_supervisor', `${d.name} inspection assigned`, `${person}: ${instructions}`, command.inspectionId || uid);
@@ -150,14 +208,20 @@ export function applyManagerCommand(state: DemoState, command: ManagerCommand, u
     handover.status = 'acknowledged'; handover.acknowledgedAt = now;
   } else if (command.type === 'policy') {
     if (d.id === 'wellness') throw Error('Policies are not available in the Wellness manager workspace.');
-    s.departmentPolicies = [{ id: uid, department: d.name, title: required(command.title), category: 'Service Standard', summary: required(command.content), content: command.content.trim(), scope: d.name, policyOwner: person, escalationTarget: 'General Manager', effectiveDate: now.slice(0, 10), lastUpdated: now, isManagerLevel: true }, ...(s.departmentPolicies ?? [])];
+    const window = (start?: string, end?: string) => {
+      if (!start && !end) return undefined;
+      if (!start || !end || ![start, end].every(time => /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time)) || start === end) throw Error('Choose distinct start and end times for each time window.');
+      return { start, end };
+    };
+    if (command.slaMinutes !== undefined && (!Number.isInteger(command.slaMinutes) || command.slaMinutes < 1 || command.slaMinutes > 10080)) throw Error('Choose an SLA target between 1 and 10,080 minutes.');
+    s.departmentPolicies = [{ id: uid, operatingWindow: window(command.opensAt, command.closesAt), quietHours: window(command.quietStart, command.quietEnd), slaMinutes: command.slaMinutes, department: d.name, title: required(command.title), category: 'Service Standard', summary: required(command.content), content: command.content.trim(), scope: d.name, policyOwner: person, escalationTarget: 'General Manager', effectiveDate: now.slice(0, 10), lastUpdated: now, isManagerLevel: true }, ...(s.departmentPolicies ?? [])];
   } else if (command.type === 'read') {
     if (!managerNotifications(s, d.id).some(n => n.id === command.notificationId)) throw Error('Notification unavailable in your department.');
     s.notifications = s.notifications?.map(n => n.id === command.notificationId ? { ...n, read: true } : n);
   } else if (command.type === 'profile') {
     s.managerProfiles = { ...s.managerProfiles, [d.id]: { name: required(command.name), phone: command.phone.slice(0, 40) } };
   }
-  s.auditTrail = [{ id: uid, timestamp: now, actor: person, actorRole: 'Department Manager', action: command.type, category: 'Workflow', resource: d.name, outcome: 'success' }, ...s.auditTrail];
+  s.auditTrail = [{ id: uid, timestamp: now, actor: person, actorRole: 'Department Manager', action: auditAction, category: 'Workflow', resource: auditResource, details: auditDetails, outcome: 'success' }, ...s.auditTrail];
   return s;
 }
 
@@ -170,7 +234,7 @@ export function reviewManagerEscalation(state: DemoState, itemId: string, decisi
   const now = new Date().toISOString(), status = decision === 'approve' ? 'GM Approved' : decision === 'reject' ? 'GM Rejected' : 'Info Requested';
   item.status = decision === 'approve' ? 'Approved' : decision === 'reject' ? 'Rejected' : 'Info Requested';
   item.history = [...(item.history ?? []), { at: now, status: item.status, note }];
-  for (const queue of ['department_manager', 'department_dispatcher', 'department_dispatcher_supervisor', 'task_fulfiller'] as const) s.items[queue] = (s.items[queue] ?? []).map(t => (t.ref || t.id) === item.linkedRef ? { ...t, status, history: [...(t.history ?? []), { at: now, status, note: `General Manager: ${note}` }] } : t);
+  for (const queue of ['department_manager', 'department_dispatcher', 'department_dispatcher_supervisor', 'task_fulfiller'] as const) s.items[queue] = (s.items[queue] ?? []).map(t => (t.ref || t.id) === item.linkedRef ? { ...t, status, ...(t.managerEscalation ? { managerEscalation: { ...t.managerEscalation, status: status as NonNullable<WorkItem['managerEscalation']>['status'], history: [...t.managerEscalation.history, { at: now, status, note, actor: 'General Manager' }] } } : {}), history: [...(t.history ?? []), { at: now, status, note: `General Manager: ${note}` }] } : t);
   s.notifications = [{ id: uid, department: item.department, roleId: 'department_manager', title: `${status}: ${item.title}`, message: note, itemId: item.linkedRef, timestamp: now, read: false, type: 'alert' }, ...(s.notifications ?? [])];
   s.auditTrail = [{ id: uid, timestamp: now, actor: 'General Manager', actorRole: 'General Manager', action: status, category: 'Workflow', resource: item.department || '', outcome: 'success' }, ...s.auditTrail];
   return s;
@@ -233,7 +297,7 @@ function applyDepartmentOperation(s: DemoState, command: ManagerCommand, uid: st
     if (!['dirty', 'inspection_failed'].includes(room.readiness)) throw Error('This room does not need a new cleaning request.');
     if (managerTasks(s, d.id).some(t => t.room === room.no && isOpen(t.status) && t.category === 'housekeeping')) throw Error('This room already has an open housekeeping request.');
     const stay = s.frontDesk.stays.find(stay => stay.room === room.no && stay.status === 'expected');
-    addTask({ id: uid, ref: `HK-${uid}`, title: `Room ${room.no}: prepare for arrival`, meta: d.name, department: d.name, category: 'housekeeping', room: room.no, floor: room.floor, status: 'Unassigned', priority: stay?.vip ? 'vip' : 'normal', createdAt: now });
+    addTask({ id: uid, ref: nextOperationalReference(s, 'HK', room.no, now), title: `Room ${room.no}: prepare for arrival`, meta: d.name, department: d.name, category: 'housekeeping', room: room.no, floor: room.floor, status: 'Unassigned', priority: stay?.vip ? 'vip' : 'normal', createdAt: now });
   } else if (command.type === 'appointment') {
     requireDepartment('wellness');
     const therapist = s.staffAccounts.find(st => st.id === command.therapistId && departmentId(st.department) === 'wellness' && st.roleId === 'task_fulfiller' && st.status === 'active' && !['break', 'off_duty'].includes(st.availability || 'on_duty'));
@@ -243,7 +307,7 @@ function applyDepartmentOperation(s: DemoState, command: ManagerCommand, uid: st
     if (!['Treatment room 1', 'Treatment room 2', 'Treatment room 3'].includes(command.room)) throw Error('Choose a listed treatment room.');
     const end = start + (duration + buffer) * 60000;
     if (operations.appointments.some(a => a.status !== 'cancelled' && (a.therapistId === therapist.id || a.room === command.room) && start < Date.parse(a.start) + (a.durationMinutes + a.bufferMinutes) * 60000 && end > Date.parse(a.start))) throw Error('Therapist or room is already booked, including the 15-minute reset buffer.');
-    const ref = `SPA-${uid}`;
+    const ref = nextOperationalReference(s, 'TSK', command.room, now);
     operations.appointments.push({ id: uid, guest: text(command.guest), treatment: text(command.treatment), therapistId: therapist.id, room: command.room, start: new Date(start).toISOString(), durationMinutes: duration, bufferMinutes: buffer, status: 'booked', taskRef: ref });
     addTask({ id: uid, ref, title: `${command.treatment} · ${command.guest}`, department: d.name, category: 'spa', location: command.room, meta: `${command.room} · ${therapist.name}`, assignee: therapist.name, assigneeId: therapist.id, status: 'Assigned', createdAt: now });
   } else if (command.type === 'appointment-status') {
@@ -261,7 +325,7 @@ function applyDepartmentOperation(s: DemoState, command: ManagerCommand, uid: st
     const linked = asset.workOrderRef ? managerTasks(s, 'engineering').find(t => t.ref === asset.workOrderRef) : undefined;
     if (command.type === 'asset-work-order') {
       if (linked && isOpen(linked.status)) throw Error('This asset already has an open work order.');
-      asset.workOrderRef = `PM-${uid}`;
+      asset.workOrderRef = nextOperationalReference(s, 'REP', asset.location, now);
       addTask({ id: uid, ref: asset.workOrderRef, title: `Preventive maintenance · ${asset.name}`, meta: asset.location, department: d.name, category: 'maintenance', location: asset.location, status: 'Unassigned', createdAt: now });
     } else {
       if (!linked || !['completed', 'resolved'].includes(linked.status.toLowerCase())) throw Error('Complete the linked work order before recording service.');

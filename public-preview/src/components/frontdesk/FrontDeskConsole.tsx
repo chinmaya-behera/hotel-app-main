@@ -49,6 +49,7 @@ import { VipPreviewPanel } from '@/components/frontdesk/VipPreviewPanel';
 import { FrontDeskPoliciesPanel } from '@/components/frontdesk/FrontDeskPoliciesPanel';
 import { FrontDeskMobileDashboard } from '@/components/frontdesk/FrontDeskMobileDashboard';
 import { CountUp, spotlight } from '@/lib/gestures';
+import { claimsNeedingFrontDesk } from '@/lib/financialClaims';
 import { useDemo } from '@/lib/store';
 import { cn } from '@/lib/utils';
 
@@ -111,14 +112,14 @@ export function FrontDeskConsole() {
     };
   }, []);
 
-  const { stays = [], rooms = [], sync = [], complaints = [] } = state.frontDesk ?? {};
+  const { stays = [], rooms = [], complaints = [] } = state.frontDesk ?? {};
   const queue = state.items.front_desk_coordinator ?? [];
   const arrivals = stays.filter((st) => st.status === 'expected');
   const inHouse = stays.filter((st) => st.status === 'in_house');
   const departing = inHouse.filter((st) => st.departsToday);
   const actionable = queue.filter(needsAction);
   const readyRooms = rooms.filter((r) => !r.occupied && r.readiness === 'ready');
-  const failedSync = sync.filter((x) => x.bookingState === 'PMS_Sync_Failed');
+  const financialToAct = claimsNeedingFrontDesk(state).length;
   const claims = queue.filter((i) => i.category === 'lost_found' && !isDone(i));
   const vipCount = stays.filter((s) => s.vip).length;
   const pendingReminders = (state.guestReminders ?? []).filter((r) => r.status === 'pending');
@@ -131,7 +132,7 @@ export function FrontDeskConsole() {
     requests: { n: actionable.length, alert: actionable.length > 0 },
     lostfound: { n: claims.length, alert: claims.length > 0 },
     reminders: { n: pendingReminders.length, alert: false },
-    disputes: { n: failedSync.length + 3, alert: failedSync.length > 0 },
+    disputes: { n: financialToAct, alert: financialToAct > 0 },
     incidents: { n: 2, alert: true },
     notifications: { n: 3, alert: true },
     profile: { n: 0, alert: false },
@@ -164,7 +165,7 @@ export function FrontDeskConsole() {
     },
     {
       label: 'Open Complaints',
-      value: queue.filter((i) => (i.complaintId || i.ref?.startsWith('CMP')) && !isDone(i)).length || 1,
+      value: queue.filter((i) => (i.complaintId || /^(?:GC|CMP)-/.test(i.ref ?? '')) && !isDone(i)).length || 1,
       note: 'Service recovery queue',
       icon: CircleAlert,
       tab: 'requests',
@@ -179,8 +180,8 @@ export function FrontDeskConsole() {
     },
     {
       label: 'Pending Financial',
-      value: failedSync.length + 3,
-      note: 'Comp & refund reviews',
+      value: financialToAct,
+      note: 'Claims awaiting decision',
       icon: Landmark,
       tab: 'disputes',
     },
@@ -525,7 +526,7 @@ export function FrontDeskConsole() {
                     stays={stays}
                     rooms={rooms}
                     queue={queue}
-                    sync={sync}
+                    disputeCount={financialToAct}
                     complaints={complaints}
                     guestReminders={state.guestReminders ?? []}
                     kpis={kpis}
@@ -904,9 +905,9 @@ export function FrontDeskConsole() {
                       <Landmark className={cn('h-4 w-4 shrink-0', tab === 'disputes' ? 'text-cyan-300' : 'text-mist-400')} />
                       <span className="truncate">Dispute Financial</span>
                     </div>
-                    {failedSync.length > 0 && (
+                    {financialToAct > 0 && (
                       <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
-                        {failedSync.length}
+                        {financialToAct}
                       </span>
                     )}
                   </button>

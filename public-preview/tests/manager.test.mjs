@@ -1,3 +1,6 @@
+import { formatReferenceNumber } from '../src/lib/utils.ts';
+import { migrateOperationalReferences } from '../src/lib/operational-references.ts';
+import { managerEscalations } from '../src/lib/manager-domain.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MANAGER_DEPARTMENTS, applyManagerCommand, departmentId, ensureManagerState, managerTasks, managerInspections, managerNotifications, managerSafetyAlerts, reviewManagerEscalation, managerDepartmentFromEmail } from '../src/lib/manager-domain.ts';
@@ -114,8 +117,11 @@ test('handover snapshots only department requests and requires the named receive
   assert.equal(command(next, { type: 'acknowledge', handoverId: 'test-command' }).shiftHandovers[0].status, 'acknowledged');
 });
 test('policies, profile and notification reads remain scoped to the department', () => {
-  let s = command(fixture(), { type: 'policy', title: 'Linen quality', content: 'Inspect replacement linen before delivery.' });
+  let s = command(fixture(), { type: 'policy', title: 'Linen quality', content: 'Inspect replacement linen before delivery.', opensAt: '08:00', closesAt: '17:00', quietStart: '22:00', quietEnd: '07:00', slaMinutes: 30 });
   assert.equal(s.departmentPolicies[0].department, 'Housekeeping');
+  assert.deepEqual(s.departmentPolicies[0].operatingWindow, { start: '08:00', end: '17:00' });
+  assert.deepEqual(s.departmentPolicies[0].quietHours, { start: '22:00', end: '07:00' });
+  assert.equal(s.departmentPolicies[0].slaMinutes, 30);
   s = command(s, { type: 'profile', name: 'Updated manager', phone: '100' });
   assert.equal(s.managerProfiles.housekeeping.name, 'Updated manager');
   assert.equal(s.managerProfiles.wellness, undefined);
@@ -234,7 +240,7 @@ test('medical cases keep unique references, urgency, follow-up acknowledgement a
   assert.throws(() => command(fixture('wellness'), { type: 'policy', title: 'Unavailable', content: 'Policy action removed from Wellness.' }), /Policies are not available/);
   let s = command(fixture('wellness'), { type: 'medical-create', guest: 'Demo guest', location: '402', urgency: 'urgent', note: 'Private synthetic case note', followUpAt: '2026-11-04T11:00:00Z' }, 'case-1');
   const record = s.managerOperations.medicalCases[0];
-  assert.equal(record.reference, 'MED-2026-0001');
+  assert.equal(record.reference, 'INC-402-041126');
   assert.equal(medicalReminders(s, Date.parse('2026-11-04T12:00:00Z')).length, 1);
   assert.equal(s.notifications.length, 0, 'case narrative is not put in shared notifications');
   assert.ok(!JSON.stringify(s.auditTrail).includes('Private synthetic case note'));
@@ -280,7 +286,7 @@ test('hotel repairs cover service areas, mirror workflow changes and reject unav
   s = command(s, { type: 'repair-create', title: 'Lobby fitting repair', location: 'Main lobby', note: 'Fitting needs repair', priority: 'urgent', technicianId: 'tech' }, 'repair-1');
   assert.equal(managerRepairs(s).length, 1);
   assert.equal(managerRepairs(s)[0].location, 'Main lobby');
-  s = command(s, { type: 'repair-update', taskId: 'repair-1', status: 'Completed', note: 'Repair verified', technicianId: 'tech' });
+  s = command(s, { type: 'repair-update', taskId: 'repair-1', status: 'Completed', note: 'Repair verified' });
   for (const key of ['department_dispatcher', 'department_dispatcher_supervisor', 'task_fulfiller']) assert.equal(s.items[key][0].status, 'Completed');
   assert.throws(() => command(s, { type: 'repair-create', title: 'Repair', location: 'Lobby', note: 'Test', priority: 'normal', technicianId: 'dept-manager-wellness' }), /technician/);
   assert.throws(() => command(fixture(), { type: 'repair-create', title: 'Repair', location: 'Lobby', note: 'Test', priority: 'normal' }), /outside/);
@@ -349,4 +355,73 @@ test('ordering overview deduplicates shared orders and excludes other department
   s.items.department_dispatcher.push({ ...order, id: 'hk', ref: 'HK-1', category: 'housekeeping', department: 'Housekeeping' });
   s.items.department_dispatcher.push({ id: 'lift', ref: 'RS-LIFT', title: 'Service lift fault', category: 'room_service', status: 'Blocked', meta: '' });
   assert.equal(managerOrders(s).length, 1);
+});
+
+
+test('references keep a hotel-local date, share queue mirrors, and survive same-day collisions and reload', () => {
+  assert.equal(formatReferenceNumber('GC', 'Room 502', '08-11-2026'), 'GC-502-081126');
+  assert.equal(formatReferenceNumber('GC', 502, '2026-11-07T19:00:00Z'), 'GC-502-081126');
+  let state = roomFixture();
+  const input = { type: 'complaint-create', guest: 'Demo guest', room: '402', title: 'Service concern', description: 'A demo concern', priority: 'normal' };
+  state = command(state, input, 'first-complaint');
+  state = command(state, input, 'second-complaint');
+  assert.deepEqual(state.guestComplaints.map(record => record.complaintId), ['GC-402-041126-2', 'GC-402-041126']);
+  const legacy = { id: 'legacy-request', ref: 'HK-402-123', room: '402', title: 'Extra linen', meta: '', status: 'Unassigned', department: 'Housekeeping', createdAt: '2026-11-08T04:00:00Z' };
+  state.items.department_dispatcher.push(legacy);
+  state.items.task_fulfiller.push({ ...legacy, id: 'mirror' });
+  state.items.department_manager.push({ id: 'mgr-legacy', title: 'AC failure · Room 305', meta: 'Maintenance', status: 'Escalated' });
+  state.notifications.push({ id: 'legacy-alert', itemId: 'mgr-legacy', roleId: 'department_manager' });
+  const reloaded = migrateOperationalReferences(JSON.parse(JSON.stringify(state)));
+  assert.equal(reloaded.items.department_dispatcher.at(-1).ref, 'HK-402-081126');
+  assert.equal(reloaded.items.task_fulfiller.at(-1).ref, 'HK-402-081126');
+  assert.equal(managerEscalations(reloaded, 'engineering', 'to').find(item => item.id === 'mgr-legacy')?.ref, 'ESC-305-041126');
+  assert.equal(reloaded.notifications.at(-1).itemId, 'mgr-legacy');
+  assert.deepEqual(migrateOperationalReferences(structuredClone(reloaded)), reloaded);
+});
+
+test('task assignment, issues and completion evidence update all role mirrors', () => {
+  let state = roomFixture();
+  state.staffAccounts.push({ id: 'attendant', name: 'Demo attendant', roleId: 'task_fulfiller', department: 'Housekeeping', status: 'active' });
+  state = command(state, { type: 'room-cleaning', room: '101' }, 'clean-room');
+  const request = { type: 'task-update', taskId: 'clean-room', staffId: 'attendant', priority: 'high', status: 'Assigned', note: '' };
+  state = command(state, request, 'assign');
+  assert.equal(managerTasks(state, 'housekeeping').find(task => task.id === request.taskId).assignee, 'Demo attendant');
+  assert.throws(() => command(state, { ...request, status: 'Blocked' }, 'missing-reason'), /Enter a value/);
+  state = command(state, { ...request, status: 'Blocked', note: 'Waiting for supplies' }, 'block');
+  assert.equal(state.items.task_fulfiller[0].blockerReason, 'Waiting for supplies');
+  state = command(state, { ...request, status: 'Completed', note: 'Supplies replaced', photoUrl: 'https://example.com/proof.jpg' }, 'finish');
+  for (const role of ['department_dispatcher', 'department_dispatcher_supervisor', 'task_fulfiller']) {
+    assert.equal(state.items[role][0].status, 'Completed');
+    assert.equal(state.items[role][0].blockerReason, undefined);
+    assert.equal(state.items[role][0].photoUrl, 'https://example.com/proof.jpg');
+  }
+});
+
+test('escalation decisions stay with the case and follow the assigned manager', () => {
+  let state = migrateOperationalReferences(roomFixture());
+  const itemId = managerEscalations(state, 'housekeeping', 'to')[0].id;
+  const decision = { type: 'escalation-action', itemId };
+  state = command(state, { ...decision, action: 'acknowledge' }, 'ack');
+  assert.equal(managerEscalations(state, 'housekeeping', 'to')[0].managerEscalation.status, 'Acknowledged');
+  state = command(state, { ...decision, action: 'escalate', target: 'engineering', note: 'Review plumbing' }, 'handoff');
+  assert.equal(managerEscalations(state, 'housekeeping', 'to').length, 0);
+  assert.equal(managerEscalations(state, 'housekeeping', 'from')[0].id, itemId);
+  assert.ok(managerEscalations(state, 'engineering', 'to').some(record => record.id === itemId));
+  state = command({ ...state, managerDepartment: 'engineering' }, { ...decision, action: 'reject', note: 'Work already complete' }, 'reject');
+  const record = managerEscalations(state, 'housekeeping', 'from')[0];
+  assert.deepEqual(record.managerEscalation.history.map(entry => entry.status), ['Acknowledged', 'Escalated', 'Rejected']);
+  assert.equal(state.auditTrail[0].resource, record.ref);
+});
+
+test('department approval closes the escalation decision and records the audit entry', () => {
+  const state = migrateOperationalReferences(roomFixture());
+  const item = managerEscalations(state, 'housekeeping', 'to')[0];
+  const approve = { type: 'escalation-action', itemId: item.id, action: 'approve' };
+  const next = command(state, approve, 'approve');
+  const updated = managerEscalations(next, 'housekeeping', 'to').find(record => record.id === item.id);
+  assert.equal(updated.managerEscalation.status, 'Approved');
+  assert.equal(updated.managerEscalation.history.at(-1).status, 'Approved');
+  assert.equal(next.auditTrail[0].action, 'Escalation approved');
+  assert.throws(() => command(next, approve, 'repeat'), /no longer awaiting/);
+  assert.throws(() => command({ ...state, managerDepartment: 'wellness' }, approve, 'other'), /unavailable/);
 });

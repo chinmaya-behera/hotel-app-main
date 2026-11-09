@@ -38,6 +38,7 @@ export function scheduledDiningTime(day: 'today' | 'tomorrow', slot: string, now
   };
   const date = new Date(dateLabel(now) + 'T12:00:00+05:30');
   if (day === 'tomorrow') date.setUTCDate(date.getUTCDate() + 1);
+  if (/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(slot)) return `${dateLabel(date)}T${slot}:00+05:30`;
   const time = /^(\d{1,2}):(\d{2}) (AM|PM)$/.exec(slot);
   if (!time || Number(time[1]) < 1 || Number(time[1]) > 12 || Number(time[2]) > 59) return undefined;
   const hour = Number(time[1]) % 12 + (time[3] === 'PM' ? 12 : 0);

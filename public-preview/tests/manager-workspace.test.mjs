@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { applyManagerCommand, ensureManagerState, managerTasks } from '../src/lib/manager-domain.ts';
+import { withManagerDemoRecords } from '../src/lib/manager-demo-records.ts';
 import { initialiseDepartmentHistory, captureDepartmentHistory } from '../src/lib/department-record-history.ts';
-import { measureSla, taskPolicy, taskSla, stampTaskTimings, operationalSlas, percentile, slaSummary } from '../src/lib/manager-performance.ts';
+import { isPastTaskDeadline, measureSla, taskPolicy, taskSla, stampTaskTimings, operationalSlas, percentile, slaSummary } from '../src/lib/manager-performance.ts';
 import { operationalWeek, shiftInterval, schedulingConflicts, rosterWorkload } from '../src/lib/manager-scheduling.ts';
 import { seedItems } from '../src/lib/mockData.ts';
 
@@ -19,6 +20,25 @@ function fixture(department = 'housekeeping') {
 }
 const task = (extra={})=>({id:'task',ref:'HK-DEMO',title:'Demo request',meta:'',department:'Housekeeping',category:'housekeeping',status:'Assigned',createdAt:iso(0),...extra});
 const publish = (state,extra={},id='shift')=>applyManagerCommand(state,{type:'schedule-shift',staffId:'staff',date:'2026-11-07',pattern:'Day',start:'08:00',end:'16:00',zone:'Floor 4',reason:'Demo schedule change',...extra},id,iso(0));
+
+test('department demo records are timed, scoped and retain user changes on reload', () => {
+  const seeded = withManagerDemoRecords(fixture(), now);
+  const samples = managerTasks(seeded, 'housekeeping').filter(item => item.id.startsWith('manager-demo-'));
+  assert.equal(samples.length, 2);
+  const [overdue, completed] = samples;
+  assert.ok(isPastTaskDeadline(taskSla(seeded, overdue, now)));
+  assert.equal(taskSla(seeded, completed, now).resolution.outcome, 'met');
+
+  const updated = applyManagerCommand(seeded, {
+    type: 'task-update', taskId: overdue.id, staffId: 'staff', priority: 'urgent', status: 'Completed', note: 'Practice task completed',
+  }, 'demo-complete', iso(0));
+  const reloaded = withManagerDemoRecords(structuredClone(updated), now + 86400000);
+  const saved = managerTasks(reloaded, 'housekeeping').filter(item => item.id === overdue.id);
+  assert.equal(saved.length, 1);
+  assert.equal(saved[0].status, 'Completed');
+  assert.equal(saved[0].createdAt, overdue.createdAt);
+  assert.equal(reloaded.managerOperations.medicalCases.length, 1);
+});
 
 test('routing rules override property fallbacks only for the matching active department/category',()=>{
   const s=fixture(); assert.equal(taskPolicy(s,task()).resolutionTargetMinutes,25);

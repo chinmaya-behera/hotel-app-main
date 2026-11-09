@@ -1120,68 +1120,6 @@ export function RoomsPanel() {
             })}
           </div>
         </div>
-
-        {/* Bottom Zone — FLOOR & QUICK SEARCH (Front Desk Controls) */}
-        <div className="mt-5 pt-4 border-t border-white/10 space-y-3">
-          <p className="text-[10px] uppercase font-bold tracking-wider text-mist-400">
-            Floor &amp; Quick Search
-          </p>
-
-          {/* Search Room or Guest */}
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-mist-400" />
-            <input
-              type="text"
-              placeholder="Search room or guest..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="field w-full text-xs py-1.5 pl-8 rounded-lg bg-black/40 border-white/10 text-mist-200 placeholder:text-mist-500"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-mist-400 hover:text-white"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            )}
-          </div>
-
-          {/* Quick Floor Filter Buttons */}
-          <div className="space-y-1">
-            <p className="text-[11px] font-medium text-mist-400">Floor Jump:</p>
-            <div className="grid grid-cols-2 gap-1.5 text-xs">
-              <button
-                type="button"
-                onClick={() => setSelectedFloorFilter('all')}
-                className={cn(
-                  'px-2 py-1 rounded-lg border text-center transition font-semibold',
-                  selectedFloorFilter === 'all'
-                    ? 'border-cyan-400/40 bg-cyan-500/20 text-cyan-200'
-                    : 'border-white/10 bg-white/[0.02] text-mist-300 hover:bg-white/5',
-                )}
-              >
-                All Floors
-              </button>
-              {floorsList.map((fl) => (
-                <button
-                  key={fl}
-                  type="button"
-                  onClick={() => setSelectedFloorFilter(fl)}
-                  className={cn(
-                    'px-2 py-1 rounded-lg border text-center transition font-semibold',
-                    selectedFloorFilter === fl
-                      ? 'border-cyan-400/40 bg-cyan-500/20 text-cyan-200'
-                      : 'border-white/10 bg-white/[0.02] text-mist-300 hover:bg-white/5',
-                  )}
-                >
-                  Floor {fl}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* ============================================================== */}
@@ -1374,13 +1312,13 @@ export function RoomsPanel() {
         <>
           {/* Backdrop Blur */}
           <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-[4px] z-[999] transition-opacity animate-fade-in"
+            className="fixed inset-0 bg-black/60 backdrop-blur-[4px] z-40 transition-opacity animate-fade-in"
             onClick={closeRoomDrawer}
           />
 
           {/* Drawer Slide-Over Panel */}
           <aside
-            className="fixed top-0 right-0 w-full sm:w-[420px] h-full sm:h-screen bg-ink-950 border-l border-white/10 z-[1000] shadow-2xl flex flex-col justify-between overflow-hidden animate-[fd-slide-from-right_0.25s_cubic-bezier(0.16,1,0.3,1)]"
+            className="fixed top-0 right-0 w-full sm:w-[420px] h-full sm:h-screen bg-ink-950 border-l border-white/10 z-50 shadow-2xl flex flex-col justify-between overflow-hidden animate-[fd-slide-from-right_0.25s_cubic-bezier(0.16,1,0.3,1)]"
             role="dialog"
             aria-label={`Room ${drawerRoom.no} details`}
           >
