@@ -4,6 +4,7 @@ import { useRef, useState, type FormEvent } from 'react';
 import { ArrowRight, BedDouble, Flower2, Package, UtensilsCrossed, Wrench, X } from 'lucide-react';
 import { useDemo } from '@/lib/store';
 import { departmentId, isOpen, managerDepartment, managerTasks, type ManagerDepartmentId } from '@/lib/manager-domain';
+import { hotelDate } from '@/lib/manager-performance';
 import type { ManagerStockItem, CustomDiningRequest } from '@/types/demo';
 
 export const DESK_LABELS: Record<ManagerDepartmentId, string> = {
@@ -35,7 +36,7 @@ export function DepartmentDesk({ summary = false, onOpen, onInspect }: { summary
   const stock = operations.stock.filter(item => departmentId(item.department) === department.id);
   const rooms = state.frontDesk.rooms;
   const assets = operations.assets;
-  const today = new Date().toLocaleDateString('en-CA');
+  const today = hotelDate(Date.now());
   const tasks = managerTasks(state, department.id);
   const pendingCustomCount = (state.customDiningRequests ?? []).filter(c => ['Submitted', 'Under Kitchen Review'].includes(c.status)).length;
   const summaryText = department.id === 'housekeeping'

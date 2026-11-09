@@ -24,7 +24,7 @@ export function assignmentMatches(task: WorkItem, staff: StaffAccount, roster: S
   return task.assignee === staff.name && roster.filter(member => member.name === staff.name).length === 1;
 }
 export function rosterWorkload(state: DemoState, department: ManagerDepartmentId, now: number) {
-  const roster = state.staffAccounts.filter(staff => departmentId(staff.department) === department);
+  const roster = state.staffAccounts.filter(staff => departmentId(staff.department) === department && staff.roleId !== 'department_manager');
   const tasks = managerTasks(state, department);
   return roster.map(staff => {
     const assigned = tasks.filter(task => assignmentMatches(task, staff, roster));

@@ -1,6 +1,5 @@
 import type {
   DiningMenuItem,
-  AllergenType,
   DietaryType,
   PortionOption,
   MenuItemAddon,
@@ -19,16 +18,7 @@ export const INITIAL_DINING_CATEGORIES: string[] = [
   'Special Menu',
 ];
 
-export const COMMON_ALLERGENS: { id: AllergenType; label: string; icon: string }[] = [
-  { id: 'Dairy', label: 'Dairy / Milk', icon: '🥛' },
-  { id: 'Nuts', label: 'Tree Nuts', icon: '🌰' },
-  { id: 'Peanuts', label: 'Peanuts', icon: '🥜' },
-  { id: 'Gluten', label: 'Gluten / Wheat', icon: '🌾' },
-  { id: 'Soy', label: 'Soy / Soya', icon: '🫘' },
-  { id: 'Eggs', label: 'Eggs', icon: '🥚' },
-  { id: 'Shellfish', label: 'Shellfish / Crustaceans', icon: '🦐' },
-  { id: 'Fish', label: 'Fish', icon: '🐟' },
-];
+export { COMMON_ALLERGENS } from '@/lib/dining-allergens';
 
 export const DINING_TIME_SLOTS = [
   { time: '07:30 AM', hour24: 7 },

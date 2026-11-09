@@ -164,7 +164,7 @@ export function FrontDeskConsole() {
     },
     {
       label: 'Open Complaints',
-      value: queue.filter((i) => (i.complaintId || i.ref?.startsWith('CMP')) && !isDone(i)).length || 1,
+      value: queue.filter((i) => (i.complaintId || /^(?:GC|CMP)-/.test(i.ref ?? '')) && !isDone(i)).length || 1,
       note: 'Service recovery queue',
       icon: CircleAlert,
       tab: 'requests',

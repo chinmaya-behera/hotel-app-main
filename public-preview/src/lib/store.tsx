@@ -52,6 +52,7 @@ import {
   seedGuestIncidents,
   seedSupervisorEscalations,
   seedDutyStatusRequests,
+  seedGuestComplaints,
   MANAGER_COMPENSATION_THRESHOLD,
 } from '@/lib/mockData';
 import { afterAdvance, markCheckedOut, type FdResult } from '@/lib/frontDesk';
@@ -118,10 +119,12 @@ import type {
   GuestIncidentAttachment,
 } from '@/types/demo';
 
+import { migrateOperationalReferences, nextOperationalReference, taskReferenceInitial } from './operational-references';
+
 const STORAGE_KEY = 'grand-azure-demo-v1';
 
-function seedState(): DemoState {
-  return ensureManagerState(structuredClone({
+function seedState(normalize = true): DemoState {
+  const seed = ensureManagerState(structuredClone({
     persona: null,
     items: seedItems,
     feed: seedFeed,
@@ -164,7 +167,9 @@ function seedState(): DemoState {
     guestIncidents: seedGuestIncidents,
     supervisorEscalations: seedSupervisorEscalations,
     dutyStatusRequests: seedDutyStatusRequests,
+    guestComplaints: seedGuestComplaints,
   }) as DemoState);
+  return normalize ? migrateOperationalReferences(seed) : seed;
 }
 
 export interface Toast {
@@ -522,25 +527,6 @@ const nowLabel = () => new Date().toLocaleTimeString([], { hour: '2-digit', minu
 let uidCounter = 0;
 const uid = () => `${Date.now()}-${uidCounter++}`;
 
-const refCounter: Record<string, number> = {};
-function nextRef(prefix: string, room: string) {
-  const key = `${prefix}-${room}`;
-  refCounter[key] = (refCounter[key] ?? 0) + 1;
-  return `${prefix}-${room}-${String(refCounter[key]).padStart(3, '0')}`;
-}
-
-const DEPT_PREFIX: Record<string, string> = {
-  housekeeping: 'HK',
-  maintenance: 'MX',
-  spa: 'SP',
-  concierge: 'CC',
-  recreation: 'REC',
-  room_service: 'DIN',
-  dining: 'DIN',
-  folio: 'FD',
-  lost_found: 'LF',
-};
-
 const NEXT_INTEGRATION: Record<IntegrationState, IntegrationState> = {
   healthy: 'degraded',
   degraded: 'down',
@@ -572,6 +558,13 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const [gestureGuideOpen, setGestureGuideOpen] = useState(false);
   const stateRef = useRef(state);
   stateRef.current = state;
+  const pendingReferences = useRef(new Set<string>());
+  useEffect(() => { pendingReferences.current.clear(); }, [state]);
+  const nextRef = useCallback((initial: string, room = '') => {
+    const reference = nextOperationalReference(stateRef.current, initial, room, undefined, pendingReferences.current);
+    pendingReferences.current.add(reference);
+    return reference;
+  }, []);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   // Load persisted demo state once, after mount (avoids hydration mismatches).
@@ -580,8 +573,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const saved = JSON.parse(raw) as Partial<DemoState>;
-        const base = seedState();
-        setStoredState(initialiseDepartmentHistory(ensureManagerState({
+        const base = seedState(false);
+        setStoredState(initialiseDepartmentHistory(migrateOperationalReferences(ensureManagerState({
           departmentRecordHistory: saved.departmentRecordHistory,
           departmentServiceTargets: saved.departmentServiceTargets,
           managerDepartment: saved.managerDepartment,
@@ -698,7 +691,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           guestIncidents: saved.guestIncidents ?? base.guestIncidents,
           supervisorEscalations: saved.supervisorEscalations ?? base.supervisorEscalations,
           dutyStatusRequests: saved.dutyStatusRequests ?? base.dutyStatusRequests,
-        })));
+          guestComplaints: saved.guestComplaints ?? base.guestComplaints,
+        }))));
       }
     } catch {
       /* corrupted or unavailable storage: fall back to seed data */
@@ -947,12 +941,12 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
   const submitGuestRequest = useCallback<DemoApi['submitGuestRequest']>(
     (input) => {
-      const ref = nextRef(DEPT_PREFIX[input.category] ?? 'GR', input.room);
+      const ref = nextRef(taskReferenceInitial(input.category), input.room);
       // Untagged or concierge requests enter the Front Desk queue; documented department requests reach Department Dispatcher / Supervisor
       const isConcierge = input.category === 'concierge' || !input.category;
       const targetRole: RoleId = isConcierge ? 'front_desk_coordinator' : 'department_dispatcher_supervisor';
       const id = uid();
-      const createdAt = nowLabel();
+      const createdAt = new Date().toISOString();
       const taskFloor = input.room ? parseInt(input.room[0], 10) || 1 : undefined;
 
       const newItem: WorkItem = {
@@ -1723,7 +1717,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
   const escalateTaskToManager = useCallback<DemoApi['escalateTaskToManager']>(
     (taskId, reason) => {
-      const timestamp = nowLabel();
+      const timestamp = new Date().toISOString();
       setState((prev) => {
         const task =
           prev.items.department_dispatcher?.find((i) => i.id === taskId) ||
@@ -1751,7 +1745,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         const managerItem: WorkItem = {
           id: uid(),
           department: task.department,
-          ref: task.ref,
+          ref: nextOperationalReference(prev, 'ESC', task.room || task.location, timestamp),
           title: `DISPATCH ESCALATION: ${task.title}`,
           meta: `${task.department || 'Operations'} · Room ${task.room || 'General'} · Escalated by Dispatcher`,
           status: 'Escalated',
@@ -1914,9 +1908,9 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const placeRoomServiceOrder = useCallback<DemoApi['placeRoomServiceOrder']>(
     (room, lines, note, requestedServiceAt) => {
       const total = Math.round(lines.reduce((sum, l) => sum + l.price * l.qty, 0) * 100) / 100;
-      const ref = nextRef('DIN', room);
+      const ref = nextRef('FB', room);
       const id = uid();
-      const createdAt = nowLabel();
+      const createdAt = new Date().toISOString();
       const summary = lines.map((l) => `${l.qty}× ${l.name}`).join(', ');
       const newItem: WorkItem = {
         id,
@@ -2406,9 +2400,9 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
   const submitCustomDiningRequest = useCallback<DemoApi['submitCustomDiningRequest']>(
     (input) => {
-      const ref = nextRef('CST', input.room);
+      const ref = nextRef('FB', input.room);
       const id = uid();
-      const createdAt = nowLabel();
+      const createdAt = new Date().toISOString();
       const newCustomItem: CustomDiningRequest = {
         id,
         ref,
@@ -2728,7 +2722,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     (input) => {
       const ref = nextRef('REF', input.room);
       const id = uid();
-      const createdAt = nowLabel();
+      const createdAt = new Date().toISOString();
       const newRequest: CompensationRefundRequest = {
         id,
         ref,
@@ -2929,7 +2923,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       setState((prev) => {
         const line = (prev.folios[room] ?? []).find((l) => l.id === lineId);
         if (!line) return prev;
-        const ref = nextRef('FD', room);
+        const ref = nextRef('TSK', room);
         const disputeItem: WorkItem = {
           id: uid(),
           title: `Folio dispute · ${line.label}`,
@@ -3268,7 +3262,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     (department, priority = 'normal') => {
       const testId = uid();
       const testRef = `TEST-${Math.floor(1000 + Math.random() * 9000)}`;
-      const createdAt = nowLabel();
+      const createdAt = new Date().toISOString();
       const testItem: WorkItem = {
         id: testId,
         title: `Workflow test: ${department} dispatch`,
@@ -4435,7 +4429,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     (incident) => {
       const timestamp = nowLabel();
       const id = `sec-${Date.now().toString().slice(-4)}`;
-      const ref = `SEC-2026-${String(Math.floor(Math.random() * 900) + 100)}`;
+      const ref = nextRef('INC', incident.room || incident.location);
       const toneMap: Record<string, Tone> = {
         critical: 'danger',
         major: 'danger',
@@ -5289,9 +5283,9 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
   const escalateSupervisorIssue = useCallback<DemoApi['escalateSupervisorIssue']>(
     (issue) => {
-      const timestamp = nowLabel();
-      const escId = `INC-${Date.now().toString().slice(-4)}`;
-      const escRef = `ESC-${issue.room || 'HK'}-${Date.now().toString().slice(-3)}`;
+      const timestamp = new Date().toISOString();
+      const escId = 'incident-' + uid();
+      const escRef = nextRef('ESC', issue.room);
 
       const newIncident: IncidentRecord = {
         id: escId,
@@ -5327,7 +5321,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       setState((prev) => ({
         ...prev,
         incidents: [newIncident, ...(prev.incidents ?? seedIncidents)],
-        items: { ...prev.items, department_manager: [{ id: escId, ref: escRef, title: issue.title, room: issue.room, department: issue.department || 'Housekeeping', status: 'Escalated', priority: issue.priority, meta: 'Department supervisor · ' + issue.reason, description: issue.notes || issue.reason, createdAt: new Date().toISOString() }, ...(prev.items.department_manager ?? [])] },
+        items: { ...prev.items, department_manager: [{ id: escId, ref: escRef, title: issue.title, room: issue.room, department: issue.department || 'Housekeeping', status: 'Escalated', priority: issue.priority, meta: 'Department supervisor · ' + issue.reason, description: issue.notes || issue.reason, escalationReason: issue.reason, createdAt: new Date().toISOString() }, ...(prev.items.department_manager ?? [])] },
         notifications: [newNotification, ...(prev.notifications ?? [])].slice(0, 50),
         feed: [
           {
@@ -5358,13 +5352,13 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const createDispatcherTask = useCallback<DemoApi['createDispatcherTask']>(
     (input) => {
       const timestamp = nowLabel();
-      const id = `task-${Date.now().toString().slice(-5)}`;
+      const id = 'task-' + uid();
       const refPrefix = input.department.toLowerCase().includes('house')
         ? 'HK'
         : input.department.toLowerCase().includes('maint')
-          ? 'MNT'
-          : 'ORD';
-      const ref = `${refPrefix}-${input.room || 'FL'}-${Date.now().toString().slice(-3)}`;
+          ? 'REP'
+          : /food|dining|beverage/i.test(input.department) ? 'FB' : 'TSK';
+      const ref = nextRef(refPrefix, input.room);
       const floor = input.floor || (input.room ? parseInt(input.room[0], 10) || 1 : 1);
       const isAssigned = !!(input.assigneeId && input.assigneeName);
 
@@ -6479,7 +6473,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const submitSecuritySafetyAlert = useCallback<DemoApi['submitSecuritySafetyAlert']>(
     (input) => {
       const alertId = `alert-${Date.now().toString().slice(-4)}`;
-      const ref = `SFT-${String(Math.floor(100 + Math.random() * 900))}`;
+      const ref = nextRef('INC', input.location);
       const now = nowLabel();
       const newAlert: SafetyAlertRecord = {
         ...input,
@@ -7056,7 +7050,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const submitGuestComplaint = useCallback<DemoApi['submitGuestComplaint']>(
     (input) => {
       const timestamp = nowLabel();
-      const complaintId = `CMP-${input.room}-${String(Date.now()).slice(-4)}`;
+      const complaintId = nextRef('GC', input.room);
       const id = `cmp-${uid()}`;
       const stay = (stateRef.current.frontDesk?.stays ?? []).find((s) => s.room === input.room && s.status === 'in_house');
 
@@ -7161,7 +7155,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     (input) => {
       const timestamp = nowLabel();
       const id = `req-${uid()}`;
-      const ref = nextRef('REQ', input.room);
+      const ref = nextRef('TSK', input.room);
       const stay = (stateRef.current.frontDesk?.stays ?? []).find((s) => s.room === input.room && s.status === 'in_house');
 
       const newMsg: GuestFrontDeskMessage = {

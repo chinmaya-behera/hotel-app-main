@@ -2,6 +2,7 @@
 
 import { useId, useRef, useState, type FormEvent } from 'react';
 import { BedDouble, Building2, ClipboardCheck, Layers, X } from 'lucide-react';
+import { DateTimePickerInput } from '@/components/ui/TimePickerInput';
 import { useDemo } from '@/lib/store';
 import { departmentId, managerDepartment } from '@/lib/manager-domain';
 import { INSPECTION_AREAS, INSPECTION_OPTIONS, inspectionTargets } from '@/lib/manager-workflows';
@@ -21,7 +22,8 @@ export function InspectionLauncher() {
   const close = () => dialog.current?.close();
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault(); const form = new FormData(event.currentTarget);
-    if (departmentManagerCommand({ type: 'inspection-launch', scope, location: room, floor, inspectionType: String(form.get('inspectionType')) as typeof templates[number]['type'], priority: String(form.get('priority')) as 'normal' | 'urgent' | 'vip', instructions: String(form.get('instructions') || ''), supervisorId: String(form.get('supervisor')) })) close();
+    const scheduled = String(form.get('scheduled') || '');
+    if (departmentManagerCommand({ scheduledAt: scheduled ? new Date(scheduled).toISOString() : undefined, type: 'inspection-launch', scope, location: room, floor, inspectionType: String(form.get('inspectionType')) as typeof templates[number]['type'], priority: String(form.get('priority')) as 'normal' | 'urgent' | 'vip', instructions: String(form.get('instructions') || ''), supervisorId: String(form.get('supervisor')) })) close();
   };
   return <><button className="dm-primary" onClick={() => dialog.current?.showModal()}><ClipboardCheck size={17}/> Start inspection</button><dialog className="dm-dialog dm-inspection-launcher" ref={dialog} aria-labelledby={title}><form onSubmit={submit}>
     <div className="dm-inspection-scroll"><div className="dm-dialog-heading"><div className="dm-inspection-heading"><span className="dm-attention-icon"><ClipboardCheck size={23}/></span><div><h2 id={title}>Conduct quality inspection</h2><p>{d.name} · Assign a supervisor to inspect a room, a floor or all rooms.</p></div></div><button type="button" className="dm-icon-button" aria-label="Close inspection launcher" onClick={close}><X size={19}/></button></div>
@@ -36,6 +38,7 @@ export function InspectionLauncher() {
       {scope === 'all' && <><strong>Property-wide {d.name.toLowerCase()} sweep</strong><p className="dm-scope-description">This creates {targets.length} individual inspections across {floors.length} floors. Each room has its own checklist and outcome.</p></>}
     </div>
     <div className="dm-form-grid"><label className="dm-field">Inspection type<select name="inspectionType" required>{templates.map(t => <option key={t.type} value={t.type}>{t.label}</option>)}</select></label><label className="dm-field">Priority<select name="priority"><option value="normal">Normal</option><option value="urgent">Urgent</option><option value="vip">VIP</option></select></label></div>
+    <DateTimePickerInput label="Scheduled inspection (optional)" name="scheduled"/>
     <label className="dm-field">Assign department supervisor<select name="supervisor" required defaultValue=""><option value="" disabled>Select a {d.name} supervisor</option>{staff.map(st => <option key={st.id} value={st.id}>{st.name} · {st.shift}</option>)}</select></label>
     {!staff.length && <p className="dm-reminder-due">No active supervisor is available in this department.</p>}
     <label className="dm-field">Special directives / inspection notes (optional)<textarea name="instructions" maxLength={2000} placeholder={d.standard}/></label></div>
