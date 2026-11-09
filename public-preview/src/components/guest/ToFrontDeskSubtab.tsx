@@ -36,6 +36,7 @@ import { claimView } from '@/lib/financialClaims';
 import { cn, money, statusTone } from '@/lib/utils';
 import { GuestPill, GuestSectionHeader } from '@/components/guest/guestUi';
 import type { GuestTabProps } from '@/components/guest/types';
+import { GuestAlarmTimePicker } from './GuestAlarmTimePicker';
 import type {
   ComplaintCategory,
   CompensationRefundCategory,
@@ -317,12 +318,13 @@ export function ToFrontDeskSubtab({ room, guestName, onNavigate, initialSubtab }
   // Handlers for submission
   function handleSubmitComplaint(e: React.FormEvent) {
     e.preventDefault();
-    if (!complaintTitle.trim() || !complaintDesc.trim()) return;
+    if (!complaintDesc.trim()) return;
 
+    const autoTitle = complaintTitle.trim() || `${complaintCategory} · ${complaintDesc.trim().slice(0, 35)}`;
     const ref = submitGuestComplaint({
       room,
       guestName,
-      title: complaintTitle.trim(),
+      title: autoTitle,
       category: complaintCategory,
       department: complaintDept,
       description: complaintDesc.trim(),
@@ -368,13 +370,14 @@ export function ToFrontDeskSubtab({ room, guestName, onNavigate, initialSubtab }
 
   function handleSubmitRequest(e: React.FormEvent) {
     e.preventDefault();
-    if (!requestTitle.trim() || !requestDesc.trim()) return;
+    if (!requestDesc.trim()) return;
 
+    const autoTitle = requestTitle.trim() || `${requestCategory} · ${requestDesc.trim().slice(0, 35)}`;
     const ref = submitGuestFrontDeskRequest({
       room,
       guestName,
       category: requestCategory,
-      title: requestTitle.trim(),
+      title: autoTitle,
       description: requestDesc.trim(),
       preferredDateTime: requestDateTime.trim() || undefined,
       additionalInstructions: requestInstructions.trim() || undefined,
@@ -691,34 +694,20 @@ export function ToFrontDeskSubtab({ room, guestName, onNavigate, initialSubtab }
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                <div>
-                  <label className="font-semibold text-mist-300 block mb-1">Complaint Title *</label>
-                  <input
-                    type="text"
-                    required
-                    value={complaintTitle}
-                    onChange={(e) => setComplaintTitle(e.target.value)}
-                    placeholder="Brief summary of the issue (e.g. AC blowing warm air)"
-                    className="guest-field w-full px-3 py-2 text-xs text-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="font-semibold text-mist-300 block mb-1">Date &amp; Approximate Time</label>
-                  <input
-                    type="text"
-                    value={complaintTime}
-                    onChange={(e) => setComplaintTime(e.target.value)}
-                    className="guest-field w-full px-3 py-2 text-xs text-white"
-                  />
-                </div>
+              <div>
+                <GuestAlarmTimePicker
+                  id="complaint-time"
+                  label="Date & Approximate Time"
+                  value={complaintTime}
+                  onChange={setComplaintTime}
+                  showImmediately={true}
+                />
               </div>
 
               <div>
-                <label className="font-semibold text-mist-300 block mb-1">Detailed Description *</label>
+                <label className="font-semibold text-mist-300 block mb-1">Description *</label>
                 <textarea
-                  rows={3}
+                  rows={4}
                   required
                   value={complaintDesc}
                   onChange={(e) => setComplaintDesc(e.target.value)}
@@ -1141,33 +1130,20 @@ export function ToFrontDeskSubtab({ room, guestName, onNavigate, initialSubtab }
                 </div>
 
                 <div>
-                  <label className="font-semibold text-mist-300 block mb-1">Preferred Date &amp; Time</label>
-                  <input
-                    type="text"
+                  <GuestAlarmTimePicker
+                    id="fd-req-time"
+                    label="Preferred Date & Time"
                     value={requestDateTime}
-                    onChange={(e) => setRequestDateTime(e.target.value)}
-                    placeholder="e.g. Tomorrow at 11:15 AM or Immediately"
-                    className="guest-field w-full px-3 py-2 text-xs text-white"
+                    onChange={setRequestDateTime}
+                    showImmediately={true}
                   />
                 </div>
               </div>
 
               <div>
-                <label className="font-semibold text-mist-300 block mb-1">Short Title *</label>
-                <input
-                  type="text"
-                  required
-                  value={requestTitle}
-                  onChange={(e) => setRequestTitle(e.target.value)}
-                  placeholder="e.g. Bellhop assistance for 3 suitcases"
-                  className="guest-field w-full px-3 py-2 text-xs text-white"
-                />
-              </div>
-
-              <div>
-                <label className="font-semibold text-mist-300 block mb-1">Detailed Description *</label>
+                <label className="font-semibold text-mist-300 block mb-1">Description *</label>
                 <textarea
-                  rows={3}
+                  rows={4}
                   required
                   value={requestDesc}
                   onChange={(e) => setRequestDesc(e.target.value)}
