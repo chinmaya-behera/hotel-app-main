@@ -154,37 +154,7 @@ export const seedNotifications: InAppNotification[] = [
   },
   // Housekeeping Notifications
   {
-<<<<<<< HEAD
-    id: 'notif-gm-6',
-      roleId: 'general_manager',
-      title: 'Safety Broadcast: Fire Damper & Exhaust Sensor Alert',
-      message: 'Life Safety Alert ALT-2026-03 triggered in Main Kitchen Banquet Galley. Automatic CO2 suppression standby verified.',
-      timestamp: 'Today 09:10',
-      read: false,
-      type: 'alert',
-      priority: 'critical',
-      itemId: 'alert-1',
-      department: 'Safety & Security',
-      category: 'safety',
-    },
-    {
-      id: 'notif-gm-7',
-      roleId: 'general_manager',
-      title: 'Life Safety Notice: West Wing Elevator Shaft B Advisory',
-      message: 'Safety Alert SFT-001 active. Hydraulic sensor recalibration ongoing; wet deck caution signs deployed poolside.',
-      timestamp: 'Today 08:30',
-      read: true,
-      type: 'alert',
-      priority: 'warning',
-      itemId: 'alert-1',
-      department: 'Safety & Security',
-      category: 'safety',
-    },
-    {
-      id: 'notif-1',
-=======
     id: 'notif-hk-1',
->>>>>>> 18f1ab25397a2fb42c9785e2fd96523eb4f1c9f8
     roleId: 'task_fulfiller',
     department: 'Housekeeping',
     title: 'New Urgent Task Assigned',
