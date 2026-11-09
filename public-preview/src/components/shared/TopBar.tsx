@@ -1,5 +1,31 @@
 'use client';
 
+function isTopBarSafetyAlert(notif: any): boolean {
+  const cat = (notif.category || '').toLowerCase();
+  const title = (notif.title || '').toLowerCase();
+  const msg = (notif.message || '').toLowerCase();
+  const dept = (notif.department || '').toLowerCase();
+  const itemId = (notif.itemId || '').toLowerCase();
+  return (
+    cat === 'safety' ||
+    cat === 'safety_alert' ||
+    dept.includes('safety') ||
+    dept.includes('security') ||
+    itemId.startsWith('alert-') ||
+    itemId.startsWith('alt-') ||
+    itemId.startsWith('sec-') ||
+    itemId.startsWith('sft-') ||
+    title.includes('safety') ||
+    title.includes('fire') ||
+    title.includes('smoke') ||
+    title.includes('hazard') ||
+    title.includes('emergency') ||
+    title.includes('broadcast') ||
+    msg.includes('safety alert') ||
+    msg.includes('life safety')
+  );
+}
+
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -12,6 +38,7 @@ import {
   LogOut,
   Moon,
   RotateCcw,
+  ShieldAlert,
   ShieldCheck,
   Sun,
   User,
@@ -45,6 +72,7 @@ export function TopBar({ active, showRail = true, hideGestureButton = false }: T
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
   const [policiesModalOpen, setPoliciesModalOpen] = useState(false);
   const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
+  const [notifCategory, setNotifCategory] = useState<'all' | 'safety'>('all');
   const notifRef = useRef<HTMLDivElement>(null);
   const [profileCardOpen, setProfileCardOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
