@@ -1,19 +1,23 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { RoleDashboard } from '@/components/staff/RoleDashboard';
-import { roleBySlug, roles } from '@/lib/roles';
-
-export const dynamicParams = false;
+import { roleBySlug } from '@/lib/roles';
 
 export function generateStaticParams() {
-  const primary = roles.map((r) => ({ role: r.slug }));
-  const legacy = [
+  return [
+    { role: 'fulfiller' },
+    { role: 'dispatcher-supervisor' },
+    { role: 'department-manager' },
+    { role: 'front-desk' },
+    { role: 'finance' },
+    { role: 'security' },
+    { role: 'general-manager' },
+    { role: 'admin' },
     { role: 'dispatcher' },
     { role: 'supervisor' },
     { role: 'duty-manager' },
     { role: 'executive' },
   ];
-  return [...primary, ...legacy];
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ role: string }> }): Promise<Metadata> {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Activity,
   AlertOctagon,
@@ -10,6 +10,7 @@ import {
   BarChart3,
   Building2,
   Calendar,
+  Check,
   CheckCircle2,
   ChevronRight,
   Clock,
@@ -30,12 +31,39 @@ import {
   Timer,
   TrendingDown,
   TrendingUp,
+  UserCheck,
+  Eye,
+  X,
   Users,
   Wallet,
   Wrench,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
-import type { WorkItem, IncidentRecord, ComplaintCase } from '@/types/demo';
+import type { WorkItem, IncidentRecord, ComplaintCase, StaffAccount } from '@/types/demo';
+
+
+export interface DepartmentPerformanceMetric {
+  id: string;
+  name: string;
+  icon: any;
+  head: string;
+  leadEmpId: string;
+  slaPercent: number;
+  avgResolutionMinutes: number;
+  guestSatisfactionScore: number;
+  staffOnDutyCount: number;
+  totalStaffCount: number;
+  activeTasks: number;
+  overdueTasksCount: number;
+  openEscalations: number;
+  status: 'warning' | 'optimal';
+  trend: string;
+  spending: string;
+  weeklyTrend: number[];
+  keyFocusAreas: string[];
+  staffMembers: StaffAccount[];
+  tasks: WorkItem[];
+}
 
 interface ExecutiveOverviewTabProps {
   permissionMode: 'viewer' | 'approver';
@@ -50,6 +78,19 @@ export function ExecutiveOverviewTab({
 }: ExecutiveOverviewTabProps) {
   const { state } = useDemo();
   const [timeframe, setTimeframe] = useState<'today' | 'week' | 'month' | 'ytd'>('today');
+  const [selectedDeptPerformance, setSelectedDeptPerformance] = useState<DepartmentPerformanceMetric | null>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSelectedDeptPerformance(null);
+      }
+    };
+    if (selectedDeptPerformance) {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [selectedDeptPerformance]);
 
   // Executive pending approvals
   const executiveItems = [
@@ -104,83 +145,621 @@ export function ExecutiveOverviewTab({
   const totalCapexPending = pendingApprovals.reduce((acc, curr) => acc + (curr.amount || 0), 0);
   const totalApprovedMTD = approvedItems.reduce((acc, curr) => acc + (curr.amount || 0), 0) + 141000;
 
-  // Department health dataset
-  const departmentMetrics = useMemo(() => {
+  // Department health dataset with rich operational details
+  const departmentMetrics: DepartmentPerformanceMetric[] = useMemo(() => {
+    const allStaff = state.staffAccounts ?? [];
+
+    const getStaffForDept = (deptQuery: string, fallback: StaffAccount[]) => {
+      const matched = allStaff.filter((s) => s.department?.toLowerCase().includes(deptQuery.toLowerCase()));
+      return matched.length > 0 ? matched : fallback;
+    };
+
+    const getTasksForDept = (deptQuery: string, fallback: WorkItem[]) => {
+      const matched = allTasks.filter(
+        (t) =>
+          t.department?.toLowerCase().includes(deptQuery.toLowerCase()) ||
+          t.category?.toLowerCase().includes(deptQuery.toLowerCase())
+      );
+      return matched.length > 0 ? matched : fallback;
+    };
+
     return [
       {
         id: 'maintenance',
         name: 'Maintenance & Engineering',
         icon: Wrench,
         head: 'Arjun Mehta',
+        leadEmpId: 'EMP-0104',
         slaPercent: 91.4,
+        avgResolutionMinutes: 18,
+        guestSatisfactionScore: 4.6,
+        staffOnDutyCount: 3,
+        totalStaffCount: 4,
         activeTasks: allTasks.filter((t) => t.department?.toLowerCase().includes('maintenance')).length || 7,
-        openEscalations: incidents.filter((i) => i.department?.toLowerCase().includes('maintenance')).length,
+        overdueTasksCount: 2,
+        openEscalations: incidents.filter((i) => i.department?.toLowerCase().includes('maintenance')).length || 1,
         status: 'warning',
         trend: '+2.1%',
         spending: '₹1,13,000',
+        weeklyTrend: [88, 89, 90, 92, 91, 93, 91.4],
+        keyFocusAreas: ['HVAC & Chillers', 'Service Elevators', 'Plumbing & Pressure Lines', 'Substation & Genset'],
+        staffMembers: getStaffForDept('maintenance', [
+          {
+            id: 'st-mnt-1',
+            employeeId: 'EMP-0104',
+            name: 'Arjun Mehta',
+            email: 'a.mehta@thegrandadp.com',
+            roleId: 'department_dispatcher_supervisor',
+            department: 'Maintenance & Engineering',
+            floorZone: 'All floors',
+            shift: 'Day',
+            status: 'active',
+            financialLimit: 0,
+            createdAt: '2026-08-10',
+            availability: 'on_duty',
+          },
+          {
+            id: 'st-mnt-2',
+            employeeId: 'EMP-0114',
+            name: 'Devendra Rao',
+            email: 'd.rao@thegrandadp.com',
+            roleId: 'task_fulfiller',
+            department: 'Maintenance & Engineering',
+            floorZone: 'Basement & Plant Rooms',
+            shift: 'Day',
+            status: 'active',
+            financialLimit: 0,
+            createdAt: '2026-08-10',
+            availability: 'on_duty',
+          },
+          {
+            id: 'st-mnt-3',
+            employeeId: 'EMP-0118',
+            name: 'Rohan Joshi',
+            email: 'r.joshi@thegrandadp.com',
+            roleId: 'task_fulfiller',
+            department: 'Maintenance & Engineering',
+            floorZone: 'Tower A Floors 1–6',
+            shift: 'Day',
+            status: 'active',
+            financialLimit: 0,
+            createdAt: '2026-08-10',
+            availability: 'on_duty',
+          },
+          {
+            id: 'st-mnt-4',
+            employeeId: 'EMP-0122',
+            name: 'Karan Verma',
+            email: 'k.verma@thegrandadp.com',
+            roleId: 'task_fulfiller',
+            department: 'Maintenance & Engineering',
+            floorZone: 'Tower B & Service Shafts',
+            shift: 'Evening',
+            status: 'active',
+            financialLimit: 0,
+            createdAt: '2026-08-10',
+            availability: 'off_duty',
+          },
+        ]),
+        tasks: getTasksForDept('maintenance', [
+          {
+            id: 'wo-mnt-1',
+            ref: 'WO-MNT-401',
+            title: 'HVAC Chiller Unit 3 Pressure Calibration',
+            department: 'Maintenance & Engineering',
+            category: 'maintenance',
+            priority: 'urgent',
+            status: 'In Progress',
+            meta: 'Basement Plant Room · Tech: Devendra Rao',
+          },
+          {
+            id: 'wo-mnt-2',
+            ref: 'WO-MNT-402',
+            title: 'Service Elevator 2 Inverter Diagnostics',
+            department: 'Maintenance & Engineering',
+            category: 'maintenance',
+            priority: 'critical',
+            status: 'Awaiting Parts',
+            meta: 'East Core Shaft · Otis Vendor Dispatch',
+          },
+          {
+            id: 'wo-mnt-3',
+            ref: 'WO-MNT-403',
+            title: 'Hot Water Heat Pump Circuit Breaker Audit',
+            department: 'Maintenance & Engineering',
+            category: 'maintenance',
+            priority: 'normal',
+            status: 'Scheduled',
+            meta: 'Service Level 1 · Routine PM',
+          },
+        ]),
       },
       {
         id: 'housekeeping',
         name: 'Housekeeping & Rooms',
         icon: Layers,
         head: 'Meera Nambiar',
+        leadEmpId: 'EMP-0105',
         slaPercent: 96.8,
+        avgResolutionMinutes: 12,
+        guestSatisfactionScore: 4.8,
+        staffOnDutyCount: 4,
+        totalStaffCount: 5,
         activeTasks: allTasks.filter((t) => t.department?.toLowerCase().includes('housekeeping')).length || 14,
+        overdueTasksCount: 0,
         openEscalations: 0,
         status: 'optimal',
         trend: '+0.8%',
         spending: '₹35,000',
+        weeklyTrend: [95, 96, 94, 97, 98, 96, 96.8],
+        keyFocusAreas: ['VIP Room Turn-Down', 'Linen Inventory Audit', 'Sanitization Protocol', 'Deep Clean Rotation'],
+        staffMembers: getStaffForDept('housekeeping', [
+          {
+            id: 'st-hk-1',
+            employeeId: 'EMP-0105',
+            name: 'Meera Nambiar',
+            email: 'm.nambiar@thegrandadp.com',
+            roleId: 'department_dispatcher_supervisor',
+            department: 'Housekeeping',
+            floorZone: 'Floors 1–5',
+            shift: 'Day',
+            status: 'active',
+            financialLimit: 0,
+            createdAt: '2026-08-05',
+            availability: 'on_duty',
+          },
+          {
+            id: 'st-hk-2',
+            employeeId: 'EMP-0103',
+            name: 'Vikram Singh',
+            email: 'v.singh@thegrandadp.com',
+            roleId: 'task_fulfiller',
+            department: 'Housekeeping',
+            floorZone: 'Floors 1–5',
+            shift: 'Day',
+            status: 'active',
+            financialLimit: 0,
+            createdAt: '2026-09-01',
+            availability: 'on_duty',
+          },
+          {
+            id: 'st-hk-3',
+            employeeId: 'EMP-0109',
+            name: 'Leila Chen',
+            email: 'l.chen@thegrandadp.com',
+            roleId: 'task_fulfiller',
+            department: 'Housekeeping',
+            floorZone: 'Floors 4–6 VIP Wings',
+            shift: 'Day',
+            status: 'active',
+            financialLimit: 0,
+            createdAt: '2026-08-12',
+            availability: 'on_duty',
+          },
+          {
+            id: 'st-hk-4',
+            employeeId: 'EMP-0115',
+            name: 'Priya Nair',
+            email: 'p.nair@thegrandadp.com',
+            roleId: 'task_fulfiller',
+            department: 'Housekeeping',
+            floorZone: 'Floors 1–3',
+            shift: 'Day',
+            status: 'active',
+            financialLimit: 0,
+            createdAt: '2026-08-15',
+            availability: 'on_duty',
+          },
+          {
+            id: 'st-hk-5',
+            employeeId: 'EMP-0125',
+            name: 'Sunil Jadhav',
+            email: 's.jadhav@thegrandadp.com',
+            roleId: 'task_fulfiller',
+            department: 'Housekeeping',
+            floorZone: 'Linen Master Depot',
+            shift: 'Evening',
+            status: 'active',
+            financialLimit: 0,
+            createdAt: '2026-08-20',
+            availability: 'off_duty',
+          },
+        ]),
+        tasks: getTasksForDept('housekeeping', [
+          {
+            id: 'wo-hk-1',
+            ref: 'HK-2026-91',
+            title: 'VIP Turndown Service Suite 518',
+            department: 'Housekeeping',
+            category: 'housekeeping',
+            priority: 'vip',
+            status: 'In Progress',
+            meta: 'Room 518 · Butler Escort Requested',
+          },
+          {
+            id: 'wo-hk-2',
+            ref: 'HK-2026-88',
+            title: 'Express Deep Clean & Linen Refresh Suite 402',
+            department: 'Housekeeping',
+            category: 'housekeeping',
+            priority: 'urgent',
+            status: 'Assigned',
+            meta: 'Room 402 · Post AC Leak Restoration',
+          },
+          {
+            id: 'wo-hk-3',
+            ref: 'HK-2026-84',
+            title: 'Presidential Suite Departure Turnover',
+            department: 'Housekeeping',
+            category: 'housekeeping',
+            priority: 'normal',
+            status: 'Completed',
+            meta: 'Suite 601 · Inspected by Meera Nambiar',
+          },
+        ]),
       },
       {
         id: 'front_office',
         name: 'Front Office & Stays',
         icon: Building2,
         head: 'Sunita Patel',
+        leadEmpId: 'EMP-0102',
         slaPercent: 95.2,
-        activeTasks: (state.frontDesk?.stays ?? []).filter((s) => s.status === 'in_house').length,
+        avgResolutionMinutes: 6,
+        guestSatisfactionScore: 4.7,
+        staffOnDutyCount: 2,
+        totalStaffCount: 3,
+        activeTasks: (state.frontDesk?.stays ?? []).filter((s) => s.status === 'in_house').length || 6,
+        overdueTasksCount: 0,
         openEscalations: unresolvedComplaints.length,
         status: 'optimal',
         trend: '+1.4%',
         spending: '₹28,000',
+        weeklyTrend: [93, 94, 96, 95, 94, 95, 95.2],
+        keyFocusAreas: ['Express VIP Check-Ins', 'Luggage Transit Velocity', 'Guest Preference Profiling', 'Billing Accuracy'],
+        staffMembers: getStaffForDept('front', [
+          {
+            id: 'st-fo-1',
+            employeeId: 'EMP-0102',
+            name: 'Sunita Patel',
+            email: 's.patel@thegrandadp.com',
+            roleId: 'front_desk_coordinator',
+            department: 'Front Office',
+            floorZone: 'Lobby & Reception',
+            shift: 'Day',
+            status: 'active',
+            financialLimit: 4000,
+            createdAt: '2026-08-15',
+            availability: 'on_duty',
+          },
+          {
+            id: 'st-fo-2',
+            employeeId: 'EMP-0106',
+            name: 'Marcus Vance',
+            email: 'm.vance@thegrandadp.com',
+            roleId: 'front_desk_coordinator',
+            department: 'Front Office',
+            floorZone: 'Duty Manager Desk',
+            shift: 'Day',
+            status: 'active',
+            financialLimit: 16000,
+            createdAt: '2026-08-15',
+            availability: 'on_duty',
+          },
+          {
+            id: 'st-fo-3',
+            employeeId: 'EMP-0116',
+            name: 'Rahul Kapoor',
+            email: 'r.kapoor@thegrandadp.com',
+            roleId: 'front_desk_coordinator',
+            department: 'Front Office',
+            floorZone: 'Concierge Desk',
+            shift: 'Evening',
+            status: 'active',
+            financialLimit: 2000,
+            createdAt: '2026-08-25',
+            availability: 'off_duty',
+          },
+        ]),
+        tasks: getTasksForDept('front', [
+          {
+            id: 'wo-fo-1',
+            ref: 'FO-2026-102',
+            title: 'Express VIP Check-in & Keycard Provisioning',
+            department: 'Front Office',
+            category: 'front_desk',
+            priority: 'vip',
+            status: 'In Progress',
+            meta: 'Suite 518 · Guest: Amb. K. Sharma',
+          },
+          {
+            id: 'wo-fo-2',
+            ref: 'FO-2026-105',
+            title: 'Luggage Transit Escort to Suite 314',
+            department: 'Front Office',
+            category: 'front_desk',
+            priority: 'normal',
+            status: 'Assigned',
+            meta: 'Bell Captain Dispatch',
+          },
+          {
+            id: 'wo-fo-3',
+            ref: 'FO-2026-098',
+            title: 'Guest Service Feedback Resolution',
+            department: 'Front Office',
+            category: 'concierge',
+            priority: 'urgent',
+            status: 'Resolved',
+            meta: 'Handled by Marcus Vance',
+          },
+        ]),
       },
       {
         id: 'food_beverage',
-        name: 'Food & Beverage / In-Room',
+        name: 'Food & Beverage',
         icon: Sparkles,
         head: 'Kabir Sen',
+        leadEmpId: 'EMP-0113',
         slaPercent: 94.0,
+        avgResolutionMinutes: 14,
+        guestSatisfactionScore: 4.9,
+        staffOnDutyCount: 3,
+        totalStaffCount: 4,
         activeTasks: allTasks.filter((t) => t.department?.toLowerCase().includes('beverage') || t.department?.toLowerCase().includes('f&b')).length || 5,
+        overdueTasksCount: 1,
         openEscalations: 0,
         status: 'optimal',
         trend: '-0.5%',
         spending: '₹35,000',
+        weeklyTrend: [92, 93, 95, 94, 96, 95, 94.0],
+        keyFocusAreas: ['In-Room Dining Speed', 'Breakfast Buffet Restock', 'Banquet Line Coordination', 'Kitchen HACCP Standards'],
+        staffMembers: getStaffForDept('beverage', [
+          {
+            id: 'st-fb-1',
+            employeeId: 'EMP-0113',
+            name: 'Kabir Sen',
+            email: 'k.sen@thegrandadp.com',
+            roleId: 'department_manager',
+            department: 'Food & Beverage',
+            floorZone: 'Restaurants & Kitchens',
+            shift: 'Day',
+            status: 'active',
+            financialLimit: 12000,
+            createdAt: '2026-08-01',
+            availability: 'on_duty',
+          },
+          {
+            id: 'st-fb-2',
+            employeeId: 'EMP-0117',
+            name: 'Sameer Khan',
+            email: 's.khan@thegrandadp.com',
+            roleId: 'task_fulfiller',
+            department: 'Food & Beverage',
+            floorZone: 'In-Room Dining Hub',
+            shift: 'Day',
+            status: 'active',
+            financialLimit: 0,
+            createdAt: '2026-08-05',
+            availability: 'on_duty',
+          },
+          {
+            id: 'st-fb-3',
+            employeeId: 'EMP-0120',
+            name: 'Neha Gupta',
+            email: 'n.gupta@thegrandadp.com',
+            roleId: 'task_fulfiller',
+            department: 'Food & Beverage',
+            floorZone: 'Banquet Hall & Bar',
+            shift: 'Day',
+            status: 'active',
+            financialLimit: 0,
+            createdAt: '2026-08-10',
+            availability: 'on_duty',
+          },
+          {
+            id: 'st-fb-4',
+            employeeId: 'EMP-0124',
+            name: 'Rohit Pillai',
+            email: 'r.pillai@thegrandadp.com',
+            roleId: 'task_fulfiller',
+            department: 'Food & Beverage',
+            floorZone: 'Main Kitchen Service',
+            shift: 'Evening',
+            status: 'active',
+            financialLimit: 0,
+            createdAt: '2026-08-20',
+            availability: 'off_duty',
+          },
+        ]),
+        tasks: getTasksForDept('beverage', [
+          {
+            id: 'wo-fb-1',
+            ref: 'FB-2026-311',
+            title: 'In-Room Dining Order #502 Express Delivery',
+            department: 'Food & Beverage',
+            category: 'room_service',
+            priority: 'urgent',
+            status: 'Dispatched',
+            meta: 'Room 502 · Express Breakfast Combo',
+          },
+          {
+            id: 'wo-fb-2',
+            ref: 'FB-2026-308',
+            title: 'Banquet Hall A Executive Breakfast Setup',
+            department: 'Food & Beverage',
+            category: 'room_service',
+            priority: 'normal',
+            status: 'In Progress',
+            meta: 'Grand Ballroom · 45 Pax Corporate Session',
+          },
+          {
+            id: 'wo-fb-3',
+            ref: 'FB-2026-299',
+            title: 'Main Kitchen Cold Line Temperature Audit',
+            department: 'Food & Beverage',
+            category: 'room_service',
+            priority: 'normal',
+            status: 'Completed',
+            meta: 'Inspected & Passed 3.8°C',
+          },
+        ]),
       },
       {
         id: 'spa_wellness',
-        name: 'Spa & Wellness',
+        name: 'Wellness',
         icon: Star,
         head: 'T. Brandt',
+        leadEmpId: 'EMP-0110',
         slaPercent: 98.5,
+        avgResolutionMinutes: 8,
+        guestSatisfactionScore: 4.95,
+        staffOnDutyCount: 2,
+        totalStaffCount: 2,
         activeTasks: 3,
+        overdueTasksCount: 0,
         openEscalations: 0,
         status: 'optimal',
         trend: '+0.3%',
         spending: '₹12,500',
+        weeklyTrend: [97, 98, 99, 98, 97, 99, 98.5],
+        keyFocusAreas: ['Ayurvedic Treatment Suites', 'Hydrotherapy Pool Sanitation', 'Fitness Studio Checks', 'Locker Room Cleanliness'],
+        staffMembers: getStaffForDept('wellness', [
+          {
+            id: 'st-wel-1',
+            employeeId: 'EMP-0110',
+            name: 'T. Brandt',
+            email: 't.brandt@thegrandadp.com',
+            roleId: 'department_manager',
+            department: 'Wellness',
+            floorZone: 'Spa & Wellness Level 2',
+            shift: 'Day',
+            status: 'active',
+            financialLimit: 8000,
+            createdAt: '2026-08-01',
+            availability: 'on_duty',
+          },
+          {
+            id: 'st-wel-2',
+            employeeId: 'EMP-0111',
+            name: 'Ananya Sharma',
+            email: 'a.sharma@thegrandadp.com',
+            roleId: 'task_fulfiller',
+            department: 'Wellness',
+            floorZone: 'Spa Treatment Suites',
+            shift: 'Day',
+            status: 'active',
+            financialLimit: 0,
+            createdAt: '2026-08-10',
+            availability: 'on_duty',
+          },
+        ]),
+        tasks: getTasksForDept('wellness', [
+          {
+            id: 'wo-wel-1',
+            ref: 'WEL-2026-51',
+            title: 'Hydrotherapy Pool Quality & Temp Check',
+            department: 'Wellness',
+            category: 'spa',
+            priority: 'normal',
+            status: 'In Progress',
+            meta: 'Level 2 Spa Deck · Chlorination 1.8ppm',
+          },
+          {
+            id: 'wo-wel-2',
+            ref: 'WEL-2026-52',
+            title: 'Ayurvedic Treatment Room 2 Preparation',
+            department: 'Wellness',
+            category: 'spa',
+            priority: 'vip',
+            status: 'Ready',
+            meta: 'Suite B · Guest Appointment 11:30',
+          },
+          {
+            id: 'wo-wel-3',
+            ref: 'WEL-2026-49',
+            title: 'Fitness Studio Equipment Sanitation Audit',
+            department: 'Wellness',
+            category: 'spa',
+            priority: 'normal',
+            status: 'Completed',
+            meta: 'All cardiovascular machines sanitized',
+          },
+        ]),
       },
       {
         id: 'security',
         name: 'Safety & Security',
         icon: ShieldAlert,
         head: 'Inspector Roy',
+        leadEmpId: 'EMP-0108',
         slaPercent: 97.1,
+        avgResolutionMinutes: 4,
+        guestSatisfactionScore: 4.8,
+        staffOnDutyCount: 2,
+        totalStaffCount: 2,
         activeTasks: (state.items.security_responder ?? []).filter((s) => s.status !== 'Resolved').length || 2,
+        overdueTasksCount: 0,
         openEscalations: 1,
         status: 'optimal',
         trend: '0.0%',
         spending: '₹18,000',
+        weeklyTrend: [96, 97, 98, 96, 97, 98, 97.1],
+        keyFocusAreas: ['Perimeter Patrols', 'Keycard Access Logging', 'Emergency Response Readiness', 'CCTV Grid Coverage'],
+        staffMembers: getStaffForDept('security', [
+          {
+            id: 'st-sec-1',
+            employeeId: 'EMP-0108',
+            name: 'Inspector Roy',
+            email: 'r.roy@thegrandadp.com',
+            roleId: 'security_responder',
+            department: 'Safety & Security',
+            floorZone: 'Property-wide Security Hub',
+            shift: 'Day',
+            status: 'active',
+            financialLimit: 0,
+            createdAt: '2026-08-01',
+            availability: 'on_duty',
+          },
+          {
+            id: 'st-sec-2',
+            employeeId: 'EMP-0112',
+            name: 'Balram Yadav',
+            email: 'b.yadav@thegrandadp.com',
+            roleId: 'security_responder',
+            department: 'Safety & Security',
+            floorZone: 'Perimeter & Gates',
+            shift: 'Day',
+            status: 'active',
+            financialLimit: 0,
+            createdAt: '2026-08-10',
+            availability: 'on_duty',
+          },
+        ]),
+        tasks: getTasksForDept('security', [
+          {
+            id: 'wo-sec-1',
+            ref: 'SEC-2026-21',
+            title: 'Service Core B Keycard Access Audit',
+            department: 'Safety & Security',
+            category: 'safety',
+            priority: 'normal',
+            status: 'In Progress',
+            meta: 'Core B Stairwell · Log validation',
+          },
+          {
+            id: 'wo-sec-2',
+            ref: 'SEC-2026-22',
+            title: 'East Wing Perimeter Security Patrol',
+            department: 'Safety & Security',
+            category: 'safety',
+            priority: 'normal',
+            status: 'Assigned',
+            meta: 'East Garden perimeter & Service Entry',
+          },
+        ]),
       },
     ];
-  }, [allTasks, incidents, state.frontDesk?.stays, unresolvedComplaints.length, state.items.security_responder]);
+  }, [allTasks, incidents, state.frontDesk?.stays, unresolvedComplaints.length, state.items.security_responder, state.staffAccounts]);
 
   return (
     <div className="space-y-6">
@@ -412,8 +991,9 @@ export function ExecutiveOverviewTab({
                 return (
                   <div
                     key={dept.id}
-                    onClick={() => onNavigateTab('performance', { department: dept.name })}
-                    className="p-3 rounded-2xl border border-white/5 bg-black/[0.02] dark:bg-white/[0.02] hover:bg-white/10 hover:border-amber-500/30 transition cursor-pointer"
+                    onClick={() => setSelectedDeptPerformance(dept)}
+                    className="p-3.5 rounded-2xl border border-white/5 bg-black/[0.02] dark:bg-white/[0.02] hover:bg-white/10 hover:border-amber-500/40 hover:shadow-md transition cursor-pointer group"
+                    title={`Click to view ${dept.name} exact performance details`}
                   >
                     <div className="flex items-center justify-between mb-1.5">
                       <div className="flex items-center gap-2.5">
@@ -430,7 +1010,7 @@ export function ExecutiveOverviewTab({
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2.5 sm:gap-3">
                         <span className="text-xs font-mono font-bold text-navy-950 dark:text-white">
                           {dept.slaPercent}%
                         </span>
@@ -442,6 +1022,11 @@ export function ExecutiveOverviewTab({
                           }`}
                         >
                           {dept.slaPercent >= 95 ? 'Target Met' : 'Attention'}
+                        </span>
+                        <span className="text-xs font-semibold text-amber-500 flex items-center gap-0.5 opacity-80 group-hover:opacity-100 group-hover:translate-x-0.5 transition">
+                          <Eye className="h-3.5 w-3.5" />
+                          <span className="hidden sm:inline text-[11px]">Details</span>
+                          <ChevronRight className="h-3 w-3" />
                         </span>
                       </div>
                     </div>
@@ -566,7 +1151,7 @@ export function ExecutiveOverviewTab({
             {/* Attention Items List */}
             <div className="space-y-3">
               {/* Item 1: Goodwill Comp Room 402 */}
-              {executiveItems.find((i) => i.id === 'exe-1') && (
+              {executiveItems.find((i) => i.id === 'exe-1' && i.status === 'Needs approval') && (
                 <div className="p-3.5 rounded-2xl border border-amber-500/30 bg-amber-500/[0.06] hover:bg-amber-500/[0.1] transition space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-300">
@@ -600,7 +1185,7 @@ export function ExecutiveOverviewTab({
               )}
 
               {/* Item 2: Otis Lift 2 Controller Capex */}
-              {executiveItems.find((i) => i.id === 'exe-3') && (
+              {executiveItems.find((i) => i.id === 'exe-3' && i.status === 'Needs approval') && (
                 <div className="p-3.5 rounded-2xl border border-purple-500/30 bg-purple-500/[0.06] hover:bg-purple-500/[0.1] transition space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-600 dark:text-purple-300">
@@ -691,6 +1276,313 @@ export function ExecutiveOverviewTab({
           </div>
         </div>
       </div>
+    
+      {/* Exact Department Performance Details Modal */}
+      {selectedDeptPerformance && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in"
+          onClick={() => setSelectedDeptPerformance(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="w-full max-w-3xl max-h-[90vh] flex flex-col rounded-3xl border border-white/15 bg-white dark:bg-ink-900 shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-white/10 bg-slate-50/80 dark:bg-ink-950/80">
+              <div className="flex items-center gap-3.5">
+                <div className="h-11 w-11 rounded-2xl bg-amber-500/20 text-amber-500 dark:text-amber-400 grid place-items-center border border-amber-500/30">
+                  <selectedDeptPerformance.icon className="h-6 w-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-base font-bold text-navy-950 dark:text-white">
+                      {selectedDeptPerformance.name} — Performance Details
+                    </h3>
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        selectedDeptPerformance.slaPercent >= 94
+                          ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/20'
+                          : 'bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/20'
+                      }`}
+                    >
+                      {selectedDeptPerformance.slaPercent >= 94 ? 'Target Met (≥94%)' : 'Attention Needed (<94%)'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-mist-400 mt-0.5">
+                    Lead: <span className="font-semibold text-navy-950 dark:text-white">{selectedDeptPerformance.head}</span> ({selectedDeptPerformance.leadEmpId}) · Shift Saturation: {selectedDeptPerformance.staffOnDutyCount} of {selectedDeptPerformance.totalStaffCount} On Duty
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedDeptPerformance(null)}
+                className="p-2 rounded-2xl hover:bg-slate-200 dark:hover:bg-white/10 text-slate-400 hover:text-navy-950 dark:hover:text-white transition"
+                aria-label="Close dialog"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Scrollable Modal Content */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* 4 Primary KPI metric cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {/* Metric 1: SLA Adherence */}
+                <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-white/[0.03]">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-mist-500 block">
+                    SLA Adherence
+                  </span>
+                  <div className="text-xl font-black font-mono text-navy-950 dark:text-white mt-1">
+                    {selectedDeptPerformance.slaPercent}%
+                  </div>
+                  <div className="text-[11px] text-emerald-500 dark:text-emerald-400 font-semibold mt-0.5 flex items-center gap-1">
+                    <TrendingUp className="h-3 w-3" />
+                    {selectedDeptPerformance.trend} vs last wk
+                  </div>
+                </div>
+
+                {/* Metric 2: Turnaround Velocity */}
+                <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-white/[0.03]">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-mist-500 block">
+                    Avg Turnaround
+                  </span>
+                  <div className="text-xl font-black font-mono text-navy-950 dark:text-white mt-1 flex items-center gap-1">
+                    <Timer className="h-4 w-4 text-amber-500" />
+                    {selectedDeptPerformance.avgResolutionMinutes} min
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-mist-400 mt-0.5">
+                    Benchmark: &lt; 20 min
+                  </div>
+                </div>
+
+                {/* Metric 3: Guest Rating */}
+                <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-white/[0.03]">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-mist-500 block">
+                    Guest Score
+                  </span>
+                  <div className="text-xl font-black font-mono text-navy-950 dark:text-white mt-1 flex items-center gap-1">
+                    <Star className="h-4 w-4 text-amber-400 fill-amber-400" />
+                    {selectedDeptPerformance.guestSatisfactionScore} / 5
+                  </div>
+                  <div className="text-[11px] text-emerald-500 dark:text-emerald-400 font-semibold mt-0.5">
+                    Top quartile
+                  </div>
+                </div>
+
+                {/* Metric 4: Active Workload */}
+                <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-white/[0.03]">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-mist-500 block">
+                    Active Tasks
+                  </span>
+                  <div className="text-xl font-black font-mono text-navy-950 dark:text-white mt-1">
+                    {selectedDeptPerformance.activeTasks}
+                  </div>
+                  <div
+                    className={`text-[11px] font-semibold mt-0.5 ${
+                      selectedDeptPerformance.overdueTasksCount > 0 ? 'text-rose-500' : 'text-emerald-500 dark:text-emerald-400'
+                    }`}
+                  >
+                    {selectedDeptPerformance.overdueTasksCount > 0
+                      ? `${selectedDeptPerformance.overdueTasksCount} overdue`
+                      : 'Zero overdue'}
+                  </div>
+                </div>
+              </div>
+
+              {/* 7-Day Performance Trend Bar / Visual Benchmark */}
+              <div className="p-4 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.02] space-y-3">
+                <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4 text-amber-500" />
+                    <span className="font-bold text-navy-950 dark:text-white">
+                      7-Day SLA Benchmark History
+                    </span>
+                  </div>
+                  <span className="font-mono text-[11px] text-slate-400 dark:text-mist-400">
+                    Property Target: 94.0%
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-7 gap-2 pt-2">
+                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Today'].map((day, idx) => {
+                    const val = selectedDeptPerformance.weeklyTrend[idx] || 95;
+                    const isAbove = val >= 94;
+                    return (
+                      <div key={day} className="text-center space-y-1.5">
+                        <div className="h-16 flex items-end justify-center">
+                          <div
+                            className={`w-full max-w-[28px] rounded-lg transition-all ${
+                              isAbove ? 'bg-emerald-500' : 'bg-amber-500'
+                            }`}
+                            style={{ height: `${Math.max(20, (val - 70) * 3.3)}%` }}
+                            title={`${day}: ${val}%`}
+                          />
+                        </div>
+                        <div className="text-[10px] font-mono font-bold text-navy-950 dark:text-white">
+                          {val}%
+                        </div>
+                        <div className="text-[10px] text-slate-400 dark:text-mist-500">
+                          {day}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Key Focus & Equipment Areas */}
+              {selectedDeptPerformance.keyFocusAreas && selectedDeptPerformance.keyFocusAreas.length > 0 && (
+                <div className="space-y-2">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-mist-500 block">
+                    Operational Focus Areas
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedDeptPerformance.keyFocusAreas.map((focus) => (
+                      <span
+                        key={focus}
+                        className="text-xs px-3 py-1 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 font-medium"
+                      >
+                        {focus}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Live Operational Queue for this department */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-mist-400 flex items-center gap-1.5">
+                    <Activity className="h-4 w-4 text-amber-500" />
+                    Live Operational Queue ({selectedDeptPerformance.tasks.length})
+                  </h4>
+                  <span className="text-[11px] text-slate-400 dark:text-mist-500">
+                    Open work items tracked
+                  </span>
+                </div>
+
+                {selectedDeptPerformance.tasks.length === 0 ? (
+                  <div className="p-5 text-center text-xs text-slate-400 dark:text-mist-500 rounded-2xl border border-slate-200 dark:border-white/10">
+                    All queue items cleared. No pending tasks for this department.
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                    {selectedDeptPerformance.tasks.map((task) => (
+                      <div
+                        key={task.id}
+                        className="p-3 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-white/[0.02] flex items-center justify-between text-xs hover:border-amber-500/30 transition"
+                      >
+                        <div className="space-y-0.5">
+                          <div className="font-bold text-navy-950 dark:text-white flex items-center gap-2">
+                            <span>{task.title}</span>
+                            {task.priority === 'critical' && (
+                              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-500 border border-rose-500/30">
+                                CRITICAL
+                              </span>
+                            )}
+                            {task.priority === 'vip' && (
+                              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-500 border border-purple-500/30">
+                                VIP
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-slate-400 dark:text-mist-500">
+                            {task.ref || task.id} · {task.room ? `Room ${task.room} · ` : ''}{task.meta || task.category || 'General Operations'}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-mist-300">
+                            {task.status || 'Active'}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Active Staff Roster in this Department */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-mist-400 flex items-center gap-1.5">
+                    <Users className="h-4 w-4 text-emerald-500" />
+                    Field Team & Shift Coverage ({selectedDeptPerformance.staffMembers.length})
+                  </h4>
+                  <span className="text-[11px] text-emerald-500 font-semibold">
+                    {selectedDeptPerformance.staffOnDutyCount} of {selectedDeptPerformance.totalStaffCount} Active on Duty
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {selectedDeptPerformance.staffMembers.map((staff) => (
+                    <div
+                      key={staff.id}
+                      className="p-3 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-white/[0.02] flex items-center justify-between text-xs"
+                    >
+                      <div>
+                        <div className="font-bold text-navy-950 dark:text-white">
+                          {staff.name}
+                        </div>
+                        <div className="text-[11px] text-slate-400 dark:text-mist-500 font-mono">
+                          {staff.employeeId} · Shift: {staff.shift || 'Day'}
+                        </div>
+                        <div className="text-[10px] text-slate-400 dark:text-mist-500">
+                          Zone: {staff.floorZone || 'Assigned Property'}
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            staff.availability === 'on_duty'
+                              ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/20'
+                              : 'bg-slate-200 dark:bg-white/10 text-slate-500'
+                          }`}
+                        >
+                          {staff.availability === 'on_duty' ? 'On Duty' : 'Off Shift'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-slate-200 dark:border-white/10 bg-slate-50/80 dark:bg-ink-950/80 flex items-center justify-between flex-wrap gap-2">
+              <span className="text-xs text-slate-500 dark:text-mist-400">
+                Monthly CapEx & Opex: <strong className="text-navy-950 dark:text-white">{selectedDeptPerformance.spending}</strong>
+              </span>
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const deptName = selectedDeptPerformance.name;
+                    setSelectedDeptPerformance(null);
+                    onNavigateTab('performance', { department: deptName });
+                  }}
+                  className="text-xs font-semibold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1"
+                >
+                  Global Performance Tab <ArrowRight className="h-3 w-3" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDeptPerformance(null)}
+                  className="px-4 py-2 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition shadow-md"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

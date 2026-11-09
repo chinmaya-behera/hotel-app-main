@@ -15,6 +15,7 @@ import {
   Send,
   UserCheck,
   Sparkles,
+  Star,
 } from 'lucide-react';
 import type { WorkItem } from '@/types/demo';
 
@@ -114,6 +115,77 @@ export function TaskDetailsDrawer({
               <p className="font-semibold text-mist-200 font-mono truncate">{task.createdAt || 'Today'}</p>
             </div>
           </div>
+
+          {/* Guest Review & Rating Feedback (Prominent on view details) */}
+          {task.feedback && (
+            <div className="rounded-2xl border border-amber-400/40 bg-gradient-to-b from-amber-500/[0.12] to-amber-950/30 p-4 space-y-3 shadow-lg">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+                  <Star className="h-4 w-4 text-amber-400 fill-amber-400" />
+                  Guest Review & Rating
+                </span>
+                <span className="text-sm font-mono font-bold text-amber-300 bg-amber-400/20 px-2 py-0.5 rounded-lg border border-amber-400/30">
+                  {task.feedback.rating}.0 / 5.0
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Star
+                    key={star}
+                    className={`h-4 w-4 ${
+                      star <= task.feedback!.rating
+                        ? 'text-amber-400 fill-amber-400'
+                        : 'text-mist-600'
+                    }`}
+                  />
+                ))}
+              </div>
+
+              {task.feedback.comment && (
+                <p className="text-xs text-mist-100 italic leading-relaxed bg-ink-950/60 p-3 rounded-xl border border-white/[0.06]">
+                  &ldquo;{task.feedback.comment}&rdquo;
+                </p>
+              )}
+
+              <div className="flex items-center justify-between text-[11px] text-mist-400 pt-1">
+                <span className="font-semibold text-white">
+                  {task.feedback.guestName || (task.guest ? 'Verified In-House Guest' : 'Guest')}
+                </span>
+                {task.feedback.reviewedAt && (
+                  <span className="font-mono text-[10px]">
+                    Reviewed at {task.feedback.reviewedAt}
+                  </span>
+                )}
+              </div>
+
+              {task.feedback.tags && task.feedback.tags.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-amber-400/20">
+                  {task.feedback.tags.map((tag, idx) => (
+                    <span
+                      key={idx}
+                      className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-amber-400/20 text-amber-200 border border-amber-400/30"
+                    >
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Unreviewed status for completed tasks */}
+          {task.status === 'Completed' && !task.feedback && (
+            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 text-center space-y-1.5">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-mist-400 flex items-center justify-center gap-1.5">
+                <Star className="h-3.5 w-3.5 text-mist-500" />
+                Guest Review & Rating Status
+              </span>
+              <p className="text-xs text-mist-300">
+                Awaiting guest post-service review. Task was verified and fulfilled by internal department staff.
+              </p>
+            </div>
+          )}
 
           {/* Dual SLA Section */}
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 space-y-3">
@@ -217,15 +289,14 @@ export function TaskDetailsDrawer({
           </div>
 
           {/* Description / Instructions */}
-          {task.description && (
+          {(task.description || task.meta) && (
             <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 space-y-1.5">
               <span className="text-[11px] font-bold uppercase tracking-wider text-mist-400 flex items-center gap-1.5">
                 <FileText className="h-3.5 w-3.5 text-amber-300" />
                 Work Order Details / Guest Remarks
               </span>
               <p className="text-xs text-mist-200 leading-relaxed bg-ink-950/40 p-3 rounded-xl border border-white/[0.04]">
-                {task.description}
-              </p>
+                {task.description || task.meta}</p>
             </div>
           )}
 
@@ -273,48 +344,61 @@ export function TaskDetailsDrawer({
 
         {/* Bottom Action Footer */}
         <div className="border-t border-white/[0.08] pt-4 mt-6 space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            {task.status === 'Unassigned' && (
-              <>
-                <button
-                  type="button"
-                  onClick={onAutoAssign}
-                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-amber-400 text-ink-950 text-xs font-bold hover:bg-amber-300 transition shadow-md shadow-amber-500/20"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  <span>1-Click Auto Assign</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={onOpenAssign}
-                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl border border-white/10 bg-white/[0.04] text-xs font-semibold text-white hover:bg-white/[0.08] transition"
-                >
-                  <UserCheck className="h-4 w-4 text-amber-300" />
-                  <span>Manual Assign</span>
-                </button>
-              </>
-            )}
-
-            {!task.isLinkedDuplicate && (
+          {task.status === 'Completed' ? (
+            <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={onOpenDuplicate}
-                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-white/10 text-xs font-semibold text-mist-300 hover:text-white hover:bg-white/[0.05] transition"
+                onClick={onClose}
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-400 text-ink-950 text-xs font-bold hover:bg-amber-300 transition shadow-md shadow-amber-500/20 cursor-pointer"
               >
-                <Link2 className="h-4 w-4 text-sky-400" />
-                <span>Link Duplicate</span>
+                <CheckCircle2 className="h-4 w-4" />
+                <span>Close Task Details</span>
               </button>
-            )}
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2">
+              {task.status === 'Unassigned' && (
+                <>
+                  <button
+                    type="button"
+                    onClick={onAutoAssign}
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-amber-400 text-ink-950 text-xs font-bold hover:bg-amber-300 transition shadow-md shadow-amber-500/20"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    <span>1-Click Auto Assign</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onOpenAssign}
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl border border-white/10 bg-white/[0.04] text-xs font-semibold text-white hover:bg-white/[0.08] transition"
+                  >
+                    <UserCheck className="h-4 w-4 text-amber-300" />
+                    <span>Manual Assign</span>
+                  </button>
+                </>
+              )}
 
-            <button
-              type="button"
-              onClick={onOpenEscalate}
-              className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-rose-500/30 bg-rose-500/10 text-xs font-semibold text-rose-300 hover:bg-rose-500/20 transition"
-            >
-              <Send className="h-4 w-4 text-rose-400" />
-              <span>Escalate to Duty Mgr</span>
-            </button>
-          </div>
+              {!task.isLinkedDuplicate && (
+                <button
+                  type="button"
+                  onClick={onOpenDuplicate}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-white/10 text-xs font-semibold text-mist-300 hover:text-white hover:bg-white/[0.05] transition"
+                >
+                  <Link2 className="h-4 w-4 text-sky-400" />
+                  <span>Link Duplicate</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={onOpenEscalate}
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-rose-500/30 bg-rose-500/10 text-xs font-semibold text-rose-300 hover:bg-rose-500/20 transition"
+              >
+                <Send className="h-4 w-4 text-rose-400" />
+                <span>Escalate to Duty Mgr</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
