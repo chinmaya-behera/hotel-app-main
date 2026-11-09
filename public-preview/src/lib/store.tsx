@@ -667,12 +667,28 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           incidents: saved.incidents ?? base.incidents,
           invoices: saved.invoices ?? base.invoices,
           transactions: saved.transactions ?? base.transactions,
-          refundRequests: saved.refundRequests ?? base.refundRequests,
+          refundRequests: [
+            ...((saved.refundRequests ?? []).map((sr) => {
+              const baseRef = (base.refundRequests ?? []).find((b) => b.id === sr.id);
+              return baseRef ? { ...baseRef, ...sr } : sr;
+            })),
+            ...((base.refundRequests ?? []).filter(
+              (br) => !(saved.refundRequests ?? []).some((sr) => sr.id === br.id || (br.sourceCaseRef && sr.sourceCaseRef === br.sourceCaseRef)),
+            )),
+          ],
           inspections: saved.inspections ?? base.inspections,
           hotelServices: saved.hotelServices ?? base.hotelServices,
           guestPreferences: saved.guestPreferences ?? base.guestPreferences,
           guestMessages: saved.guestMessages ?? [],
-          compensationRequests: saved.compensationRequests ?? base.compensationRequests,
+          compensationRequests: [
+            ...((saved.compensationRequests ?? []).map((sc) => {
+              const baseComp = (base.compensationRequests ?? []).find((b) => b.id === sc.id);
+              return baseComp ? { ...baseComp, ...sc } : sc;
+            })),
+            ...((base.compensationRequests ?? []).filter(
+              (bc) => !(saved.compensationRequests ?? []).some((sc) => sc.id === bc.id),
+            )),
+          ],
           shiftSchedules: saved.shiftSchedules ?? base.shiftSchedules,
           departmentPolicies: saved.departmentPolicies ?? base.departmentPolicies,
           guestReminders: [
@@ -689,7 +705,27 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           diningCategories: saved.diningCategories ?? base.diningCategories,
           activeDispatcherDept: saved.activeDispatcherDept ?? base.activeDispatcherDept ?? 'Housekeeping',
           customDiningRequests: saved.customDiningRequests ?? base.customDiningRequests,
-          guestCompensationRefundRequests: saved.guestCompensationRefundRequests ?? base.guestCompensationRefundRequests,
+          guestCompensationRefundRequests: [
+            ...((saved.guestCompensationRefundRequests ?? []).map((sc) => {
+              const baseClaim = (base.guestCompensationRefundRequests ?? []).find(
+                (b) => b.id === sc.id || (b.ref && b.ref === sc.ref),
+              );
+              return baseClaim
+                ? {
+                    ...baseClaim,
+                    ...sc,
+                    attachments: (sc.attachments && sc.attachments.length > 0) ? sc.attachments : baseClaim.attachments,
+                    linkedCompId: sc.linkedCompId ?? baseClaim.linkedCompId,
+                    linkedRefundId: sc.linkedRefundId ?? baseClaim.linkedRefundId,
+                  }
+                : sc;
+            })),
+            ...((base.guestCompensationRefundRequests ?? []).filter(
+              (bc) => !(saved.guestCompensationRefundRequests ?? []).some(
+                (sc) => sc.id === bc.id || (sc.ref && sc.ref === bc.ref),
+              ),
+            )),
+          ],
           guestIncidents: saved.guestIncidents ?? base.guestIncidents,
           supervisorEscalations: saved.supervisorEscalations ?? base.supervisorEscalations,
           dutyStatusRequests: saved.dutyStatusRequests ?? base.dutyStatusRequests,
