@@ -59,6 +59,7 @@ import { afterAdvance, markCheckedOut, type FdResult } from '@/lib/frontDesk';
 import { roleById } from '@/lib/roles';
 import { reviewDepartmentInspection } from '@/lib/manager-workflows';
 import { applyManagerCommand, ensureManagerState, reviewManagerEscalation, type ManagerCommand, type ManagerDepartmentId } from '@/lib/manager-domain';
+import { withManagerDemoRecords } from '@/lib/manager-demo-records';
 import type {
   AuditEvent,
   DemoState,
@@ -697,6 +698,11 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     } catch {
       /* corrupted or unavailable storage: fall back to seed data */
     }
+    const now = Date.now();
+    setStoredState(previous => {
+      const withExamples = withManagerDemoRecords(previous, now);
+      return withExamples === previous ? previous : initialiseDepartmentHistory(withExamples, new Date(now).toISOString());
+    });
     setHydrated(true);
   }, []);
 

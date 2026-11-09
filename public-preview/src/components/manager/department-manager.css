@@ -1,56 +1,3 @@
-/* Local aliases keep every manager screen, form and dialog on the shared warm theme. */
-.department-manager-page,
-.dm-dialog,
-.dm-workspace,
-.dm-dialog-card {
-  --white: 231 226 215;
-}
-.department-manager-page input,
-.department-manager-page select,
-.department-manager-page textarea,
-.dm-dialog input,
-.dm-dialog select,
-.dm-dialog textarea,
-.dm-workspace input,
-.dm-workspace select,
-.dm-workspace textarea,
-.dm-dialog-card input,
-.dm-dialog-card select,
-.dm-dialog-card textarea {
-  background: rgb(231, 226, 215) !important;
-  border: 1px solid var(--dm-accent) !important;
-  color: var(--dm-ink) !important;
-}
-.department-manager-page .dm-small-button,
-.dm-dialog .dm-small-button,
-.dm-workspace .dm-small-button,
-.dm-dialog-card .dm-small-button,
-.department-manager-page .dm-secondary,
-.dm-dialog .dm-secondary,
-.dm-workspace .dm-secondary,
-.dm-dialog-card .dm-secondary,
-.department-manager-page .dm-icon-button,
-.dm-dialog .dm-icon-button,
-.dm-workspace .dm-icon-button,
-.dm-dialog-card .dm-icon-button {
-  background: rgb(231, 226, 215) !important;
-  border-color: var(--dm-accent) !important;
-}
-.department-manager-page .dm-small-button:hover,
-.dm-dialog .dm-small-button:hover,
-.dm-workspace .dm-small-button:hover,
-.dm-dialog-card .dm-small-button:hover,
-.department-manager-page .dm-secondary:hover,
-.dm-dialog .dm-secondary:hover,
-.dm-workspace .dm-secondary:hover,
-.dm-dialog-card .dm-secondary:hover,
-.department-manager-page .dm-icon-button:hover,
-.dm-dialog .dm-icon-button:hover,
-.dm-workspace .dm-icon-button:hover,
-.dm-dialog-card .dm-icon-button:hover {
-  background: var(--dm-surface) !important;
-}
-
 /* Security incident modal custom scrollbar & responsive layout */
 .security-modal-scroll {
   overflow-y: auto !important;
@@ -73,20 +20,7 @@
   background: rgba(120, 113, 108, 0.65);
 }
 
-/* Ensure all select dropdown option text is crisp, high-contrast, and 100% visible */
-.department-manager-page select,
-.dm-dialog select,
-.dm-dialog-card select {
-  color: #0f172a !important;
-}
-.department-manager-page option,
-.dm-dialog option,
-.dm-dialog-card option,
-.dm-workspace option,
-select option {
-  background-color: #ffffff !important;
-  color: #0f172a !important;
-}
+/* Local aliases keep manager controls and dialogs on the shared warm theme. */
 .department-manager-page {
   --dm-paper: var(--warm-panel);
   --dm-surface: var(--warm-highlight);
@@ -717,7 +651,7 @@ select option {
 }
 
 /* Action outlines must stand out from dark panels; keep structural dividers quiet. */
-.department-manager-page[data-theme='dark'] .dm-workspace {
+.department-manager-page[data-theme='dark'] {
   --dm-action-fill: #302d25;
   --dm-action-hover: #403b2f;
   --dm-action-edge: #978d79;

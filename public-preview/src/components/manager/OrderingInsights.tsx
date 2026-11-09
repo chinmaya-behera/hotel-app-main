@@ -64,6 +64,7 @@ export function OrderingInsights({ activeLive = false }: { activeLive?: boolean 
       <select aria-label="Cuisine" value={selectedCuisine} onChange={event => setCuisine(event.target.value)}><option value="all">All cuisines</option>{cuisines.map(name => <option key={name}>{name}</option>)}</select>
     </div>
     {source === 'showcase' && <p className="dm-insight-note">Demo showcase · {showcase.length} sample orders. Select Live orders to review guest activity.</p>}
+    {source === 'live' && visible.some(order => order.id.startsWith('manager-demo-')) && <p className="dm-insight-note">Includes sample orders for practice. Sample orders do not create guest charges.</p>}
     {filtered.map(group => <section key={group.id} className="dm-meal-group" aria-label={group.label + ' cuisine totals'}>
       <div className="dm-meal-heading"><h3>{group.label}</h3>{group.hours && <span>{group.hours} IST</span>}</div>
       <div className="dm-table-wrap"><table className="dm-table">

@@ -33,7 +33,7 @@ function RequestTable({ rows, status, owner, onDetails }: {
   return <div className="dm-table-wrap"><table className="dm-table">
     <thead><tr>{['Room No.', 'Owner', 'Priority', 'Status', 'Details'].map(header => <th key={header}>{header}</th>)}</tr></thead>
     <tbody>{rows.map(task => <tr key={task.id}>
-      <td><strong>{location(task)}</strong><small className="dm-reference">{reference(task)}</small></td>
+      <td><strong>{location(task)}</strong><small className="dm-reference">{reference(task)}{task.id.startsWith('manager-demo-') && ' · Sample'}</small></td>
       <td>{owner(task)}</td>
       <td><span className={'dm-status ' + (['critical', 'urgent', 'safety', 'vip'].includes(task.priority || '') ? 'urgent' : '')}>{labelPriority(task.priority)}</span></td>
       <td><span className={'dm-status ' + (status(task) === 'Completed' ? 'good' : status(task) === 'Issue to resolve' ? 'urgent' : '')}>{status(task)}</span></td>
