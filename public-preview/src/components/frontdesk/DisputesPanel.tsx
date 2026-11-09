@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { CheckCircle2, HelpCircle, Inbox, Landmark, Paperclip, Send, ShieldAlert, TriangleAlert, XCircle } from 'lucide-react';
+import { Camera, CheckCircle2, HelpCircle, Image as ImageIcon, Inbox, Landmark, Paperclip, Send, ShieldAlert, TriangleAlert, XCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Panel } from '@/components/ui/Panel';
@@ -151,10 +151,24 @@ function ClaimModal({ claim, onClose }: { claim: ClaimView; onClose: () => void 
   const [amount, setAmount] = useState(claim.amountRequested !== undefined ? String(claim.amountRequested) : '');
   const [method, setMethod] = useState<CompensationMethod>('Folio Credit');
   const [message, setMessage] = useState('');
-  const [note, setNote] = useState('');
   const [tried, setTried] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null);
+
+  const imageAttachments = useMemo(() => {
+    return (claim.attachments ?? []).filter((a) => {
+      if (a.type?.startsWith('image/')) return true;
+      if (a.url?.startsWith('data:image')) return true;
+      if (a.url && /\.(jpg|jpeg|png|webp|gif|svg)(\?.*)?$/i.test(a.url)) return true;
+      if (/\.(jpg|jpeg|png|webp|gif|svg)$/i.test(a.name || '')) return true;
+      return false;
+    });
+  }, [claim.attachments]);
+
+  const docAttachments = useMemo(() => {
+    return (claim.attachments ?? []).filter((a) => !imageAttachments.includes(a));
+  }, [claim.attachments, imageAttachments]);
 
   const needsAmount = decision === 'compensation' || decision === 'refund';
   const amountNum = Number(amount);
@@ -203,7 +217,6 @@ function ClaimModal({ claim, onClose }: { claim: ClaimView; onClose: () => void 
         amount: needsAmount ? amountNum : undefined,
         method: decision === 'compensation' ? method : undefined,
         guestMessage: message,
-        internalNote: note,
       }),
     );
     if (err) {
@@ -264,20 +277,57 @@ function ClaimModal({ claim, onClose }: { claim: ClaimView; onClose: () => void 
           {claim.additionalInfoProvided && (
             <p className="mt-2 rounded-lg bg-sky-400/10 p-2 text-xs text-sky-300">Guest reply: {claim.additionalInfoProvided}</p>
           )}
-          {claim.attachments && claim.attachments.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {claim.attachments.map((a, i) => (
-                <span key={`${a.name}-${i}`} className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-xs text-mist-200">
-                  {a.url?.startsWith('data:image') ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={a.url} alt={a.name} className="h-8 w-8 rounded object-cover" />
-                  ) : (
-                    <Paperclip className="h-3.5 w-3.5" aria-hidden />
-                  )}
-                  <span className="max-w-[10rem] truncate">{a.name}</span>
-                  {a.size && <span className="text-mist-400">{a.size}</span>}
-                </span>
-              ))}
+          {/* Guest Photo Evidence: only shown if guest provided image(s) */}
+          {imageAttachments.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-white/10 space-y-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-mist-400 flex items-center gap-1.5">
+                <Camera className="h-3.5 w-3.5 text-cyan-400" />
+                <span>Guest Photo Evidence ({imageAttachments.length})</span>
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1">
+                {imageAttachments.map((img, i) => (
+                  <button
+                    key={`${img.name}-${i}`}
+                    type="button"
+                    onClick={() => setPreviewImage({ url: img.url || '', name: img.name })}
+                    className="group relative overflow-hidden rounded-xl border border-white/10 bg-black/40 text-left transition hover:border-cyan-400/50 hover:shadow-lg focus:outline-hidden"
+                  >
+                    {img.url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={img.url}
+                        alt={img.name}
+                        className="h-28 w-full object-cover transition duration-300 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="h-28 w-full flex flex-col items-center justify-center bg-white/5 text-mist-400 gap-1">
+                        <ImageIcon className="h-6 w-6 text-mist-400" />
+                        <span className="text-[10px]">Photo Evidence</span>
+                      </div>
+                    )}
+                    <div className="p-1.5 bg-ink-950/90 border-t border-white/10 flex items-center justify-between text-[10px]">
+                      <span className="truncate text-mist-200 font-medium">{img.name}</span>
+                      {img.size && <span className="text-mist-400 shrink-0 ml-1">{img.size}</span>}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Non-image document attachments */}
+          {docAttachments.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-white/10 space-y-1.5">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-mist-400">Attached Documents</p>
+              <div className="flex flex-wrap gap-2">
+                {docAttachments.map((a, i) => (
+                  <span key={`${a.name}-${i}`} className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs text-mist-200">
+                    <Paperclip className="h-3.5 w-3.5 text-mist-400" aria-hidden />
+                    <span className="max-w-[12rem] truncate">{a.name}</span>
+                    {a.size && <span className="text-mist-400">({a.size})</span>}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -392,11 +442,6 @@ function ClaimModal({ claim, onClose }: { claim: ClaimView; onClose: () => void 
               {tried && !messageOk && <p className="mt-1 text-xs text-rose-400">Write at least 5 characters. The guest sees this.</p>}
             </div>
 
-            <div>
-              <FieldLabel htmlFor="claim-note">Internal note (staff only, optional)</FieldLabel>
-              <input id="claim-note" value={note} onChange={(e) => setNote(e.target.value)} className="field w-full" />
-            </div>
-
             {error && (
               <p role="alert" className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-400">
                 {error}
@@ -414,7 +459,6 @@ function ClaimModal({ claim, onClose }: { claim: ClaimView; onClose: () => void 
             )}
             {claim.staffResponse && <p className="text-xs text-mist-300">Guest was told: {claim.staffResponse}</p>}
             {claim.resolutionDetails && <p className="text-xs text-emerald-300">{claim.resolutionDetails}</p>}
-            {claim.internalStaffNote && <p className="text-xs text-mist-400">Internal note: {claim.internalStaffNote}</p>}
           </div>
         )}
 
@@ -453,6 +497,33 @@ function ClaimModal({ claim, onClose }: { claim: ClaimView; onClose: () => void 
           <p className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-xs text-mist-300">
             <span className="font-semibold text-white">Guest will see:</span> {message.trim()}
           </p>
+        </Modal>
+      )}
+
+      {previewImage && (
+        <Modal
+          title={`Evidence Photo · ${previewImage.name}`}
+          description={`${claim.guestName} · Room ${claim.room}`}
+          onClose={() => setPreviewImage(null)}
+          footer={
+            <Button variant="ghost" onClick={() => setPreviewImage(null)}>
+              Close
+            </Button>
+          }
+        >
+          <div className="flex flex-col items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-black/60 p-2">
+            {previewImage.url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={previewImage.url}
+                alt={previewImage.name}
+                className="max-h-[65vh] w-auto max-w-full rounded-lg object-contain shadow-2xl"
+              />
+            ) : (
+              <p className="py-12 text-sm text-mist-400">Image preview not available</p>
+            )}
+            <p className="mt-2 text-xs text-mist-300 font-mono">{previewImage.name}</p>
+          </div>
         </Modal>
       )}
     </>
