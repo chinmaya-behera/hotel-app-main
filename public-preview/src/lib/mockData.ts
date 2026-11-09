@@ -154,7 +154,7 @@ export const seedNotifications: InAppNotification[] = [
   },
   // Housekeeping Notifications
   {
-    id: 'notif-1',
+    id: 'notif-hk-1',
     roleId: 'task_fulfiller',
     department: 'Housekeeping',
     title: 'New Urgent Task Assigned',
