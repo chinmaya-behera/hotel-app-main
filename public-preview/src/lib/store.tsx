@@ -233,7 +233,7 @@ interface DemoApi {
     rating: number,
     comment?: string,
     dishesOrTags?: Record<string, { rating: number; comment?: string }> | string[],
-    tags?: string[],
+    tagsOrDishes?: string[] | Record<string, { rating: number; comment?: string }>,
   ) => void;
   disputeFolioCharge: (room: string, lineId: string, reason: string) => void;
   claimLostItem: (room: string, itemId: string) => void;
@@ -305,6 +305,13 @@ interface DemoApi {
   requestTaskReassignment: (itemId: string, reason: string) => void;
   resolveReassignment: (supervisorItemId: string, fulfillerItemId: string, approved: boolean) => void;
   requestEmergencyShiftChange: (reason: string, details?: string) => void;
+  /** Fulfiller → Department Supervisor message (shows in the supervisor's Alerts & Notifications). */
+  notifyDepartmentSupervisor: (input: {
+    department: string;
+    title: string;
+    message: string;
+    tone?: 'urgent' | 'warning' | 'info';
+  }) => void;
   attachTaskPhoto: (roleId: RoleId, itemId: string, dataUrl: string) => void;
   markNotificationRead: (id: string) => void;
   clearAllNotifications: (roleId?: RoleId) => void;
@@ -410,6 +417,8 @@ interface DemoApi {
   /** Phase 4: Guest Reminders (Front Desk & GM VIP) */
   createGuestReminder: (reminder: Omit<GuestReminder, 'id' | 'createdAt'>) => void;
   updateGuestReminderStatus: (id: string, status: GuestReminder['status']) => void;
+  updateGuestReminderTime: (id: string, dueTime: string, dueDateTime?: string) => void;
+  updateGuestReminder: (id: string, patch: Partial<GuestReminder>) => void;
   deleteGuestReminder: (id: string) => void;
   /** Phase 4: Safety Alert Broadcast Engine */
   submitSecuritySafetyAlert: (alert: {
@@ -582,6 +591,19 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           items: {
             ...base.items,
             ...saved.items,
+            security_responder: (saved.items?.security_responder ?? base.items.security_responder ?? []).map((s) => {
+              const b = (base.items.security_responder ?? []).find((x) => x.id === s.id);
+              return b
+                ? {
+                    ...b,
+                    ...s,
+                    incidentPhotoUrl: s.incidentPhotoUrl || b.incidentPhotoUrl,
+                    cctvCameraId: s.cctvCameraId || b.cctvCameraId,
+                    cctvTimestamp: s.cctvTimestamp || b.cctvTimestamp,
+                    incidentPhotoSource: s.incidentPhotoSource || b.incidentPhotoSource,
+                  }
+                : s;
+            }),
             department_dispatcher_supervisor: [
               ...(saved.items?.department_dispatcher_supervisor ?? []).map((s) => {
                 const b = (base.items.department_dispatcher_supervisor ?? []).find((x) => x.id === s.id);
@@ -601,10 +623,15 @@ export function DemoProvider({ children }: { children: ReactNode }) {
               ),
             ],
             general_manager: saved.items?.general_manager ?? base.items.general_manager,
-            // saves made before the Front Desk console start its queue from the new seed
-            front_desk_coordinator: saved.frontDesk
-              ? (saved.items?.front_desk_coordinator ?? base.items.front_desk_coordinator)
-              : base.items.front_desk_coordinator,
+            front_desk_coordinator: [
+              ...((saved.items?.front_desk_coordinator ?? []).map((si) => {
+                const baseItem = (base.items.front_desk_coordinator ?? []).find((b) => b.id === si.id);
+                return baseItem ? { ...baseItem, ...si } : si;
+              })),
+              ...((base.items.front_desk_coordinator ?? []).filter(
+                (bi) => !(saved.items?.front_desk_coordinator ?? []).some((si) => si.id === bi.id),
+              )),
+            ],
           },
           frontDesk: saved.frontDesk
             ? {
@@ -630,7 +657,14 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           theme: saved.theme ?? (saved as unknown as { guestTheme?: ThemeMode }).guestTheme ?? base.theme,
           soundEnabled: saved.soundEnabled ?? base.soundEnabled,
           fulfillerAvailability: saved.fulfillerAvailability ?? base.fulfillerAvailability,
-          notifications: saved.notifications ?? base.notifications,
+          notifications: (() => {
+            const savedNotifs = saved.notifications ?? [];
+            const baseNotifs = base.notifications ?? [];
+            const map = new Map<string, InAppNotification>();
+            baseNotifs.forEach((n) => map.set(n.id, n));
+            savedNotifs.forEach((n) => map.set(n.id, n));
+            return Array.from(map.values());
+          })(),
           shiftChangeRequest: saved.shiftChangeRequest ?? base.shiftChangeRequest,
           routingRules: saved.routingRules ?? base.routingRules,
           resourceRequests: saved.resourceRequests ?? base.resourceRequests,
@@ -646,7 +680,15 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           compensationRequests: saved.compensationRequests ?? base.compensationRequests,
           shiftSchedules: saved.shiftSchedules ?? base.shiftSchedules,
           departmentPolicies: saved.departmentPolicies ?? base.departmentPolicies,
-          guestReminders: saved.guestReminders ?? base.guestReminders,
+          guestReminders: [
+            ...((saved.guestReminders ?? []).map((sr) => {
+              const baseRem = (base.guestReminders ?? []).find((b) => b.id === sr.id);
+              return baseRem ? { ...baseRem, ...sr } : sr;
+            })),
+            ...((base.guestReminders ?? []).filter(
+              (br) => !(saved.guestReminders ?? []).some((sr) => sr.id === br.id),
+            )),
+          ],
           safetyAlerts: saved.safetyAlerts ?? base.safetyAlerts,
           diningMenu: saved.diningMenu ?? base.diningMenu,
           diningCategories: saved.diningCategories ?? base.diningCategories,
@@ -762,14 +804,18 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         (Object.keys(nextItems) as RoleId[]).forEach((otherRoleId) => {
           nextItems[otherRoleId] = nextItems[otherRoleId].map((other) => {
             if (other.id === itemId || (item!.ref && other.ref === item!.ref)) {
+              const targetStatus =
+                (otherRoleId === 'task_fulfiller' && (t.next === 'Closed' || t.next === 'Completed'))
+                  ? 'Completed'
+                  : t.next;
               return {
                 ...other,
-                status: t.next,
+                status: targetStatus,
                 selfRequested: t.marksSelf ? true : other.selfRequested,
                 blockerReason:
-                  t.next === 'Blocked'
+                  targetStatus === 'Blocked'
                     ? (reason ?? other.blockerReason)
-                    : t.next === 'In progress' || t.next === 'Accepted' || t.next === 'Completed'
+                    : targetStatus === 'In progress' || targetStatus === 'Accepted' || targetStatus === 'Completed'
                       ? undefined
                       : other.blockerReason,
                 history: [...(other.history ?? []), historyEntry],
@@ -796,9 +842,45 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           }
         }
 
+        const fulfillerNotifs =
+          roleId === 'task_fulfiller' && item
+            ? [
+                {
+                  id: uid(),
+                  roleId: 'task_fulfiller' as RoleId,
+                  department: item.department,
+                  title: t.label || `Task Status: ${t.next}`,
+                  message: `${item.title} → ${t.next} (${nowLabel()})`,
+                  timestamp: nowLabel(),
+                  read: false,
+                  type: (t.next === 'Awaiting inspection' ? 'alert' : 'task') as 'task' | 'alert',
+                  itemId: item.id,
+                },
+                ...(prev.notifications ?? []),
+              ]
+            : (roleId === 'department_supervisor' || roleId === 'department_dispatcher_supervisor') &&
+                (t.next === 'Closed' || t.next === 'Completed') &&
+                item
+              ? [
+                  {
+                    id: uid(),
+                    roleId: 'task_fulfiller' as RoleId,
+                    department: item.department,
+                    title: 'Task Approved by Supervisor',
+                    message: `${item.title} verified & approved. Task Completed.`,
+                    timestamp: nowLabel(),
+                    read: false,
+                    type: 'task' as const,
+                    itemId: item.id,
+                  },
+                  ...(prev.notifications ?? []),
+                ]
+              : (prev.notifications ?? []);
+
         return {
           ...prev,
           items: nextItems,
+          notifications: fulfillerNotifs,
           feed: [{ id: uid(), at: nowLabel(), role: roleById[roleId]?.short ?? 'Staff', text }, ...prev.feed].slice(0, 30),
           revokedRooms:
             revokes && item!.room && !prev.revokedRooms.includes(item!.room)
@@ -1171,6 +1253,34 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     });
     notify('Emergency shift handover request logged with Duty Manager');
   }, [notify]);
+
+  const notifyDepartmentSupervisor = useCallback<DemoApi['notifyDepartmentSupervisor']>(
+    ({ department, title, message, tone }) => {
+      const timestamp = nowLabel();
+      setState((prev) => {
+        const supervisorNotif: InAppNotification = {
+          id: uid(),
+          roleId: 'department_dispatcher_supervisor',
+          targetRole: 'department_dispatcher_supervisor',
+          category: 'Operations',
+          department,
+          title,
+          message,
+          summary: message,
+          timestamp,
+          read: false,
+          type: 'alert',
+          tone: tone ?? 'info',
+        };
+        return {
+          ...prev,
+          notifications: [supervisorNotif, ...(prev.notifications ?? [])],
+          feed: [{ id: uid(), at: timestamp, role: department, text: title }, ...prev.feed].slice(0, 30),
+        };
+      });
+    },
+    [],
+  );
 
   const markNotificationRead = useCallback((id: string) => {
     setState((prev) => ({
@@ -2211,14 +2321,17 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
       if (Array.isArray(dishesOrTags)) {
         tags = dishesOrTags;
+        if (extraTags && typeof extraTags === 'object' && !Array.isArray(extraTags)) {
+          dishes = extraTags as Record<string, { rating: number; comment?: string }>;
+        }
       } else if (dishesOrTags && typeof dishesOrTags === 'object') {
         dishes = dishesOrTags;
-        tags = extraTags;
+        tags = Array.isArray(extraTags) ? extraTags : undefined;
       } else if (Array.isArray(extraTags)) {
         tags = extraTags;
       }
 
-      const item = stateRef.current.items[roleId]?.find((i) => i.id === itemId || i.ref === itemId);
+      const item = (stateRef.current?.items || state.items)[roleId]?.find((i) => i.id === itemId || i.ref === itemId);
       let feedbackPatch: Partial<WorkItem> = { feedback: { rating, comment, tags, submittedAt } };
 
       if (item?.orderLines?.length) {
@@ -2288,7 +2401,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       });
       notify('Thank you for rating our service!');
     },
-    [notify],
+    [notify, state.items],
   );
 
   const submitCustomDiningRequest = useCallback<DemoApi['submitCustomDiningRequest']>(
@@ -5576,8 +5689,21 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         const notif: InAppNotification = {
           id: uid(),
           roleId: 'department_dispatcher_supervisor',
+          department: task.department,
           title: 'Task Self-Claimed',
           message: `${fulfillerName} self-claimed ${task.title} (Room ${task.room || 'General'})`,
+          timestamp,
+          read: false,
+          type: 'task',
+          itemId: task.id,
+        };
+
+        const fulfillerNotif: InAppNotification = {
+          id: uid(),
+          roleId: 'task_fulfiller',
+          department: task.department,
+          title: 'Task Claimed',
+          message: `You claimed "${task.title}" (Room ${task.room || 'General'}) into your active queue.`,
           timestamp,
           read: false,
           type: 'task',
@@ -5596,7 +5722,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
             ),
             task_fulfiller: nextFulfillerItems,
           },
-          notifications: [notif, ...(prev.notifications ?? [])],
+          notifications: [fulfillerNotif, notif, ...(prev.notifications ?? [])],
           feed: [
             {
               id: uid(),
@@ -6307,6 +6433,38 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     [notify],
   );
 
+  const updateGuestReminderTime = useCallback<DemoApi['updateGuestReminderTime']>(
+    (id, dueTime, dueDateTime) => {
+      setState((prev) => ({
+        ...prev,
+        guestReminders: (prev.guestReminders ?? seedGuestReminders).map((r) =>
+          r.id === id
+            ? {
+                ...r,
+                dueTime,
+                dueDateTime: dueDateTime || `${r.dueDate || 'Today'}, ${dueTime}`,
+              }
+            : r,
+        ),
+      }));
+      notify(`Reminder time updated to ${dueTime}`);
+    },
+    [notify],
+  );
+
+  const updateGuestReminder = useCallback<DemoApi['updateGuestReminder']>(
+    (id, patch) => {
+      setState((prev) => ({
+        ...prev,
+        guestReminders: (prev.guestReminders ?? seedGuestReminders).map((r) =>
+          r.id === id ? { ...r, ...patch } : r,
+        ),
+      }));
+      notify(`Reminder updated for Room ${patch.room ?? ''}`);
+    },
+    [notify],
+  );
+
   const deleteGuestReminder = useCallback<DemoApi['deleteGuestReminder']>(
     (id) => {
       setState((prev) => ({
@@ -6528,12 +6686,12 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const broadcastSafetyAlert = useCallback<DemoApi['broadcastSafetyAlert']>(
     (alertId) => {
       const now = nowLabel();
-      let alertRef = '';
+      const approved = stateRef.current.safetyAlerts?.find(alert => alert.id === alertId);
+      if (approved?.status !== 'approved_ready_broadcast') return;
       setState((prev) => {
         const list = prev.safetyAlerts ?? seedSafetyAlerts;
         const target = list.find((a) => a.id === alertId);
-        if (!target) return prev;
-        alertRef = target.ref;
+        if (target?.status !== 'approved_ready_broadcast') return prev;
 
         const updated: SafetyAlertRecord = {
           ...target,
@@ -6545,12 +6703,12 @@ export function DemoProvider({ children }: { children: ReactNode }) {
               at: now,
               actor: 'Front Desk Broadcast Engine',
               role: 'front_desk_coordinator',
-              action: 'Active broadcast dispatched across all staff consoles and property displays',
+              action: `Safety alert broadcast to ${target.broadcastScope.replaceAll('_', ' ')}`,
             },
           ],
         };
 
-        const allRoles: RoleId[] = [
+        const recipients: RoleId[] = target.broadcastScope === 'security_only' ? ['security_responder'] : [
           'task_fulfiller',
           'department_dispatcher_supervisor',
           'department_manager',
@@ -6560,34 +6718,35 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           'general_manager',
         ];
 
-        const broadcastNotifs: InAppNotification[] = allRoles.map((rId) => ({
+        const broadcastNotifs: InAppNotification[] = recipients.map((rId) => ({
           id: uid(),
           roleId: rId,
           title: `🚨 SAFETY ALERT BROADCAST: ${target.title}`,
           message: `${target.description} (Location: ${target.location}). Exercise operational precautions.`,
           timestamp: now,
           read: false,
-          priority: 'critical',
+          itemId: target.id,
+          priority: target.priority,
           link: rId === 'security_responder' ? '/staff/security' : rId === 'general_manager' ? '/staff/general-manager' : '/staff/front-desk',
         }));
 
         return {
           ...prev,
-          safetyAlerts: list.map((a) => (a.id === alertId ? updated : a)),
+          safetyAlerts: [updated, ...list.filter(alert => alert.id !== alertId)],
           notifications: [...broadcastNotifs, ...(prev.notifications ?? [])],
           feed: [
             {
               id: uid(),
               at: now,
               role: 'Front Desk',
-              text: `BROADCAST ACTIVE: Safety Alert ${target.ref} activated hotel-wide!`,
+              text: `Safety alert ${target.ref} published for ${target.broadcastScope.replaceAll('_', ' ')}`,
             },
             ...prev.feed,
           ],
         };
       });
 
-      notify(`🚨 Hotel-wide Safety Alert ${alertRef} is now BROADCAST ACTIVE!`);
+      notify(`Safety alert ${approved.ref} published`);
     },
     [notify],
   );
@@ -7458,6 +7617,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       requestTaskReassignment,
       resolveReassignment,
       requestEmergencyShiftChange,
+      notifyDepartmentSupervisor,
       attachTaskPhoto,
       markNotificationRead,
       clearAllNotifications,
@@ -7514,6 +7674,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       saveDepartmentServicePolicy,
       createGuestReminder,
       updateGuestReminderStatus,
+      updateGuestReminderTime,
+      updateGuestReminder,
       deleteGuestReminder,
       submitSecuritySafetyAlert,
       validateSafetyAlertByFrontDesk,
@@ -7595,6 +7757,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       requestTaskReassignment,
       resolveReassignment,
       requestEmergencyShiftChange,
+      notifyDepartmentSupervisor,
       attachTaskPhoto,
       markNotificationRead,
       clearAllNotifications,
@@ -7651,6 +7814,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       saveDepartmentServicePolicy,
       createGuestReminder,
       updateGuestReminderStatus,
+      updateGuestReminderTime,
+      updateGuestReminder,
       deleteGuestReminder,
       submitSecuritySafetyAlert,
       validateSafetyAlertByFrontDesk,

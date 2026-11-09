@@ -182,6 +182,14 @@ export interface WorkItem {
   department?: string;
   /** Floor number for spatial assignment */
   floor?: number;
+  /** Incoming incident photo / CCTV frame evidence URL */
+  incidentPhotoUrl?: string;
+  /** Specific CCTV camera ID/location that captured incident */
+  cctvCameraId?: string;
+  /** Exact CCTV / dispatch capture timestamp */
+  cctvTimestamp?: string;
+  /** Origin source of incoming visual evidence */
+  incidentPhotoSource?: string;
   /** Security Responder Report details filed upon resolution */
   securityReport?: {
     summary: string;
@@ -666,6 +674,10 @@ export interface StayRecord {
   guests?: number;
   /** Guest personal preferences & future service instructions (allergies, DND, dietary) */
   preferences?: GuestPreferences;
+  /** Room QR pass credentials (frontend demo). When unset, a stable demo value is derived from the stay. */
+  guestEmail?: string;
+  guestPhone?: string;
+  accessPin?: string;
 }
 
 export interface RoomRecord {
@@ -1586,6 +1598,7 @@ export interface CompensationRefundRequest {
   staffGuestResponse?: string;
   internalStaffNote?: string;
   resolutionDetails?: string;
+  resolutionNotes?: string;
   resolvedAt?: string;
   resolvedBy?: string;
   additionalInfoRequested?: string;

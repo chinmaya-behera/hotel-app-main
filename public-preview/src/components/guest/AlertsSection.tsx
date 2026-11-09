@@ -50,7 +50,7 @@ export function AlertsSection({ room, guestName }: GuestTabProps) {
 
   // Also convert any active broadcasted safety alerts from staff broadcast engine (state.safetyAlerts)
   const broadcastedSafetyAlerts: HotelAlert[] = (state.safetyAlerts ?? [])
-    .filter((s) => s.status === 'broadcast_active')
+    .filter((s) => s.status === 'broadcast_active' && s.broadcastScope === 'hotel_wide')
     .map((s) => ({
       id: `sft-${s.id}`,
       ref: s.ref,

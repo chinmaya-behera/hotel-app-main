@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Boxes,
   Building2,
   Calendar,
   CheckCircle2,
+  ChevronRight,
   Clock,
   Coins,
   Crown,
@@ -44,6 +45,28 @@ export function ExecutiveFinanceTab({
   const [activeCategory, setActiveCategory] = useState<'all' | 'purchases' | 'equipment' | 'resources'>(initialCategory);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedReq, setSelectedReq] = useState<ResourceRequest | null>(null);
+  const [selectedCapexItem, setSelectedCapexItem] = useState<WorkItem | null>(null);
+
+  // Sync initialCategory from parent props
+  useEffect(() => {
+    if (initialCategory) {
+      setActiveCategory(initialCategory);
+    }
+  }, [initialCategory]);
+
+  // Escape key listener for modals
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSelectedCapexItem(null);
+        setSelectedReq(null);
+      }
+    };
+    if (selectedCapexItem || selectedReq) {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [selectedCapexItem, selectedReq]);
 
   // Executive items with amounts
   const executiveCapexItems = (state.items.executive_viewer ?? []).filter(
@@ -133,81 +156,8 @@ export function ExecutiveFinanceTab({
         </div>
       </div>
 
-      {/* Capex Highlight Banner (Major requisitions) */}
-      <div className="p-5 rounded-3xl border border-purple-500/30 bg-purple-500/[0.06] backdrop-blur-xl shadow-lg space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-2xl bg-purple-500/20 text-purple-400 grid place-items-center">
-              <Crown className="h-5 w-5" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-navy-950 dark:text-white">
-                Executive Major Requisitions Queue (&gt; ₹16,000 Duty Manager Threshold)
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-mist-400">
-                These requests exceed standard operating limits and require Executive sign-off.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Grid of Capex Items */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {executiveCapexItems.map((item) => {
-            const isPending = item.status === 'Needs approval';
-            return (
-              <div
-                key={item.id}
-                className="p-4 rounded-2xl border border-white/10 bg-white/70 dark:bg-ink-950/70 shadow-sm flex flex-col justify-between space-y-3"
-              >
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-mist-300">
-                      {item.ref || item.id}
-                    </span>
-                    <span className="text-sm font-black font-mono text-amber-600 dark:text-amber-400">
-                      ₹{item.amount?.toLocaleString('en-IN')}
-                    </span>
-                  </div>
-                  <h4 className="text-xs font-bold text-navy-950 dark:text-white mt-2">
-                    {item.title}
-                  </h4>
-                  <p className="text-[11px] text-slate-500 dark:text-mist-400 mt-0.5 line-clamp-2">
-                    {item.description || item.meta}
-                  </p>
-                </div>
-
-                <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-white/5">
-                  <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                      item.status === 'Approved'
-                        ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300'
-                        : item.status === 'Rejected'
-                        ? 'bg-rose-500/15 text-rose-600 dark:text-rose-300'
-                        : 'bg-amber-500/15 text-amber-600 dark:text-amber-300'
-                    }`}
-                  >
-                    {item.chip || item.status}
-                  </span>
-
-                  {isPending && onReviewItem && (
-                    <button
-                      type="button"
-                      onClick={() => onReviewItem(item)}
-                      className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline"
-                    >
-                      Authorize &rarr;
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Category Tabs & Requisitions Table */}
-      <div className="p-5 rounded-3xl border border-white/10 bg-white/70 dark:bg-ink-900/80 backdrop-blur-xl shadow-lg space-y-4">
+      {/* Category Navigation Bar & Search Bar (Above Executive Major Requisitions Queue) */}
+      <div className="p-4 rounded-3xl border border-white/10 bg-white/70 dark:bg-ink-900/80 backdrop-blur-xl shadow-lg">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           {/* Category Tabs */}
           <div className="flex items-center gap-1.5 p-1 rounded-2xl border border-slate-200 dark:border-white/10 bg-black/5 dark:bg-ink-950/80">
@@ -242,6 +192,68 @@ export function ExecutiveFinanceTab({
               placeholder="Search requisitions..."
               className="w-full pl-9 pr-3 py-1.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-ink-950/70 text-xs text-navy-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/40"
             />
+          </div>
+        </div>
+      </div>
+
+      {/* Capex Highlight Banner (Major requisitions) - Only shown in All Categories */}
+      {activeCategory === 'all' && (
+        <div className="p-5 rounded-3xl border border-purple-500/30 bg-purple-500/[0.06] backdrop-blur-xl shadow-lg space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="h-9 w-9 rounded-2xl bg-purple-500/20 text-purple-400 grid place-items-center">
+                <Crown className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-navy-950 dark:text-white">
+                  Executive Major Requisitions Queue (&gt; ₹16,000 Duty Manager Threshold)
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-mist-400">
+                  These requests exceed standard operating limits and require Executive sign-off.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Grid of Capex Items - Title only in box, click for elaborated details */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {executiveCapexItems.map((item) => {
+              return (
+                <div
+                  key={item.id}
+                  onClick={() => setSelectedCapexItem(item)}
+                  className="p-4 rounded-2xl border border-white/10 bg-white/70 dark:bg-ink-950/70 shadow-sm hover:shadow-md hover:border-purple-400 dark:hover:border-purple-500/50 cursor-pointer transition flex items-center justify-between group"
+                  role="button"
+                  tabIndex={0}
+                  title="Click to view detailed request"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setSelectedCapexItem(item);
+                    }
+                  }}
+                >
+                  <h4 className="text-xs font-bold text-navy-950 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition">
+                    {item.title}
+                  </h4>
+                  <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition shrink-0 ml-2" />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Requisitions Table */}
+      <div className="p-5 rounded-3xl border border-white/10 bg-white/70 dark:bg-ink-900/80 backdrop-blur-xl shadow-lg space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-bold text-navy-950 dark:text-white">
+              Department Requisitions &amp; Material Orders
+            </h3>
+            <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-mist-300">
+              {filteredResourceRequests.length}
+            </span>
           </div>
         </div>
 
@@ -446,6 +458,150 @@ export function ExecutiveFinanceTab({
           </div>
         </div>
       )}
+    
+      {/* Detailed Major Capex Requisition Modal */}
+      {selectedCapexItem && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+          onClick={() => setSelectedCapexItem(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="w-full max-w-lg rounded-3xl border border-white/15 bg-white dark:bg-ink-900 p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/10 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-2xl bg-purple-500/20 text-purple-400 grid place-items-center">
+                  <Crown className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-base font-bold text-navy-950 dark:text-white">
+                      {selectedCapexItem.title}
+                    </h3>
+                  </div>
+                  <p className="text-xs font-mono text-slate-500 dark:text-mist-400 mt-0.5">
+                    Ref: <span className="font-bold text-navy-950 dark:text-white">{selectedCapexItem.ref || selectedCapexItem.id}</span>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedCapexItem(null)}
+                className="p-2 rounded-2xl hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 hover:text-navy-950 dark:hover:text-white transition"
+                aria-label="Close modal"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Key Information Badges */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+              <div className="p-3 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-ink-950/70">
+                <div className="text-[10px] uppercase font-bold text-slate-400 dark:text-mist-400">Requisition Amount</div>
+                <div className="text-base font-black font-mono text-amber-600 dark:text-amber-400 mt-0.5">
+                  ₹{selectedCapexItem.amount?.toLocaleString('en-IN') || '0'}
+                </div>
+              </div>
+
+              <div className="p-3 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-ink-950/70">
+                <div className="text-[10px] uppercase font-bold text-slate-400 dark:text-mist-400">Status</div>
+                <div className="mt-1">
+                  <span
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      selectedCapexItem.status === 'Approved'
+                        ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300'
+                        : selectedCapexItem.status === 'Rejected'
+                        ? 'bg-rose-500/15 text-rose-600 dark:text-rose-300'
+                        : 'bg-amber-500/15 text-amber-600 dark:text-amber-300'
+                    }`}
+                  >
+                    {selectedCapexItem.chip || selectedCapexItem.status}
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-ink-950/70 col-span-2 sm:col-span-1">
+                <div className="text-[10px] uppercase font-bold text-slate-400 dark:text-mist-400">Priority</div>
+                <div className="text-xs font-bold text-navy-950 dark:text-white mt-1 capitalize">
+                  {selectedCapexItem.priority || 'Normal'}
+                </div>
+              </div>
+            </div>
+
+            {/* Detailed Description */}
+            <div className="p-4 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-ink-950/70 text-xs leading-relaxed space-y-2">
+              <strong className="text-navy-950 dark:text-white block font-bold">
+                Detailed Requisition Justification:
+              </strong>
+              <p className="text-slate-600 dark:text-mist-300">
+                {selectedCapexItem.description || selectedCapexItem.meta || 'No additional justification notes submitted.'}
+              </p>
+              {selectedCapexItem.meta && selectedCapexItem.description && selectedCapexItem.meta !== selectedCapexItem.description && (
+                <p className="text-[11px] text-slate-500 dark:text-mist-400 pt-1 border-t border-slate-200 dark:border-white/5">
+                  Scope: {selectedCapexItem.meta}
+                </p>
+              )}
+              {selectedCapexItem.createdAt && (
+                <div className="text-[11px] text-slate-400 dark:text-mist-500 pt-1">
+                  Logged timestamp: {selectedCapexItem.createdAt}
+                </div>
+              )}
+            </div>
+
+            {/* Audit & Escalation History */}
+            {selectedCapexItem.history && selectedCapexItem.history.length > 0 && (
+              <div className="space-y-2 pt-1">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-mist-400">
+                  Audit History
+                </h4>
+                <div className="space-y-2 pl-2 border-l-2 border-purple-500/30">
+                  {selectedCapexItem.history.map((h, i) => (
+                    <div key={i} className="text-xs">
+                      <div className="font-mono text-[10px] text-slate-400">{h.at}</div>
+                      <div className="font-semibold text-navy-950 dark:text-white">{h.status}</div>
+                      {h.note && <div className="text-slate-500 dark:text-mist-400 text-[11px]">{h.note}</div>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-white/10">
+              <button
+                type="button"
+                onClick={() => setSelectedCapexItem(null)}
+                className="px-4 py-2 rounded-2xl border border-slate-200 dark:border-white/10 text-xs font-semibold text-slate-700 dark:text-mist-300 hover:bg-black/5 dark:hover:bg-white/5 transition"
+              >
+                Close
+              </button>
+              {selectedCapexItem.status === 'Needs approval' && onReviewItem && (
+                <button
+                  type="button"
+                  disabled={permissionMode === 'viewer'}
+                  onClick={() => {
+                    const item = selectedCapexItem;
+                    setSelectedCapexItem(null);
+                    onReviewItem(item);
+                  }}
+                  className={`px-5 py-2 rounded-2xl text-xs font-bold transition shadow-md ${
+                    permissionMode === 'viewer'
+                      ? 'bg-slate-200 text-slate-400 opacity-60 cursor-not-allowed'
+                      : 'bg-amber-500 hover:bg-amber-600 text-white'
+                  }`}
+                >
+                  Authorize in Approval Center &rarr;
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

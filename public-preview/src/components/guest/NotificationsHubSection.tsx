@@ -27,7 +27,9 @@ export function NotificationsHubSection({ room, guestName, onNavigate, initialSu
 
   // Count critical / high hotel alerts
   const criticalAlertsCount = useMemo(() => {
-    const safety = (state.safetyAlerts ?? []).filter((a) => a.priority === 'critical');
+    const safety = (state.safetyAlerts ?? []).filter(
+      a => a.priority === 'critical' && a.status === 'broadcast_active' && a.broadcastScope === 'hotel_wide',
+    );
     const hotel = (state.hotelAlerts ?? []).filter((a) => a.severity === 'Critical');
     return safety.length + hotel.length;
   }, [state.safetyAlerts, state.hotelAlerts]);

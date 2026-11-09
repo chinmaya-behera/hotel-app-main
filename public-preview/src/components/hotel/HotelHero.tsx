@@ -22,6 +22,7 @@ import {
   type StayQuery,
 } from '@/lib/bookings';
 import { HOTEL_NAME } from '@/lib/hotelCatalog';
+import { AnimatedHeroTitle } from './AnimatedHeroTitle';
 
 interface HotelHeroProps {
   initialQuery: StayQuery;
@@ -61,10 +62,8 @@ export function HotelHero({ initialQuery, onSearch, onOpenExplorer }: HotelHeroP
             <span>Welcome to {HOTEL_NAME} · Seaside City Resort</span>
           </div>
 
-          {/* Main Title */}
-          <h1 className="mt-5 font-display text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white leading-[1.08]">
-            Where Timeless <span className="text-gradient">Luxury</span> Meets Coastal Calm
-          </h1>
+          {/* Main Title: Animated with handwriting typing effect and scroll revealing dynamics */}
+          <AnimatedHeroTitle />
 
           {/* Subtitle */}
           <p className="mt-6 text-base sm:text-lg text-mist-200 leading-relaxed max-w-2xl mx-auto">

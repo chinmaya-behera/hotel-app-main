@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useEffect, useRef, useState, type FormEvent } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import {
   Activity,
@@ -33,6 +33,9 @@ import {
   PhoneCall,
   Volume2,
   VolumeX,
+  Camera,
+  Eye,
+  Video,
   type LucideIcon,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
@@ -50,7 +53,6 @@ const NAV = [
   ['overview', 'Overview', Gauge, 'Workspace'],
   ['incidents', 'Incident Monitoring', Activity, 'Workspace'],
   ['recovery', 'Escalations & Recovery', Handshake, 'Workspace'],
-  ['staff', 'Officers & Workload', Users, 'Management'],
   ['policies', 'PlayBook', BookOpen, 'Management'],
   ['handover', 'Shift Handover', Send, 'Management'],
   ['notifications', 'Notifications', Bell, 'Personal'],
@@ -79,6 +81,28 @@ const statusClass = (status: string) =>
     : /critical|escalat|blocked|reopened|high/i.test(status)
       ? 'dm-status urgent'
       : 'dm-status';
+
+const getPriorityWeight = (priority?: string) => {
+  const p = (priority || 'normal').toLowerCase();
+  if (p === 'critical' || p === 'safety') return 0;
+  if (p === 'urgent' || p === 'high') return 1;
+  return 2;
+};
+
+const customLoggedPhotos: Record<string, string> = {};
+
+const getIncidentPhoto = (item: WorkItem) => {
+  if (customLoggedPhotos[item.id]) return customLoggedPhotos[item.id];
+  if (item.incidentPhotoUrl) return item.incidentPhotoUrl;
+  if (item.photoUrl) return item.photoUrl;
+  if (item.securityReport?.photoUrl) return item.securityReport.photoUrl;
+  if (item.id === 'sec-1') return 'https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?auto=format&fit=crop&w=1200&q=80';
+  if (item.id === 'sec-2') return 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1200&q=80';
+  if (item.id === 'sec-3') return 'https://images.unsplash.com/photo-1517646287270-a5a9ca602e5c?auto=format&fit=crop&w=1200&q=80';
+  if (item.id === 'sec-4') return 'https://images.unsplash.com/photo-1565538810643-b5bdb714032a?auto=format&fit=crop&w=1200&q=80';
+  if (item.id === 'sec-5') return 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80';
+  return null;
+};
 
 export function SecurityApp() {
   const {
@@ -141,13 +165,15 @@ export function SecurityApp() {
   }, [setPersona]);
 
   // Initialize Lenis smooth scroll
+  const lenisRef = useRef<Lenis | null>(null);
   useEffect(() => {
     const lenis = new Lenis({
       duration: 1.15,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       smoothWheel: true,
       touchMultiplier: 1.5,
     });
+    lenisRef.current = lenis;
 
     let rafId: number;
     function raf(time: number) {
@@ -159,8 +185,20 @@ export function SecurityApp() {
     return () => {
       cancelAnimationFrame(rafId);
       lenis.destroy();
+      lenisRef.current = null;
     };
   }, []);
+
+  // Pause Lenis smooth scroll whenever an interactive modal dialog is open
+  useEffect(() => {
+    const isAnyModalOpen = Boolean(selectedIncident || showLogModal || modal);
+
+    if (isAnyModalOpen) {
+      lenisRef.current?.stop();
+    } else {
+      lenisRef.current?.start();
+    }
+  }, [selectedIncident, showLogModal, modal]);
 
   // GSAP Text & UI entrance animations
   useEffect(() => {
@@ -207,10 +245,14 @@ export function SecurityApp() {
       { opacity: 1, x: 0, duration: 0.5, delay: 0.3, ease: 'power2.out' }
     );
   }, [tab]);
-
   // Audio siren trigger when critical or new incident arrives
   const isSoundOn = state.soundEnabled ?? true;
   const items = state.items.security_responder ?? [];
+
+  // Sort incidents by priority: Critical (0) -> Urgent (1) -> Normal (2)
+  const sortedItems = useMemo(() => {
+    return [...items].sort((a, b) => getPriorityWeight(a.priority) - getPriorityWeight(b.priority));
+  }, [items]);
 
   useEffect(() => {
     if (prevCountRef.current !== null && items.length > prevCountRef.current) {
@@ -277,18 +319,20 @@ export function SecurityApp() {
 
   const title = NAV.find((n) => n[0] === tab)?.[1] || 'Overview';
 
-  const visibleIncidents = items.filter((t) => {
-    const matchesStatus =
-      statusFilter === 'all'
-        ? true
-        : statusFilter === 'open'
-          ? t.status !== 'Resolved'
-          : t.status === 'Resolved';
-    const matchesSearch = `${t.title} ${t.ref || ''} ${t.room || ''} ${t.assignee || ''} ${t.priority || ''}`
-      .toLowerCase()
-      .includes(search.toLowerCase());
-    return matchesStatus && matchesSearch;
-  });
+  const visibleIncidents = useMemo(() => {
+    return sortedItems.filter((t) => {
+      const matchesStatus =
+        statusFilter === 'all'
+          ? true
+          : statusFilter === 'open'
+            ? t.status !== 'Resolved'
+            : t.status === 'Resolved';
+      const matchesSearch = `${t.title} ${t.ref || ''} ${t.room || ''} ${t.assignee || ''} ${t.priority || ''}`
+        .toLowerCase()
+        .includes(search.toLowerCase());
+      return matchesStatus && matchesSearch;
+    });
+  }, [sortedItems, statusFilter, search]);
 
   const exportReport = () => {
     const rows = [
@@ -761,13 +805,38 @@ export function SecurityApp() {
                     </tr>
                   </thead>
                   <tbody>
-                    {items.map((item) => (
+                    {sortedItems.map((item) => (
                       <tr key={item.id}>
                         <td>
-                          <strong>{item.title}</strong>
-                          <small>
-                            {item.ref || item.id} {item.room ? `· ${item.room}` : ''}
-                          </small>
+                          <div className="flex items-center gap-3">
+                            {getIncidentPhoto(item) ? (
+                              <div
+                                onClick={() => setSelectedIncident(item)}
+                                className="relative w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-[var(--dm-line)] cursor-pointer group shadow-sm bg-stone-900"
+                                title="Click to view incident photo & details"
+                              >
+                                <img
+                                  src={getIncidentPhoto(item)!}
+                                  alt={item.title}
+                                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200"
+                                />
+                                <span className="absolute bottom-0 right-0 p-0.5 bg-black/75 text-white rounded-tl">
+                                  <Camera size={10} />
+                                </span>
+                              </div>
+                            ) : null}
+                            <div className="min-w-0">
+                              <strong
+                                className="cursor-pointer hover:underline block truncate"
+                                onClick={() => setSelectedIncident(item)}
+                              >
+                                {item.title}
+                              </strong>
+                              <small className="text-[var(--dm-muted)] block">
+                                {item.ref || item.id} {item.room ? `· ${item.room}` : ''}
+                              </small>
+                            </div>
+                          </div>
                         </td>
                         <td>{item.assignee || 'Awaiting assignment'}</td>
                         <td>
@@ -786,7 +855,7 @@ export function SecurityApp() {
                         </td>
                         <td>
                           <button
-                            className="dm-text-button"
+                            className="dm-text-button font-semibold"
                             onClick={() => setSelectedIncident(item)}
                           >
                             Review &gt;
@@ -860,10 +929,35 @@ export function SecurityApp() {
                     visibleIncidents.map((item) => (
                       <tr key={item.id}>
                         <td>
-                          <strong>{item.title}</strong>
-                          <small>
-                            {item.ref || item.id} {item.room ? `· ${item.room}` : ''}
-                          </small>
+                          <div className="flex items-center gap-3">
+                            {getIncidentPhoto(item) ? (
+                              <div
+                                onClick={() => setSelectedIncident(item)}
+                                className="relative w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-[var(--dm-line)] cursor-pointer group shadow-sm bg-stone-900"
+                                title="Click to view incident photo & details"
+                              >
+                                <img
+                                  src={getIncidentPhoto(item)!}
+                                  alt={item.title}
+                                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200"
+                                />
+                                <span className="absolute bottom-0 right-0 p-0.5 bg-black/75 text-white rounded-tl">
+                                  <Camera size={10} />
+                                </span>
+                              </div>
+                            ) : null}
+                            <div className="min-w-0">
+                              <strong
+                                className="cursor-pointer hover:underline block truncate"
+                                onClick={() => setSelectedIncident(item)}
+                              >
+                                {item.title}
+                              </strong>
+                              <small className="text-[var(--dm-muted)] block">
+                                {item.ref || item.id} {item.room ? `· ${item.room}` : ''}
+                              </small>
+                            </div>
+                          </div>
                         </td>
                         <td>{item.assignee || 'Awaiting assignment'}</td>
                         <td>
@@ -882,7 +976,7 @@ export function SecurityApp() {
                         </td>
                         <td>
                           <button
-                            className="dm-text-button"
+                            className="dm-text-button font-semibold"
                             onClick={() => setSelectedIncident(item)}
                           >
                             Review &gt;
@@ -943,66 +1037,6 @@ export function SecurityApp() {
                   </article>
                 ))
             )}
-          </section>
-        )}
-
-        {/* ===================== TAB: STAFF & WORKLOAD ===================== */}
-        {tab === 'staff' && (
-          <section className="dm-panel">
-            <div className="dm-panel-heading">
-              <div>
-                <h2>Security Team &amp; Workload</h2>
-                <p>Live post assignments and active shift readiness within Safety &amp; Security.</p>
-              </div>
-            </div>
-
-            <div className="dm-staff-grid">
-              {securityStaff.map((member) => {
-                const load = items.filter(
-                  (t) => t.assigneeId === member.id || t.assignee === member.name,
-                ).length;
-                return (
-                  <article key={member.id} className="dm-staff-card">
-                    <div className="dm-avatar">
-                      {member.name
-                        .split(' ')
-                        .map((p) => p[0])
-                        .slice(0, 2)
-                        .join('')}
-                    </div>
-                    <h3>{member.name}</h3>
-                    <small>
-                      {member.roleId.replaceAll('_', ' ')} · {member.shift || 'Night Shift'}
-                      {member.status !== 'active' ? ' · Off Shift' : ''}
-                    </small>
-                    <div className="dm-progress-label">
-                      <span>Active incidents</span>
-                      <strong>{load} / {member.maxWorkload || 5}</strong>
-                    </div>
-                    <progress value={load} max={Math.max(load, member.maxWorkload || 5)} />
-                    <label className="dm-field" style={{ marginTop: '12px' }}>
-                      Availability
-                      <select
-                        aria-label={`Availability for ${member.name}`}
-                        disabled={member.status !== 'active'}
-                        value={member.availability || 'on_duty'}
-                        onChange={(e) =>
-                          departmentManagerCommand({
-                            type: 'availability',
-                            staffId: member.id,
-                            value: e.target.value as 'on_duty' | 'break' | 'off_duty',
-                          })
-                        }
-                      >
-                        <option value="on_duty">On duty</option>
-                        <option value="break">On patrol break</option>
-                        <option value="off_duty">Off duty</option>
-                      </select>
-                    </label>
-                  </article>
-                );
-              })}
-            </div>
           </section>
         )}
 
@@ -1182,7 +1216,12 @@ export function SecurityApp() {
       {/* Incident Detail Modal */}
       {selectedIncident && (
         <SecurityIncidentDetailModal
-          item={items.find((i) => i.id === selectedIncident.id) || selectedIncident}
+          item={{
+            ...(items.find((i) => i.id === selectedIncident.id) || selectedIncident),
+            incidentPhotoUrl:
+              customLoggedPhotos[selectedIncident.id] ||
+              (items.find((i) => i.id === selectedIncident.id) || selectedIncident).incidentPhotoUrl,
+          }}
           isOpen={!!selectedIncident}
           onClose={() => setSelectedIncident(null)}
           onAcknowledge={acknowledgeSecurityItem}
@@ -1200,7 +1239,18 @@ export function SecurityApp() {
           isOpen={showLogModal}
           onClose={() => setShowLogModal(false)}
           onSubmit={(inc) => {
-            createSecurityIncident(inc);
+            const photo = inc.incidentPhotoUrl || inc.photoUrl;
+            createSecurityIncident(inc as any);
+            if (photo) {
+              setTimeout(() => {
+                const latest = state.items.security_responder?.[0];
+                if (latest) {
+                  latest.incidentPhotoUrl = photo;
+                  latest.photoUrl = photo;
+                  customLoggedPhotos[latest.id] = photo;
+                }
+              }, 50);
+            }
             setShowLogModal(false);
           }}
         />

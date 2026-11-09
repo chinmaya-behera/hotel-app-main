@@ -20,7 +20,8 @@ import type {
   SyncIssue,
   WorkItem,
 } from '@/types/demo';
-import { DEMO_TODAY, fmtDay, settleBookingFromSync } from '@/lib/bookings';
+import { DEMO_TODAY, addDays, fmtDay, settleBookingFromSync } from '@/lib/bookings';
+import { EARLY_CHECKIN_FEE, roomByNo, roomTypeById } from '@/lib/hotelCatalog';
 
 export type FdResult = { next: DemoState; message: string } | { error: string };
 
@@ -49,6 +50,10 @@ const nowLabel = () => new Date().toLocaleTimeString([], { hour: '2-digit', minu
 let counter = 0;
 const uid = (prefix: string) => `${prefix}-${Date.now()}-${counter++}`;
 const round = (n: number) => Math.round(n * 100) / 100;
+
+/** Rupee formatting used by the Stays section (whole numbers stay clean, fractions keep two decimals). */
+export const inr = (n: number) =>
+  `₹${n.toLocaleString('en-IN', { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 })}`;
 
 function feedWith(s: DemoState, role: string, text: string): DemoState['feed'] {
   return [{ id: uid('fd'), at: nowLabel(), role, text }, ...s.feed].slice(0, 30);
@@ -102,7 +107,7 @@ export function openDisputeCount(s: DemoState, room: string): number {
 export function checkoutBlockers(s: DemoState, stay: StayRecord): string[] {
   const blockers: string[] = [];
   const balance = stayBalance(s, stay);
-  if (balance > 0) blockers.push(`Outstanding balance of $${balance.toFixed(2)} must be settled first.`);
+  if (balance > 0) blockers.push(`Outstanding balance of ₹${balance.toFixed(2)} must be settled first.`);
   const disputes = openDisputeCount(s, stay.room);
   if (disputes > 0) {
     blockers.push(`${disputes} open folio dispute${disputes === 1 ? '' : 's'} with Finance must be resolved first.`);
@@ -201,7 +206,14 @@ export function checkIn(s: DemoState, stayId: string): FdResult {
       ...s,
       folios:
         stay.charges && stay.charges.length > 0
-          ? { ...s.folios, [stay.room]: stay.charges.map((c) => ({ id: uid('fo'), label: c.label, amount: c.amount, date: nowLabel() })) }
+          ? {
+              ...s.folios,
+              [stay.room]: [
+                ...stay.charges.map((c) => ({ id: uid('fo'), label: c.label, amount: c.amount, date: nowLabel() })),
+                // keep an early check-in fee that was already approved before the guest arrived
+                ...(stay.earlyCheckIn?.status === 'approved' ? (s.folios[stay.room] ?? []).filter((l) => l.label === 'Early check-in fee') : []),
+              ],
+            }
           : s.folios,
       frontDesk: {
         ...s.frontDesk,
@@ -238,9 +250,9 @@ export function decideEarlyCheckIn(s: DemoState, stayId: string, approve: boolea
       ...s,
       folios: addFolioLine(s, stay.room, 'Early check-in fee', early.fee),
       frontDesk: { ...s.frontDesk, stays: patchStay(s.frontDesk.stays, stayId, { earlyCheckIn: { ...early, status: 'approved' } }) },
-      feed: feedWith(s, 'Front Desk', `Early check-in approved · ${stay.guest} · $${early.fee} posted to folio`),
+      feed: feedWith(s, 'Front Desk', `Early check-in approved · ${stay.guest} · ₹${early.fee} posted to folio`),
     },
-    message: `Early check-in approved. $${early.fee.toFixed(2)} posted to the folio.`,
+    message: `Early check-in approved. ₹${early.fee.toFixed(2)} posted to the folio.`,
   };
 }
 
@@ -252,14 +264,14 @@ export function settleBalance(s: DemoState, stayId: string): FdResult {
   const stay = s.frontDesk.stays.find((x) => x.id === stayId);
   if (!stay) return { error: 'Stay not found.' };
   const balance = stayBalance(s, stay);
-  if (balance <= 0) return { error: 'Nothing to collect: the balance is already $0.' };
+  if (balance <= 0) return { error: 'Nothing to collect: the balance is already ₹0.' };
   return {
     next: {
       ...s,
       frontDesk: { ...s.frontDesk, stays: patchStay(s.frontDesk.stays, stayId, { paid: round(stay.paid + balance) }) },
       feed: feedWith(s, 'Front Desk', `Balance settled · Room ${stay.room} · card ${stay.cardMask}`),
     },
-    message: `$${balance.toFixed(2)} collected on card ${stay.cardMask} (simulated, tokenised).`,
+    message: `₹${balance.toFixed(2)} collected on card ${stay.cardMask} (simulated, tokenised).`,
   };
 }
 
@@ -294,7 +306,7 @@ export function checkOut(s: DemoState, stayId: string): FdResult {
 /* Room move                                                             */
 /* --------------------------------------------------------------------- */
 
-export function moveRoom(s: DemoState, stayId: string, toRoom: string, reason: string): FdResult {
+export function moveRoom(s: DemoState, stayId: string, toRoom: string, reason: string, roomType?: string): FdResult {
   const stay = s.frontDesk.stays.find((x) => x.id === stayId);
   if (!stay) return { error: 'Stay not found.' };
   if (stay.status !== 'in_house') return { error: 'Only in-house guests can be moved.' };
@@ -323,13 +335,139 @@ export function moveRoom(s: DemoState, stayId: string, toRoom: string, reason: s
       folios,
       frontDesk: {
         ...s.frontDesk,
-        stays: patchStay(s.frontDesk.stays, stayId, { room: toRoom, movedFrom: from }),
+        stays: patchStay(s.frontDesk.stays, stayId, {
+          room: toRoom,
+          movedFrom: from,
+          roomType: roomType?.trim() || roomTypeById[roomByNo[toRoom]?.typeId ?? '']?.name || stay.roomType,
+        }),
         rooms: patchRoom(patchRoom(s.frontDesk.rooms, from, { occupied: false, readiness: 'dirty', dnd: false }), toRoom, { occupied: true }),
       },
       revokedRooms: [...s.revokedRooms.filter((r) => r !== toRoom), ...(s.revokedRooms.includes(from) ? [] : [from])],
       feed: feedWith(s, 'Front Desk', `Room move · ${stay.guest} · ${from} → ${toRoom} · ${reason.trim()} · old session revoked`),
     },
     message: `${stay.guest} moved ${from} → ${toRoom}. Room ${from} session revoked, folio carried over.`,
+  };
+}
+
+/* --------------------------------------------------------------------- */
+/* Stays: demo shortcuts and Add Stay                                  */
+/* --------------------------------------------------------------------- */
+
+/**
+ * Demo shortcut used from the Stays list: marks a room that is awaiting inspection as Ready and
+ * closes its pending supervisor inspection. In the real workflow a supervisor approves this (F21).
+ */
+export function markRoomReady(s: DemoState, roomNo: string): FdResult {
+  const rec = s.frontDesk.rooms.find((r) => r.no === roomNo);
+  if (!rec) return { error: 'Room not found.' };
+  if (rec.occupied) return { error: `Room ${roomNo} is occupied.` };
+  if (rec.readiness === 'ready') return { error: `Room ${roomNo} is already Ready.` };
+  if (rec.readiness !== 'inspection_pending') {
+    return { error: `Room ${roomNo} is "${READINESS_LABEL[rec.readiness]}". Housekeeping has to finish it before it can be marked Ready.` };
+  }
+  return {
+    next: {
+      ...s,
+      items: {
+        ...s.items,
+        department_supervisor: (s.items.department_supervisor ?? []).map((i) =>
+          i.room === roomNo && i.status === 'Awaiting inspection' ? { ...i, status: 'Closed' } : i,
+        ),
+      },
+      frontDesk: { ...s.frontDesk, rooms: patchRoom(s.frontDesk.rooms, roomNo, { readiness: 'ready', note: undefined }) },
+      feed: feedWith(s, 'Front Desk', `Room ${roomNo} marked Ready from Stays (demo shortcut for supervisor inspection)`),
+    },
+    message: `Room ${roomNo} marked Ready. Arrivals for this room can now be checked in.`,
+  };
+}
+
+export type StayCategory = 'arriving' | 'in_house' | 'departing';
+
+export interface AddStayInput {
+  guest: string;
+  room: string;
+  roomType: string;
+  category: StayCategory;
+  /** arrivals only */
+  roomStatus: 'ready' | 'inspection_pending';
+  /** arrivals only; in-house guests are always verified */
+  idVerified: boolean;
+  /** arrivals only */
+  earlyCheckIn: boolean;
+  folioBalance: number;
+  vip: boolean;
+}
+
+/** Frontend test helper: creates a stay in the shared store so every Front Desk view updates at once. */
+export function addStay(s: DemoState, input: AddStayInput): FdResult {
+  const guest = input.guest.trim();
+  if (guest.length < 2) return { error: 'Enter the guest name.' };
+  if (!input.roomType.trim()) return { error: 'Choose a room type.' };
+  const rec = s.frontDesk.rooms.find((r) => r.no === input.room);
+  if (!rec) return { error: 'Choose a room from the inventory.' };
+  if (rec.readiness === 'out_of_order') return { error: `Room ${rec.no} is out of order and cannot be assigned.` };
+  const clash = s.frontDesk.stays.find((st) => st.room === rec.no && st.status !== 'checked_out');
+  if (clash) return { error: `Room ${rec.no} already has ${clash.guest} (${clash.status === 'in_house' ? 'in house' : 'arriving'}).` };
+  if (rec.occupied) return { error: `Room ${rec.no} is occupied. Choose a vacant room.` };
+  if (!Number.isFinite(input.folioBalance) || input.folioBalance < 0) return { error: 'Folio balance must be 0 or more.' };
+
+  const arriving = input.category === 'arriving';
+  const departing = input.category === 'departing';
+  const arrivalIso = arriving ? DEMO_TODAY : addDays(DEMO_TODAY, departing ? -2 : -1);
+  const departureIso = departing ? DEMO_TODAY : addDays(DEMO_TODAY, 2);
+  const nights = arriving || departing ? 2 : 3;
+  const verified = arriving ? input.idVerified : true;
+  const balance = round(input.folioBalance);
+
+  const stay: StayRecord = {
+    id: uid('stay'),
+    room: rec.no,
+    guest,
+    vip: input.vip || undefined,
+    roomType: input.roomType.trim(),
+    arrival: `${fmtDay(arrivalIso)} · 14:00`,
+    departure: `${fmtDay(departureIso)} · 11:00`,
+    nights,
+    status: arriving ? 'expected' : 'in_house',
+    departsToday: departing || undefined,
+    preCheckIn: verified ? 'verified' : 'none',
+    idChecked: verified,
+    idVerificationStatus: verified ? 'verified' : 'pending',
+    ...(verified ? { idDocType: 'Passport', idDocNumber: `IND-${rec.no}779X` } : {}),
+    paid: 0,
+    cardMask: '•••• 4242',
+    earlyCheckIn: arriving && input.earlyCheckIn ? { fee: EARLY_CHECKIN_FEE, status: 'pending' } : undefined,
+    arrivalDate: arrivalIso,
+    departureDate: departureIso,
+    // arrivals post their balance to the folio at check-in; in-house guests get it immediately
+    charges: arriving && balance > 0 ? [{ label: 'Opening folio balance', amount: balance }] : undefined,
+  };
+
+  const folioLines: FolioLine[] = !arriving && balance > 0 ? [{ id: uid('fo'), label: 'Opening folio balance', amount: balance, date: nowLabel() }] : [];
+  const needsInspection = arriving && input.roomStatus === 'inspection_pending';
+  const queued = (s.items.department_supervisor ?? []).some((i) => i.room === rec.no && i.status === 'Awaiting inspection');
+  const inspection: WorkItem = {
+    id: uid('insp'),
+    title: `Turnover inspection · Room ${rec.no}`,
+    meta: 'Housekeeping · Completed just now',
+    status: 'Awaiting inspection',
+    room: rec.no,
+  };
+
+  return {
+    next: {
+      ...s,
+      folios: { ...s.folios, [rec.no]: folioLines },
+      items: needsInspection && !queued ? { ...s.items, department_supervisor: [inspection, ...(s.items.department_supervisor ?? [])] } : s.items,
+      frontDesk: {
+        ...s.frontDesk,
+        stays: [...s.frontDesk.stays, stay],
+        rooms: patchRoom(s.frontDesk.rooms, rec.no, arriving ? { readiness: input.roomStatus, occupied: false, note: undefined } : { occupied: true }),
+      },
+      revokedRooms: arriving ? s.revokedRooms : s.revokedRooms.filter((r) => r !== rec.no),
+      feed: feedWith(s, 'Front Desk', `Stay added (demo) · ${guest} · Room ${rec.no} · ${arriving ? 'arriving' : departing ? 'departing today' : 'in house'}`),
+    },
+    message: `${guest} added to Room ${rec.no} as ${arriving ? 'an arrival' : departing ? 'a departure today' : 'an in-house guest'}.`,
   };
 }
 
@@ -706,7 +844,7 @@ export function afterAdvance(s: DemoState, roleId: RoleId, next: string, room?: 
       readiness = 'cleaning';
       text = `Room ${room} cleaning started`;
     }
-    if (next === 'Completed') {
+    if (next === 'Completed' || next === 'Awaiting inspection') {
       readiness = 'inspection_pending';
       text = `Room ${room} cleaned, awaiting supervisor inspection`;
       const queued = items.department_supervisor.some((i) => i.room === room && i.status === 'Awaiting inspection');
@@ -723,7 +861,7 @@ export function afterAdvance(s: DemoState, roleId: RoleId, next: string, room?: 
     }
   }
   if (roleId === 'department_supervisor') {
-    if (next === 'Closed') {
+    if (next === 'Closed' || next === 'Completed') {
       readiness = 'ready';
       text = `Room ${room} inspected and Ready`;
     }
