@@ -1,5 +1,5 @@
 import type { DemoState, WorkItem } from '../types/demo';
-import { nextOperationalReference } from './operational-references.ts';
+import { nextOperationalReference } from './operational-references';
 
 const examples = [
   { id: 'hk', reference: 'HK', department: 'Housekeeping', category: 'housekeeping', room: '402', location: 'Room 402', open: 'Refresh towels before arrival', done: 'Deliver extra pillows' },

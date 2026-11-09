@@ -1,5 +1,5 @@
 import type { OrderLine, WorkItem } from '../types/demo';
-import { CUISINES, MEAL_PERIODS } from './department-insights.ts';
+import { CUISINES, MEAL_PERIODS } from './department-insights';
 
 type SampleDish = readonly [name: string, price: number];
 type SamplePair = readonly [SampleDish, SampleDish];

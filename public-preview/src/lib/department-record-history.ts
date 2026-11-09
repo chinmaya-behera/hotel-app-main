@@ -1,5 +1,5 @@
 import type { DemoState, DepartmentRecordEvent, DepartmentRecordKind, DepartmentRecordSnapshot, WorkItem } from '../types/demo';
-import { departmentId, taskDepartment } from './manager-domain.ts';
+import { departmentId, taskDepartment } from './manager-domain';
 
 export const RECORD_KINDS: Record<DepartmentRecordKind, string> = {
   schedule: 'Shift schedules', repair: 'Repairs', task: 'Department tasks', order: 'Dining orders', medical: 'Medical cases', complaint: 'Complaints', inspection: 'Inspections',
