@@ -53,13 +53,14 @@ export function DispatcherEscalationsTab({
     escalateSupervisorIssue,
   } = useDemo();
 
-  // Top-level navigation: "For Me" (from fulfillers) vs "From Me" (to Dept Manager)
-  const [activeSubTab, setActiveSubTab] = useState<'for_me' | 'from_me'>('for_me');
+  // Top-level navigation: "For Me" (from fulfillers), "From Me" (to Dept Manager), and "Escalation Log" (Duty Manager cases)
+  const [activeSubTab, setActiveSubTab] = useState<'for_me' | 'from_me' | 'log'>('for_me');
 
   // Search & Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [fromMeStatusFilter, setFromMeStatusFilter] = useState<'all' | 'Not Viewed' | 'Acknowledged' | 'Rejected'>('all');
   const [priorityFilter, setPriorityFilter] = useState<'all' | 'critical' | 'urgent' | 'normal'>('all');
+  const [logStatusFilter, setLogStatusFilter] = useState<'all' | 'vip' | 'breached' | 'urgent'>('all');
 
   // Dialog States for "For Me"
   const [detailModalTask, setDetailModalTask] = useState<WorkItem | null>(null);
@@ -78,6 +79,9 @@ export function DispatcherEscalationsTab({
   const [managerReviewModalEsc, setManagerReviewModalEsc] = useState<SupervisorEscalationRecord | null>(null);
   const [simulatedManagerStatus, setSimulatedManagerStatus] = useState<'Not Viewed' | 'Acknowledged' | 'Rejected'>('Acknowledged');
   const [simulatedManagerNote, setSimulatedManagerNote] = useState('');
+
+  // Dialog State for "Escalation Log"
+  const [detailModalLogCase, setDetailModalLogCase] = useState<WorkItem | null>(null);
 
   // -------------------------------------------------------------
   // Filter Tasks for "For Me"
@@ -160,6 +164,29 @@ export function DispatcherEscalationsTab({
   const countNotViewed = activeDepartmentEscalations.filter((e) => e.status === 'Not Viewed').length;
   const countAcknowledged = activeDepartmentEscalations.filter((e) => e.status === 'Acknowledged').length;
   const countRejected = activeDepartmentEscalations.filter((e) => e.status === 'Rejected').length;
+
+  // -------------------------------------------------------------
+  // Filter Duty Manager Cases for "Escalation Log"
+  // -------------------------------------------------------------
+  const managerTasks = state.items.department_manager ?? [];
+
+  const filteredManagerCases = useMemo(() => {
+    return managerTasks.filter((item) => {
+      if (logStatusFilter === 'vip' && item.priority !== 'vip' && !item.chip?.toLowerCase().includes('vip')) return false;
+      if (logStatusFilter === 'breached' && !item.chip?.toLowerCase().includes('breached') && item.tone !== 'danger') return false;
+      if (logStatusFilter === 'urgent' && item.priority !== 'urgent' && item.priority !== 'critical') return false;
+
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchTitle = (item.title || '').toLowerCase().includes(q);
+        const matchMeta = (item.meta || '').toLowerCase().includes(q);
+        const matchChip = (item.chip || '').toLowerCase().includes(q);
+        const matchDesc = (item.description || '').toLowerCase().includes(q);
+        if (!matchTitle && !matchMeta && !matchChip && !matchDesc) return false;
+      }
+      return true;
+    });
+  }, [managerTasks, logStatusFilter, searchQuery]);
 
   // -------------------------------------------------------------
   // Handlers for "For Me"
@@ -314,9 +341,9 @@ export function DispatcherEscalationsTab({
       </div>
 
       {/* ========================================================= */}
-      {/* TWO-OPTION SUB-TAB SELECTOR: "For Me" and "From Me"       */}
+      {/* THREE-OPTION SUB-TAB SELECTOR: For Me, From Me, Escalation Log */}
       {/* ========================================================= */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-1.5 rounded-3xl bg-ink-950/70 border border-white/10 backdrop-blur-md">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-1.5 rounded-3xl bg-ink-950/70 border border-white/10 backdrop-blur-md">
         {/* TAB 1: FOR ME */}
         <button
           type="button"
@@ -399,6 +426,45 @@ export function DispatcherEscalationsTab({
             }`}
           />
         </button>
+
+        {/* TAB 3: ESCALATION LOG */}
+        <button
+          type="button"
+          onClick={() => setActiveSubTab('log')}
+          className={`flex items-center justify-between p-3.5 rounded-2xl transition-all duration-200 ${
+            activeSubTab === 'log'
+              ? 'bg-ink-800 text-white border border-purple-400/40 shadow-lg shadow-purple-400/10'
+              : 'text-mist-400 hover:text-white hover:bg-white/[0.02]'
+          }`}
+        >
+          <div className="flex items-center gap-3 text-left">
+            <span
+              className={`grid h-10 w-10 place-items-center rounded-xl border ${
+                activeSubTab === 'log'
+                  ? 'bg-purple-400/20 text-purple-300 border-purple-400/30'
+                  : 'bg-white/[0.04] text-mist-400 border-white/10'
+              }`}
+            >
+              <ShieldAlert className="h-5 w-5" />
+            </span>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-sm text-white">Escalation Log</span>
+                <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-purple-400/20 text-purple-300 font-bold border border-purple-400/30">
+                  {managerTasks.length}
+                </span>
+              </div>
+              <p className="text-xs text-mist-400">
+                Duty Manager cases & resolution log
+              </p>
+            </div>
+          </div>
+          <ChevronRight
+            className={`h-4 w-4 transition-transform ${
+              activeSubTab === 'log' ? 'text-purple-400 translate-x-0.5' : 'text-mist-600'
+            }`}
+          />
+        </button>
       </div>
 
       {/* ========================================================= */}
@@ -414,7 +480,9 @@ export function DispatcherEscalationsTab({
             placeholder={
               activeSubTab === 'for_me'
                 ? 'Search by task ref (HK-CHUTE), room, title, or fulfiller name...'
-                : 'Search escalation ref (ESC-HK-301), room, reason, or manager review...'
+                : activeSubTab === 'from_me'
+                ? 'Search escalation ref (ESC-HK-301), room, reason, or manager review...'
+                : 'Search Duty Manager cases, room, issue description...'
             }
             className="w-full pl-9 pr-3.5 py-2 rounded-xl border border-white/10 bg-white/[0.03] text-xs text-white placeholder-mist-500 focus:border-rose-400 focus:outline-none transition"
           />
@@ -498,6 +566,32 @@ export function DispatcherEscalationsTab({
                 <option value="normal" className="bg-ink-950 text-mist-200">Normal Priority</option>
               </select>
               <ChevronDown className="h-3.5 w-3.5 text-mist-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          </div>
+        )}
+
+        {/* Category / Status Filter for "Escalation Log" */}
+        {activeSubTab === 'log' && (
+          <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap shrink-0">
+            <div className="flex items-center gap-1.5 bg-ink-950/80 px-2.5 py-1.5 rounded-2xl border border-white/10 shadow-sm">
+              <label htmlFor="log-category-dropdown" className="text-xs font-semibold text-mist-300 pl-1 flex items-center gap-1.5 shrink-0">
+                <Filter className="h-3.5 w-3.5 text-purple-400" />
+                <span>Filter Cases:</span>
+              </label>
+              <div className="relative">
+                <select
+                  id="log-category-dropdown"
+                  value={logStatusFilter}
+                  onChange={(e) => setLogStatusFilter(e.target.value as any)}
+                  className="appearance-none rounded-xl border border-white/10 bg-ink-900 pl-3 pr-7 py-1 text-xs font-bold text-white focus:outline-none focus:border-purple-400 cursor-pointer hover:border-white/20 transition shadow-inner"
+                >
+                  <option value="all" className="bg-ink-950 text-white">All Cases ({managerTasks.length})</option>
+                  <option value="vip" className="bg-ink-950 text-purple-300 font-bold">VIP Cases</option>
+                  <option value="breached" className="bg-ink-950 text-rose-300 font-bold">SLA Breached</option>
+                  <option value="urgent" className="bg-ink-950 text-amber-300 font-bold">Urgent & Critical</option>
+                </select>
+                <ChevronDown className="h-3.5 w-3.5 text-mist-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
             </div>
           </div>
         )}
@@ -886,6 +980,119 @@ export function DispatcherEscalationsTab({
                   </div>
                 );
               })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* VIEW 3: "ESCALATION LOG" (Duty Manager Escalation Log)    */}
+      {/* ========================================================= */}
+      {activeSubTab === 'log' && (
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-3xl border border-purple-500/20 bg-purple-500/[0.04] backdrop-blur-md">
+            <div className="flex items-center gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-2xl bg-purple-500/15 border border-purple-500/30 text-purple-300 shrink-0">
+                <ShieldAlert className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold font-display text-white">Duty Manager Escalation Log</h2>
+                <p className="text-xs text-mist-300">
+                  Cross-department high-priority operational incident log under active Duty Manager supervision.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 self-end sm:self-center font-mono text-xs">
+              <span className="px-3 py-1 rounded-full bg-purple-400/20 text-purple-200 border border-purple-400/30 font-bold">
+                {filteredManagerCases.length} Active Cases
+              </span>
+              <span className="px-3 py-1 rounded-full bg-white/[0.05] text-mist-300 border border-white/10">
+                Duty Mgr: Marcus Vance
+              </span>
+            </div>
+          </div>
+
+          {filteredManagerCases.length === 0 ? (
+            <div className="p-12 rounded-3xl border border-white/10 bg-ink-900/60 text-center space-y-3">
+              <CheckCircle2 className="h-10 w-10 text-emerald-400 mx-auto" />
+              <h3 className="font-bold text-base text-white">No Escalation Cases Found</h3>
+              <p className="text-xs text-mist-400 max-w-md mx-auto">
+                No active Duty Manager escalation cases match the selected filter.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredManagerCases.map((caseItem) => (
+                <div
+                  key={caseItem.id}
+                  className="rounded-3xl border border-white/10 bg-ink-900/90 p-5 backdrop-blur-xl shadow-xl space-y-4 hover:border-purple-400/40 transition flex flex-col justify-between"
+                >
+                  <div className="space-y-3">
+                    {/* Header */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-mono text-xs font-bold px-2.5 py-1 rounded-lg bg-purple-400/10 border border-purple-400/25 text-purple-300">
+                            {caseItem.id.toUpperCase()}
+                          </span>
+                          <span
+                            className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                              caseItem.tone === 'danger'
+                                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                                : caseItem.tone === 'warning'
+                                ? 'bg-amber-400/20 text-amber-300 border border-amber-400/30'
+                                : caseItem.tone === 'accent'
+                                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                                : 'bg-white/10 text-mist-300'
+                            }`}
+                          >
+                            {caseItem.chip || 'Escalated'}
+                          </span>
+                        </div>
+                        <h3 className="font-bold text-sm text-white pt-1">{caseItem.title}</h3>
+                      </div>
+                    </div>
+
+                    {/* Metadata & Description */}
+                    <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/[0.06] space-y-1.5 text-xs">
+                      <p className="text-mist-300 font-medium">{caseItem.meta}</p>
+                      {caseItem.description && (
+                        <p className="text-mist-400 text-[11px] italic pt-1 border-t border-white/[0.04]">
+                          &ldquo;{caseItem.description}&rdquo;
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Duty Manager & Monetary Impact */}
+                    <div className="flex items-center justify-between text-xs pt-1 text-mist-400">
+                      <span className="flex items-center gap-1.5">
+                        <User className="h-3.5 w-3.5 text-purple-400" />
+                        <span className="font-semibold text-white">Marcus Vance (Duty Mgr)</span>
+                      </span>
+                      {caseItem.amount && (
+                        <span className="font-mono text-xs font-bold text-amber-300 bg-amber-400/10 px-2 py-0.5 rounded-md border border-amber-400/20">
+                          ${caseItem.amount} Limit
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="border-t border-white/[0.06] pt-3 flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-300">
+                      <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                      Active Resolution
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setDetailModalLogCase(caseItem)}
+                      className="px-3 py-1.5 rounded-xl border border-white/10 bg-white/[0.04] text-xs font-semibold text-mist-200 hover:text-white hover:bg-white/[0.08] transition"
+                    >
+                      View Log Details
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -1469,6 +1676,75 @@ export function DispatcherEscalationsTab({
         onSubmit={handleConfirmEscalation}
         onEscalate={handleConfirmEscalation}
       />
+
+      {/* ========================================================= */}
+      {/* DIALOG: DUTY MANAGER CASE LOG DETAILS                     */}
+      {/* ========================================================= */}
+      {detailModalLogCase && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink-950/80 backdrop-blur-md animate-fade-in"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="relative w-full max-w-lg rounded-3xl border border-white/10 bg-ink-900 p-6 shadow-2xl backdrop-blur-2xl text-white space-y-4">
+            <div className="flex items-start justify-between border-b border-white/[0.08] pb-3">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-md bg-purple-400/20 text-purple-300">
+                    {detailModalLogCase.id.toUpperCase()}
+                  </span>
+                  <span className="text-xs font-bold text-white">
+                    {detailModalLogCase.chip || 'Manager Case'}
+                  </span>
+                </div>
+                <h3 className="font-bold text-base text-white">{detailModalLogCase.title}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDetailModalLogCase(null)}
+                className="p-1.5 rounded-xl border border-white/10 bg-white/[0.04] text-mist-400 hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-mist-400 tracking-wider">Context & Meta</span>
+                <p className="text-white font-medium">{detailModalLogCase.meta}</p>
+              </div>
+
+              {detailModalLogCase.description && (
+                <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-1">
+                  <span className="text-[10px] uppercase font-bold text-mist-400 tracking-wider">Case Notes</span>
+                  <p className="text-mist-200">{detailModalLogCase.description}</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="p-3 rounded-xl bg-ink-950 border border-white/10 space-y-0.5">
+                  <span className="text-[10px] text-mist-400">Assigned Manager</span>
+                  <p className="font-bold text-white">Marcus Vance (Duty Mgr)</p>
+                </div>
+                <div className="p-3 rounded-xl bg-ink-950 border border-white/10 space-y-0.5">
+                  <span className="text-[10px] text-mist-400">Recovery Authority</span>
+                  <p className="font-bold text-amber-300">${detailModalLogCase.amount ?? 150} Limit</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-white/[0.08] flex justify-end">
+              <button
+                type="button"
+                onClick={() => setDetailModalLogCase(null)}
+                className="px-4 py-2 rounded-xl bg-white/10 text-white font-bold text-xs hover:bg-white/20 transition"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

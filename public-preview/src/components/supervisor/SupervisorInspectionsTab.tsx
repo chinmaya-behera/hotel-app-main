@@ -374,11 +374,9 @@ export function SupervisorInspectionsTab({
               <thead className="border-b border-white/[0.08] bg-white/[0.02] text-mist-400 uppercase tracking-wider font-semibold text-[10px]">
                 <tr>
                   <th className="py-3 px-4">Room & Inspection Scope</th>
-                  <th className="py-3 px-4">Floor / Zone</th>
                   <th className="py-3 px-4">Attendant</th>
                   <th className="py-3 px-4">Type</th>
                   <th className="py-3 px-4">Checklist Checks</th>
-                  <th className="py-3 px-4">Score</th>
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4">Completed / Signed-off</th>
                   <th className="py-3 px-4 text-right">Actions</th>
@@ -389,7 +387,7 @@ export function SupervisorInspectionsTab({
                   <Fragment key={group.floor}>
                     {/* Floor Header Bar with Quick Floor Sweep Action */}
                     <tr className="bg-gradient-to-r from-amber-500/10 via-amber-400/5 to-transparent border-y border-amber-400/20">
-                      <td colSpan={9} className="py-2.5 px-4">
+                      <td colSpan={7} className="py-2.5 px-4">
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <div className="flex items-center gap-2.5">
                             <span className="h-6 w-6 rounded-lg bg-amber-400/20 border border-amber-400/30 text-amber-300 font-mono font-bold text-xs flex items-center justify-center">
@@ -512,11 +510,6 @@ export function SupervisorInspectionsTab({
                             </div>
                           </td>
 
-                          {/* Floor / Zone */}
-                          <td className="py-3.5 px-4 font-mono text-mist-300 text-xs">
-                            {isAllRoomsScope ? 'All Floors (1–5)' : `Floor ${insp.floor}`}
-                          </td>
-
                           {/* Attendant */}
                           <td className="py-3.5 px-4">
                             <div>
@@ -538,21 +531,6 @@ export function SupervisorInspectionsTab({
                               {passedChecks}
                             </span>
                             /{totalChecks} items
-                          </td>
-
-                          {/* Score */}
-                          <td className="py-3.5 px-4 font-mono font-bold">
-                            <span
-                              className={
-                                score >= 90
-                                  ? 'text-emerald-300'
-                                  : score >= 75
-                                  ? 'text-amber-300'
-                                  : 'text-rose-400'
-                              }
-                            >
-                              {score}%
-                            </span>
                           </td>
 
                           {/* Status Badge */}

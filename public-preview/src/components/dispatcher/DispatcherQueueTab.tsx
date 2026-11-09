@@ -20,6 +20,10 @@ import {
   Eye,
   SlidersHorizontal,
   Plus,
+  Play,
+  Check,
+  ChevronDown,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
 import { AssignTaskModal } from '@/components/dispatcher/AssignTaskModal';
@@ -36,7 +40,13 @@ interface DispatcherQueueTabProps {
 }
 
 export function DispatcherQueueTab({ tasks, activeDept }: DispatcherQueueTabProps = {}) {
-  const { state, autoAssignTask, autoAssignAllPending } = useDemo();
+  const {
+    state,
+    autoAssignTask,
+    autoAssignAllPending,
+    updateDispatcherTaskStatus,
+    updateDispatcherTaskPriority,
+  } = useDemo();
 
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState('');
@@ -401,7 +411,6 @@ export function DispatcherQueueTab({ tasks, activeDept }: DispatcherQueueTabProp
                   <th className="py-3.5 pl-6 pr-3">Ref & Priority</th>
                   <th className="py-3.5 px-3">Room / Location</th>
                   <th className="py-3.5 px-3">Task Details</th>
-                  <th className="py-3.5 px-3">Department</th>
                   <th className="py-3.5 px-3">Dual SLAs (Ack / Res)</th>
                   <th className="py-3.5 px-3">Status & Assignee</th>
                   <th className="py-3.5 pl-3 pr-6 text-right">Actions</th>
@@ -410,6 +419,8 @@ export function DispatcherQueueTab({ tasks, activeDept }: DispatcherQueueTabProp
               <tbody className="divide-y divide-white/[0.06]">
                 {filteredTasks.map((task) => {
                   const isUnassigned = task.status === 'Unassigned' || task.status === 'Received';
+                  const isCompleted = task.status === 'Completed' || task.status === 'Delivered';
+                  const isInProgress = task.status === 'In progress';
                   const isOverdue =
                     task.ackStatus === 'overdue' ||
                     task.chip?.toLowerCase().includes('overdue');
@@ -424,19 +435,27 @@ export function DispatcherQueueTab({ tasks, activeDept }: DispatcherQueueTabProp
                         <div className="flex items-center gap-1.5 font-mono font-bold text-white">
                           <span>{task.ref || task.id.slice(0, 8)}</span>
                         </div>
-                        <span
-                          className={`inline-block text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded-md ${
+                        {/* Quick Priority Switcher */}
+                        <select
+                          aria-label="Change task priority"
+                          value={task.priority || 'normal'}
+                          onChange={(e) => updateDispatcherTaskPriority(task.id, e.target.value)}
+                          className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md border focus:outline-none cursor-pointer ${
                             task.priority === 'critical' || task.priority === 'safety'
-                              ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                              ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
                               : task.priority === 'urgent'
-                              ? 'bg-amber-400/20 text-amber-300 border border-amber-400/30'
+                              ? 'bg-amber-400/20 text-amber-300 border-amber-400/40'
                               : task.priority === 'vip'
-                              ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
-                              : 'bg-white/10 text-mist-300'
+                              ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
+                              : 'bg-slate-800 text-mist-300 border-white/10'
                           }`}
                         >
-                          {task.priority || 'Normal'}
-                        </span>
+                          <option value="low" className="bg-slate-900 text-white">Low</option>
+                          <option value="normal" className="bg-slate-900 text-white">Normal</option>
+                          <option value="urgent" className="bg-slate-900 text-white">Urgent</option>
+                          <option value="vip" className="bg-slate-900 text-white">VIP</option>
+                          <option value="critical" className="bg-slate-900 text-white">Critical</option>
+                        </select>
                       </td>
 
                       {/* Location */}
@@ -459,13 +478,6 @@ export function DispatcherQueueTab({ tasks, activeDept }: DispatcherQueueTabProp
                             Linked to {task.linkedToRef}
                           </span>
                         )}
-                      </td>
-
-                      {/* Department */}
-                      <td className="py-4 px-3">
-                        <span className="font-medium text-mist-200">
-                          {task.department || (task.category ? task.category.toUpperCase() : 'General')}
-                        </span>
                       </td>
 
                       {/* Dual SLAs */}
@@ -508,9 +520,33 @@ export function DispatcherQueueTab({ tasks, activeDept }: DispatcherQueueTabProp
                         )}
                       </td>
 
-                      {/* Actions */}
+                      {/* Actions: Full suite of operations */}
                       <td className="py-4 pl-3 pr-6 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+                        <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                          {/* 1. Quick Status Controls */}
+                          {!isCompleted && !isInProgress && (
+                            <button
+                              type="button"
+                              onClick={() => updateDispatcherTaskStatus(task.id, 'In progress')}
+                              className="p-1.5 rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-300 hover:bg-blue-500 hover:text-white transition"
+                              title="Start Task / Mark In Progress"
+                            >
+                              <Play className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+
+                          {!isCompleted && (
+                            <button
+                              type="button"
+                              onClick={() => updateDispatcherTaskStatus(task.id, 'Completed')}
+                              className="p-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500 hover:text-white transition"
+                              title="Mark Task Completed"
+                            >
+                              <Check className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+
+                          {/* 2. Assign / Reassign */}
                           {isUnassigned ? (
                             <>
                               <button
@@ -526,7 +562,7 @@ export function DispatcherQueueTab({ tasks, activeDept }: DispatcherQueueTabProp
                                 type="button"
                                 onClick={() => setAssignModalTask(task)}
                                 className="p-1.5 rounded-xl border border-white/10 text-mist-300 hover:text-white hover:bg-white/[0.06] text-[11px] font-semibold transition px-2"
-                                title="Manual Assign"
+                                title="Manual Assign Staff"
                               >
                                 <UserCheck className="h-3.5 w-3.5" />
                               </button>
@@ -536,12 +572,23 @@ export function DispatcherQueueTab({ tasks, activeDept }: DispatcherQueueTabProp
                               type="button"
                               onClick={() => setAssignModalTask(task)}
                               className="p-1.5 rounded-xl border border-white/10 text-mist-300 hover:text-white hover:bg-white/[0.06] text-[11px] font-semibold transition px-2"
-                              title="Reassign to another staff member"
+                              title="Reassign Staff"
                             >
                               <UserCheck className="h-3.5 w-3.5 text-amber-300" />
                             </button>
                           )}
 
+                          {/* 3. Link Duplicate */}
+                          <button
+                            type="button"
+                            onClick={() => setDuplicateModalTask(task)}
+                            className="p-1.5 rounded-xl border border-sky-500/30 text-sky-300 hover:bg-sky-500/20 transition"
+                            title="Link Duplicate Task"
+                          >
+                            <Link2 className="h-3.5 w-3.5" />
+                          </button>
+
+                          {/* 4. Escalate to Manager */}
                           <button
                             type="button"
                             onClick={() => setEscalateModalTask(task)}
@@ -551,6 +598,7 @@ export function DispatcherQueueTab({ tasks, activeDept }: DispatcherQueueTabProp
                             <Send className="h-3.5 w-3.5" />
                           </button>
 
+                          {/* 5. View Full Details */}
                           <button
                             type="button"
                             onClick={() => setDetailsDrawerTask(task)}
@@ -646,30 +694,57 @@ export function DispatcherQueueTab({ tasks, activeDept }: DispatcherQueueTabProp
                 </div>
 
                 {/* Card Actions Footer */}
-                <div className="border-t border-white/[0.08] pt-3 flex items-center justify-between gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setDetailsDrawerTask(task)}
-                    className="text-xs font-semibold text-mist-300 hover:text-white transition"
-                  >
-                    View Details
-                  </button>
+                <div className="border-t border-white/[0.08] pt-3 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
+                    {/* Quick status actions */}
+                    {task.status !== 'Completed' && task.status !== 'In progress' && (
+                      <button
+                        type="button"
+                        onClick={() => updateDispatcherTaskStatus(task.id, 'In progress')}
+                        className="p-1.5 rounded-lg border border-blue-500/30 bg-blue-500/10 text-blue-300 hover:bg-blue-500 hover:text-white transition"
+                        title="Start Task / Mark In Progress"
+                      >
+                        <Play className="h-3 w-3" />
+                      </button>
+                    )}
+
+                    {task.status !== 'Completed' && (
+                      <button
+                        type="button"
+                        onClick={() => updateDispatcherTaskStatus(task.id, 'Completed')}
+                        className="p-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500 hover:text-white transition"
+                        title="Mark Task Completed"
+                      >
+                        <Check className="h-3 w-3" />
+                      </button>
+                    )}
+
+                    {/* Link duplicate */}
+                    <button
+                      type="button"
+                      onClick={() => setDuplicateModalTask(task)}
+                      className="p-1.5 rounded-lg border border-sky-500/30 text-sky-300 hover:bg-sky-500/20 transition"
+                      title="Link Duplicate"
+                    >
+                      <Link2 className="h-3 w-3" />
+                    </button>
+                  </div>
 
                   <div className="flex items-center gap-1.5">
                     {isUnassigned ? (
                       <button
                         type="button"
                         onClick={() => autoAssignTask(task.id)}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-amber-400 text-ink-950 font-bold text-xs hover:bg-amber-300 transition"
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-amber-400 text-ink-950 font-bold text-xs hover:bg-amber-300 transition"
                       >
                         <Sparkles className="h-3 w-3" />
-                        <span>Auto-Assign</span>
+                        <span>Auto</span>
                       </button>
                     ) : (
                       <button
                         type="button"
                         onClick={() => setAssignModalTask(task)}
-                        className="px-3 py-1.5 rounded-xl border border-white/10 text-xs font-semibold text-mist-200 hover:bg-white/[0.05] transition"
+                        className="px-2.5 py-1.5 rounded-xl border border-white/10 text-xs font-semibold text-mist-200 hover:bg-white/[0.05] transition"
                       >
                         Reassign
                       </button>
@@ -682,6 +757,15 @@ export function DispatcherQueueTab({ tasks, activeDept }: DispatcherQueueTabProp
                       title="Escalate"
                     >
                       <Send className="h-3.5 w-3.5" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setDetailsDrawerTask(task)}
+                      className="px-2.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-xs font-semibold text-mist-300 hover:text-white transition flex items-center gap-1"
+                    >
+                      <Eye className="h-3 w-3" />
+                      <span>Details</span>
                     </button>
                   </div>
                 </div>
@@ -742,6 +826,14 @@ export function DispatcherQueueTab({ tasks, activeDept }: DispatcherQueueTabProp
           onAutoAssign={() => {
             autoAssignTask(detailsDrawerTask.id);
             setDetailsDrawerTask(null);
+          }}
+          onUpdateStatus={(st) => {
+            updateDispatcherTaskStatus(detailsDrawerTask.id, st);
+            setDetailsDrawerTask((prev) => (prev ? { ...prev, status: st } : null));
+          }}
+          onUpdatePriority={(pr) => {
+            updateDispatcherTaskPriority(detailsDrawerTask.id, pr);
+            setDetailsDrawerTask((prev) => (prev ? { ...prev, priority: pr as any } : null));
           }}
         />
       )}

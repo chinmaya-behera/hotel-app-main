@@ -52,6 +52,7 @@ import {
   seedGuestIncidents,
   seedSupervisorEscalations,
   seedDutyStatusRequests,
+  seedTaskReassignRequests,
   MANAGER_COMPENSATION_THRESHOLD,
 } from '@/lib/mockData';
 import { afterAdvance, markCheckedOut, type FdResult } from '@/lib/frontDesk';
@@ -74,6 +75,7 @@ import type {
   StaffAccount,
   SupervisorEscalationRecord,
   DutyStatusRequest,
+  TaskReassignRequest,
   ThemeMode,
   Transition,
   WorkflowConfig,
@@ -164,6 +166,7 @@ function seedState(): DemoState {
     guestIncidents: seedGuestIncidents,
     supervisorEscalations: seedSupervisorEscalations,
     dutyStatusRequests: seedDutyStatusRequests,
+    taskReassignRequests: seedTaskReassignRequests,
   }) as DemoState);
 }
 
@@ -224,6 +227,10 @@ interface DemoApi {
   updateSupervisorEscalationStatus: (id: string, status: SupervisorEscalationRecord['status'], review?: string) => void;
   approveDutyStatusRequest: (requestId: string) => void;
   rejectDutyStatusRequest: (requestId: string, reason: string) => void;
+  approveTaskReassignRequest: (requestId: string, newAssigneeId: string, notes?: string) => void;
+  rejectTaskReassignRequest: (requestId: string, reason: string) => void;
+  updateDispatcherTaskStatus: (taskId: string, status: string) => void;
+  updateDispatcherTaskPriority: (taskId: string, priority: string) => void;
   addDiningCategory: (category: string) => void;
   removeDiningCategory: (category: string) => void;
   cancelGuestItem: (roleId: RoleId, itemId: string) => void;
@@ -698,6 +705,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           guestIncidents: saved.guestIncidents ?? base.guestIncidents,
           supervisorEscalations: saved.supervisorEscalations ?? base.supervisorEscalations,
           dutyStatusRequests: saved.dutyStatusRequests ?? base.dutyStatusRequests,
+          taskReassignRequests: saved.taskReassignRequests ?? base.taskReassignRequests,
         })));
       }
     } catch {
@@ -2273,6 +2281,225 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       });
 
       notify(`Duty request for ${empName} rejected with feedback provided`);
+    },
+    [notify],
+  );
+
+  const approveTaskReassignRequest = useCallback<DemoApi['approveTaskReassignRequest']>(
+    (requestId, newAssigneeId, notes) => {
+      let targetStaffName = '';
+      let reqTitle = '';
+      let prevAssignee = '';
+
+      setState((prev) => {
+        const list = prev.taskReassignRequests ?? [];
+        const req = list.find((r) => r.id === requestId);
+        if (!req) return prev;
+
+        reqTitle = req.taskTitle;
+        prevAssignee = req.requesterName;
+
+        const newStaff = (prev.staffAccounts ?? []).find(
+          (s) => s.id === newAssigneeId || s.employeeId === newAssigneeId,
+        );
+        targetStaffName = newStaff ? newStaff.name : 'Colleague';
+
+        const updatedRequests = list.map((r) =>
+          r.id === requestId
+            ? {
+                ...r,
+                status: 'reassigned' as const,
+                reassignedToStaffId: newAssigneeId,
+                reassignedToName: targetStaffName,
+                supervisorNotes: notes || `Reassigned to ${targetStaffName} by Supervisor.`,
+                reviewedAt: 'Just now',
+                reviewedBy: 'Supervisor',
+              }
+            : r,
+        );
+
+        // Update the task across items
+        const historyEntry: GuestHistoryEntry = {
+          at: nowLabel(),
+          status: 'Reassigned',
+          note: `Supervisor approved reassignment from ${req.requesterName} to ${targetStaffName}. Note: ${notes || 'Workload balanced'}`,
+          actor: 'Supervisor',
+          role: 'Supervisor',
+        };
+
+        const updatedItems = { ...prev.items };
+        Object.keys(updatedItems).forEach((roleKey) => {
+          const role = roleKey as RoleId;
+          updatedItems[role] = (updatedItems[role] ?? []).map((item) => {
+            if (item.id === req.taskId || (req.taskRef && item.ref === req.taskRef)) {
+              return {
+                ...item,
+                assignee: targetStaffName,
+                assigneeId: newAssigneeId,
+                reassignPending: false,
+                reassignReason: undefined,
+                status: 'Assigned',
+                chip: `Assigned: ${targetStaffName.split(' ')[0]}`,
+                history: [...(item.history ?? []), historyEntry],
+                notes: `${item.notes || ''} [Supervisor Reassigned to ${targetStaffName}: ${notes || 'Approved'}]`.trim(),
+              };
+            }
+            return item;
+          });
+        });
+
+        return {
+          ...prev,
+          taskReassignRequests: updatedRequests,
+          items: updatedItems,
+          feed: [
+            {
+              id: uid(),
+              at: nowLabel(),
+              role: 'Supervisor',
+              text: `Reassigned "${reqTitle}" from ${prevAssignee} to ${targetStaffName}`,
+            },
+            ...prev.feed,
+          ].slice(0, 30),
+        };
+      });
+
+      notify(`Task reassigned to ${targetStaffName}`);
+    },
+    [notify],
+  );
+
+  const rejectTaskReassignRequest = useCallback<DemoApi['rejectTaskReassignRequest']>(
+    (requestId, reason) => {
+      let requester = '';
+      let reqTitle = '';
+
+      setState((prev) => {
+        const list = prev.taskReassignRequests ?? [];
+        const req = list.find((r) => r.id === requestId);
+        if (!req) return prev;
+        requester = req.requesterName;
+        reqTitle = req.taskTitle;
+
+        const updatedRequests = list.map((r) =>
+          r.id === requestId
+            ? {
+                ...r,
+                status: 'rejected' as const,
+                supervisorNotes: reason.trim(),
+                reviewedAt: 'Just now',
+                reviewedBy: 'Supervisor',
+              }
+            : r,
+        );
+
+        const historyEntry: GuestHistoryEntry = {
+          at: nowLabel(),
+          status: 'Assigned',
+          note: `Supervisor declined reassignment request from ${req.requesterName}. Note: ${reason.trim()}. Attendant retained.`,
+          actor: 'Supervisor',
+          role: 'Supervisor',
+        };
+
+        const updatedItems = { ...prev.items };
+        Object.keys(updatedItems).forEach((roleKey) => {
+          const role = roleKey as RoleId;
+          updatedItems[role] = (updatedItems[role] ?? []).map((item) => {
+            if (item.id === req.taskId || (req.taskRef && item.ref === req.taskRef)) {
+              return {
+                ...item,
+                reassignPending: false,
+                history: [...(item.history ?? []), historyEntry],
+                notes: `${item.notes || ''} [Supervisor Declined Reassignment: ${reason.trim()}]`.trim(),
+              };
+            }
+            return item;
+          });
+        });
+
+        return {
+          ...prev,
+          taskReassignRequests: updatedRequests,
+          items: updatedItems,
+          feed: [
+            {
+              id: uid(),
+              at: nowLabel(),
+              role: 'Supervisor',
+              text: `Declined reassignment request for "${reqTitle}" by ${requester}`,
+            },
+            ...prev.feed,
+          ].slice(0, 30),
+        };
+      });
+
+      notify(`Reassignment request declined for ${requester}`);
+    },
+    [notify],
+  );
+
+  const updateDispatcherTaskStatus = useCallback<DemoApi['updateDispatcherTaskStatus']>(
+    (taskId, status) => {
+      setState((prev) => {
+        const updatedItems = { ...prev.items };
+        Object.keys(updatedItems).forEach((roleKey) => {
+          const role = roleKey as RoleId;
+          updatedItems[role] = (updatedItems[role] ?? []).map((item) => {
+            if (item.id === taskId) {
+              return {
+                ...item,
+                status,
+                history: [
+                  ...(item.history ?? []),
+                  {
+                    at: nowLabel(),
+                    status,
+                    note: `Status updated to ${status} by Supervisor`,
+                    actor: 'Supervisor',
+                    role: 'Supervisor',
+                  },
+                ],
+              };
+            }
+            return item;
+          });
+        });
+        return { ...prev, items: updatedItems };
+      });
+      notify(`Task status updated to ${status}`);
+    },
+    [notify],
+  );
+
+  const updateDispatcherTaskPriority = useCallback<DemoApi['updateDispatcherTaskPriority']>(
+    (taskId, priority) => {
+      setState((prev) => {
+        const updatedItems = { ...prev.items };
+        Object.keys(updatedItems).forEach((roleKey) => {
+          const role = roleKey as RoleId;
+          updatedItems[role] = (updatedItems[role] ?? []).map((item) => {
+            if (item.id === taskId) {
+              return {
+                ...item,
+                priority: priority as any,
+                history: [
+                  ...(item.history ?? []),
+                  {
+                    at: nowLabel(),
+                    status: item.status,
+                    note: `Priority changed to ${priority.toUpperCase()} by Supervisor`,
+                    actor: 'Supervisor',
+                    role: 'Supervisor',
+                  },
+                ],
+              };
+            }
+            return item;
+          });
+        });
+        return { ...prev, items: updatedItems };
+      });
+      notify(`Task priority updated to ${priority.toUpperCase()}`);
     },
     [notify],
   );
@@ -7584,6 +7811,10 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       updateSupervisorEscalationStatus,
       approveDutyStatusRequest,
       rejectDutyStatusRequest,
+      approveTaskReassignRequest,
+      rejectTaskReassignRequest,
+      updateDispatcherTaskStatus,
+      updateDispatcherTaskPriority,
       addDiningCategory,
       removeDiningCategory,
       cancelGuestItem,
@@ -7724,6 +7955,10 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       updateSupervisorEscalationStatus,
       approveDutyStatusRequest,
       rejectDutyStatusRequest,
+      approveTaskReassignRequest,
+      rejectTaskReassignRequest,
+      updateDispatcherTaskStatus,
+      updateDispatcherTaskPriority,
       addDiningCategory,
       removeDiningCategory,
       cancelGuestItem,
