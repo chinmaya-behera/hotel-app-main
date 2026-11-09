@@ -52,6 +52,7 @@ import {
   seedGuestIncidents,
   seedSupervisorEscalations,
   seedDutyStatusRequests,
+  seedGuestComplaints,
   seedTaskReassignRequests,
   MANAGER_COMPENSATION_THRESHOLD,
 } from '@/lib/mockData';
@@ -170,6 +171,7 @@ function seedState(normalize = true): DemoState {
     guestIncidents: seedGuestIncidents,
     supervisorEscalations: seedSupervisorEscalations,
     dutyStatusRequests: seedDutyStatusRequests,
+    guestComplaints: seedGuestComplaints,
     taskReassignRequests: seedTaskReassignRequests,
   }) as DemoState);
   return normalize ? migrateOperationalReferences(seed) : seed;
@@ -287,6 +289,7 @@ interface DemoApi {
     preferredResolution?: string;
     attachments?: CompensationRefundAttachment[];
     additionalInstructions?: string;
+    source?: string;
   }) => string;
   reviewCompensationRefundRequest: (
     id: string,
@@ -747,6 +750,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           guestIncidents: saved.guestIncidents ?? base.guestIncidents,
           supervisorEscalations: saved.supervisorEscalations ?? base.supervisorEscalations,
           dutyStatusRequests: saved.dutyStatusRequests ?? base.dutyStatusRequests,
+          guestComplaints: saved.guestComplaints ?? base.guestComplaints,
           taskReassignRequests: saved.taskReassignRequests ?? base.taskReassignRequests,
         };
         const managerState = ensureManagerState(mergedState);
@@ -3025,7 +3029,14 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         additionalInstructions: input.additionalInstructions,
         status: 'Submitted',
         createdAt,
-        history: [{ at: createdAt, status: 'Submitted', note: `Compensation/refund request submitted: ${input.category}`, staff: 'Guest' }],
+        history: [{
+          at: createdAt,
+          status: 'Submitted',
+          note: input.source
+            ? `Logged in-person at Front Desk counter: ${input.category}`
+            : `Compensation/refund request submitted: ${input.category}`,
+          staff: input.source ? 'Front Desk · Sunita Patel' : 'Guest',
+        }],
       };
 
       const taskFloor = input.room ? parseInt(input.room[0], 10) || 1 : undefined;
@@ -3047,7 +3058,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         createdAt,
         compensationRefundId: id,
         amount: input.amountRequested,
-        history: [{ at: createdAt, status: 'Submitted', note: 'Submitted to Front Desk Duty Team' }],
+        history: [{ at: createdAt, status: 'Submitted', note: input.source ? 'Logged in-person by Front Desk' : 'Submitted to Front Desk Duty Team' }],
       };
 
       setState((prev) => ({
@@ -3058,12 +3069,19 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           front_desk_coordinator: [workItem, ...(prev.items.front_desk_coordinator ?? [])],
         },
         feed: [
-          { id: uid(), at: createdAt, role: 'Guest Relations', text: `New ${input.category} ${ref} logged for Room ${input.room} (${input.guestName})` },
+          {
+            id: uid(),
+            at: createdAt,
+            role: 'Front Desk',
+            text: input.source
+              ? `In-person financial claim ${ref} logged for Room ${input.room} (${input.guestName})`
+              : `New ${input.category} ${ref} logged for Room ${input.room} (${input.guestName})`,
+          },
           ...prev.feed,
         ].slice(0, 30),
       }));
 
-      notify(`Compensation & refund request ${ref} submitted to Front Desk team.`);
+      notify(input.source ? `In-person claim ${ref} logged for Room ${input.room}.` : `Compensation & refund request ${ref} submitted to Front Desk team.`);
       return ref;
     },
     [notify],

@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Camera, CheckCircle2, HelpCircle, Image as ImageIcon, Inbox, Landmark, Paperclip, Send, ShieldAlert, TriangleAlert, XCircle } from 'lucide-react';
+import { Camera, CheckCircle2, HelpCircle, Image as ImageIcon, Inbox, Landmark, Paperclip, Plus, Send, ShieldAlert, TriangleAlert, XCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Panel } from '@/components/ui/Panel';
@@ -18,6 +18,7 @@ import {
   type ClaimView,
   type CompensationMethod,
 } from '@/lib/financialClaims';
+import type { CompensationRefundAttachment, CompensationRefundCategory } from '@/types/demo';
 import { useDemo } from '@/lib/store';
 import { cn, money } from '@/lib/utils';
 
@@ -36,6 +37,7 @@ export function DisputesPanel() {
   const { state } = useDemo();
   const [filter, setFilter] = useState<ClaimFilter>('new');
   const [openId, setOpenId] = useState<string | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   const claims = useMemo(() => allClaimViews(state), [state]);
   const counts = useMemo(() => {
@@ -55,26 +57,38 @@ export function DisputesPanel() {
       hint={`Guest refund and compensation requests. You can decide up to ${money(FD_CLAIM_LIMIT)}. Above that goes to the General Manager.`}
       icon={Landmark}
     >
-      <div role="tablist" aria-label="Claim status" className="mb-4 flex flex-wrap gap-2">
-        {CLAIM_FILTERS.map((f) => {
-          const active = filter === f.id;
-          return (
-            <button
-              key={f.id}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => setFilter(f.id)}
-              className={cn(
-                'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition',
-                active ? 'accent-soft border-[rgb(var(--a)/0.5)]' : 'border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
-              )}
-            >
-              <span>{f.label}</span>
-              <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] tabular-nums">{counts[f.id]}</span>
-            </button>
-          );
-        })}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div role="tablist" aria-label="Claim status" className="flex flex-wrap gap-2">
+          {CLAIM_FILTERS.map((f) => {
+            const active = filter === f.id;
+            return (
+              <button
+                key={f.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setFilter(f.id)}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition',
+                  active ? 'accent-soft border-[rgb(var(--a)/0.5)]' : 'border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
+                )}
+              >
+                <span>{f.label}</span>
+                <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] tabular-nums">{counts[f.id]}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <Button
+          size="sm"
+          variant="accent"
+          iconLeft={Plus}
+          onClick={() => setShowAddModal(true)}
+          className="text-xs h-7 py-0 shrink-0"
+        >
+          + Log In-Person Issue
+        </Button>
       </div>
 
       {visible.length === 0 ? (
@@ -117,6 +131,18 @@ export function DisputesPanel() {
       )}
 
       {open && <ClaimModal key={open.id} claim={open} onClose={() => setOpenId(null)} />}
+
+      {showAddModal && (
+        <LogDisputeModal
+          onClose={() => setShowAddModal(false)}
+          onCreated={(newRef) => {
+            setShowAddModal(false);
+            setFilter('new');
+            const found = allClaimViews(state).find((c) => c.ref === newRef);
+            if (found) setOpenId(found.id);
+          }}
+        />
+      )}
     </Panel>
   );
 }
@@ -527,5 +553,384 @@ function ClaimModal({ claim, onClose }: { claim: ClaimView; onClose: () => void 
         </Modal>
       )}
     </>
+  );
+}
+
+/* --------------------------------------------------------------------- */
+/* In-person issue intake                                                */
+/* --------------------------------------------------------------------- */
+
+const DISPUTE_CATEGORIES: CompensationRefundCategory[] = [
+  'Compensation for Service Issues',
+  'Incorrect Charges',
+  'Billing Dispute',
+  'Duplicate Payment',
+  'Refund Request',
+  'Partial Refund',
+  'Deposit Refund',
+  'Other Financial Concern',
+];
+
+const PREFERRED_RESOLUTIONS = [
+  'Folio Credit / Charge Removal',
+  'Refund to Original Card',
+  'Food & Beverage Voucher',
+  'Spa Voucher',
+  'Rate Adjustment',
+  'Direct Explanation & Apology',
+] as const;
+
+interface LogDisputeModalProps {
+  onClose: () => void;
+  onCreated: (newRef: string) => void;
+}
+
+function LogDisputeModal({ onClose, onCreated }: LogDisputeModalProps) {
+  const { state, submitCompensationRefundRequest, notify } = useDemo();
+  const inHouseStays = useMemo(
+    () => (state.frontDesk?.stays ?? []).filter((s) => s.status === 'in_house'),
+    [state.frontDesk?.stays],
+  );
+
+  const [staySelect, setStaySelect] = useState<string>(inHouseStays[0]?.id || 'custom');
+  const [room, setRoom] = useState<string>(inHouseStays[0]?.room || '305');
+  const [guestName, setGuestName] = useState<string>(inHouseStays[0]?.guest || 'Marcus Chen');
+  const [bookingRef, setBookingRef] = useState<string>(inHouseStays[0]?.bookingRef || 'BK-305-9921');
+  const [category, setCategory] = useState<CompensationRefundCategory>('Compensation for Service Issues');
+  const [relatedCharge, setRelatedCharge] = useState('Room Stay / Nightly Rate');
+  const [amount, setAmount] = useState('1500');
+  const [reason, setReason] = useState('');
+  const [explanation, setExplanation] = useState('');
+  const [preferredResolution, setPreferredResolution] = useState<string>('Folio Credit / Charge Removal');
+  const [attachments, setAttachments] = useState<CompensationRefundAttachment[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleStayChange = (id: string) => {
+    setStaySelect(id);
+    if (id === 'custom') {
+      setRoom('');
+      setGuestName('');
+      setBookingRef('');
+    } else {
+      const match = inHouseStays.find((s) => s.id === id);
+      if (match) {
+        setRoom(match.room);
+        setGuestName(match.guest);
+        setBookingRef(match.bookingRef || `BK-${match.room}-01`);
+      }
+    }
+  };
+
+  const amountNum = Number(amount);
+  const hasAmount = amount.trim() !== '' && Number.isFinite(amountNum) && amountNum > 0;
+  const isOverLimit = hasAmount && amountNum > FD_CLAIM_LIMIT;
+
+  const handleAddSampleAttachment = (type: 'receipt' | 'minibar' | 'room') => {
+    if (type === 'receipt') {
+      setAttachments((prev) => [
+        ...prev,
+        {
+          name: `receipt_pos_${Date.now().toString().slice(-4)}.jpg`,
+          size: '310 KB',
+          type: 'image/jpeg',
+          url: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=800&auto=format&fit=crop&q=80',
+        },
+      ]);
+    } else if (type === 'minibar') {
+      setAttachments((prev) => [
+        ...prev,
+        {
+          name: `minibar_bottle_seal_${Date.now().toString().slice(-4)}.jpg`,
+          size: '412 KB',
+          type: 'image/jpeg',
+          url: 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=800&auto=format&fit=crop&q=80',
+        },
+      ]);
+    } else {
+      setAttachments((prev) => [
+        ...prev,
+        {
+          name: `room_facility_issue_${Date.now().toString().slice(-4)}.jpg`,
+          size: '425 KB',
+          type: 'image/jpeg',
+          url: 'https://images.unsplash.com/photo-1545259741-2ea3ebf61fa3?w=800&auto=format&fit=crop&q=80',
+        },
+      ]);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!room.trim()) {
+      setError('Please provide a room number.');
+      return;
+    }
+    if (!guestName.trim()) {
+      setError('Please provide the guest name.');
+      return;
+    }
+    if (reason.trim().length < 3) {
+      setError('Please enter a brief issue title / reason (at least 3 characters).');
+      return;
+    }
+    if (explanation.trim().length < 5) {
+      setError('Please enter a detailed statement of the guest complaint (at least 5 characters).');
+      return;
+    }
+    if (amount.trim() !== '' && (!Number.isFinite(amountNum) || amountNum <= 0)) {
+      setError('Amount requested must be a positive number.');
+      return;
+    }
+
+    try {
+      const newRef = submitCompensationRefundRequest({
+        room: room.trim(),
+        guestName: guestName.trim(),
+        bookingRef: bookingRef.trim() || undefined,
+        category,
+        relatedServiceOrTransaction: relatedCharge.trim() || undefined,
+        amountRequested: hasAmount ? amountNum : undefined,
+        reason: reason.trim(),
+        explanation: explanation.trim(),
+        preferredResolution,
+        attachments: attachments.length > 0 ? attachments : undefined,
+        source: 'Front Desk · Sunita Patel (In-Person Walk-in)',
+      });
+
+      notify(`In-person financial issue ${newRef} logged for Room ${room}.`);
+      onCreated(newRef);
+    } catch {
+      setError('Failed to log dispute. Please try again.');
+    }
+  };
+
+  return (
+    <Modal
+      title="Log In-Person Financial Issue"
+      description="Record a guest refund or compensation claim reported directly at the Front Desk."
+      onClose={onClose}
+    >
+      <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+        {error && (
+          <div className="flex items-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 p-3 text-rose-300">
+            <TriangleAlert className="h-4 w-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {/* Guest & Room selection */}
+        <div className="space-y-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+          <FieldLabel label="Guest & Room Source">
+            <select
+              value={staySelect}
+              onChange={(e) => handleStayChange(e.target.value)}
+              className="field w-full text-xs font-medium"
+            >
+              {inHouseStays.map((s) => (
+                <option key={s.id} value={s.id} className="bg-ink-900 text-white">
+                  Room {s.room} · {s.guest} {s.bookingRef ? `(${s.bookingRef})` : ''}
+                </option>
+              ))}
+              <option value="custom" className="bg-ink-900 text-white">
+                + Other Walk-in / Custom Room
+              </option>
+            </select>
+          </FieldLabel>
+
+          <div className="grid grid-cols-2 gap-2">
+            <FieldLabel label="Room Number">
+              <input
+                type="text"
+                required
+                value={room}
+                onChange={(e) => setRoom(e.target.value)}
+                placeholder="e.g. 305"
+                className="field w-full text-xs"
+              />
+            </FieldLabel>
+            <FieldLabel label="Guest Full Name">
+              <input
+                type="text"
+                required
+                value={guestName}
+                onChange={(e) => setGuestName(e.target.value)}
+                placeholder="e.g. Marcus Chen"
+                className="field w-full text-xs"
+              />
+            </FieldLabel>
+          </div>
+        </div>
+
+        {/* Dispute Details */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <FieldLabel label="Claim Category">
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value as CompensationRefundCategory)}
+              className="field w-full text-xs"
+            >
+              {DISPUTE_CATEGORIES.map((cat) => (
+                <option key={cat} value={cat} className="bg-ink-900 text-white">
+                  {cat}
+                </option>
+              ))}
+            </select>
+          </FieldLabel>
+
+          <FieldLabel label="Related Folio Charge / Service">
+            <input
+              type="text"
+              value={relatedCharge}
+              onChange={(e) => setRelatedCharge(e.target.value)}
+              placeholder="e.g. Minibar, Room Rate, In-Room Dining"
+              className="field w-full text-xs"
+            />
+          </FieldLabel>
+        </div>
+
+        {/* Amount Requested & Live Policy Limit */}
+        <div className="space-y-1.5">
+          <FieldLabel label="Amount Requested (₹, optional)">
+            <div className="relative">
+              <input
+                type="number"
+                min="0"
+                step="50"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="Leave blank if open"
+                className="field w-full pr-16 text-xs tabular-nums"
+              />
+              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-mist-400">
+                INR (₹)
+              </span>
+            </div>
+          </FieldLabel>
+          <div
+            className={cn(
+              'rounded-lg px-2.5 py-1.5 text-[11px] font-medium border flex items-center justify-between',
+              isOverLimit
+                ? 'border-amber-500/30 bg-amber-500/10 text-amber-200'
+                : hasAmount
+                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+                  : 'border-white/10 bg-white/[0.02] text-mist-400',
+            )}
+          >
+            <span>
+              {isOverLimit
+                ? `Above your limit (${money(FD_CLAIM_LIMIT)}): Review will escalate to General Manager`
+                : hasAmount
+                  ? `Within your limit (${money(FD_CLAIM_LIMIT)}): Can be approved directly by Front Desk`
+                  : `Front Desk approval limit: ${money(FD_CLAIM_LIMIT)}`}
+            </span>
+            {hasAmount && <span className="font-bold tabular-nums">{money(amountNum)}</span>}
+          </div>
+        </div>
+
+        {/* Reason & Detailed Explanation */}
+        <FieldLabel label="Brief Issue Title / Reason">
+          <input
+            type="text"
+            required
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="e.g. Minibar charged for untouched champagne bottle"
+            className="field w-full text-xs"
+          />
+        </FieldLabel>
+
+        <FieldLabel label="Guest Statement / Intake Notes">
+          <textarea
+            rows={3}
+            required
+            value={explanation}
+            onChange={(e) => setExplanation(e.target.value)}
+            placeholder="Guest arrived at Front Desk reporting that..."
+            className="field w-full text-xs leading-relaxed"
+          />
+        </FieldLabel>
+
+        {/* Preferred Resolution */}
+        <FieldLabel label="Preferred Resolution">
+          <select
+            value={preferredResolution}
+            onChange={(e) => setPreferredResolution(e.target.value)}
+            className="field w-full text-xs"
+          >
+            {PREFERRED_RESOLUTIONS.map((res) => (
+              <option key={res} value={res} className="bg-ink-900 text-white">
+                {res}
+              </option>
+            ))}
+          </select>
+        </FieldLabel>
+
+        {/* Simulated Attachments / Evidence */}
+        <div className="space-y-2 rounded-xl border border-white/10 bg-white/[0.02] p-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-mist-400 flex items-center gap-1.5">
+              <Camera className="h-3.5 w-3.5 text-cyan-400" />
+              <span>Evidence Attachments ({attachments.length})</span>
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleAddSampleAttachment('receipt')}
+                className="text-[10px] rounded border border-white/10 bg-white/5 hover:bg-white/10 px-2 py-0.5 text-mist-300 hover:text-white transition"
+              >
+                + Receipt
+              </button>
+              <button
+                type="button"
+                onClick={() => handleAddSampleAttachment('minibar')}
+                className="text-[10px] rounded border border-white/10 bg-white/5 hover:bg-white/10 px-2 py-0.5 text-mist-300 hover:text-white transition"
+              >
+                + Minibar
+              </button>
+              <button
+                type="button"
+                onClick={() => handleAddSampleAttachment('room')}
+                className="text-[10px] rounded border border-white/10 bg-white/5 hover:bg-white/10 px-2 py-0.5 text-mist-300 hover:text-white transition"
+              >
+                + Room Photo
+              </button>
+            </div>
+          </div>
+
+          {attachments.length > 0 ? (
+            <div className="flex flex-wrap gap-2 pt-1">
+              {attachments.map((att, i) => (
+                <div
+                  key={`${att.name}-${i}`}
+                  className="flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-2.5 py-1 text-xs text-mist-200"
+                >
+                  <Paperclip className="h-3 w-3 text-cyan-400" />
+                  <span className="truncate max-w-[140px] text-[11px]">{att.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => setAttachments((prev) => prev.filter((_, idx) => idx !== i))}
+                    className="text-mist-400 hover:text-rose-400"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-[11px] text-mist-500 italic">No attachments added. Click above to attach sample evidence if shown by guest.</p>
+          )}
+        </div>
+
+        {/* Modal Actions */}
+        <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
+          <Button variant="ghost" size="sm" type="button" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button variant="accent" size="sm" type="submit">
+            Log Financial Issue
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
