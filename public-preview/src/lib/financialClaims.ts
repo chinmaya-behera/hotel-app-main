@@ -450,6 +450,14 @@ export const seedFrontDeskClaims: CompensationRefundRequest[] = [
     explanation: 'AC cooling failure and severe compressor vibration throughout the night. Room temperature reached 26.5°C. Engineering confirmed a fan-coil actuator fault.',
     incidentDate: 'Today',
     preferredResolution: 'Folio Credit / Charge Removal',
+    attachments: [
+      {
+        name: 'room305_thermostat_26.5C.jpg',
+        size: '340 KB',
+        type: 'image/jpeg',
+        url: 'https://images.unsplash.com/photo-1545259741-2ea3ebf61fa3?w=800&auto=format&fit=crop&q=80',
+      },
+    ],
     status: 'Submitted',
     createdAt: 'Today, 09:12 AM',
     history: [seedEntry('09:12 AM', 'Submitted', 'Submitted from the Guest Portal')],
@@ -468,6 +476,14 @@ export const seedFrontDeskClaims: CompensationRefundRequest[] = [
     incidentDate: 'Today',
     preferredResolution: 'Refund to Original Card',
     additionalInstructions: 'Card ending 1290',
+    attachments: [
+      {
+        name: 'champagne_bottle_seal_intact.jpg',
+        size: '412 KB',
+        type: 'image/jpeg',
+        url: 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=800&auto=format&fit=crop&q=80',
+      },
+    ],
     status: 'Submitted',
     createdAt: 'Today, 09:20 AM',
     history: [seedEntry('09:20 AM', 'Submitted', 'Submitted from the Guest Portal')],
@@ -513,6 +529,14 @@ export const seedFrontDeskClaims: CompensationRefundRequest[] = [
     explanation: 'Bathroom floor damp and soiled bath towels found on the rack on arrival. Housekeeping fixed it within 15 minutes.',
     incidentDate: 'Today',
     preferredResolution: 'Folio Credit / Charge Removal',
+    attachments: [
+      {
+        name: 'room305_thermostat_26.5C.jpg',
+        size: '340 KB',
+        type: 'image/jpeg',
+        url: 'https://images.unsplash.com/photo-1545259741-2ea3ebf61fa3?w=800&auto=format&fit=crop&q=80',
+      },
+    ],
     status: 'Submitted',
     createdAt: 'Today, 08:50 AM',
     history: [seedEntry('08:45 AM', 'Submitted', 'Submitted from the Guest Portal')],
