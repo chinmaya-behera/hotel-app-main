@@ -50,12 +50,16 @@ import {
   seedCustomDiningRequests,
   seedCompensationRefundRequests,
   seedGuestIncidents,
+  seedSupervisorEscalations,
+  seedDutyStatusRequests,
+  seedGuestComplaints,
   MANAGER_COMPENSATION_THRESHOLD,
 } from '@/lib/mockData';
 import { afterAdvance, markCheckedOut, type FdResult } from '@/lib/frontDesk';
 import { roleById } from '@/lib/roles';
 import { reviewDepartmentInspection } from '@/lib/manager-workflows';
 import { applyManagerCommand, ensureManagerState, reviewManagerEscalation, type ManagerCommand, type ManagerDepartmentId } from '@/lib/manager-domain';
+import { withManagerDemoRecords } from '@/lib/manager-demo-records';
 import type {
   AuditEvent,
   DemoState,
@@ -70,6 +74,8 @@ import type {
   RoutingRule,
   ShiftHandover,
   StaffAccount,
+  SupervisorEscalationRecord,
+  DutyStatusRequest,
   ThemeMode,
   Transition,
   WorkflowConfig,
@@ -114,10 +120,12 @@ import type {
   GuestIncidentAttachment,
 } from '@/types/demo';
 
+import { migrateOperationalReferences, nextOperationalReference, taskReferenceInitial } from './operational-references';
+
 const STORAGE_KEY = 'grand-azure-demo-v1';
 
-function seedState(): DemoState {
-  return ensureManagerState(structuredClone({
+function seedState(normalize = true): DemoState {
+  const seed = ensureManagerState(structuredClone({
     persona: null,
     items: seedItems,
     feed: seedFeed,
@@ -158,7 +166,11 @@ function seedState(): DemoState {
     customDiningRequests: seedCustomDiningRequests,
     guestCompensationRefundRequests: seedCompensationRefundRequests,
     guestIncidents: seedGuestIncidents,
+    supervisorEscalations: seedSupervisorEscalations,
+    dutyStatusRequests: seedDutyStatusRequests,
+    guestComplaints: seedGuestComplaints,
   }) as DemoState);
+  return normalize ? migrateOperationalReferences(seed) : seed;
 }
 
 export interface Toast {
@@ -211,6 +223,13 @@ interface DemoApi {
   updateDiningMenuItem: (id: string, updates: Partial<DiningMenuItem>) => void;
   deleteDiningMenuItem: (id: string) => void;
   toggleDiningMenuItemAvailability: (id: string) => void;
+  updateOrderStatus: (orderId: string, status: string, tone?: 'info' | 'warning' | 'success' | 'danger') => void;
+  acknowledgeSupervisorTask: (taskId: string) => void;
+  rejectFulfillerTask: (taskId: string, reason: string) => void;
+  createSupervisorEscalation: (escalation: Omit<SupervisorEscalationRecord, 'id' | 'escalatedAt'> & { escalatedAt?: string }) => void;
+  updateSupervisorEscalationStatus: (id: string, status: SupervisorEscalationRecord['status'], review?: string) => void;
+  approveDutyStatusRequest: (requestId: string) => void;
+  rejectDutyStatusRequest: (requestId: string, reason: string) => void;
   addDiningCategory: (category: string) => void;
   removeDiningCategory: (category: string) => void;
   cancelGuestItem: (roleId: RoleId, itemId: string) => void;
@@ -511,25 +530,6 @@ const nowLabel = () => new Date().toLocaleTimeString([], { hour: '2-digit', minu
 let uidCounter = 0;
 const uid = () => `${Date.now()}-${uidCounter++}`;
 
-const refCounter: Record<string, number> = {};
-function nextRef(prefix: string, room: string) {
-  const key = `${prefix}-${room}`;
-  refCounter[key] = (refCounter[key] ?? 0) + 1;
-  return `${prefix}-${room}-${String(refCounter[key]).padStart(3, '0')}`;
-}
-
-const DEPT_PREFIX: Record<string, string> = {
-  housekeeping: 'HK',
-  maintenance: 'MX',
-  spa: 'SP',
-  concierge: 'CC',
-  recreation: 'REC',
-  room_service: 'DIN',
-  dining: 'DIN',
-  folio: 'FD',
-  lost_found: 'LF',
-};
-
 const NEXT_INTEGRATION: Record<IntegrationState, IntegrationState> = {
   healthy: 'degraded',
   degraded: 'down',
@@ -561,6 +561,13 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const [gestureGuideOpen, setGestureGuideOpen] = useState(false);
   const stateRef = useRef(state);
   stateRef.current = state;
+  const pendingReferences = useRef(new Set<string>());
+  useEffect(() => { pendingReferences.current.clear(); }, [state]);
+  const nextRef = useCallback((initial: string, room = '') => {
+    const reference = nextOperationalReference(stateRef.current, initial, room, undefined, pendingReferences.current);
+    pendingReferences.current.add(reference);
+    return reference;
+  }, []);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   // Load persisted demo state once, after mount (avoids hydration mismatches).
@@ -569,8 +576,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const saved = JSON.parse(raw) as Partial<DemoState>;
-        const base = seedState();
-        setStoredState(initialiseDepartmentHistory(ensureManagerState({
+        const base = seedState(false);
+        setStoredState(initialiseDepartmentHistory(migrateOperationalReferences(ensureManagerState({
           departmentRecordHistory: saved.departmentRecordHistory,
           departmentServiceTargets: saved.departmentServiceTargets,
           managerDepartment: saved.managerDepartment,
@@ -685,11 +692,19 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           customDiningRequests: saved.customDiningRequests ?? base.customDiningRequests,
           guestCompensationRefundRequests: saved.guestCompensationRefundRequests ?? base.guestCompensationRefundRequests,
           guestIncidents: saved.guestIncidents ?? base.guestIncidents,
-        })));
+          supervisorEscalations: saved.supervisorEscalations ?? base.supervisorEscalations,
+          dutyStatusRequests: saved.dutyStatusRequests ?? base.dutyStatusRequests,
+          guestComplaints: saved.guestComplaints ?? base.guestComplaints,
+        }))));
       }
     } catch {
       /* corrupted or unavailable storage: fall back to seed data */
     }
+    const now = Date.now();
+    setStoredState(previous => {
+      const withExamples = withManagerDemoRecords(previous, now);
+      return withExamples === previous ? previous : initialiseDepartmentHistory(withExamples, new Date(now).toISOString());
+    });
     setHydrated(true);
   }, []);
 
@@ -934,12 +949,12 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
   const submitGuestRequest = useCallback<DemoApi['submitGuestRequest']>(
     (input) => {
-      const ref = nextRef(DEPT_PREFIX[input.category] ?? 'GR', input.room);
+      const ref = nextRef(taskReferenceInitial(input.category), input.room);
       // Untagged or concierge requests enter the Front Desk queue; documented department requests reach Department Dispatcher / Supervisor
       const isConcierge = input.category === 'concierge' || !input.category;
       const targetRole: RoleId = isConcierge ? 'front_desk_coordinator' : 'department_dispatcher_supervisor';
       const id = uid();
-      const createdAt = nowLabel();
+      const createdAt = new Date().toISOString();
       const taskFloor = input.room ? parseInt(input.room[0], 10) || 1 : undefined;
 
       const newItem: WorkItem = {
@@ -1710,7 +1725,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
   const escalateTaskToManager = useCallback<DemoApi['escalateTaskToManager']>(
     (taskId, reason) => {
-      const timestamp = nowLabel();
+      const timestamp = new Date().toISOString();
       setState((prev) => {
         const task =
           prev.items.department_dispatcher?.find((i) => i.id === taskId) ||
@@ -1738,7 +1753,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         const managerItem: WorkItem = {
           id: uid(),
           department: task.department,
-          ref: task.ref,
+          ref: nextOperationalReference(prev, 'ESC', task.room || task.location, timestamp),
           title: `DISPATCH ESCALATION: ${task.title}`,
           meta: `${task.department || 'Operations'} · Room ${task.room || 'General'} · Escalated by Dispatcher`,
           status: 'Escalated',
@@ -1901,9 +1916,9 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const placeRoomServiceOrder = useCallback<DemoApi['placeRoomServiceOrder']>(
     (room, lines, note, requestedServiceAt) => {
       const total = Math.round(lines.reduce((sum, l) => sum + l.price * l.qty, 0) * 100) / 100;
-      const ref = nextRef('DIN', room);
+      const ref = nextRef('FB', room);
       const id = uid();
-      const createdAt = nowLabel();
+      const createdAt = new Date().toISOString();
       const summary = lines.map((l) => `${l.qty}× ${l.name}`).join(', ');
       const newItem: WorkItem = {
         id,
@@ -2008,6 +2023,260 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       }));
     },
     [],
+  );
+
+  const updateOrderStatus = useCallback<DemoApi['updateOrderStatus']>(
+    (orderId, status, tone) => {
+      setState((prev) => {
+        const nextItems = { ...prev.items };
+        (Object.keys(nextItems) as RoleId[]).forEach((role) => {
+          if (!nextItems[role]) return;
+          nextItems[role] = nextItems[role].map((item) => {
+            if (item.id === orderId || (item.ref && item.ref === orderId)) {
+              return {
+                ...item,
+                status,
+                chip: status,
+                tone:
+                  tone ??
+                  (status === 'Delivered'
+                    ? 'success'
+                    : status === 'Preparing in Kitchen' || status === 'Preparing'
+                      ? 'warning'
+                      : status === 'Out for Delivery'
+                        ? 'info'
+                        : status === 'Cancelled'
+                          ? 'danger'
+                          : 'info'),
+                history: [...(item.history ?? []), { at: nowLabel(), status }],
+              };
+            }
+            return item;
+          });
+        });
+        return {
+          ...prev,
+          items: nextItems,
+          feed: [
+            { id: uid(), at: nowLabel(), role: 'F&B Supervisor', text: `Order ${orderId} updated to "${status}"` },
+            ...prev.feed,
+          ].slice(0, 30),
+        };
+      });
+      notify(`Order status updated to "${status}"`);
+    },
+    [notify],
+  );
+
+  const acknowledgeSupervisorTask = useCallback<DemoApi['acknowledgeSupervisorTask']>(
+    (taskId) => {
+      const at = nowLabel();
+      setState((prev) => {
+        const nextItems = { ...prev.items };
+        (Object.keys(nextItems) as RoleId[]).forEach((role) => {
+          if (!nextItems[role]) return;
+          nextItems[role] = nextItems[role].map((item) => {
+            if (item.id === taskId || (item.ref && item.ref === taskId)) {
+              return {
+                ...item,
+                supervisorAcknowledged: true,
+                acknowledgedBySupervisorAt: at,
+                history: [
+                  ...(item.history ?? []),
+                  { at, status: 'Supervisor Acknowledged', note: 'Escalation acknowledged by supervisor' },
+                ],
+              };
+            }
+            return item;
+          });
+        });
+        return {
+          ...prev,
+          items: nextItems,
+          feed: [
+            { id: uid(), at, role: 'Supervisor', text: `Escalation acknowledged for ${taskId}` },
+            ...prev.feed,
+          ].slice(0, 30),
+        };
+      });
+      notify('Escalation acknowledged');
+    },
+    [notify],
+  );
+
+  const rejectFulfillerTask = useCallback<DemoApi['rejectFulfillerTask']>(
+    (taskId, reason) => {
+      const at = nowLabel();
+      setState((prev) => {
+        const nextItems = { ...prev.items };
+        (Object.keys(nextItems) as RoleId[]).forEach((role) => {
+          if (!nextItems[role]) return;
+          nextItems[role] = nextItems[role].map((item) => {
+            if (item.id === taskId || (item.ref && item.ref === taskId)) {
+              return {
+                ...item,
+                status: 'Rejected',
+                chip: 'Rejected',
+                tone: 'danger',
+                blockerReason: reason,
+                review: reason,
+                history: [
+                  ...(item.history ?? []),
+                  { at, status: 'Rejected by Supervisor', note: reason },
+                ],
+              };
+            }
+            return item;
+          });
+        });
+        return {
+          ...prev,
+          items: nextItems,
+          feed: [
+            { id: uid(), at, role: 'Supervisor', text: `Task ${taskId} rejected: ${reason}` },
+            ...prev.feed,
+          ].slice(0, 30),
+        };
+      });
+      notify('Task rejected with feedback provided to fulfiller');
+    },
+    [notify],
+  );
+
+  const createSupervisorEscalation = useCallback<DemoApi['createSupervisorEscalation']>(
+    (escalation) => {
+      const id = `esc-${Date.now().toString().slice(-6)}`;
+      const newEscalation: SupervisorEscalationRecord = {
+        ...escalation,
+        id,
+        escalatedAt: escalation.escalatedAt ?? 'Just now',
+        status: escalation.status ?? 'Not Viewed',
+      };
+      setState((prev) => ({
+        ...prev,
+        supervisorEscalations: [newEscalation, ...(prev.supervisorEscalations ?? [])],
+        feed: [
+          {
+            id: uid(),
+            at: nowLabel(),
+            role: 'Supervisor',
+            text: `Escalated ${newEscalation.taskRef} to ${newEscalation.department} Manager: ${newEscalation.reason}`,
+          },
+          ...prev.feed,
+        ].slice(0, 30),
+      }));
+      notify(`Escalated to ${escalation.department} Manager`);
+    },
+    [notify],
+  );
+
+  const updateSupervisorEscalationStatus = useCallback<DemoApi['updateSupervisorEscalationStatus']>(
+    (id, status, review) => {
+      setState((prev) => ({
+        ...prev,
+        supervisorEscalations: (prev.supervisorEscalations ?? []).map((esc) =>
+          esc.id === id ? { ...esc, status, ...(review ? { notes: review } : {}) } : esc,
+        ),
+      }));
+      notify(`Escalation status updated to "${status}"`);
+    },
+    [notify],
+  );
+
+  const approveDutyStatusRequest = useCallback<DemoApi['approveDutyStatusRequest']>(
+    (requestId) => {
+      let targetStaffId = '';
+      let targetStatus: 'on_duty' | 'break' | 'off_duty' = 'on_duty';
+      let empName = '';
+
+      setState((prev) => {
+        const list = prev.dutyStatusRequests ?? [];
+        const req = list.find((r) => r.id === requestId);
+        if (!req) return prev;
+        targetStaffId = req.staffId;
+        targetStatus = req.requestedStatus;
+        empName = req.employeeName;
+
+        const updatedRequests = list.map((r) =>
+          r.id === requestId
+            ? {
+                ...r,
+                status: 'approved' as const,
+                reviewedAt: 'Just now',
+                reviewedBy: 'Supervisor',
+              }
+            : r,
+        );
+
+        // Also update staff availability in staffAccounts
+        const updatedStaff = (prev.staffAccounts ?? []).map((s) =>
+          s.id === targetStaffId || s.employeeId === req.employeeId
+            ? { ...s, availability: targetStatus }
+            : s,
+        );
+
+        return {
+          ...prev,
+          dutyStatusRequests: updatedRequests,
+          staffAccounts: updatedStaff,
+          fulfillerAvailability:
+            req.employeeId === 'EMP-0103' ? targetStatus : prev.fulfillerAvailability,
+          feed: [
+            {
+              id: uid(),
+              at: nowLabel(),
+              role: 'Supervisor',
+              text: `Approved duty status change for ${empName}: now ${targetStatus.replace('_', ' ')}`,
+            },
+            ...prev.feed,
+          ].slice(0, 30),
+        };
+      });
+
+      notify(`Approved ${empName}'s duty request: status changed to ${targetStatus.replace('_', ' ')}`);
+    },
+    [notify],
+  );
+
+  const rejectDutyStatusRequest = useCallback<DemoApi['rejectDutyStatusRequest']>(
+    (requestId, reason) => {
+      let empName = '';
+      setState((prev) => {
+        const list = prev.dutyStatusRequests ?? [];
+        const req = list.find((r) => r.id === requestId);
+        if (!req) return prev;
+        empName = req.employeeName;
+
+        const updatedRequests = list.map((r) =>
+          r.id === requestId
+            ? {
+                ...r,
+                status: 'rejected' as const,
+                supervisorReviewNotes: reason.trim(),
+                reviewedAt: 'Just now',
+                reviewedBy: 'Supervisor',
+              }
+            : r,
+        );
+
+        return {
+          ...prev,
+          dutyStatusRequests: updatedRequests,
+          feed: [
+            {
+              id: uid(),
+              at: nowLabel(),
+              role: 'Supervisor',
+              text: `Rejected duty status request for ${empName}: ${reason.trim()}`,
+            },
+            ...prev.feed,
+          ].slice(0, 30),
+        };
+      });
+
+      notify(`Duty request for ${empName} rejected with feedback provided`);
+    },
+    [notify],
   );
 
   const addDiningCategory = useCallback<DemoApi['addDiningCategory']>(
@@ -2139,9 +2408,9 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
   const submitCustomDiningRequest = useCallback<DemoApi['submitCustomDiningRequest']>(
     (input) => {
-      const ref = nextRef('CST', input.room);
+      const ref = nextRef('FB', input.room);
       const id = uid();
-      const createdAt = nowLabel();
+      const createdAt = new Date().toISOString();
       const newCustomItem: CustomDiningRequest = {
         id,
         ref,
@@ -2461,7 +2730,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     (input) => {
       const ref = nextRef('REF', input.room);
       const id = uid();
-      const createdAt = nowLabel();
+      const createdAt = new Date().toISOString();
       const newRequest: CompensationRefundRequest = {
         id,
         ref,
@@ -2662,7 +2931,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       setState((prev) => {
         const line = (prev.folios[room] ?? []).find((l) => l.id === lineId);
         if (!line) return prev;
-        const ref = nextRef('FD', room);
+        const ref = nextRef('TSK', room);
         const disputeItem: WorkItem = {
           id: uid(),
           title: `Folio dispute · ${line.label}`,
@@ -3001,7 +3270,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     (department, priority = 'normal') => {
       const testId = uid();
       const testRef = `TEST-${Math.floor(1000 + Math.random() * 9000)}`;
-      const createdAt = nowLabel();
+      const createdAt = new Date().toISOString();
       const testItem: WorkItem = {
         id: testId,
         title: `Workflow test: ${department} dispatch`,
@@ -4168,7 +4437,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     (incident) => {
       const timestamp = nowLabel();
       const id = `sec-${Date.now().toString().slice(-4)}`;
-      const ref = `SEC-2026-${String(Math.floor(Math.random() * 900) + 100)}`;
+      const ref = nextRef('INC', incident.room || incident.location);
       const toneMap: Record<string, Tone> = {
         critical: 'danger',
         major: 'danger',
@@ -5022,9 +5291,9 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
   const escalateSupervisorIssue = useCallback<DemoApi['escalateSupervisorIssue']>(
     (issue) => {
-      const timestamp = nowLabel();
-      const escId = `INC-${Date.now().toString().slice(-4)}`;
-      const escRef = `ESC-${issue.room || 'HK'}-${Date.now().toString().slice(-3)}`;
+      const timestamp = new Date().toISOString();
+      const escId = 'incident-' + uid();
+      const escRef = nextRef('ESC', issue.room);
 
       const newIncident: IncidentRecord = {
         id: escId,
@@ -5060,7 +5329,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       setState((prev) => ({
         ...prev,
         incidents: [newIncident, ...(prev.incidents ?? seedIncidents)],
-        items: { ...prev.items, department_manager: [{ id: escId, ref: escRef, title: issue.title, room: issue.room, department: issue.department || 'Housekeeping', status: 'Escalated', priority: issue.priority, meta: 'Department supervisor · ' + issue.reason, description: issue.notes || issue.reason, createdAt: new Date().toISOString() }, ...(prev.items.department_manager ?? [])] },
+        items: { ...prev.items, department_manager: [{ id: escId, ref: escRef, title: issue.title, room: issue.room, department: issue.department || 'Housekeeping', status: 'Escalated', priority: issue.priority, meta: 'Department supervisor · ' + issue.reason, description: issue.notes || issue.reason, escalationReason: issue.reason, createdAt: new Date().toISOString() }, ...(prev.items.department_manager ?? [])] },
         notifications: [newNotification, ...(prev.notifications ?? [])].slice(0, 50),
         feed: [
           {
@@ -5091,13 +5360,13 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const createDispatcherTask = useCallback<DemoApi['createDispatcherTask']>(
     (input) => {
       const timestamp = nowLabel();
-      const id = `task-${Date.now().toString().slice(-5)}`;
+      const id = 'task-' + uid();
       const refPrefix = input.department.toLowerCase().includes('house')
         ? 'HK'
         : input.department.toLowerCase().includes('maint')
-          ? 'MNT'
-          : 'ORD';
-      const ref = `${refPrefix}-${input.room || 'FL'}-${Date.now().toString().slice(-3)}`;
+          ? 'REP'
+          : /food|dining|beverage/i.test(input.department) ? 'FB' : 'TSK';
+      const ref = nextRef(refPrefix, input.room);
       const floor = input.floor || (input.room ? parseInt(input.room[0], 10) || 1 : 1);
       const isAssigned = !!(input.assigneeId && input.assigneeName);
 
@@ -6212,7 +6481,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const submitSecuritySafetyAlert = useCallback<DemoApi['submitSecuritySafetyAlert']>(
     (input) => {
       const alertId = `alert-${Date.now().toString().slice(-4)}`;
-      const ref = `SFT-${String(Math.floor(100 + Math.random() * 900))}`;
+      const ref = nextRef('INC', input.location);
       const now = nowLabel();
       const newAlert: SafetyAlertRecord = {
         ...input,
@@ -6789,7 +7058,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const submitGuestComplaint = useCallback<DemoApi['submitGuestComplaint']>(
     (input) => {
       const timestamp = nowLabel();
-      const complaintId = `CMP-${input.room}-${String(Date.now()).slice(-4)}`;
+      const complaintId = nextRef('GC', input.room);
       const id = `cmp-${uid()}`;
       const stay = (stateRef.current.frontDesk?.stays ?? []).find((s) => s.room === input.room && s.status === 'in_house');
 
@@ -6894,7 +7163,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     (input) => {
       const timestamp = nowLabel();
       const id = `req-${uid()}`;
-      const ref = nextRef('REQ', input.room);
+      const ref = nextRef('TSK', input.room);
       const stay = (stateRef.current.frontDesk?.stays ?? []).find((s) => s.room === input.room && s.status === 'in_house');
 
       const newMsg: GuestFrontDeskMessage = {
@@ -7310,6 +7579,13 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       updateDiningMenuItem,
       deleteDiningMenuItem,
       toggleDiningMenuItemAvailability,
+      updateOrderStatus,
+      acknowledgeSupervisorTask,
+      rejectFulfillerTask,
+      createSupervisorEscalation,
+      updateSupervisorEscalationStatus,
+      approveDutyStatusRequest,
+      rejectDutyStatusRequest,
       addDiningCategory,
       removeDiningCategory,
       cancelGuestItem,
@@ -7443,6 +7719,13 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       updateDiningMenuItem,
       deleteDiningMenuItem,
       toggleDiningMenuItemAvailability,
+      updateOrderStatus,
+      acknowledgeSupervisorTask,
+      rejectFulfillerTask,
+      createSupervisorEscalation,
+      updateSupervisorEscalationStatus,
+      approveDutyStatusRequest,
+      rejectDutyStatusRequest,
       addDiningCategory,
       removeDiningCategory,
       cancelGuestItem,

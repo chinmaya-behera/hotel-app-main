@@ -26,6 +26,9 @@ import {
   ChefHat,
   MessageSquare,
 } from 'lucide-react';
+import { DiningAllergens } from '@/components/shared/DiningAllergens';
+import { TimePickerInput } from '@/components/ui/TimePickerInput';
+import { displayTime } from '@/components/ui/TimePickerModal';
 import { scheduledDiningTime } from '@/lib/department-insights';
 import { useDemo } from '@/lib/store';
 import { money } from '@/lib/utils';
@@ -44,7 +47,6 @@ import {
   INITIAL_DINING_CATEGORIES,
   INITIAL_DINING_MENU,
   COMMON_ALLERGENS,
-  DINING_TIME_SLOTS,
 } from './diningData';
 
 // Cart line with dish details & selected customizations
@@ -107,7 +109,8 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
   // Scheduling state
   const [scheduleType, setScheduleType] = useState<'asap' | 'slot'>('asap');
   const [deliveryDate, setDeliveryDate] = useState<'today' | 'tomorrow'>('today');
-  const [selectedSlot, setSelectedSlot] = useState<string>('08:00 PM');
+  const [selectedSlot, setSelectedSlot] = useState('20:00');
+  const [scheduleError, setScheduleError] = useState('');
   const [kitchenInstructions, setKitchenInstructions] = useState('');
 
   // Confirmed order state
@@ -324,13 +327,12 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
   }
 
   // Schedule string helper
-  const nowHour = new Date().getHours();
   const scheduleDisplay = useMemo(() => {
     if (scheduleType === 'asap') {
       return 'As soon as possible (~30 mins kitchen preparation)';
     }
     const dayStr = deliveryDate === 'today' ? 'Today' : 'Tomorrow';
-    return `${dayStr} at ${selectedSlot}`;
+    return `${dayStr} at ${displayTime(selectedSlot)}`;
   }, [scheduleType, deliveryDate, selectedSlot]);
 
   // Place Order Action
@@ -363,6 +365,11 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
 
     // Call store API
     const requestedServiceAt = scheduleType === 'slot' ? scheduledDiningTime(deliveryDate, selectedSlot) : undefined;
+    if (requestedServiceAt && Date.parse(requestedServiceAt) <= Date.now()) {
+      setScheduleError('Choose a future delivery time.');
+      return;
+    }
+    setScheduleError('');
     const orderRef = placeRoomServiceOrder(room, orderLines, fullNotesParts.join('\n\n'), requestedServiceAt);
 
     setConfirmedOrderId(orderRef);
@@ -1030,34 +1037,7 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
               </div>
             </div>
 
-            {/* Allergens */}
-            <div className="space-y-1.5">
-              <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
-                <AlertCircle className="h-3.5 w-3.5 text-rose-400" />
-                <span>Allergen Declaration</span>
-              </h4>
-              {infoDish.allergens.length > 0 ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {infoDish.allergens.map((alg, i) => (
-                    <span
-                      key={i}
-                      className="px-2.5 py-1 rounded-lg bg-rose-500/15 border border-rose-500/30 text-[11px] font-bold text-rose-300"
-                    >
-                      Contains {alg}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-[11px] text-emerald-400 font-semibold">
-                  No common allergens declared in standard recipe.
-                </p>
-              )}
-            </div>
-
-            {/* Kitchen Cross-contamination note */}
-            <div className="p-3 rounded-xl bg-white/5 border border-white/10 text-[10px] text-mist-400 leading-relaxed">
-              <strong>Notice:</strong> Never assume a dish is 100% allergen-free. Cross-contamination may still occur in a busy hotel kitchen. Please specify any strict medical requirements in your order notes.
-            </div>
+            <DiningAllergens allergens={infoDish.allergens}/>
 
             <button
               type="button"
@@ -1354,29 +1334,10 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5 max-h-36 overflow-y-auto pr-1">
-                    {DINING_TIME_SLOTS.map((slot) => {
-                      const isPast = deliveryDate === 'today' && slot.hour24 <= nowHour;
-                      const isSelected = selectedSlot === slot.time;
-                      return (
-                        <button
-                          key={slot.time}
-                          type="button"
-                          disabled={isPast}
-                          onClick={() => setSelectedSlot(slot.time)}
-                          className={`p-1.5 rounded-lg text-[11px] font-mono font-semibold transition-all ${
-                            isPast
-                              ? 'opacity-30 bg-white/5 cursor-not-allowed line-through text-mist-500'
-                              : isSelected
-                              ? 'bg-amber-400 text-ink-950 font-bold'
-                              : 'bg-white/5 text-mist-300 hover:text-white border border-white/5'
-                          }`}
-                        >
-                          {slot.time}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <TimePickerInput label="Delivery time" value={selectedSlot} onChange={value => { setSelectedSlot(value); setScheduleError(''); }}
+                    className="guest-field w-full px-3 py-2 text-xs text-white font-mono"/>
+                  <p className="text-xs text-mist-300">Scheduled delivery uses hotel time (IST).</p>
+                  {scheduleError && <p role="alert" className="text-xs text-rose-300">{scheduleError}</p>}
                 </div>
               )}
             </div>

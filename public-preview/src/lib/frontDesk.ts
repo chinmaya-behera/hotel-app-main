@@ -1,3 +1,4 @@
+import { nextOperationalReference } from './operational-references';
 /**
  * Front Desk workflow logic (FRONTEND ONLY).
  *
@@ -664,7 +665,7 @@ export function captureCase(s: DemoState, input: CaptureInput): FdResult {
     room: input.room || undefined,
     owner: 'Front Desk',
     channel: input.channel,
-    ref: `FD-${seq}`,
+    ref: nextOperationalReference(s, 'TSK', input.room),
     description: input.note?.trim() || undefined,
     createdAt: created,
     history: [{ at: created, status: 'Open', note: `Captured by ${input.channel.toLowerCase()}` }],
@@ -701,7 +702,7 @@ export function logComplaint(s: DemoState, input: ComplaintInput): FdResult {
   const withinLimit = input.comp <= FRONT_DESK_COMP_LIMIT;
   const applied = withinLimit && input.comp > 0;
   const created = nowLabel();
-  const ref = `CR-${input.room}-${String(s.frontDesk.complaints.filter((c) => c.room === input.room).length + 1).padStart(3, '0')}`;
+  const ref = nextOperationalReference(s, 'GC', input.room);
 
   const alert: WorkItem = {
     id: uid('cmp-alert'),

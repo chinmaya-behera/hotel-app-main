@@ -9,7 +9,6 @@ const nextConfig = {
   reactStrictMode: true,
   outputFileTracingRoot: __dirname,
   transpilePackages: ['lucide-react', 'gsap', 'lenis'],
-  devIndicators: false,
   typescript: {
     ignoreBuildErrors: true,
   },

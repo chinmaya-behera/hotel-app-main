@@ -102,7 +102,7 @@ export const needsAction = (i: WorkItem) => !isDone(i);
 
 function categoryOf(i: WorkItem): string {
   if (i.isEventRequest || i.ref?.startsWith('EVT')) return 'Event Request';
-  if (i.complaintId || i.ref?.startsWith('CMP')) return 'Guest Complaint';
+  if (i.complaintId || /^(?:GC|CMP)-/.test(i.ref ?? '')) return 'Guest Complaint';
   if (i.escalationId || i.status === 'Escalated') return 'Fulfiller Escalation';
   if (i.category === 'lost_found') return 'Lost & found';
   if (i.category === 'concierge') return 'Concierge';
@@ -259,7 +259,7 @@ export function matchesRequestTab(i: WorkItem, tab: RequestSourceTab) {
       !i.routingReason &&
       !i.reassignReason &&
       !i.reassignPending &&
-      !i.ref?.startsWith('CMP') &&
+      !/^(?:GC|CMP)-/.test(i.ref ?? '') &&
       !i.ref?.startsWith('EVT') &&
       !i.ref?.startsWith('ESC') &&
       !i.ref?.startsWith('RT-') &&
@@ -270,7 +270,7 @@ export function matchesRequestTab(i: WorkItem, tab: RequestSourceTab) {
   if (tab === 'complaints') {
     return (
       Boolean(i.complaintId) ||
-      i.ref?.startsWith('CMP') ||
+      /^(?:GC|CMP)-/.test(i.ref ?? '') ||
       i.ref?.startsWith('CR-') ||
       i.title.toLowerCase().includes('complaint') ||
       i.title.toLowerCase().includes('disturbance') ||
@@ -710,7 +710,7 @@ function UnifiedRequestCard({
 
   // Enrich default attachments for visual review if not present
   const attachments: CaseAttachment[] = item.attachments ?? (
-    item.ref?.startsWith('CMP')
+    /^(?:GC|CMP)-/.test(item.ref ?? '')
       ? [
           { id: 'att-c1', name: 'bathroom_floor_moisture.jpg', type: 'image', mime: 'image/jpeg', sizeKb: 1420, art: 'bathroom', caption: 'Damp bathroom floor upon entry' },
           { id: 'att-c2', name: 'missing_towels_rack.jpg', type: 'image', mime: 'image/jpeg', sizeKb: 980, art: 'towels', caption: 'Empty towel rack in master suite' },
@@ -909,7 +909,7 @@ function CaseDetailDrawer({
 
   // Generate attachments if not present
   const attachments: CaseAttachment[] = item.attachments ?? (
-    item.ref?.startsWith('CMP')
+    /^(?:GC|CMP)-/.test(item.ref ?? '')
       ? [
           { id: 'att-c1', name: 'bathroom_floor_moisture.jpg', type: 'image', mime: 'image/jpeg', sizeKb: 1420, art: 'bathroom', caption: 'Damp bathroom floor upon entry' },
           { id: 'att-c2', name: 'missing_towels_rack.jpg', type: 'image', mime: 'image/jpeg', sizeKb: 980, art: 'towels', caption: 'Empty towel rack in master suite' },

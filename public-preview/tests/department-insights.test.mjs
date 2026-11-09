@@ -157,7 +157,7 @@ test('repair category survives creation, status changes, completed recategorisat
   s = command(s, { type: 'repair-update', taskId: 'rep-test', status: 'Completed', note: 'Repaired', repairCategory: 'Furniture' });
   s = command(s, { type: 'repair-category', taskId: 'rep-test', repairCategory: 'Building & fixtures' });
   for (const role of ['department_dispatcher','department_dispatcher_supervisor','task_fulfiller']) {
-    const task = s.items[role].find(i => i.ref === 'REP-REP-TEST');
+    const task = s.items[role].find(i => i.ref === 'REP-LOBBY-061126');
     assert.equal(task.repairCategory, 'Building & fixtures'); assert.equal(task.status, 'Completed'); assert.equal(task.notes, 'Repaired');
   }
   assert.equal(managerRepairs(ensureManagerState(s)).find(t => t.id === 'rep-test').repairCategory, 'Building & fixtures');

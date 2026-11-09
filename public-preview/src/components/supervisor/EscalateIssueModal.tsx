@@ -1,13 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Flame, AlertCircle, ShieldAlert, ArrowUpRight } from 'lucide-react';
-import { MANAGER_DEPARTMENTS } from '@/lib/manager-domain';
 
 interface EscalateIssueModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialRoom?: string;
+  initialTitle?: string;
+  initialDepartment?: string;
+  initialPriority?: 'urgent' | 'critical';
+  initialReason?: string;
+  initialNotes?: string;
+  initialPhotoUrl?: string;
+  initialTaskId?: string;
+  initialTaskRef?: string;
   onSubmit?: (issue: {
     department?: string;
     title: string;
@@ -15,6 +22,9 @@ interface EscalateIssueModalProps {
     priority: 'urgent' | 'critical';
     reason: string;
     notes?: string;
+    photoUrl?: string;
+    taskId?: string;
+    taskRef?: string;
   }) => void;
   onEscalate?: (issue: {
     department?: string;
@@ -23,6 +33,9 @@ interface EscalateIssueModalProps {
     priority: 'urgent' | 'critical';
     reason: string;
     notes?: string;
+    photoUrl?: string;
+    taskId?: string;
+    taskRef?: string;
   }) => void;
 }
 
@@ -39,15 +52,34 @@ export function EscalateIssueModal({
   isOpen,
   onClose,
   initialRoom = '',
+  initialTitle = '',
+  initialDepartment = 'Housekeeping',
+  initialPriority = 'urgent',
+  initialReason = '',
+  initialNotes = '',
+  initialPhotoUrl,
+  initialTaskId,
+  initialTaskRef,
   onSubmit,
   onEscalate,
 }: EscalateIssueModalProps) {
-  const [title, setTitle] = useState('');
-  const [department, setDepartment] = useState('Housekeeping');
+  const [title, setTitle] = useState(initialTitle);
+  const [department, setDepartment] = useState(initialDepartment);
   const [room, setRoom] = useState(initialRoom);
-  const [priority, setPriority] = useState<'urgent' | 'critical'>('urgent');
-  const [reason, setReason] = useState<string>(ESCALATION_CATEGORIES[0]);
-  const [notes, setNotes] = useState('');
+  const [priority, setPriority] = useState<'urgent' | 'critical'>(initialPriority);
+  const [reason, setReason] = useState<string>(initialReason || ESCALATION_CATEGORIES[0]);
+  const [notes, setNotes] = useState(initialNotes);
+
+  useEffect(() => {
+    if (isOpen) {
+      setTitle(initialTitle);
+      setDepartment(initialDepartment || 'Housekeeping');
+      setRoom(initialRoom);
+      setPriority(initialPriority || 'urgent');
+      setReason(initialReason || ESCALATION_CATEGORIES[0]);
+      setNotes(initialNotes);
+    }
+  }, [isOpen, initialTitle, initialDepartment, initialRoom, initialPriority, initialReason, initialNotes]);
 
   if (!isOpen) return null;
 
@@ -62,6 +94,9 @@ export function EscalateIssueModal({
       priority,
       reason,
       notes: notes.trim() || undefined,
+      photoUrl: initialPhotoUrl,
+      taskId: initialTaskId,
+      taskRef: initialTaskRef,
     };
 
     if (onSubmit) {
@@ -106,7 +141,16 @@ export function EscalateIssueModal({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <label className="block text-xs text-mist-300">Target department manager<select value={department} onChange={e => setDepartment(e.target.value)} className="block mt-2 w-full rounded-xl border border-white/10 bg-ink-950 p-3 text-white">{MANAGER_DEPARTMENTS.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}</select></label>
+          {/* Target Department (Locked to Respective Department - No Dropdown) */}
+          <div className="flex items-center justify-between p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 text-xs">
+            <div>
+              <span className="text-mist-400 block text-[11px] mb-0.5">Escalating To</span>
+              <span className="font-bold text-white text-sm">{department}</span>
+            </div>
+            <span className="font-semibold text-amber-300 px-3 py-1 rounded-xl bg-amber-400/10 border border-amber-400/20 text-xs">
+              Direct to {department} Manager
+            </span>
+          </div>
           {/* Issue Title */}
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-mist-300">

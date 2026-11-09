@@ -65,8 +65,8 @@ export interface WorkItem {
   guest?: boolean;
   /** acted on / requested by the current persona (separation of duties) */
   selfRequested?: boolean;
-  priority?: 'normal' | 'vip' | 'critical' | 'urgent' | 'safety';
-  /** reference number shown to the guest, e.g. "HK-402-003" */
+  priority?: 'low' | 'normal' | 'high' | 'vip' | 'critical' | 'urgent' | 'safety';
+  /** reference number shown to the guest, e.g. "HK-402-081126" */
   ref?: string;
   /** guest-portal originating module, when this item came from the Guest Portal */
   category?: 'housekeeping' | 'maintenance' | 'spa' | 'concierge' | 'recreation' | 'room_service' | 'folio' | 'lost_found' | 'safety' | 'laundry' | 'front_desk' | 'medical' | 'therapy';
@@ -77,6 +77,8 @@ export interface WorkItem {
   history?: GuestHistoryEntry[];
   dnd?: boolean;
   photoAttached?: boolean;
+  review?: string;
+  rating?: number;
   feedback?: {
     rating: number;
     comment?: string;
@@ -88,6 +90,7 @@ export interface WorkItem {
   dishFeedback?: Record<string, { rating: number; comment?: string; submittedAt: string }>;
   orderedAt?: string;
   requestedServiceAt?: string;
+  scheduledAt?: string;
   demoSource?: 'dining-showcase';
   repairCategory?: string;
   customDiningId?: string;
@@ -125,11 +128,20 @@ export interface WorkItem {
   assignedAt?: string;
   /** Escalation properties (Front Desk Fulfillers workflow) */
   escalationId?: string;
+  managerEscalation?: {
+    status: 'Pending' | 'Acknowledged' | 'Approved' | 'Rejected' | 'Escalated' | 'GM Approved' | 'GM Rejected' | 'Info Requested';
+    source?: string;
+    sentBy?: string[];
+    target: string;
+    history: GuestHistoryEntry[];
+  };
   originalTaskId?: string;
   fulfillerName?: string;
   escalationReason?: string;
   requestedAction?: string;
   internalNotes?: string;
+  supervisorAcknowledged?: boolean;
+  acknowledgedBySupervisorAt?: string;
   /** Complaint properties (Front Desk Complaints workflow) */
   complaintId?: string;
   guestName?: string;
@@ -482,6 +494,8 @@ export interface InspectionCheckItem {
 }
 
 export interface SupervisorInspection {
+  ref?: string;
+  scheduledAt?: string;
   batchId?: string;
   typeLabel?: string;
   id: string;
@@ -700,6 +714,8 @@ export interface SyncIssue {
 
 /** F32: complaint & recovery case. */
 export interface ComplaintCase {
+  resolvedAt?: string;
+  resolvedBy?: string;
   department?: string;
   priority?: 'normal' | 'urgent' | 'critical';
   history?: GuestHistoryEntry[];
@@ -921,6 +937,47 @@ export interface IncidentRecord {
   relatedTaskRef?: string;
 }
 
+export interface SupervisorEscalationRecord {
+  id: string;
+  taskRef: string;
+  taskId?: string;
+  title: string;
+  department: string;
+  room?: string;
+  floor?: number;
+  priority: 'urgent' | 'critical' | 'normal';
+  escalatedAt: string;
+  escalatedBy?: string;
+  fulfillerName?: string;
+  reason: string;
+  notes?: string;
+  photoUrl?: string;
+  status: 'Not Viewed' | 'Acknowledged' | 'Rejected';
+  managerReview?: string;
+  managerReviewedAt?: string;
+  managerName?: string;
+}
+
+export type DutyStatusType = 'on_duty' | 'break' | 'off_duty';
+
+export interface DutyStatusRequest {
+  id: string;
+  staffId: string;
+  employeeId: string;
+  employeeName: string;
+  avatar?: string;
+  department: DispatcherDepartment;
+  role: string;
+  currentStatus: DutyStatusType;
+  requestedStatus: DutyStatusType;
+  reason: string;
+  submittedAt: string;
+  status: 'pending' | 'approved' | 'rejected';
+  supervisorReviewNotes?: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
+}
+
 /* ---- Phase 3: Compensation & Multi-Tier Financial Escalations ---- */
 
 export type CompensationStatus =
@@ -1001,6 +1058,9 @@ export interface ShiftScheduleRecord {
 /* ---- Phase 3: Department Service Policies ---- */
 
 export interface DepartmentServicePolicy {
+  operatingWindow?: { start: string; end: string };
+  quietHours?: { start: string; end: string };
+  slaMinutes?: number;
   id: string;
   department: string;
   title: string;
@@ -1136,6 +1196,10 @@ export interface DemoState {
   refundRequests?: FinanceRefundRequest[];
   /** Room Turnover & Quality Inspections (Department Supervisor) */
   inspections?: SupervisorInspection[];
+  /** Dispatcher/Supervisor Escalations to Department Manager (For Me / From Me) */
+  supervisorEscalations?: SupervisorEscalationRecord[];
+  /** Staff Duty Status Change Requests (On Duty / Break / Off Duty) */
+  dutyStatusRequests?: DutyStatusRequest[];
   /** Guest-facing and internal hotel services created by Department Manager */
   hotelServices?: HotelServiceItem[];
   /** Guest personal preferences indexed by room number */
@@ -1299,6 +1363,7 @@ export type ComplaintCategory =
   | 'Other';
 
 export interface GuestComplaintRecord {
+  resolvedBy?: string;
   id: string;
   complaintId: string;
   room: string;
