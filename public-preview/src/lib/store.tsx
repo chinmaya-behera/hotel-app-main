@@ -50,6 +50,8 @@ import {
   seedCustomDiningRequests,
   seedCompensationRefundRequests,
   seedGuestIncidents,
+  seedSupervisorEscalations,
+  seedDutyStatusRequests,
   MANAGER_COMPENSATION_THRESHOLD,
 } from '@/lib/mockData';
 import { afterAdvance, markCheckedOut, type FdResult } from '@/lib/frontDesk';
@@ -70,6 +72,8 @@ import type {
   RoutingRule,
   ShiftHandover,
   StaffAccount,
+  SupervisorEscalationRecord,
+  DutyStatusRequest,
   ThemeMode,
   Transition,
   WorkflowConfig,
@@ -158,6 +162,8 @@ function seedState(): DemoState {
     customDiningRequests: seedCustomDiningRequests,
     guestCompensationRefundRequests: seedCompensationRefundRequests,
     guestIncidents: seedGuestIncidents,
+    supervisorEscalations: seedSupervisorEscalations,
+    dutyStatusRequests: seedDutyStatusRequests,
   }) as DemoState);
 }
 
@@ -211,6 +217,13 @@ interface DemoApi {
   updateDiningMenuItem: (id: string, updates: Partial<DiningMenuItem>) => void;
   deleteDiningMenuItem: (id: string) => void;
   toggleDiningMenuItemAvailability: (id: string) => void;
+  updateOrderStatus: (orderId: string, status: string, tone?: 'info' | 'warning' | 'success' | 'danger') => void;
+  acknowledgeSupervisorTask: (taskId: string) => void;
+  rejectFulfillerTask: (taskId: string, reason: string) => void;
+  createSupervisorEscalation: (escalation: Omit<SupervisorEscalationRecord, 'id' | 'escalatedAt'> & { escalatedAt?: string }) => void;
+  updateSupervisorEscalationStatus: (id: string, status: SupervisorEscalationRecord['status'], review?: string) => void;
+  approveDutyStatusRequest: (requestId: string) => void;
+  rejectDutyStatusRequest: (requestId: string, reason: string) => void;
   addDiningCategory: (category: string) => void;
   removeDiningCategory: (category: string) => void;
   cancelGuestItem: (roleId: RoleId, itemId: string) => void;
@@ -641,6 +654,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           customDiningRequests: saved.customDiningRequests ?? base.customDiningRequests,
           guestCompensationRefundRequests: saved.guestCompensationRefundRequests ?? base.guestCompensationRefundRequests,
           guestIncidents: saved.guestIncidents ?? base.guestIncidents,
+          supervisorEscalations: saved.supervisorEscalations ?? base.supervisorEscalations,
+          dutyStatusRequests: saved.dutyStatusRequests ?? base.dutyStatusRequests,
         })));
       }
     } catch {
@@ -1896,6 +1911,260 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       }));
     },
     [],
+  );
+
+  const updateOrderStatus = useCallback<DemoApi['updateOrderStatus']>(
+    (orderId, status, tone) => {
+      setState((prev) => {
+        const nextItems = { ...prev.items };
+        (Object.keys(nextItems) as RoleId[]).forEach((role) => {
+          if (!nextItems[role]) return;
+          nextItems[role] = nextItems[role].map((item) => {
+            if (item.id === orderId || (item.ref && item.ref === orderId)) {
+              return {
+                ...item,
+                status,
+                chip: status,
+                tone:
+                  tone ??
+                  (status === 'Delivered'
+                    ? 'success'
+                    : status === 'Preparing in Kitchen' || status === 'Preparing'
+                      ? 'warning'
+                      : status === 'Out for Delivery'
+                        ? 'info'
+                        : status === 'Cancelled'
+                          ? 'danger'
+                          : 'info'),
+                history: [...(item.history ?? []), { at: nowLabel(), status }],
+              };
+            }
+            return item;
+          });
+        });
+        return {
+          ...prev,
+          items: nextItems,
+          feed: [
+            { id: uid(), at: nowLabel(), role: 'F&B Supervisor', text: `Order ${orderId} updated to "${status}"` },
+            ...prev.feed,
+          ].slice(0, 30),
+        };
+      });
+      notify(`Order status updated to "${status}"`);
+    },
+    [notify],
+  );
+
+  const acknowledgeSupervisorTask = useCallback<DemoApi['acknowledgeSupervisorTask']>(
+    (taskId) => {
+      const at = nowLabel();
+      setState((prev) => {
+        const nextItems = { ...prev.items };
+        (Object.keys(nextItems) as RoleId[]).forEach((role) => {
+          if (!nextItems[role]) return;
+          nextItems[role] = nextItems[role].map((item) => {
+            if (item.id === taskId || (item.ref && item.ref === taskId)) {
+              return {
+                ...item,
+                supervisorAcknowledged: true,
+                acknowledgedBySupervisorAt: at,
+                history: [
+                  ...(item.history ?? []),
+                  { at, status: 'Supervisor Acknowledged', note: 'Escalation acknowledged by supervisor' },
+                ],
+              };
+            }
+            return item;
+          });
+        });
+        return {
+          ...prev,
+          items: nextItems,
+          feed: [
+            { id: uid(), at, role: 'Supervisor', text: `Escalation acknowledged for ${taskId}` },
+            ...prev.feed,
+          ].slice(0, 30),
+        };
+      });
+      notify('Escalation acknowledged');
+    },
+    [notify],
+  );
+
+  const rejectFulfillerTask = useCallback<DemoApi['rejectFulfillerTask']>(
+    (taskId, reason) => {
+      const at = nowLabel();
+      setState((prev) => {
+        const nextItems = { ...prev.items };
+        (Object.keys(nextItems) as RoleId[]).forEach((role) => {
+          if (!nextItems[role]) return;
+          nextItems[role] = nextItems[role].map((item) => {
+            if (item.id === taskId || (item.ref && item.ref === taskId)) {
+              return {
+                ...item,
+                status: 'Rejected',
+                chip: 'Rejected',
+                tone: 'danger',
+                blockerReason: reason,
+                review: reason,
+                history: [
+                  ...(item.history ?? []),
+                  { at, status: 'Rejected by Supervisor', note: reason },
+                ],
+              };
+            }
+            return item;
+          });
+        });
+        return {
+          ...prev,
+          items: nextItems,
+          feed: [
+            { id: uid(), at, role: 'Supervisor', text: `Task ${taskId} rejected: ${reason}` },
+            ...prev.feed,
+          ].slice(0, 30),
+        };
+      });
+      notify('Task rejected with feedback provided to fulfiller');
+    },
+    [notify],
+  );
+
+  const createSupervisorEscalation = useCallback<DemoApi['createSupervisorEscalation']>(
+    (escalation) => {
+      const id = `esc-${Date.now().toString().slice(-6)}`;
+      const newEscalation: SupervisorEscalationRecord = {
+        ...escalation,
+        id,
+        escalatedAt: escalation.escalatedAt ?? 'Just now',
+        status: escalation.status ?? 'Not Viewed',
+      };
+      setState((prev) => ({
+        ...prev,
+        supervisorEscalations: [newEscalation, ...(prev.supervisorEscalations ?? [])],
+        feed: [
+          {
+            id: uid(),
+            at: nowLabel(),
+            role: 'Supervisor',
+            text: `Escalated ${newEscalation.taskRef} to ${newEscalation.department} Manager: ${newEscalation.reason}`,
+          },
+          ...prev.feed,
+        ].slice(0, 30),
+      }));
+      notify(`Escalated to ${escalation.department} Manager`);
+    },
+    [notify],
+  );
+
+  const updateSupervisorEscalationStatus = useCallback<DemoApi['updateSupervisorEscalationStatus']>(
+    (id, status, review) => {
+      setState((prev) => ({
+        ...prev,
+        supervisorEscalations: (prev.supervisorEscalations ?? []).map((esc) =>
+          esc.id === id ? { ...esc, status, ...(review ? { notes: review } : {}) } : esc,
+        ),
+      }));
+      notify(`Escalation status updated to "${status}"`);
+    },
+    [notify],
+  );
+
+  const approveDutyStatusRequest = useCallback<DemoApi['approveDutyStatusRequest']>(
+    (requestId) => {
+      let targetStaffId = '';
+      let targetStatus: 'on_duty' | 'break' | 'off_duty' = 'on_duty';
+      let empName = '';
+
+      setState((prev) => {
+        const list = prev.dutyStatusRequests ?? [];
+        const req = list.find((r) => r.id === requestId);
+        if (!req) return prev;
+        targetStaffId = req.staffId;
+        targetStatus = req.requestedStatus;
+        empName = req.employeeName;
+
+        const updatedRequests = list.map((r) =>
+          r.id === requestId
+            ? {
+                ...r,
+                status: 'approved' as const,
+                reviewedAt: 'Just now',
+                reviewedBy: 'Supervisor',
+              }
+            : r,
+        );
+
+        // Also update staff availability in staffAccounts
+        const updatedStaff = (prev.staffAccounts ?? []).map((s) =>
+          s.id === targetStaffId || s.employeeId === req.employeeId
+            ? { ...s, availability: targetStatus }
+            : s,
+        );
+
+        return {
+          ...prev,
+          dutyStatusRequests: updatedRequests,
+          staffAccounts: updatedStaff,
+          fulfillerAvailability:
+            req.employeeId === 'EMP-0103' ? targetStatus : prev.fulfillerAvailability,
+          feed: [
+            {
+              id: uid(),
+              at: nowLabel(),
+              role: 'Supervisor',
+              text: `Approved duty status change for ${empName}: now ${targetStatus.replace('_', ' ')}`,
+            },
+            ...prev.feed,
+          ].slice(0, 30),
+        };
+      });
+
+      notify(`Approved ${empName}'s duty request: status changed to ${targetStatus.replace('_', ' ')}`);
+    },
+    [notify],
+  );
+
+  const rejectDutyStatusRequest = useCallback<DemoApi['rejectDutyStatusRequest']>(
+    (requestId, reason) => {
+      let empName = '';
+      setState((prev) => {
+        const list = prev.dutyStatusRequests ?? [];
+        const req = list.find((r) => r.id === requestId);
+        if (!req) return prev;
+        empName = req.employeeName;
+
+        const updatedRequests = list.map((r) =>
+          r.id === requestId
+            ? {
+                ...r,
+                status: 'rejected' as const,
+                supervisorReviewNotes: reason.trim(),
+                reviewedAt: 'Just now',
+                reviewedBy: 'Supervisor',
+              }
+            : r,
+        );
+
+        return {
+          ...prev,
+          dutyStatusRequests: updatedRequests,
+          feed: [
+            {
+              id: uid(),
+              at: nowLabel(),
+              role: 'Supervisor',
+              text: `Rejected duty status request for ${empName}: ${reason.trim()}`,
+            },
+            ...prev.feed,
+          ].slice(0, 30),
+        };
+      });
+
+      notify(`Duty request for ${empName} rejected with feedback provided`);
+    },
+    [notify],
   );
 
   const addDiningCategory = useCallback<DemoApi['addDiningCategory']>(
@@ -7149,6 +7418,13 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       updateDiningMenuItem,
       deleteDiningMenuItem,
       toggleDiningMenuItemAvailability,
+      updateOrderStatus,
+      acknowledgeSupervisorTask,
+      rejectFulfillerTask,
+      createSupervisorEscalation,
+      updateSupervisorEscalationStatus,
+      approveDutyStatusRequest,
+      rejectDutyStatusRequest,
       addDiningCategory,
       removeDiningCategory,
       cancelGuestItem,
@@ -7279,6 +7555,13 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       updateDiningMenuItem,
       deleteDiningMenuItem,
       toggleDiningMenuItemAvailability,
+      updateOrderStatus,
+      acknowledgeSupervisorTask,
+      rejectFulfillerTask,
+      createSupervisorEscalation,
+      updateSupervisorEscalationStatus,
+      approveDutyStatusRequest,
+      rejectDutyStatusRequest,
       addDiningCategory,
       removeDiningCategory,
       cancelGuestItem,

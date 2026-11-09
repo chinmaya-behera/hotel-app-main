@@ -133,7 +133,7 @@ export function DispatcherSupervisorOverviewTab({
             onClick={() => onNavigateTab('blockers')}
             className="px-4 py-2 rounded-xl bg-amber-400 text-ink-950 text-xs font-bold hover:bg-amber-300 transition"
           >
-            Review Reassignments
+            Review Escalations
           </button>
         </div>
       )}
