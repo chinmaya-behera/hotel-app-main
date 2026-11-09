@@ -38,7 +38,6 @@ import { useBreakRequest, type DutyRequestType } from './breakRequests';
 
 type PrimaryView = 'my_tasks' | 'all_tasks';
 type MyTasksFilter = 'all' | 'pending' | 'in_progress' | 'blocked' | 'overdue' | 'completed';
-type AllTasksFilter = 'all_eligible' | 'open_pool' | 'in_progress' | 'completed';
 
 const BLOCKER_REASONS = [
   'Guest requested privacy (Do Not Disturb)',
@@ -149,7 +148,6 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
   // Primary view: "my_tasks" vs "all_tasks"
   const [primaryView, setPrimaryView] = useState<PrimaryView>('my_tasks');
   const [myFilter, setMyFilter] = useState<MyTasksFilter>('all');
-  const [allFilter, setAllFilter] = useState<AllTasksFilter>('all_eligible');
 
   const [selectedTask, setSelectedTask] = useState<WorkItem | null>(null);
   const [blockerModalTask, setBlockerModalTask] = useState<WorkItem | null>(null);
@@ -256,25 +254,10 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
     });
   }, [myTasks, myFilter]);
 
-  // Filtered tasks for All Tasks view
+  // Filtered tasks for All Tasks view: Strictly open to claim
   const filteredAllTasks = useMemo(() => {
-    return allDepartmentTasks.filter((task) => {
-      if (allFilter === 'all_eligible')
-        return task.status !== 'Completed' && task.status !== 'Closed';
-      if (allFilter === 'open_pool') return isQueueTaskUnassigned(task);
-      if (allFilter === 'in_progress')
-        return (
-          !isQueueTaskUnassigned(task) &&
-          (task.status === 'Accepted' ||
-            task.status === 'In progress' ||
-            task.status === 'On the way' ||
-            task.status === 'Blocked' ||
-            task.status === 'Awaiting inspection')
-        );
-      if (allFilter === 'completed') return task.status === 'Completed' || task.status === 'Closed';
-      return true;
-    });
-  }, [allDepartmentTasks, allFilter]);
+    return unassignedPool;
+  }, [unassignedPool]);
 
   // Counts for Badges
   const activeMyTasksCount = myTasks.filter(
@@ -585,38 +568,21 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
           )}
         >
           <Layers className="h-3.5 w-3.5" />
-          <span>All Tasks</span>
-          {unassignedPool.length > 0 ? (
-            <span
-              className={cn(
-                'px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold',
-                primaryView === 'all_tasks'
-                  ? isLight
-                    ? 'bg-[#ebe2cc] text-[#353229] border border-[#b7b09e]'
-                    : 'bg-black/20 text-[#14120e]'
-                  : isLight
-                    ? 'bg-[#f6f3ec] text-[#8b7550] border border-[#e7e2d7]'
-                    : 'bg-[#dfc187]/20 text-[#dfc187]',
-              )}
-            >
-              {unassignedPool.length} open
-            </span>
-          ) : (
-            <span
-              className={cn(
-                'px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold',
-                primaryView === 'all_tasks'
-                  ? isLight
-                    ? 'bg-[#f6f3ec] text-[#353229] border border-[#e7e2d7]'
-                    : 'bg-black/20 text-[#14120e]'
-                  : isLight
-                    ? 'bg-[#e7e2d7] text-[#686252]'
-                    : 'bg-white/10 text-mist-300',
-              )}
-            >
-              {allDepartmentTasks.filter((t) => t.status !== 'Completed').length}
-            </span>
-          )}
+          <span>Open to Claim</span>
+          <span
+            className={cn(
+              'px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold',
+              primaryView === 'all_tasks'
+                ? isLight
+                  ? 'bg-[#ebe2cc] text-[#353229] border border-[#b7b09e]'
+                  : 'bg-black/20 text-[#14120e]'
+                : isLight
+                  ? 'bg-[#f6f3ec] text-[#8b7550] border border-[#e7e2d7]'
+                  : 'bg-[#dfc187]/20 text-[#dfc187]',
+            )}
+          >
+            {unassignedPool.length}
+          </span>
         </button>
       </div>
 
@@ -790,121 +756,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
         </div>
       )}
 
-      {/* Sub-Filters: All Tasks */}
-      {primaryView === 'all_tasks' && (
-        <div className="no-scrollbar -mx-4 sm:mx-0 flex items-center gap-1.5 overflow-x-auto sm:flex-wrap sm:justify-center px-4 sm:px-0 pb-1">
-          <button
-            type="button"
-            onClick={() => setAllFilter('all_eligible')}
-            className={cn(
-              'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all cursor-pointer',
-              allFilter === 'all_eligible'
-                ? isLight
-                  ? 'bg-[#353229] text-[#ffffff] shadow-xs font-semibold'
-                  : 'bg-[#dfc187] text-[#14120e] shadow-xs font-semibold'
-                : isLight
-                  ? 'border border-[#e7e2d7] bg-[#ffffff] text-[#686252] hover:text-[#353229] hover:bg-[#f6f3ec]'
-                  : 'border border-white/10 bg-white/[0.04] text-[#d9cebe] hover:text-white hover:bg-white/[0.08]',
-            )}
-          >
-            All Floors 1–5
-            <span
-              className={cn(
-                'rounded-full px-1.5 py-0.2 text-[10px] font-bold',
-                allFilter === 'all_eligible'
-                  ? isLight ? 'bg-white/20 text-[#ffffff]' : 'bg-black/20 text-[#14120e]'
-                  : isLight ? 'bg-[#f6f3ec] text-[#686252]' : 'bg-white/10 text-[#d9cebe]',
-              )}
-            >
-              {allDepartmentTasks.filter((t) => t.status !== 'Completed').length}
-            </span>
-          </button>
 
-          <button
-            type="button"
-            onClick={() => setAllFilter('open_pool')}
-            className={cn(
-              'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all cursor-pointer',
-              allFilter === 'open_pool'
-                ? isLight
-                  ? 'bg-[#353229] text-[#ffffff] shadow-xs font-semibold'
-                  : 'bg-[#dfc187] text-[#14120e] shadow-xs font-semibold'
-                : isLight
-                  ? 'border border-[#b7b09e] bg-[#ebe2cc] text-[#353229] hover:bg-[#ded6c1]'
-                  : 'border border-white/10 bg-white/[0.04] text-[#d9cebe] hover:text-white hover:bg-white/[0.08]',
-            )}
-          >
-            <Sparkles className="h-3 w-3" />
-            Open to Claim
-            {unassignedPool.length > 0 && (
-              <span
-                className={cn(
-                  'rounded-full px-1.5 py-0.2 text-[10px] font-bold',
-                  allFilter === 'open_pool'
-                    ? isLight ? 'bg-white/20 text-[#ffffff]' : 'bg-black/20 text-[#14120e]'
-                    : isLight ? 'bg-[#353229] text-[#ffffff]' : 'bg-[#dfc187]/20 text-[#dfc187]',
-                )}
-              >
-                {unassignedPool.length}
-              </span>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setAllFilter('in_progress')}
-            className={cn(
-              'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all cursor-pointer',
-              allFilter === 'in_progress'
-                ? isLight
-                  ? 'bg-[#353229] text-[#ffffff] shadow-xs font-semibold'
-                  : 'bg-[#dfc187] text-[#14120e] shadow-xs font-semibold'
-                : isLight
-                  ? 'border border-[#e7e2d7] bg-[#ffffff] text-[#686252] hover:text-[#353229] hover:bg-[#f6f3ec]'
-                  : 'border border-white/10 bg-white/[0.04] text-[#d9cebe] hover:text-white hover:bg-white/[0.08]',
-            )}
-          >
-            In Progress
-            <span
-              className={cn(
-                'rounded-full px-1.5 py-0.2 text-[10px] font-bold',
-                allFilter === 'in_progress'
-                  ? isLight ? 'bg-white/20 text-[#ffffff]' : 'bg-black/20 text-[#14120e]'
-                  : isLight ? 'bg-[#f6f3ec] text-[#686252]' : 'bg-white/10 text-[#d9cebe]',
-              )}
-            >
-              {allDepartmentTasks.filter((t) => !isQueueTaskUnassigned(t) && (t.status === 'Accepted' || t.status === 'In progress' || t.status === 'On the way' || t.status === 'Blocked' || t.status === 'Awaiting inspection')).length}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setAllFilter('completed')}
-            className={cn(
-              'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all cursor-pointer',
-              allFilter === 'completed'
-                ? isLight
-                  ? 'bg-[#353229] text-[#ffffff] shadow-xs font-semibold'
-                  : 'bg-[#dfc187] text-[#14120e] shadow-xs font-semibold'
-                : isLight
-                  ? 'border border-[#e7e2d7] bg-[#ffffff] text-[#686252] hover:text-[#353229] hover:bg-[#f6f3ec]'
-                  : 'border border-white/10 bg-white/[0.04] text-[#d9cebe] hover:text-white hover:bg-white/[0.08]',
-            )}
-          >
-            Completed
-            <span
-              className={cn(
-                'rounded-full px-1.5 py-0.2 text-[10px] font-bold',
-                allFilter === 'completed'
-                  ? isLight ? 'bg-white/20 text-[#ffffff]' : 'bg-black/20 text-[#14120e]'
-                  : isLight ? 'bg-[#f6f3ec] text-[#686252]' : 'bg-white/10 text-[#d9cebe]',
-              )}
-            >
-              {allDepartmentTasks.filter((t) => t.status === 'Completed').length}
-            </span>
-          </button>
-        </div>
-      )}
 
       {/* On Break Notice Banner */}
       {isOnBreak && (
@@ -992,19 +844,19 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
       {isOffDuty && !breakRequest && (
         <div
           className={cn(
-            'flex items-center justify-between rounded-2xl border p-3 text-xs transition-colors shadow-sm',
+            'flex items-center justify-between rounded-2xl border p-3 text-xs transition-colors shadow-xs',
             isLight
-              ? 'border-rose-200 bg-rose-50/70 text-rose-900'
-              : 'border-rose-500/30 bg-rose-500/10 text-rose-200',
+              ? 'border-[#e7e2d7] bg-[#ffffff] text-[#353229]'
+              : 'border-[rgba(165,130,95,0.25)] bg-[#1c1c20] text-[#f7f4ed]',
           )}
         >
           <div className="flex items-center gap-2 min-w-0">
-            <Power className="h-4 w-4 text-rose-500 shrink-0" />
+            <Power className={cn('h-4 w-4 shrink-0', isLight ? 'text-[#8b7550]' : 'text-[#dfc187]')} />
             <div className="min-w-0">
               <span className="font-bold block">
                 You are currently Off Duty
               </span>
-              <span className="text-[10px] text-rose-800">
+              <span className={cn('text-[10px]', isLight ? 'text-[#686252]' : 'text-mist-400')}>
                 Shift status managed by Supervisor {activeProfile.supervisorName}
               </span>
             </div>
@@ -1031,13 +883,27 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
       {/* Task List Rendering: Mobile 1-col, Tablet 2-col, Desktop 3-to-4 col */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3.5 sm:gap-4">
         {(primaryView === 'my_tasks' ? filteredMyTasks : filteredAllTasks).length === 0 ? (
-          <div className="col-span-full flex flex-col items-center justify-center rounded-3xl border border-white/10 bg-white/[0.02] py-12 px-4 text-center">
-            <span className="grid h-12 w-12 place-items-center rounded-2xl border border-white/10 bg-white/[0.04] text-mist-400">
-              <CheckCircle2 className="h-6 w-6 text-emerald-400" />
+          <div
+            className={cn(
+              'col-span-full flex flex-col items-center justify-center rounded-3xl border py-12 px-4 text-center transition-colors',
+              isLight ? 'border-[#e7e2d7] bg-[#ffffff]' : 'border-white/10 bg-white/[0.02]',
+            )}
+          >
+            <span
+              className={cn(
+                'grid h-12 w-12 place-items-center rounded-2xl border',
+                isLight ? 'border-[#e7e2d7] bg-[#f6f3ec]' : 'border-white/10 bg-white/[0.04]',
+              )}
+            >
+              <CheckCircle2 className={cn('h-6 w-6', isLight ? 'text-[#353229]' : 'text-emerald-400')} />
             </span>
-            <p className="mt-3 text-sm font-semibold text-white">All clear</p>
-            <p className="mt-1 text-xs text-mist-400 max-w-xs">
-              No tasks currently in this view.
+            <p className={cn('mt-3 text-sm font-semibold', isLight ? 'text-[#353229]' : 'text-white')}>
+              {primaryView === 'all_tasks' ? 'No tasks open to claim' : 'All clear'}
+            </p>
+            <p className={cn('mt-1 text-xs max-w-xs', isLight ? 'text-[#686252]' : 'text-mist-400')}>
+              {primaryView === 'all_tasks'
+                ? `All ${activeProfile.departmentName} tasks are currently assigned.`
+                : 'No tasks currently in this view.'}
             </p>
           </div>
         ) : (
@@ -1051,6 +917,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
             const isReassignPending = task.status === 'Reassignment requested' || task.reassignPending;
             const isUnassigned = isQueueTaskUnassigned(task);
             const isAssignedToMe = isTaskAssignedToProfile(task, activeProfile);
+            const isUrgent = task.priority === 'urgent' && !isCompleted && !isAwaitingInspection && !isReassignPending;
 
             return (
               <div
@@ -1058,21 +925,33 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                 className={cn(
                   'group relative overflow-hidden rounded-2xl border p-4 transition-all',
                   isLight
-                    ? 'border-[#e7e2d7] bg-[#ffffff] shadow-[0_4px_18px_rgba(53,50,41,0.04),0_1px_3px_rgba(53,50,41,0.02)] hover:border-[#b7b09e] hover:shadow-[0_6px_22px_rgba(53,50,41,0.07)]'
-                    : isUnassigned
-                      ? 'border-amber-400/40 bg-amber-400/[0.04] shadow-md shadow-amber-400/5'
-                      : isCompleted
-                        ? 'border-emerald-500/20 bg-emerald-500/[0.03]'
-                        : isAwaitingInspection
-                          ? 'border-[rgba(165,130,95,0.35)] bg-[rgba(200,169,110,0.05)]'
+                    ? isCompleted
+                      ? 'border-[#e7e2d7] bg-[#ffffff]'
+                      : isAwaitingInspection
+                        ? 'border-[#ded6c1] bg-[#ebe2cc]/20 hover:border-[#b7b09e]'
+                        : isUrgent
+                          ? 'border-rose-400 bg-rose-50/70 shadow-[0_4px_18px_rgba(225,29,72,0.12)] hover:border-rose-500'
                           : isBlocked
-                            ? 'border-rose-500/30 bg-rose-500/[0.05]'
+                            ? 'border-rose-200 bg-rose-50/40'
                             : isReassignPending
-                              ? 'border-amber-400/30 bg-amber-400/[0.04]'
+                              ? 'border-[#b7b09e] bg-[#fbfaf7]'
                               : task.priority === 'vip'
-                                ? 'border-amber-400/30 bg-amber-400/[0.03]'
-                                : task.priority === 'urgent'
-                                  ? 'border-orange-400/30 bg-orange-400/[0.03]'
+                                ? 'border-[#b7b09e] bg-[#fbfaf7]'
+                                : 'border-[#e7e2d7] bg-[#ffffff] shadow-[0_4px_18px_rgba(53,50,41,0.04),0_1px_3px_rgba(53,50,41,0.02)] hover:border-[#b7b09e] hover:shadow-[0_6px_22px_rgba(53,50,41,0.07)]'
+                    : isCompleted
+                      ? 'border-emerald-500/20 bg-emerald-500/[0.03]'
+                      : isAwaitingInspection
+                        ? 'border-[rgba(165,130,95,0.35)] bg-[rgba(200,169,110,0.05)]'
+                        : isUrgent
+                          ? 'border-rose-500/80 bg-[#241215] shadow-lg shadow-rose-950/40 hover:border-rose-400'
+                          : isUnassigned
+                            ? 'border-amber-400/40 bg-amber-400/[0.04] shadow-md shadow-amber-400/5'
+                            : isBlocked
+                              ? 'border-rose-500/30 bg-rose-500/[0.05]'
+                              : isReassignPending
+                                ? 'border-amber-400/30 bg-amber-400/[0.04]'
+                                : task.priority === 'vip'
+                                  ? 'border-amber-400/30 bg-amber-400/[0.03]'
                                   : 'border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]',
                 )}
               >
@@ -1082,40 +961,27 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     <span
                       className={cn(
                         'flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-bold shrink-0',
-                        isLight
-                          ? 'border border-[#e7e2d7] bg-[#f6f3ec] text-[#353229]'
-                          : 'border border-white/10 bg-white/[0.06] text-white',
+                        isUrgent
+                          ? isLight
+                            ? 'border border-rose-300 bg-rose-100 text-rose-900 font-bold'
+                            : 'border border-rose-500/40 bg-rose-500/25 text-rose-200 font-bold'
+                          : isLight
+                            ? 'border border-[#e7e2d7] bg-[#f6f3ec] text-[#353229]'
+                            : 'border border-white/10 bg-white/[0.06] text-white',
                       )}
                     >
-                      <MapPin className={cn('h-3 w-3', isLight ? 'text-[#8b7550]' : 'text-emerald-400')} />
+                      <MapPin
+                        className={cn(
+                          'h-3 w-3',
+                          isUrgent
+                            ? 'text-rose-500'
+                            : isLight
+                              ? 'text-[#8b7550]'
+                              : 'text-emerald-400',
+                        )}
+                      />
                       {task.room ? `Room ${task.room}` : task.location ?? 'Floor 4'}
                     </span>
-
-                    {task.priority === 'vip' && (
-                      <span
-                        className={cn(
-                          'flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold shrink-0',
-                          isLight
-                            ? 'border border-[#b7b09e] bg-[#ebe2cc] text-[#353229]'
-                            : 'bg-amber-400/20 text-amber-200',
-                        )}
-                      >
-                        <Crown className="h-2.5 w-2.5" /> VIP
-                      </span>
-                    )}
-
-                    {task.priority === 'urgent' && (
-                      <span
-                        className={cn(
-                          'flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold shrink-0',
-                          isLight
-                            ? 'border border-[#b7b09e] bg-[#ebe2cc] text-[#353229]'
-                            : 'bg-orange-400/20 text-orange-200',
-                        )}
-                      >
-                        <AlertCircle className="h-2.5 w-2.5" /> Urgent
-                      </span>
-                    )}
 
                     {isUnassigned && (
                       <span
@@ -1135,33 +1001,37 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                   <span
                     className={cn(
                       'rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider shrink-0',
-                      isLight
-                        ? isCompleted
-                          ? 'border border-[#e7e2d7] bg-[#f6f3ec] text-[#353229]'
-                          : isAwaitingInspection
-                            ? 'border border-[#b7b09e] bg-[#ebe2cc] text-[#353229]'
-                            : isBlocked
-                              ? 'border border-[#fecaca] bg-[#fff1f0] text-[#991b1b]'
-                              : isReassignPending
-                                ? 'border border-[#b7b09e] bg-[#ebe2cc] text-[#353229]'
-                                : isInProgress
+                      isUrgent
+                        ? isLight
+                          ? 'border border-rose-300 bg-rose-100 text-rose-900 font-bold'
+                          : 'border border-rose-500/40 bg-rose-500/25 text-rose-200 font-bold'
+                        : isLight
+                          ? isCompleted
+                            ? 'border border-[#e7e2d7] bg-[#f6f3ec] text-[#353229]'
+                            : isAwaitingInspection
+                              ? 'border border-[#b7b09e] bg-[#ebe2cc] text-[#353229]'
+                              : isBlocked
+                                ? 'border border-[#fecaca] bg-[#fff1f0] text-[#991b1b]'
+                                : isReassignPending
                                   ? 'border border-[#b7b09e] bg-[#ebe2cc] text-[#353229]'
-                                  : isUnassigned
-                                    ? 'border border-[#e7e2d7] bg-[#f6f3ec] text-[#686252]'
-                                    : 'border border-[#e7e2d7] bg-[#f6f3ec] text-[#686252]'
-                        : isCompleted
-                          ? 'bg-emerald-400/20 text-emerald-300'
-                          : isAwaitingInspection
-                            ? 'bg-[#c8a96e]/15 text-[#dfc187] border border-[rgba(165,130,95,0.3)]'
-                            : isBlocked
-                              ? 'bg-rose-500/20 text-rose-300'
-                              : isReassignPending
-                                ? 'bg-amber-400/20 text-amber-200'
-                                : isInProgress
-                                  ? 'bg-sky-400/20 text-sky-300'
-                                  : isUnassigned
-                                    ? 'bg-amber-400/20 text-amber-300'
-                                    : 'bg-white/10 text-mist-300',
+                                  : isInProgress
+                                    ? 'border border-[#b7b09e] bg-[#ebe2cc] text-[#353229]'
+                                    : isUnassigned
+                                      ? 'border border-[#e7e2d7] bg-[#f6f3ec] text-[#686252]'
+                                      : 'border border-[#e7e2d7] bg-[#f6f3ec] text-[#686252]'
+                          : isCompleted
+                            ? 'bg-emerald-400/20 text-emerald-300'
+                            : isAwaitingInspection
+                              ? 'bg-[#c8a96e]/15 text-[#dfc187] border border-[rgba(165,130,95,0.3)]'
+                              : isBlocked
+                                ? 'bg-rose-500/20 text-rose-300'
+                                : isReassignPending
+                                  ? 'bg-amber-400/20 text-amber-200'
+                                  : isInProgress
+                                    ? 'bg-sky-400/20 text-sky-300'
+                                    : isUnassigned
+                                      ? 'bg-amber-400/20 text-amber-300'
+                                      : 'bg-white/10 text-mist-300',
                     )}
                   >
                     {isUnassigned
@@ -1211,76 +1081,67 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                   <h3
                     className={cn(
                       'text-sm font-semibold transition-colors',
-                      isLight
-                        ? 'text-[#353229] group-hover:text-[#8b7550]'
-                        : 'text-white group-hover:text-[#dfc187]',
+                      isUrgent
+                        ? isLight
+                          ? 'text-rose-950 font-bold group-hover:text-rose-700'
+                          : 'text-rose-100 font-bold group-hover:text-white'
+                        : isLight
+                          ? 'text-[#353229] group-hover:text-[#8b7550]'
+                          : 'text-white group-hover:text-[#dfc187]',
                     )}
                   >
                     {task.title}
                   </h3>
-                  <p className={cn('mt-0.5 text-xs line-clamp-1', isLight ? 'text-[#686252]' : 'text-mist-300')}>
+                  <p
+                    className={cn(
+                      'mt-0.5 text-xs line-clamp-1',
+                      isUrgent
+                        ? isLight
+                          ? 'text-rose-800/80 font-medium'
+                          : 'text-rose-300/80'
+                        : isLight
+                          ? 'text-[#686252]'
+                          : 'text-mist-300',
+                    )}
+                  >
                     {task.meta}
                   </p>
                 </div>
-
-                {/* Guest Personal Preferences (authorized for task fulfillment) */}
-                {task.room && state.guestPreferences?.[task.room] && (
-                  (() => {
-                    const prefs = state.guestPreferences[task.room];
-                    const isFoodTask = isFoodAndBeverageTask(task);
-                    const hasAllergies = isFoodTask && prefs.allergies && prefs.allergies.length > 0;
-                    const hasInstructions = !!prefs.personalInstructions;
-                    const isDnd = !!prefs.dnd;
-                    if (!hasAllergies && !hasInstructions && !isDnd) return null;
-
-                    return (
-                      <div
-                        className={cn(
-                          'mt-2.5 border-l-2 pl-3 py-1.5 text-xs space-y-1 rounded-r-xl transition-colors',
-                          isLight
-                            ? 'border-[#b7b09e] bg-[#fbfaf7]'
-                            : 'border-[#c8a96e]/60 bg-[#c8a96e]/[0.03]',
-                        )}
-                      >
-                        <div
-                          className={cn(
-                            'flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider',
-                            isLight ? 'text-[#686252]' : 'text-[#dfc187]',
-                          )}
-                        >
-                          <ShieldAlert className="h-3 w-3" />
-                          <span>Guest Service Preferences</span>
-                        </div>
-                        {isDnd && (
-                          <p className={cn('font-bold text-[11px]', isLight ? 'text-rose-700' : 'text-rose-300')}>
-                            ⛔ Do Not Disturb active on room
-                          </p>
-                        )}
-                        {hasAllergies && (
-                          <p className={cn('text-[11px]', isLight ? 'text-[#353229]' : 'text-mist-200')}>
-                            <strong className={isLight ? 'text-[#8b7550]' : 'text-amber-200'}>Food Allergies (F&B Alert):</strong> {prefs.allergies.join(', ')}
-                          </p>
-                        )}
-                        {hasInstructions && (
-                          <p className={cn('text-[11px] italic', isLight ? 'text-[#686252]' : 'text-mist-300')}>
-                            &ldquo;{prefs.personalInstructions}&rdquo;
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })()
-                )}
 
                 {/* SLA & Details strip */}
                 <div
                   className={cn(
                     'mt-3 flex flex-wrap items-center gap-3 border-t pt-2.5 text-xs',
-                    isLight ? 'border-[#e7e2d7] text-[#686252]' : 'border-white/[0.06] text-mist-400',
+                    isUrgent
+                      ? isLight
+                        ? 'border-rose-200 text-rose-800'
+                        : 'border-rose-500/20 text-rose-300'
+                      : isLight
+                        ? 'border-[#e7e2d7] text-[#686252]'
+                        : 'border-white/[0.06] text-mist-400',
                   )}
                 >
                   {task.slaDue && (
-                    <span className="flex items-center gap-1 text-[11px]">
-                      <Clock className={cn('h-3 w-3', isLight ? 'text-[#8c8472]' : 'text-mist-400')} />
+                    <span
+                      className={cn(
+                        'flex items-center gap-1 text-[11px]',
+                        isUrgent
+                          ? isLight
+                            ? 'text-rose-800 font-medium'
+                            : 'text-rose-300 font-medium'
+                          : undefined,
+                      )}
+                    >
+                      <Clock
+                        className={cn(
+                          'h-3 w-3',
+                          isUrgent
+                            ? 'text-rose-500'
+                            : isLight
+                              ? 'text-[#8c8472]'
+                              : 'text-mist-400',
+                        )}
+                      />
                       Target: {task.slaDue}
                     </span>
                   )}
@@ -1358,65 +1219,32 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                       </button>
                     )}
 
-                    {/* Assigned to Me: Accept or Start */}
+                    {/* Assigned to Me: Accept Task ONLY */}
                     {!isUnassigned && isAssignedToMe && isAssigned && (
-                      <>
-                        <button
-                          type="button"
-                          style={isLight ? { color: '#ffffff', backgroundColor: '#353229' } : undefined}
-                          onClick={() =>
-                            advance('task_fulfiller', task.id, {
-                              label: 'Accept',
-                              next: 'Accepted',
-                              message: 'Task accepted',
-                            })
-                          }
-                          className={cn(
-                            'flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 px-3 text-xs font-semibold shadow-xs active:scale-[0.98] transition-all cursor-pointer btn-dark',
-                            isLight
-                              ? 'bg-[#353229] hover:bg-[#484438] text-white'
-                              : 'bg-[#dfc187] hover:bg-[#e8cf9a] text-[#14120e]',
-                          )}
-                        >
-                          <Check className="h-3.5 w-3.5" />
-                          Accept Task
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            advance('task_fulfiller', task.id, {
-                              label: 'Start work',
-                              next: 'In progress',
-                              message: 'Work commenced',
-                            })
-                          }
-                          className={cn(
-                            'flex items-center justify-center gap-1.5 rounded-xl py-2 px-3 text-xs font-medium border transition-colors cursor-pointer',
-                            isLight
-                              ? 'border-[#e7e2d7] bg-[#f6f3ec] hover:bg-[#ebe2cc] text-[#353229]'
-                              : 'border-white/10 bg-white/[0.05] hover:bg-white/10 text-[#f7f4ed]',
-                          )}
-                        >
-                          <Play className="h-3.5 w-3.5 fill-current" />
-                          Start
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setReassignModalTask(task)}
-                          className={cn(
-                            'rounded-xl border px-3 py-2 text-xs font-medium transition-colors cursor-pointer',
-                            isLight
-                              ? 'border-[#e7e2d7] bg-white text-[#686252] hover:text-[#353229] hover:bg-[#f6f3ec]'
-                              : 'border-white/10 bg-white/[0.03] text-[#d9cebe] hover:text-white hover:bg-white/[0.06]',
-                          )}
-                        >
-                          Reassign
-                        </button>
-                      </>
+                      <button
+                        type="button"
+                        style={isLight ? { color: '#ffffff', backgroundColor: '#353229' } : undefined}
+                        onClick={() =>
+                          advance('task_fulfiller', task.id, {
+                            label: 'Accept',
+                            next: 'Accepted',
+                            message: 'Task accepted',
+                          })
+                        }
+                        className={cn(
+                          'w-full flex items-center justify-center gap-1.5 rounded-xl py-2 px-3 text-xs font-semibold shadow-xs active:scale-[0.98] transition-all cursor-pointer btn-dark',
+                          isLight
+                            ? 'bg-[#353229] hover:bg-[#484438] text-white'
+                            : 'bg-[#dfc187] hover:bg-[#e8cf9a] text-[#14120e]',
+                        )}
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                        Accept Task
+                      </button>
                     )}
 
                     {!isUnassigned && isAssignedToMe && isAccepted && (
-                      <>
+                      <div className="flex items-center gap-2 w-full">
                         <button
                           type="button"
                           onClick={() =>
@@ -1462,11 +1290,11 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                         >
                           Reassign
                         </button>
-                      </>
+                      </div>
                     )}
 
                     {!isUnassigned && isAssignedToMe && isInProgress && (
-                      <>
+                      <div className="flex items-center gap-2 w-full">
                         <button
                           type="button"
                           style={isLight ? { color: '#ffffff', backgroundColor: '#353229' } : undefined}
@@ -1494,7 +1322,20 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                         >
                           Blocker
                         </button>
-                      </>
+
+                        <button
+                          type="button"
+                          onClick={() => setReassignModalTask(task)}
+                          className={cn(
+                            'rounded-xl border px-3 py-2 text-xs font-medium transition-colors cursor-pointer',
+                            isLight
+                              ? 'border-[#e7e2d7] bg-white text-[#686252] hover:text-[#353229] hover:bg-[#f6f3ec]'
+                              : 'border-white/10 bg-white/[0.03] text-[#d9cebe] hover:text-white hover:bg-white/[0.06]',
+                          )}
+                        >
+                          Reassign
+                        </button>
+                      </div>
                     )}
 
                     {!isUnassigned && isAssignedToMe && isBlocked && (
@@ -1531,12 +1372,19 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
 
                     {!isUnassigned && isAssignedToMe && isAwaitingInspection && (
                       <div className="w-full">
-                        <div className="flex items-center justify-between rounded-xl border border-[rgba(165,130,95,0.3)] bg-[rgba(200,169,110,0.08)] px-3 py-2 text-xs">
-                          <div className="flex items-center gap-2 text-[#dfc187] font-semibold">
-                            <Clock className="h-4 w-4 text-[#dfc187] shrink-0 animate-pulse" />
+                        <div
+                          className={cn(
+                            'flex items-center justify-between rounded-xl border px-3 py-2 text-xs transition-colors',
+                            isLight
+                              ? 'border-[#ded6c1] bg-[#ebe2cc]/30 text-[#353229]'
+                              : 'border-[rgba(165,130,95,0.3)] bg-[rgba(200,169,110,0.08)] text-[#dfc187]',
+                          )}
+                        >
+                          <div className={cn('flex items-center gap-2 font-semibold', isLight ? 'text-[#353229]' : 'text-[#dfc187]')}>
+                            <Clock className={cn('h-4 w-4 shrink-0 animate-pulse', isLight ? 'text-[#8b7550]' : 'text-[#dfc187]')} />
                             <span>Pending at Supervisor Inspection</span>
                           </div>
-                          <span className="text-[11px] text-[#ded6c9]/80 italic">
+                          <span className={cn('text-[11px] italic', isLight ? 'text-[#686252]' : 'text-[#ded6c9]/80')}>
                             Supervisor: {activeProfile.supervisorName}
                           </span>
                         </div>
@@ -1697,6 +1545,30 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     >
                       {selectedTask.room ? `Room ${selectedTask.room}` : selectedTask.location || 'Location'}
                     </span>
+                    {selectedTask.priority === 'urgent' && (
+                      <span
+                        className={cn(
+                          'rounded-md px-2 py-0.5 text-[11px] font-bold border flex items-center gap-1 shrink-0',
+                          isLight
+                            ? 'border-rose-300 bg-rose-100 text-rose-900'
+                            : 'border-rose-500/40 bg-rose-500/20 text-rose-200',
+                        )}
+                      >
+                        <AlertCircle className="h-3 w-3 text-rose-600" /> Urgent Priority
+                      </span>
+                    )}
+                    {selectedTask.priority === 'vip' && (
+                      <span
+                        className={cn(
+                          'rounded-md px-2 py-0.5 text-[11px] font-bold border flex items-center gap-1 shrink-0',
+                          isLight
+                            ? 'border-[#b7b09e] bg-[#ebe2cc] text-[#353229]'
+                            : 'border-amber-400/30 bg-amber-400/20 text-amber-200',
+                        )}
+                      >
+                        <Crown className="h-3 w-3" /> VIP Guest
+                      </span>
+                    )}
                     <span
                       className={cn(
                         'rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase border',
@@ -1717,18 +1589,6 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                         ? 'Pending Inspection'
                         : selectedTask.status}
                     </span>
-                    {selectedTask.assignee && (
-                      <span
-                        className={cn(
-                          'rounded-md px-2 py-0.5 text-[10px] border',
-                          isLight
-                            ? 'border-[#e7e2d7] bg-[#fbfaf7] text-[#686252]'
-                            : 'bg-sky-500/10 border-sky-500/20 text-sky-300',
-                        )}
-                      >
-                        Assignee: {selectedTask.assignee}
-                      </span>
-                    )}
                   </div>
                   <h3 className={cn('mt-2 text-base font-bold leading-snug', isLight ? 'text-[#353229]' : 'text-white')}>
                     {selectedTask.title}
@@ -1794,7 +1654,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                         )}
                       >
                         <ShieldAlert className="h-3.5 w-3.5" />
-                        <span>Guest Room Profile</span>
+                        <span>Guest Service Preferences & Reference</span>
                       </div>
                       {isDnd && (
                         <p className={cn('font-bold text-[11px]', isLight ? 'text-rose-700' : 'text-rose-300')}>
