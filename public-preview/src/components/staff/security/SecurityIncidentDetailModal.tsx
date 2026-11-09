@@ -561,13 +561,6 @@ export function SecurityIncidentDetailModal({
                   <Eye size={14} />
                   <span>View of Incident</span>
                 </button>
-                <button
-                  onClick={() => setShowFloorPlan(true)}
-                  className="dm-small-button flex items-center gap-1.5 cursor-pointer shrink-0"
-                >
-                  <Compass size={14} />
-                  <span>Floor Plan</span>
-                </button>
               </div>
             </div>
 
