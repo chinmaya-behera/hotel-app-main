@@ -28,9 +28,10 @@ import { Panel } from '@/components/ui/Panel';
 import { Modal } from '@/components/frontdesk/Modal';
 import { frontDeskIncidentsSeed, type FDIncident, type FDIncidentMedia } from '@/lib/mockData';
 import { useDemo } from '@/lib/store';
+import { cn } from '@/lib/utils';
 
 export function IncidentsPanel() {
-  const { state, validateSafetyAlertByFrontDesk, broadcastSafetyAlert } = useDemo();
+  const { state, notify, validateSafetyAlertByFrontDesk, broadcastSafetyAlert } = useDemo();
   const pendingAdvisories = (state.safetyAlerts ?? []).filter(alert =>
     alert.status === 'draft_pending_validation' || alert.status === 'approved_ready_broadcast'
   );
@@ -42,6 +43,78 @@ export function IncidentsPanel() {
     'ATTENTION GUESTS: Elevator maintenance testing underway on Floors 2–3. North Elevators operating normally.',
   );
   const [broadcastSentTime, setBroadcastSentTime] = useState<string | null>(null);
+  const [broadcastMode, setBroadcastMode] = useState<'incident' | 'manual'>('incident');
+  const [selectedBroadcastIncId, setSelectedBroadcastIncId] = useState<string>('');
+  const [broadcastAudience, setBroadcastAudience] = useState<'hotel_wide' | 'affected_area' | 'staff_only'>('hotel_wide');
+  const [broadcastPriority, setBroadcastPriority] = useState<'urgent' | 'high' | 'normal'>('high');
+  const [manualTitle, setManualTitle] = useState('Safety & Operations Notice');
+  const [manualLocation, setManualLocation] = useState('All Floors & Public Areas');
+
+  const activeIncidents = incidents.filter((i) => i.status !== 'resolved');
+
+  const handleOpenBroadcastModal = (preselectedId?: string) => {
+    const targetId = preselectedId || selectedBroadcastIncId || (activeIncidents[0]?.id ?? '');
+    setSelectedBroadcastIncId(targetId);
+    if (targetId) {
+      setBroadcastMode('incident');
+      const inc = incidents.find((i) => i.id === targetId);
+      if (inc) {
+        setBroadcastMessage(
+          `SAFETY ADVISORY · [${inc.ref}] ${inc.title} at ${inc.location}. Security & Engineering teams responding. Guests and staff please exercise caution in this area.`
+        );
+        setBroadcastPriority(inc.severity === 'high' ? 'urgent' : inc.severity === 'medium' ? 'high' : 'normal');
+      }
+    } else {
+      setBroadcastMode('manual');
+    }
+    setShowBroadcastModal(true);
+  };
+
+  const handleSelectBroadcastIncident = (id: string) => {
+    setSelectedBroadcastIncId(id);
+    const inc = incidents.find((i) => i.id === id);
+    if (inc) {
+      setBroadcastMessage(
+        `SAFETY ADVISORY · [${inc.ref}] ${inc.title} at ${inc.location}. Security & Engineering teams responding. Guests and staff please exercise caution in this area.`
+      );
+      setBroadcastPriority(inc.severity === 'high' ? 'urgent' : inc.severity === 'medium' ? 'high' : 'normal');
+    }
+  };
+
+  const handleSwitchToManual = () => {
+    setBroadcastMode('manual');
+    if (!broadcastMessage || broadcastMessage.includes('SAFETY ADVISORY · [')) {
+      setBroadcastMessage(
+        'OPERATIONAL NOTICE: Scheduled maintenance is taking place. Guest amenities and services remain operating normally.'
+      );
+    }
+  };
+
+  const handleSendBroadcast = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!broadcastMessage.trim()) return;
+
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    setBroadcastSentTime(`Today, ${timeStr}`);
+
+    if (broadcastMode === 'incident' && selectedBroadcastIncId) {
+      setIncidents((prev) =>
+        prev.map((i) => (i.id === selectedBroadcastIncId ? { ...i, broadcastSent: true } : i)),
+      );
+    }
+
+    notify?.(
+      `Safety broadcast transmitted to ${
+        broadcastAudience === 'hotel_wide'
+          ? 'all guest rooms & staff devices'
+          : broadcastAudience === 'staff_only'
+            ? 'staff operational channels'
+            : 'affected floor devices'
+      }.`,
+    );
+
+    setShowBroadcastModal(false);
+  };
 
   // Selected incident for Detail View Modal
   const [selectedIncident, setSelectedIncident] = useState<FDIncident | null>(null);
@@ -220,18 +293,31 @@ export function IncidentsPanel() {
     <div className="space-y-3.5">
       {/* Top Banner Alert if emergency broadcast active */}
       {broadcastSentTime && (
-        <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-3 flex items-center justify-between text-xs text-rose-200">
-          <div className="flex items-center gap-2">
-            <Radio className="h-4 w-4 text-rose-400 animate-pulse" />
-            <span><strong>Active Safety Broadcast:</strong> &ldquo;{broadcastMessage}&rdquo;</span>
+        <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-3 flex items-center justify-between text-xs text-rose-200 shadow-sm">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Radio className="h-4 w-4 text-rose-400 animate-pulse shrink-0" />
+            <div className="min-w-0">
+              <p className="truncate font-semibold text-rose-100">
+                <strong>Active Safety Broadcast:</strong> &ldquo;{broadcastMessage}&rdquo;
+              </p>
+              <p className="text-[10px] text-rose-300/80 mt-0.5">
+                Transmitted: {broadcastSentTime} · Audience: {
+                  broadcastAudience === 'hotel_wide'
+                    ? 'Hotel-wide (Guests & Staff)'
+                    : broadcastAudience === 'staff_only'
+                      ? 'Staff Only'
+                      : 'Affected Area Devices'
+                } · Priority: {broadcastPriority.toUpperCase()}
+              </p>
+            </div>
           </div>
           <Button
             size="sm"
             variant="ghost"
             onClick={() => setBroadcastSentTime(null)}
-            className="text-rose-300 hover:text-white text-xs h-7 py-0"
+            className="text-rose-300 hover:text-white text-xs h-7 py-0 shrink-0 ml-2"
           >
-            Clear
+            Clear Broadcast
           </Button>
         </div>
       )}
@@ -257,7 +343,7 @@ export function IncidentsPanel() {
             size="sm"
             variant="subtle"
             iconLeft={Radio}
-            onClick={() => setShowBroadcastModal(true)}
+            onClick={() => handleOpenBroadcastModal()}
             className="border-rose-500/40 text-rose-300 hover:bg-rose-500/15 text-xs h-7 py-0"
           >
             Broadcast
@@ -350,6 +436,12 @@ export function IncidentsPanel() {
                     </span>
                     <span className="font-bold text-white text-xs truncate">{inc.title}</span>
                     {getSeverityBadge(inc.severity)}
+                    {inc.broadcastSent && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                        <Radio className="h-2.5 w-2.5 animate-pulse" />
+                        Broadcast Active
+                      </span>
+                    )}
                     <Badge
                       tone={
                         inc.status === 'resolved'
@@ -896,34 +988,217 @@ export function IncidentsPanel() {
       {/* Emergency Broadcast Alert Modal */}
       {showBroadcastModal && (
         <Modal
-          title="Emergency Broadcast"
-          description="Send emergency advisory to guest devices."
+          title="Emergency & Safety Broadcast"
+          description="Transmit an immediate broadcast advisory to guest devices and staff channels."
           onClose={() => setShowBroadcastModal(false)}
         >
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              setBroadcastSentTime('Broadcast active');
-              setShowBroadcastModal(false);
-            }}
-            className="space-y-3 text-xs"
-          >
+          <form onSubmit={handleSendBroadcast} className="space-y-4 text-xs">
+            {/* Mode selection toggle */}
+            <div className="flex items-center gap-1 p-1 rounded-xl bg-white/5 border border-white/10">
+              <button
+                type="button"
+                onClick={() => {
+                  setBroadcastMode('incident');
+                  if (activeIncidents.length > 0) {
+                    handleSelectBroadcastIncident(selectedBroadcastIncId || activeIncidents[0].id);
+                  }
+                }}
+                className={cn(
+                  'flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg font-medium transition text-xs',
+                  broadcastMode === 'incident'
+                    ? 'bg-rose-500 text-white shadow-xs font-semibold'
+                    : 'text-mist-400 hover:text-white',
+                )}
+              >
+                <Radio className="h-3.5 w-3.5" />
+                <span>Select from Active Incident ({activeIncidents.length})</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleSwitchToManual}
+                className={cn(
+                  'flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg font-medium transition text-xs',
+                  broadcastMode === 'manual'
+                    ? 'bg-rose-500 text-white shadow-xs font-semibold'
+                    : 'text-mist-400 hover:text-white',
+                )}
+              >
+                <Send className="h-3.5 w-3.5" />
+                <span>Manual / Custom Broadcast</span>
+              </button>
+            </div>
+
+            {/* Mode 1: From Active Incident */}
+            {broadcastMode === 'incident' && (
+              <div className="space-y-2.5 rounded-xl border border-white/10 bg-white/[0.02] p-3">
+                <label className="text-xs font-semibold text-mist-300 block">Choose Active Incident</label>
+                {activeIncidents.length === 0 ? (
+                  <p className="text-xs text-mist-400 italic py-2">
+                    No active incidents currently logged. Switch to &ldquo;Manual / Custom Broadcast&rdquo; above.
+                  </p>
+                ) : (
+                  <>
+                    <select
+                      value={selectedBroadcastIncId}
+                      onChange={(e) => handleSelectBroadcastIncident(e.target.value)}
+                      className="field w-full text-xs font-medium"
+                    >
+                      {activeIncidents.map((inc) => (
+                        <option key={inc.id} value={inc.id} className="bg-ink-900 text-white">
+                          [{inc.ref}] {inc.title} · {inc.location} ({inc.severity.toUpperCase()})
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* Selected incident card preview */}
+                    {(() => {
+                      const selected = incidents.find((i) => i.id === selectedBroadcastIncId);
+                      if (!selected) return null;
+                      return (
+                        <div className="rounded-lg border border-white/10 bg-white/[0.04] p-2.5 flex items-center justify-between gap-2 text-xs">
+                          <div className="space-y-0.5 min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-mono text-cyan-300 font-bold text-[10px] bg-cyan-500/10 border border-cyan-400/20 px-1.5 py-0.2 rounded">
+                                {selected.ref}
+                              </span>
+                              <span className="font-semibold text-white truncate text-xs">{selected.title}</span>
+                              {getSeverityBadge(selected.severity)}
+                            </div>
+                            <p className="text-[11px] text-mist-400 flex items-center gap-1">
+                              <MapPin className="h-3 w-3 text-mist-500" />
+                              <span>{selected.location}</span>
+                              <span>·</span>
+                              <span>Reported: {selected.reportedAt}</span>
+                            </p>
+                          </div>
+                          {selected.broadcastSent && (
+                            <span className="text-[10px] font-bold text-rose-300 bg-rose-500/20 border border-rose-500/30 px-2 py-0.5 rounded shrink-0">
+                              Already Broadcasted
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Mode 2: Manual Incident Broadcast */}
+            {broadcastMode === 'manual' && (
+              <div className="space-y-2.5 rounded-xl border border-white/10 bg-white/[0.02] p-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="text-xs font-semibold text-mist-300 mb-1 block">Advisory Title</label>
+                    <input
+                      type="text"
+                      required
+                      value={manualTitle}
+                      onChange={(e) => {
+                        setManualTitle(e.target.value);
+                        setBroadcastMessage(`SAFETY NOTICE · ${e.target.value} (${manualLocation}). Please exercise precautions.`);
+                      }}
+                      placeholder="e.g. Weather Advisory, Maintenance Notice"
+                      className="field w-full text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-mist-300 mb-1 block">Affected Location / Area</label>
+                    <input
+                      type="text"
+                      required
+                      value={manualLocation}
+                      onChange={(e) => {
+                        setManualLocation(e.target.value);
+                        setBroadcastMessage(`SAFETY NOTICE · ${manualTitle} (${e.target.value}). Please exercise precautions.`);
+                      }}
+                      placeholder="e.g. All Floors, East Wing, Pool Deck"
+                      className="field w-full text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Broadcast Scope & Priority */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div>
+                <label className="text-xs font-semibold text-mist-300 mb-1 block">Target Audience</label>
+                <select
+                  value={broadcastAudience}
+                  onChange={(e) => setBroadcastAudience(e.target.value as any)}
+                  className="field w-full text-xs"
+                >
+                  <option value="hotel_wide" className="bg-ink-900 text-white">
+                    Hotel-wide (All Guests & Staff Devices)
+                  </option>
+                  <option value="affected_area" className="bg-ink-900 text-white">
+                    Affected Floor / Area Devices Only
+                  </option>
+                  <option value="staff_only" className="bg-ink-900 text-white">
+                    Staff Channels Only (Security & Front Desk)
+                  </option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-mist-300 mb-1 block">Priority Level</label>
+                <select
+                  value={broadcastPriority}
+                  onChange={(e) => setBroadcastPriority(e.target.value as any)}
+                  className="field w-full text-xs"
+                >
+                  <option value="urgent" className="bg-ink-900 text-rose-300 font-bold">
+                    Urgent Emergency (Red Alert)
+                  </option>
+                  <option value="high" className="bg-ink-900 text-amber-300">
+                    High Priority (Warning)
+                  </option>
+                  <option value="normal" className="bg-ink-900 text-cyan-300">
+                    Normal Advisory (Informational)
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            {/* Broadcast Text */}
             <div>
-              <label className="text-xs font-semibold text-mist-300 mb-1 block">Broadcast Text</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-semibold text-mist-300">Broadcast Message Text</label>
+                <span className="text-[10px] text-mist-400">Transmitted to guest live screens & radios</span>
+              </div>
               <textarea
-                rows={2}
+                rows={3}
                 required
                 value={broadcastMessage}
                 onChange={(e) => setBroadcastMessage(e.target.value)}
-                className="field w-full text-xs"
+                className="field w-full text-xs leading-relaxed"
+                placeholder="Enter emergency advisory message..."
               />
             </div>
+
+            {/* Live Message Preview */}
+            <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-2.5 flex items-start gap-2 text-rose-200">
+              <Radio className="h-4 w-4 text-rose-400 shrink-0 mt-0.5 animate-pulse" />
+              <div className="min-w-0 text-[11px]">
+                <p className="font-semibold text-rose-100">Live Recipient Preview:</p>
+                <p className="text-rose-200/90 italic">&ldquo;{broadcastMessage}&rdquo;</p>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
             <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
               <Button variant="subtle" size="sm" type="button" onClick={() => setShowBroadcastModal(false)}>
                 Cancel
               </Button>
-              <Button variant="accent" size="sm" type="submit" className="bg-rose-500 hover:bg-rose-600 text-white">
-                Send Broadcast
+              <Button
+                variant="accent"
+                size="sm"
+                type="submit"
+                iconLeft={Radio}
+                className="bg-rose-500 hover:bg-rose-600 text-white font-semibold"
+              >
+                Transmit Broadcast
               </Button>
             </div>
           </form>
