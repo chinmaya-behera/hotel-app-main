@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useEffect, type ReactNode } from 'react';
 import { ChevronRight, LayoutGrid, Activity } from 'lucide-react';
 import { TONE_ICONS } from '@/components/ui/Badge';
@@ -16,7 +17,6 @@ import { DispatcherConsole } from '@/components/dispatcher/DispatcherConsole';
 import { FulfillerApp } from '@/components/staff/fulfiller/FulfillerApp';
 import { DepartmentManagerConsole } from '@/components/manager/DepartmentManagerConsole';
 import { ExecutiveConsole } from '@/components/executive/ExecutiveConsole';
-import { SecurityApp } from '@/components/staff/security/SecurityApp';
 import { FinanceConsole } from '@/components/finance/FinanceConsole';
 import { SupervisorConsole } from '@/components/supervisor/SupervisorConsole';
 import { SideWidgetView } from '@/components/staff/SideWidgets';
@@ -26,6 +26,18 @@ import { roleById } from '@/lib/roles';
 import { useDemo } from '@/lib/store';
 import { accentVars, cn } from '@/lib/utils';
 import type { RoleId, Tone, WorkItem } from '@/types/demo';
+
+const SecurityApp = dynamic(
+  () => import('@/components/staff/security/SecurityApp').then((mod) => mod.SecurityApp),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center min-h-[400px] text-xs text-slate-400">
+        Loading Security Console…
+      </div>
+    ),
+  }
+);
 
 const BANNER_TONE: Record<Tone, string> = {
   neutral: 'border-white/10 bg-white/5 text-mist-200',

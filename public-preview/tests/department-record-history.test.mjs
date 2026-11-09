@@ -17,14 +17,14 @@ test('repair completion records preserve work, technician, time and notes after 
   state = command(state, { type: 'repair-create', title: 'Replace tap cartridge', location: 'Room 402', priority: 'urgent', note: 'Leaking tap', repairCategory: 'Plumbing', technicianId: 'tech' }, 'tap');
   state = command(state, { type: 'repair-update', taskId: 'tap', status: 'In progress', note: 'Water isolated; cartridge removed' }, 'progress', '2026-11-06T10:00:00Z');
   state = command(state, { type: 'repair-update', taskId: 'tap', status: 'Completed', note: 'New cartridge fitted; leak test passed' }, 'complete', '2026-11-06T11:00:00Z');
-  const completion = repairCompletion(state, 'REP-TAP');
+  const completion = repairCompletion(state, 'REP-402-061126');
   assert.equal(completion.record.owner, 'Demo technician'); assert.equal(completion.record.location, 'Room 402'); assert.equal(completion.actor, 'Arjun Mehta');
   assert.equal(completion.record.completedAt, '2026-11-06T11:00:00Z'); assert.match(completion.record.notes, /leak test passed/);
   state = command(state, { type: 'repair-category', taskId: 'tap', repairCategory: 'Building & fixtures' }, 'category');
-  assert.deepEqual(repairCompletion(state, 'REP-TAP'), completion);
-  assert.equal(events(state, 'repair', 'REP-TAP').length, 4, 'queue mirrors do not duplicate events');
-  assert.equal(events(state, 'repair', 'REP-TAP').at(-1).record.completedAt, completion.record.completedAt);
-  assert.match(events(state, 'repair', 'REP-TAP')[1].record.notes, /Water isolated/);
+  assert.deepEqual(repairCompletion(state, 'REP-402-061126'), completion);
+  assert.equal(events(state, 'repair', 'REP-402-061126').length, 4, 'queue mirrors do not duplicate events');
+  assert.equal(events(state, 'repair', 'REP-402-061126').at(-1).record.completedAt, completion.record.completedAt);
+  assert.match(events(state, 'repair', 'REP-402-061126')[1].record.notes, /Water isolated/);
 });
 
 test('saved queue rows override seed status and notes, and reload migration preserves journal exactly', () => {
@@ -36,7 +36,7 @@ test('saved queue rows override seed status and notes, and reload migration pres
   state = command(state, { type: 'repair-update', taskId: 'chair', status: 'Completed', note: 'Support replaced' }, 'done');
   const loaded = initialiseDepartmentHistory(ensureManagerState(JSON.parse(JSON.stringify(state))), '2026-11-07T09:00:00Z');
   assert.deepEqual(loaded.departmentRecordHistory, JSON.parse(JSON.stringify(state.departmentRecordHistory)));
-  assert.equal(repairCompletion(loaded, 'REP-CHAIR').record.notes, 'Support replaced');
+  assert.equal(repairCompletion(loaded, 'REP-LOBBY-061126').record.notes, 'Support replaced');
 });
 
 test('existing completed records do not invent missing completion times', () => {
@@ -51,9 +51,9 @@ test('complaint response versions and resolved outcomes persist in every departm
   for (const dept of ['housekeeping','wellness','engineering','food-beverages']) {
     let state = fixture(dept);
     state = command(state, { type: 'complaint-create', title: 'Demo concern', guest: 'Demo guest', room: '402', description: 'Initial concern', priority: 'normal' }, 'concern');
-    state = command(state, { type: 'complaint-update', reference: 'CMP-CONCERN', status: 'In Progress', note: 'Investigating' }, 'review');
-    state = command(state, { type: 'complaint-update', reference: 'CMP-CONCERN', status: 'Resolved', note: 'Guest confirmed resolution' }, 'resolve');
-    const history = events(state, 'complaint', 'CMP-CONCERN');
+    state = command(state, { type: 'complaint-update', reference: 'GC-402-061126', status: 'In Progress', note: 'Investigating' }, 'review');
+    state = command(state, { type: 'complaint-update', reference: 'GC-402-061126', status: 'Resolved', note: 'Guest confirmed resolution' }, 'resolve');
+    const history = events(state, 'complaint', 'GC-402-061126');
     assert.equal(history.length, 3); assert.equal(history.at(-1).action, 'completed'); assert.equal(history[1].record.notes, 'Investigating');
     assert.equal(departmentHistory(state, dept).filter(event => event.record.kind === 'complaint').length, 3);
     assert.equal(departmentHistory(state, dept === 'wellness' ? 'engineering' : 'wellness').filter(event => event.record.kind === 'complaint').length, 0);
@@ -103,17 +103,17 @@ test('multiple asset service cycles preserve previous service dates and linked w
   const history = events(state, 'asset', 'asset-hvac').filter(event => event.action === 'completed');
   assert.equal(history.length, 2); assert.equal(history[0].record.completedAt, '2026-11-07T09:00:00Z');
   assert.equal(history[1].record.completedAt, '2026-11-08T09:00:00Z');
-  assert.ok(history[0].changes.some(change => change.field === 'Work order' && change.before === 'PM-cycle-1'));
+  assert.ok(history[0].changes.some(change => change.field === 'Work order' && change.before === 'REP-LEVEL4PLANTROOM-061126'));
 });
 
 test('housekeeping task completion and room readiness retain separate outcomes; kitchen Ready is not Delivered', () => {
   let state = fixture('housekeeping');
   state = command(state, { type: 'room-cleaning', room: '402' }, 'clean');
   const next = structuredClone(state);
-  for (const queue of Object.values(next.items)) for (const task of queue) if (task.ref === 'HK-clean') { task.status = 'Completed'; task.notes = 'Linen replaced and bathroom cleaned'; }
+  for (const queue of Object.values(next.items)) for (const task of queue) if (task.ref === 'HK-402-061126') { task.status = 'Completed'; task.notes = 'Linen replaced and bathroom cleaned'; }
   next.frontDesk.rooms[0].readiness = 'ready';
   state = captureDepartmentHistory(state, next, at);
-  assert.equal(events(state, 'task', 'HK-clean').at(-1).action, 'completed');
+  assert.equal(events(state, 'task', 'HK-402-061126').at(-1).action, 'completed');
   assert.equal(events(state, 'room', '402').at(-1).action, 'completed');
   assert.equal(isOpen('Delivered'), false); assert.equal(isOpen('Ready'), true);
 });
@@ -125,7 +125,7 @@ test('inspection assignment, checklist and supervisor outcome versions remain tr
   const record = state.inspections.find(i => i.id === 'inspect-1');
   const next = reviewDepartmentInspection(state, record.id, 'passed', 'All checks passed', record.items.map(item => ({ ...item, passed: true })));
   state = captureDepartmentHistory(state, next, at);
-  const history = events(state, 'inspection', record.id);
+  const history = events(state, 'inspection', record.ref);
   assert.equal(history.at(-1).action, 'completed'); assert.match(history.at(-1).record.fields.Checklist, /Passed/);
   assert.match(history[0].record.fields.Checklist, /Pending/); assert.equal(history.at(-1).record.notes, 'All checks passed');
 });

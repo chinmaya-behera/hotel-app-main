@@ -4,6 +4,7 @@ import { useRef, useState, type FormEvent } from 'react';
 import { ArrowRight, BedDouble, Flower2, Package, UtensilsCrossed, Wrench, X } from 'lucide-react';
 import { useDemo } from '@/lib/store';
 import { departmentId, isOpen, managerDepartment, managerTasks, type ManagerDepartmentId } from '@/lib/manager-domain';
+import { hotelDate } from '@/lib/manager-performance';
 import type { ManagerStockItem, CustomDiningRequest } from '@/types/demo';
 
 export const DESK_LABELS: Record<ManagerDepartmentId, string> = {
@@ -18,6 +19,9 @@ export function DepartmentDesk({ summary = false, onOpen, onInspect }: { summary
   const department = managerDepartment(state.managerDepartment);
   const operations = state.managerOperations;
   const [roomFilter, setRoomFilter] = useState('attention');
+  const [menuSearch, setMenuSearch] = useState('');
+  const [menuLimit, setMenuLimit] = useState(6);
+  const [showPast, setShowPast] = useState(false);
   const [modal, setModal] = useState<ManagerStockItem | null>(null);
   const [customDishAction, setCustomDishAction] = useState<{
     item: CustomDiningRequest;
@@ -32,7 +36,7 @@ export function DepartmentDesk({ summary = false, onOpen, onInspect }: { summary
   const stock = operations.stock.filter(item => departmentId(item.department) === department.id);
   const rooms = state.frontDesk.rooms;
   const assets = operations.assets;
-  const today = new Date().toLocaleDateString('en-CA');
+  const today = hotelDate(Date.now());
   const tasks = managerTasks(state, department.id);
   const pendingCustomCount = (state.customDiningRequests ?? []).filter(c => ['Submitted', 'Under Kitchen Review'].includes(c.status)).length;
   const summaryText = department.id === 'housekeeping'
@@ -61,6 +65,7 @@ export function DepartmentDesk({ summary = false, onOpen, onInspect }: { summary
     if (roomFilter === 'arrivals') return state.frontDesk.stays.some(stay => stay.room === room.no && stay.status === 'expected');
     return room.readiness !== 'ready';
   });
+  const menu = (state.diningMenu ?? []).filter(item => `${item.name} ${item.category} ${item.allergens.join(' ')}`.toLowerCase().includes(menuSearch.toLowerCase()));
 
   return <div className="dm-desk">
     {department.id === 'housekeeping' && <section className="dm-panel">

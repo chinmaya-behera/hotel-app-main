@@ -34,7 +34,7 @@ export interface FrontDeskMobileDashboardProps {
   stays: StayRecord[];
   rooms: RoomRecord[];
   queue: DemoState['items']['front_desk_coordinator'];
-  sync: DemoState['frontDesk']['sync'];
+  disputeCount?: number;
   complaints: DemoState['frontDesk']['complaints'];
   guestReminders: DemoState['guestReminders'];
   kpis: Array<{ label: string; value: number; note: string; icon: LucideIcon }>;
@@ -52,7 +52,7 @@ export function FrontDeskMobileDashboard({
   stays = [],
   rooms = [],
   queue = [],
-  sync = [],
+  disputeCount = 0,
   complaints = [],
   guestReminders = [],
   kpis = [],
@@ -78,7 +78,6 @@ export function FrontDeskMobileDashboard({
 
   const actionableRequests = queue.filter((item) => item.status !== 'completed' && item.status !== 'dismissed');
   const pendingReminders = guestReminders.filter((r) => r.status === 'pending');
-  const failedSync = sync.filter((x) => x.bookingState === 'PMS_Sync_Failed');
   const lostFoundClaims = queue.filter((i) => i.category === 'lost_found' && i.status !== 'completed');
 
   return (
@@ -462,16 +461,16 @@ export function FrontDeskMobileDashboard({
               <span className="h-7 w-7 rounded-lg bg-emerald-500/15 border border-emerald-400/25 flex items-center justify-center text-emerald-300 group-hover:scale-105 transition">
                 <Landmark className="h-3.5 w-3.5" />
               </span>
-              {failedSync.length > 0 && (
+              {disputeCount > 0 && (
                 <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
-                  {failedSync.length}
+                  {disputeCount}
                 </span>
               )}
             </div>
             <h4 className="text-xs font-bold text-white mt-2 group-hover:text-emerald-200 transition">
               Disputes (Financial)
             </h4>
-            <p className="text-[10px] text-mist-400 mt-0.5">Sync &amp; folio balance</p>
+            <p className="text-[10px] text-mist-400 mt-0.5">Claims &amp; folio balance</p>
           </button>
 
           {/* Incidents & Security */}

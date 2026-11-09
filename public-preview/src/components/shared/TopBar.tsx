@@ -40,6 +40,7 @@ import {
   RotateCcw,
   ShieldAlert,
   ShieldCheck,
+  ShieldAlert,
   Sun,
   User,
   X,
@@ -613,6 +614,7 @@ export function TopBar({ active, showRail = true, hideGestureButton = false }: T
                         </div>
                       </div>
 
+<<<<<<< HEAD
                       {/* Two Category Sections: All notifications & Safety Alerts */}
                       <div className="my-2.5 grid grid-cols-2 p-1 rounded-xl border border-white/10 bg-white/[0.04] text-xs font-semibold">
                         <button
@@ -646,6 +648,22 @@ export function TopBar({ active, showRail = true, hideGestureButton = false }: T
                             {roleNotifications.filter(isTopBarSafetyAlert).length}
                           </span>
                         </button>
+=======
+                      {/* Security Safety Alert Highlight Banner */}
+                      <div className="mt-3 p-2.5 rounded-xl border border-rose-500/30 bg-rose-500/10 flex items-start gap-2.5 text-left text-xs text-rose-200">
+                        <ShieldAlert className="h-4 w-4 text-rose-400 shrink-0 mt-0.5 animate-pulse" />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="font-bold text-white text-[11px] uppercase tracking-wide">
+                              Safety Alert (From Security)
+                            </span>
+                            <span className="text-[10px] text-rose-300 font-mono">SFT-SEC-01</span>
+                          </div>
+                          <p className="text-[11px] text-rose-200/90 leading-tight mt-0.5">
+                            Level 3 Emergency Fire Door breach sensor active. Patrol Unit 1 deployed.
+                          </p>
+                        </div>
+>>>>>>> 18f1ab25397a2fb42c9785e2fd96523eb4f1c9f8
                       </div>
 
                       <div className="mt-3 max-h-72 space-y-2 overflow-y-auto no-scrollbar">

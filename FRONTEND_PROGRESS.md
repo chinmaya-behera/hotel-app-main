@@ -1013,6 +1013,23 @@
 
 ---
 
+## Phase 5 — Front Desk Dispute Financial & Multi-Tier Settlement Rebuild (DONE)
+- **Unified Single Workflow**:
+  - Replaced legacy 8 KPI tiles and 5 sub-tabs in `DisputesPanel.tsx` with a single unified list and 4 status filter chips (`New`, `With General Manager`, `With Finance`, `Closed`).
+  - Completely removed PMS Sync scenarios, handlers, imports, and deleted unused `ReconcilePanel.tsx`.
+  - Replaced hardcoded `+3` badge counters with live `claimsNeedingFrontDesk(state)` count across desktop sidebar, tab headers, and mobile navigation.
+- **Front Desk Evaluation & Limit Rule**:
+  - Front Desk can decide 4 clean outcomes: Compensation (5 methods), Refund (sent to Finance), Reject (mandatory reason to guest), or Request Info.
+  - Front Desk discretionary authority limit is ₹2,500 (`FD_CLAIM_LIMIT`). Decided amounts $\le$ ₹2,500 apply immediately (compensation posted to folio; refund sent to Financial Officer).
+  - Claims > ₹2,500 are automatically routed to the General Manager approval queue (`pending_gm`), bypassing Duty Manager.
+  - Interactive decision modal displays live limit indicator, confirmation step, validation, and full history timeline.
+- **Cross-Role Settlement & Guest Portal Reactive Sync**:
+  - General Manager approval forwards claims to Financial Officer; rejection informs guest and notifies Front Desk.
+  - Financial Officer receives refund requests with card mask, reference, amount, and notes. Finance payout/approval/rejection automatically syncs back to the claim status.
+  - Guest portal (`ToFrontDeskSubtab.tsx`, `CompensationRefundSection.tsx`) reflects live status, timeline, staff responses, and approved amounts using reactive `claimView`.
+
+---
+
 ## 5. Concise Final Audit Report
 
 | Role / Feature | Status | Implementation Details / Notes |
@@ -1022,6 +1039,7 @@
 | **Front Desk: Room Status** | **COMPLETED** | Removed Inspection & OOO; added Check-In & Check-Out; OOO dialog block removed. |
 | **Front Desk: Reminders & VIP** | **COMPLETED** | Reminders log and VIP preview panel connected to GM VIP. |
 | **Front Desk: Service Policies** | **COMPLETED** | Service authority limits (₹2,500 goodwill credit, room move rules, key issuance). |
+| **Front Desk: Dispute Financial & Claims** | **COMPLETED** | Unified single workflow (guest → Front Desk → GM if > ₹2,500 → Finance). PMS Sync removed. |
 | **Security: Reporter Attribution** | **COMPLETED** | Report origin & Front Desk validation badge; unvalidated guest reports flagged. |
 | **Security: Safety Alerts** | **COMPLETED** | Dedicated Safety Alerts section with draft modal, status filters, and audit trail. |
 | **Security: Playbooks & Handover**| **COMPLETED** | Playbooks with unconfigured municipal fire dispatch; shift handover logs with locker refs. |

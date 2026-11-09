@@ -50,7 +50,7 @@ export function Modal({ title, description, onClose, children, footer }: ModalPr
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
-      className="fd-backdrop fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-6"
+      className="fd-backdrop fixed inset-0 z-[1100] flex items-center justify-center p-2.5 sm:p-6"
       style={{ background: 'rgba(8, 14, 28, 0.72)', backdropFilter: 'blur(4px)' }}
     >
       <div

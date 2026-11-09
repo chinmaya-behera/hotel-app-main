@@ -18,9 +18,11 @@ import {
   ChevronRight,
   CheckCircle2,
   AlertTriangle,
+  Flame,
   MessageSquare,
   MessageSquareWarning,
   HeartPulse,
+  UtensilsCrossed,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
 import type { SupervisorInspection, RoleId, DispatcherDepartment, WorkItem, StaffAccount } from '@/types/demo';
@@ -33,6 +35,8 @@ import { DispatcherRoutingTab } from '@/components/dispatcher/DispatcherRoutingT
 import { DispatcherSlaTab } from '@/components/dispatcher/DispatcherSlaTab';
 import { DispatcherReportsTab } from '@/components/dispatcher/DispatcherReportsTab';
 import { DispatcherBlockersTab } from '@/components/dispatcher/DispatcherBlockersTab';
+import { DispatcherEscalationsTab } from '@/components/dispatcher/DispatcherEscalationsTab';
+import { DispatcherMenuOrdersTab } from '@/components/dispatcher/DispatcherMenuOrdersTab';
 import { DispatcherGuestMessagesTab } from '@/components/dispatcher/DispatcherGuestMessagesTab';
 import { DispatcherComplaintsTab, isComplaintInActiveDept } from '@/components/dispatcher/DispatcherComplaintsTab';
 import { DispatcherPoliciesTab } from '@/components/dispatcher/DispatcherPoliciesTab';
@@ -60,6 +64,7 @@ export type DispatcherSupervisorTab =
   | 'inspections'
   | 'rooms'
   | 'medical_therapy'
+  | 'menu_orders'
   | 'routing'
   | 'guest_messages'
   | 'complaints'
@@ -125,9 +130,15 @@ export function DispatcherSupervisorConsole() {
     }
   }, [setActiveDispatcherDept]);
 
-  // Redirect away from rooms tab if in Wellness department
+  // Redirect away from department-specific tabs if switched to other departments
   useEffect(() => {
-    if (currentDept === 'Wellness' && activeTab === 'rooms') {
+    if ((currentDept === 'Wellness' || currentDept === 'Food & Beverages') && activeTab === 'rooms') {
+      setActiveTab('overview');
+    }
+    if (currentDept !== 'Food & Beverages' && activeTab === 'menu_orders') {
+      setActiveTab('overview');
+    }
+    if (currentDept !== 'Wellness' && activeTab === 'medical_therapy') {
       setActiveTab('overview');
     }
   }, [currentDept, activeTab]);
@@ -317,6 +328,57 @@ export function DispatcherSupervisorConsole() {
     }).length;
   }, [allTasks, currentDept]);
 
+  const fnbActiveOrdersCount = useMemo(() => {
+    if (currentDept !== 'Food & Beverages') return 0;
+    return allTasks.filter((t) => {
+      const isFnb =
+        t.category === 'room_service' ||
+        t.department === 'Food & Beverage' ||
+        t.department === 'Food & Beverages' ||
+        (t.orderLines && t.orderLines.length > 0) ||
+        t.ref?.startsWith('DIN') ||
+        t.ref?.startsWith('RS') ||
+        t.ref?.startsWith('FB');
+      return (
+        isFnb &&
+        t.status !== 'Delivered' &&
+        t.status !== 'Completed' &&
+        t.status !== 'verified' &&
+        t.status !== 'Cancelled'
+      );
+    }).length;
+  }, [allTasks, currentDept]);
+
+  const pendingDutyRequestsCount = useMemo(() => {
+    const dutyCount = (state.dutyStatusRequests ?? []).filter((r) => {
+      const isPending = r.status === 'pending';
+      const d1 = (r.department || '').toLowerCase();
+      const d2 = currentDept.toLowerCase();
+      const inDept =
+        d1 === d2 ||
+        (d2.includes('house') && d1.includes('house')) ||
+        ((d2.includes('maint') || d2.includes('eng')) && (d1.includes('maint') || d1.includes('eng'))) ||
+        ((d2.includes('spa') || d2.includes('wellness')) && (d1.includes('spa') || d1.includes('wellness'))) ||
+        ((d2.includes('food') || d2.includes('bev')) && (d1.includes('food') || d1.includes('bev')));
+      return isPending && inDept;
+    }).length;
+
+    const reassignCount = (state.taskReassignRequests ?? []).filter((r) => {
+      const isPending = r.status === 'pending';
+      const d1 = (r.department || '').toLowerCase();
+      const d2 = currentDept.toLowerCase();
+      const inDept =
+        d1 === d2 ||
+        (d2.includes('house') && d1.includes('house')) ||
+        ((d2.includes('maint') || d2.includes('eng')) && (d1.includes('maint') || d1.includes('eng'))) ||
+        ((d2.includes('spa') || d2.includes('wellness')) && (d1.includes('spa') || d1.includes('wellness'))) ||
+        ((d2.includes('food') || d2.includes('bev')) && (d1.includes('food') || d1.includes('bev')));
+      return isPending && inDept;
+    }).length;
+
+    return dutyCount + reassignCount;
+  }, [state.dutyStatusRequests, state.taskReassignRequests, currentDept]);
+
   const navItems: NavItem[] = [
     {
       id: 'overview',
@@ -334,15 +396,17 @@ export function DispatcherSupervisorConsole() {
     },
     {
       id: 'workload',
-      label: 'Team Workload',
-      shortLabel: 'Workload',
+      label: 'Team',
+      shortLabel: 'Team',
       icon: Users,
+      badge: pendingDutyRequestsCount > 0 ? pendingDutyRequestsCount : undefined,
+      badgeTone: 'warning' as const,
     },
     {
       id: 'blockers',
-      label: 'Blockers & Issues',
-      shortLabel: 'Blockers',
-      icon: AlertTriangle,
+      label: 'Escalations',
+      shortLabel: 'Escalations',
+      icon: Flame,
       badge: blockedCount + reassignPendingCount > 0 ? blockedCount + reassignPendingCount : undefined,
       badgeTone: 'danger',
     },
@@ -354,7 +418,7 @@ export function DispatcherSupervisorConsole() {
       badge: pendingInspections > 0 ? pendingInspections : undefined,
       badgeTone: 'warning',
     },
-    ...(currentDept !== 'Wellness'
+    ...(currentDept !== 'Wellness' && currentDept !== 'Food & Beverages'
       ? [
           {
             id: 'rooms' as DispatcherSupervisorTab,
@@ -373,6 +437,18 @@ export function DispatcherSupervisorConsole() {
             icon: HeartPulse,
             badge: medicalTherapyCount > 0 ? `${medicalTherapyCount} Action` : undefined,
             badgeTone: 'danger' as const,
+          },
+        ]
+      : []),
+    ...(currentDept === 'Food & Beverages'
+      ? [
+          {
+            id: 'menu_orders' as DispatcherSupervisorTab,
+            label: 'Menu & Orders',
+            shortLabel: 'Menu & Orders',
+            icon: UtensilsCrossed,
+            badge: fnbActiveOrdersCount > 0 ? fnbActiveOrdersCount : undefined,
+            badgeTone: 'warning' as const,
           },
         ]
       : []),
@@ -557,10 +633,16 @@ export function DispatcherSupervisorConsole() {
             />
           )}
 
+          {activeTab === 'menu_orders' && <DispatcherMenuOrdersTab />}
+
           {activeTab === 'workload' && <DispatcherWorkloadTab staffList={staffList} department={currentDept} />}
 
           {activeTab === 'blockers' && (
-            <DispatcherBlockersTab onOpenEscalate={() => setIsEscalateModalOpen(true)} tasks={allTasks} />
+            <DispatcherEscalationsTab
+              department={currentDept}
+              tasks={allTasks}
+              onOpenEscalateModal={() => setIsEscalateModalOpen(true)}
+            />
           )}
 
           {activeTab === 'routing' && <DispatcherRoutingTab />}

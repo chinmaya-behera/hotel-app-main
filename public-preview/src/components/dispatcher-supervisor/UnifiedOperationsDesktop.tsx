@@ -241,7 +241,7 @@ export function UnifiedOperationsDesktop({
           className="group cursor-pointer rounded-xl border border-white/[0.08] bg-ink-900/60 p-4 backdrop-blur-xl hover:border-rose-400/40 hover:bg-ink-900/90 transition shadow-sm"
         >
           <div className="text-[11px] font-bold uppercase tracking-wider text-mist-400 mb-1.5">
-            Overdue & Blockers
+            Overdue & Escalations
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-3xl font-bold font-mono text-rose-300 tracking-tight">
@@ -383,7 +383,7 @@ export function UnifiedOperationsDesktop({
                 onClick={() => onNavigateTab('blockers')}
                 className="text-xs font-bold text-rose-400 hover:text-rose-300 transition"
               >
-                View Blockers &rarr;
+                View Escalations &rarr;
               </button>
             </div>
 

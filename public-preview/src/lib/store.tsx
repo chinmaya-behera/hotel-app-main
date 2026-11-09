@@ -50,12 +50,18 @@ import {
   seedCustomDiningRequests,
   seedCompensationRefundRequests,
   seedGuestIncidents,
+  seedSupervisorEscalations,
+  seedDutyStatusRequests,
+  seedGuestComplaints,
+  seedTaskReassignRequests,
   MANAGER_COMPENSATION_THRESHOLD,
 } from '@/lib/mockData';
 import { afterAdvance, markCheckedOut, type FdResult } from '@/lib/frontDesk';
+import { seedFrontDeskClaims } from '@/lib/financialClaims';
 import { roleById } from '@/lib/roles';
 import { reviewDepartmentInspection } from '@/lib/manager-workflows';
 import { applyManagerCommand, ensureManagerState, reviewManagerEscalation, type ManagerCommand, type ManagerDepartmentId } from '@/lib/manager-domain';
+import { withManagerDemoRecords } from '@/lib/manager-demo-records';
 import type {
   AuditEvent,
   DemoState,
@@ -70,6 +76,9 @@ import type {
   RoutingRule,
   ShiftHandover,
   StaffAccount,
+  SupervisorEscalationRecord,
+  DutyStatusRequest,
+  TaskReassignRequest,
   ThemeMode,
   Transition,
   WorkflowConfig,
@@ -114,10 +123,12 @@ import type {
   GuestIncidentAttachment,
 } from '@/types/demo';
 
+import { migrateOperationalReferences, nextOperationalReference, taskReferenceInitial } from './operational-references';
+
 const STORAGE_KEY = 'grand-azure-demo-v1';
 
-function seedState(): DemoState {
-  return ensureManagerState(structuredClone({
+function seedState(normalize = true): DemoState {
+  const seed = ensureManagerState(structuredClone({
     persona: null,
     items: seedItems,
     feed: seedFeed,
@@ -156,9 +167,14 @@ function seedState(): DemoState {
     diningCategories: INITIAL_DINING_CATEGORIES,
     activeDispatcherDept: 'Housekeeping' as DispatcherDepartment,
     customDiningRequests: seedCustomDiningRequests,
-    guestCompensationRefundRequests: seedCompensationRefundRequests,
+    guestCompensationRefundRequests: [...seedFrontDeskClaims, ...seedCompensationRefundRequests],
     guestIncidents: seedGuestIncidents,
+    supervisorEscalations: seedSupervisorEscalations,
+    dutyStatusRequests: seedDutyStatusRequests,
+    guestComplaints: seedGuestComplaints,
+    taskReassignRequests: seedTaskReassignRequests,
   }) as DemoState);
+  return normalize ? migrateOperationalReferences(seed) : seed;
 }
 
 export interface Toast {
@@ -185,6 +201,7 @@ export interface GuestRequestInput {
   photoUrl?: string;
   chip?: string;
   tone?: WorkItem['tone'];
+  amount?: number;
   /** optional immediate charge posted to the room folio (e.g. a spa booking) */
   folioCharge?: { label: string; amount: number };
   /** override the default simulated status timeline */
@@ -211,6 +228,17 @@ interface DemoApi {
   updateDiningMenuItem: (id: string, updates: Partial<DiningMenuItem>) => void;
   deleteDiningMenuItem: (id: string) => void;
   toggleDiningMenuItemAvailability: (id: string) => void;
+  updateOrderStatus: (orderId: string, status: string, tone?: 'info' | 'warning' | 'success' | 'danger') => void;
+  acknowledgeSupervisorTask: (taskId: string) => void;
+  rejectFulfillerTask: (taskId: string, reason: string) => void;
+  createSupervisorEscalation: (escalation: Omit<SupervisorEscalationRecord, 'id' | 'escalatedAt'> & { escalatedAt?: string }) => void;
+  updateSupervisorEscalationStatus: (id: string, status: SupervisorEscalationRecord['status'], review?: string) => void;
+  approveDutyStatusRequest: (requestId: string) => void;
+  rejectDutyStatusRequest: (requestId: string, reason: string) => void;
+  approveTaskReassignRequest: (requestId: string, newAssigneeId: string, notes?: string) => void;
+  rejectTaskReassignRequest: (requestId: string, reason: string) => void;
+  updateDispatcherTaskStatus: (taskId: string, status: string) => void;
+  updateDispatcherTaskPriority: (taskId: string, priority: string) => void;
   addDiningCategory: (category: string) => void;
   removeDiningCategory: (category: string) => void;
   cancelGuestItem: (roleId: RoleId, itemId: string) => void;
@@ -220,7 +248,7 @@ interface DemoApi {
     rating: number,
     comment?: string,
     dishesOrTags?: Record<string, { rating: number; comment?: string }> | string[],
-    tags?: string[],
+    tagsOrDishes?: string[] | Record<string, { rating: number; comment?: string }>,
   ) => void;
   disputeFolioCharge: (room: string, lineId: string, reason: string) => void;
   claimLostItem: (room: string, itemId: string) => void;
@@ -261,6 +289,7 @@ interface DemoApi {
     preferredResolution?: string;
     attachments?: CompensationRefundAttachment[];
     additionalInstructions?: string;
+    source?: string;
   }) => string;
   reviewCompensationRefundRequest: (
     id: string,
@@ -292,6 +321,13 @@ interface DemoApi {
   requestTaskReassignment: (itemId: string, reason: string) => void;
   resolveReassignment: (supervisorItemId: string, fulfillerItemId: string, approved: boolean) => void;
   requestEmergencyShiftChange: (reason: string, details?: string) => void;
+  /** Fulfiller → Department Supervisor message (shows in the supervisor's Alerts & Notifications). */
+  notifyDepartmentSupervisor: (input: {
+    department: string;
+    title: string;
+    message: string;
+    tone?: 'urgent' | 'warning' | 'info';
+  }) => void;
   attachTaskPhoto: (roleId: RoleId, itemId: string, dataUrl: string) => void;
   markNotificationRead: (id: string) => void;
   clearAllNotifications: (roleId?: RoleId) => void;
@@ -397,6 +433,8 @@ interface DemoApi {
   /** Phase 4: Guest Reminders (Front Desk & GM VIP) */
   createGuestReminder: (reminder: Omit<GuestReminder, 'id' | 'createdAt'>) => void;
   updateGuestReminderStatus: (id: string, status: GuestReminder['status']) => void;
+  updateGuestReminderTime: (id: string, dueTime: string, dueDateTime?: string) => void;
+  updateGuestReminder: (id: string, patch: Partial<GuestReminder>) => void;
   deleteGuestReminder: (id: string) => void;
   /** Phase 4: Safety Alert Broadcast Engine */
   submitSecuritySafetyAlert: (alert: {
@@ -407,6 +445,8 @@ interface DemoApi {
     incidentType: SafetyAlertRecord['incidentType'];
     description: string;
     broadcastScope: SafetyAlertRecord['broadcastScope'];
+    photoUrl?: string;
+    incidentId?: string;
   }) => void;
   validateSafetyAlertByFrontDesk: (alertId: string, notes?: string) => void;
   approveSafetyAlertByManager: (alertId: string, approved: boolean, notes?: string) => void;
@@ -500,25 +540,6 @@ const nowLabel = () => new Date().toLocaleTimeString([], { hour: '2-digit', minu
 let uidCounter = 0;
 const uid = () => `${Date.now()}-${uidCounter++}`;
 
-const refCounter: Record<string, number> = {};
-function nextRef(prefix: string, room: string) {
-  const key = `${prefix}-${room}`;
-  refCounter[key] = (refCounter[key] ?? 0) + 1;
-  return `${prefix}-${room}-${String(refCounter[key]).padStart(3, '0')}`;
-}
-
-const DEPT_PREFIX: Record<string, string> = {
-  housekeeping: 'HK',
-  maintenance: 'MX',
-  spa: 'SP',
-  concierge: 'CC',
-  recreation: 'REC',
-  room_service: 'DIN',
-  dining: 'DIN',
-  folio: 'FD',
-  lost_found: 'LF',
-};
-
 const NEXT_INTEGRATION: Record<IntegrationState, IntegrationState> = {
   healthy: 'degraded',
   degraded: 'down',
@@ -550,6 +571,13 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const [gestureGuideOpen, setGestureGuideOpen] = useState(false);
   const stateRef = useRef(state);
   stateRef.current = state;
+  const pendingReferences = useRef(new Set<string>());
+  useEffect(() => { pendingReferences.current.clear(); }, [state]);
+  const nextRef = useCallback((initial: string, room = '') => {
+    const reference = nextOperationalReference(stateRef.current, initial, room, undefined, pendingReferences.current);
+    pendingReferences.current.add(reference);
+    return reference;
+  }, []);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   // Load persisted demo state once, after mount (avoids hydration mismatches).
@@ -558,8 +586,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const saved = JSON.parse(raw) as Partial<DemoState>;
-        const base = seedState();
-        setStoredState(initialiseDepartmentHistory(ensureManagerState({
+        const base = seedState(false);
+        const mergedState: DemoState = {
           departmentRecordHistory: saved.departmentRecordHistory,
           departmentServiceTargets: saved.departmentServiceTargets,
           managerDepartment: saved.managerDepartment,
@@ -569,6 +597,19 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           items: {
             ...base.items,
             ...saved.items,
+            security_responder: (saved.items?.security_responder ?? base.items.security_responder ?? []).map((s) => {
+              const b = (base.items.security_responder ?? []).find((x) => x.id === s.id);
+              return b
+                ? {
+                    ...b,
+                    ...s,
+                    incidentPhotoUrl: s.incidentPhotoUrl || b.incidentPhotoUrl,
+                    cctvCameraId: s.cctvCameraId || b.cctvCameraId,
+                    cctvTimestamp: s.cctvTimestamp || b.cctvTimestamp,
+                    incidentPhotoSource: s.incidentPhotoSource || b.incidentPhotoSource,
+                  }
+                : s;
+            }),
             department_dispatcher_supervisor: [
               ...(saved.items?.department_dispatcher_supervisor ?? []).map((s) => {
                 const b = (base.items.department_dispatcher_supervisor ?? []).find((x) => x.id === s.id);
@@ -588,10 +629,15 @@ export function DemoProvider({ children }: { children: ReactNode }) {
               ),
             ],
             general_manager: saved.items?.general_manager ?? base.items.general_manager,
-            // saves made before the Front Desk console start its queue from the new seed
-            front_desk_coordinator: saved.frontDesk
-              ? (saved.items?.front_desk_coordinator ?? base.items.front_desk_coordinator)
-              : base.items.front_desk_coordinator,
+            front_desk_coordinator: [
+              ...((saved.items?.front_desk_coordinator ?? []).map((si) => {
+                const baseItem = (base.items.front_desk_coordinator ?? []).find((b) => b.id === si.id);
+                return baseItem ? { ...baseItem, ...si } : si;
+              })),
+              ...((base.items.front_desk_coordinator ?? []).filter(
+                (bi) => !(saved.items?.front_desk_coordinator ?? []).some((si) => si.id === bi.id),
+              )),
+            ],
           },
           frontDesk: saved.frontDesk
             ? {
@@ -617,7 +663,14 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           theme: saved.theme ?? (saved as unknown as { guestTheme?: ThemeMode }).guestTheme ?? base.theme,
           soundEnabled: saved.soundEnabled ?? base.soundEnabled,
           fulfillerAvailability: saved.fulfillerAvailability ?? base.fulfillerAvailability,
-          notifications: saved.notifications ?? base.notifications,
+          notifications: (() => {
+            const savedNotifs = saved.notifications ?? [];
+            const baseNotifs = base.notifications ?? [];
+            const map = new Map<string, InAppNotification>();
+            baseNotifs.forEach((n) => map.set(n.id, n));
+            savedNotifs.forEach((n) => map.set(n.id, n));
+            return Array.from(map.values());
+          })(),
           shiftChangeRequest: saved.shiftChangeRequest ?? base.shiftChangeRequest,
           routingRules: saved.routingRules ?? base.routingRules,
           resourceRequests: saved.resourceRequests ?? base.resourceRequests,
@@ -625,27 +678,94 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           incidents: saved.incidents ?? base.incidents,
           invoices: saved.invoices ?? base.invoices,
           transactions: saved.transactions ?? base.transactions,
-          refundRequests: saved.refundRequests ?? base.refundRequests,
+          refundRequests: [
+            ...((saved.refundRequests ?? []).map((sr) => {
+              const baseRef = (base.refundRequests ?? []).find((b) => b.id === sr.id);
+              return baseRef ? { ...baseRef, ...sr } : sr;
+            })),
+            ...((base.refundRequests ?? []).filter(
+              (br) => !(saved.refundRequests ?? []).some((sr) => sr.id === br.id || (br.sourceCaseRef && sr.sourceCaseRef === br.sourceCaseRef)),
+            )),
+          ],
           inspections: saved.inspections ?? base.inspections,
           hotelServices: saved.hotelServices ?? base.hotelServices,
           guestPreferences: saved.guestPreferences ?? base.guestPreferences,
           guestMessages: saved.guestMessages ?? [],
-          compensationRequests: saved.compensationRequests ?? base.compensationRequests,
+          compensationRequests: [
+            ...((saved.compensationRequests ?? []).map((sc) => {
+              const baseComp = (base.compensationRequests ?? []).find((b) => b.id === sc.id);
+              return baseComp ? { ...baseComp, ...sc } : sc;
+            })),
+            ...((base.compensationRequests ?? []).filter(
+              (bc) => !(saved.compensationRequests ?? []).some((sc) => sc.id === bc.id),
+            )),
+          ],
           shiftSchedules: saved.shiftSchedules ?? base.shiftSchedules,
           departmentPolicies: saved.departmentPolicies ?? base.departmentPolicies,
-          guestReminders: saved.guestReminders ?? base.guestReminders,
+          guestReminders: [
+            ...((saved.guestReminders ?? []).map((sr) => {
+              const baseRem = (base.guestReminders ?? []).find((b) => b.id === sr.id);
+              return baseRem ? { ...baseRem, ...sr } : sr;
+            })),
+            ...((base.guestReminders ?? []).filter(
+              (br) => !(saved.guestReminders ?? []).some((sr) => sr.id === br.id),
+            )),
+          ],
           safetyAlerts: saved.safetyAlerts ?? base.safetyAlerts,
-          diningMenu: saved.diningMenu ?? base.diningMenu,
+          diningMenu: saved.diningMenu
+            ? [
+                ...saved.diningMenu.map((sd) => {
+                  const baseDish = (base.diningMenu ?? []).find((b) => b.id === sd.id);
+                  return baseDish ? { ...baseDish, ...sd, image: sd.image || baseDish.image } : sd;
+                }),
+                ...((base.diningMenu ?? []).filter(
+                  (bd) => !saved.diningMenu?.some((sd) => sd.id === bd.id),
+                )),
+              ]
+            : base.diningMenu,
           diningCategories: saved.diningCategories ?? base.diningCategories,
           activeDispatcherDept: saved.activeDispatcherDept ?? base.activeDispatcherDept ?? 'Housekeeping',
           customDiningRequests: saved.customDiningRequests ?? base.customDiningRequests,
-          guestCompensationRefundRequests: saved.guestCompensationRefundRequests ?? base.guestCompensationRefundRequests,
+          guestCompensationRefundRequests: [
+            ...((saved.guestCompensationRefundRequests ?? []).map((sc) => {
+              const baseClaim = (base.guestCompensationRefundRequests ?? []).find(
+                (b) => b.id === sc.id || (b.ref && b.ref === sc.ref),
+              );
+              return baseClaim
+                ? {
+                    ...baseClaim,
+                    ...sc,
+                    attachments: (sc.attachments && sc.attachments.length > 0) ? sc.attachments : baseClaim.attachments,
+                    linkedCompId: sc.linkedCompId ?? baseClaim.linkedCompId,
+                    linkedRefundId: sc.linkedRefundId ?? baseClaim.linkedRefundId,
+                  }
+                : sc;
+            })),
+            ...((base.guestCompensationRefundRequests ?? []).filter(
+              (bc) => !(saved.guestCompensationRefundRequests ?? []).some(
+                (sc) => sc.id === bc.id || (sc.ref && sc.ref === bc.ref),
+              ),
+            )),
+          ],
           guestIncidents: saved.guestIncidents ?? base.guestIncidents,
-        })));
+          supervisorEscalations: saved.supervisorEscalations ?? base.supervisorEscalations,
+          dutyStatusRequests: saved.dutyStatusRequests ?? base.dutyStatusRequests,
+          guestComplaints: saved.guestComplaints ?? base.guestComplaints,
+          taskReassignRequests: saved.taskReassignRequests ?? base.taskReassignRequests,
+        };
+        const managerState = ensureManagerState(mergedState);
+        const migratedState = migrateOperationalReferences(managerState);
+        const hydratedState = initialiseDepartmentHistory(migratedState);
+        setStoredState(hydratedState);
       }
     } catch {
       /* corrupted or unavailable storage: fall back to seed data */
     }
+    const now = Date.now();
+    setStoredState(previous => {
+      const withExamples = withManagerDemoRecords(previous, now);
+      return withExamples === previous ? previous : initialiseDepartmentHistory(withExamples, new Date(now).toISOString());
+    });
     setHydrated(true);
   }, []);
 
@@ -747,14 +867,18 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         (Object.keys(nextItems) as RoleId[]).forEach((otherRoleId) => {
           nextItems[otherRoleId] = nextItems[otherRoleId].map((other) => {
             if (other.id === itemId || (item!.ref && other.ref === item!.ref)) {
+              const targetStatus =
+                (otherRoleId === 'task_fulfiller' && (t.next === 'Closed' || t.next === 'Completed'))
+                  ? 'Completed'
+                  : t.next;
               return {
                 ...other,
-                status: t.next,
+                status: targetStatus,
                 selfRequested: t.marksSelf ? true : other.selfRequested,
                 blockerReason:
-                  t.next === 'Blocked'
+                  targetStatus === 'Blocked'
                     ? (reason ?? other.blockerReason)
-                    : t.next === 'In progress' || t.next === 'Accepted' || t.next === 'Completed'
+                    : targetStatus === 'In progress' || targetStatus === 'Accepted' || targetStatus === 'Completed'
                       ? undefined
                       : other.blockerReason,
                 history: [...(other.history ?? []), historyEntry],
@@ -781,9 +905,45 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           }
         }
 
+        const fulfillerNotifs =
+          roleId === 'task_fulfiller' && item
+            ? [
+                {
+                  id: uid(),
+                  roleId: 'task_fulfiller' as RoleId,
+                  department: item.department,
+                  title: t.label || `Task Status: ${t.next}`,
+                  message: `${item.title} → ${t.next} (${nowLabel()})`,
+                  timestamp: nowLabel(),
+                  read: false,
+                  type: (t.next === 'Awaiting inspection' ? 'alert' : 'task') as 'task' | 'alert',
+                  itemId: item.id,
+                },
+                ...(prev.notifications ?? []),
+              ]
+            : (roleId === 'department_supervisor' || roleId === 'department_dispatcher_supervisor') &&
+                (t.next === 'Closed' || t.next === 'Completed') &&
+                item
+              ? [
+                  {
+                    id: uid(),
+                    roleId: 'task_fulfiller' as RoleId,
+                    department: item.department,
+                    title: 'Task Approved by Supervisor',
+                    message: `${item.title} verified & approved. Task Completed.`,
+                    timestamp: nowLabel(),
+                    read: false,
+                    type: 'task' as const,
+                    itemId: item.id,
+                  },
+                  ...(prev.notifications ?? []),
+                ]
+              : (prev.notifications ?? []);
+
         return {
           ...prev,
           items: nextItems,
+          notifications: fulfillerNotifs,
           feed: [{ id: uid(), at: nowLabel(), role: roleById[roleId]?.short ?? 'Staff', text }, ...prev.feed].slice(0, 30),
           revokedRooms:
             revokes && item!.room && !prev.revokedRooms.includes(item!.room)
@@ -850,12 +1010,12 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
   const submitGuestRequest = useCallback<DemoApi['submitGuestRequest']>(
     (input) => {
-      const ref = nextRef(DEPT_PREFIX[input.category] ?? 'GR', input.room);
+      const ref = nextRef(taskReferenceInitial(input.category), input.room);
       // Untagged or concierge requests enter the Front Desk queue; documented department requests reach Department Dispatcher / Supervisor
       const isConcierge = input.category === 'concierge' || !input.category;
       const targetRole: RoleId = isConcierge ? 'front_desk_coordinator' : 'department_dispatcher_supervisor';
       const id = uid();
-      const createdAt = nowLabel();
+      const createdAt = new Date().toISOString();
       const taskFloor = input.room ? parseInt(input.room[0], 10) || 1 : undefined;
 
       const newItem: WorkItem = {
@@ -872,6 +1032,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         category: input.category,
         description: input.description,
         priority: input.priority ?? 'normal',
+        amount: input.amount,
         ref,
         createdAt,
         dnd: input.dnd,
@@ -1156,6 +1317,34 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     });
     notify('Emergency shift handover request logged with Duty Manager');
   }, [notify]);
+
+  const notifyDepartmentSupervisor = useCallback<DemoApi['notifyDepartmentSupervisor']>(
+    ({ department, title, message, tone }) => {
+      const timestamp = nowLabel();
+      setState((prev) => {
+        const supervisorNotif: InAppNotification = {
+          id: uid(),
+          roleId: 'department_dispatcher_supervisor',
+          targetRole: 'department_dispatcher_supervisor',
+          category: 'Operations',
+          department,
+          title,
+          message,
+          summary: message,
+          timestamp,
+          read: false,
+          type: 'alert',
+          tone: tone ?? 'info',
+        };
+        return {
+          ...prev,
+          notifications: [supervisorNotif, ...(prev.notifications ?? [])],
+          feed: [{ id: uid(), at: timestamp, role: department, text: title }, ...prev.feed].slice(0, 30),
+        };
+      });
+    },
+    [],
+  );
 
   const markNotificationRead = useCallback((id: string) => {
     setState((prev) => ({
@@ -1598,7 +1787,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
   const escalateTaskToManager = useCallback<DemoApi['escalateTaskToManager']>(
     (taskId, reason) => {
-      const timestamp = nowLabel();
+      const timestamp = new Date().toISOString();
       setState((prev) => {
         const task =
           prev.items.department_dispatcher?.find((i) => i.id === taskId) ||
@@ -1626,7 +1815,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         const managerItem: WorkItem = {
           id: uid(),
           department: task.department,
-          ref: task.ref,
+          ref: nextOperationalReference(prev, 'ESC', task.room || task.location, timestamp),
           title: `DISPATCH ESCALATION: ${task.title}`,
           meta: `${task.department || 'Operations'} · Room ${task.room || 'General'} · Escalated by Dispatcher`,
           status: 'Escalated',
@@ -1789,9 +1978,9 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const placeRoomServiceOrder = useCallback<DemoApi['placeRoomServiceOrder']>(
     (room, lines, note, requestedServiceAt) => {
       const total = Math.round(lines.reduce((sum, l) => sum + l.price * l.qty, 0) * 100) / 100;
-      const ref = nextRef('DIN', room);
+      const ref = nextRef('FB', room);
       const id = uid();
-      const createdAt = nowLabel();
+      const createdAt = new Date().toISOString();
       const summary = lines.map((l) => `${l.qty}× ${l.name}`).join(', ');
       const newItem: WorkItem = {
         id,
@@ -1898,6 +2087,479 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const updateOrderStatus = useCallback<DemoApi['updateOrderStatus']>(
+    (orderId, status, tone) => {
+      setState((prev) => {
+        const nextItems = { ...prev.items };
+        (Object.keys(nextItems) as RoleId[]).forEach((role) => {
+          if (!nextItems[role]) return;
+          nextItems[role] = nextItems[role].map((item) => {
+            if (item.id === orderId || (item.ref && item.ref === orderId)) {
+              return {
+                ...item,
+                status,
+                chip: status,
+                tone:
+                  tone ??
+                  (status === 'Delivered'
+                    ? 'success'
+                    : status === 'Preparing in Kitchen' || status === 'Preparing'
+                      ? 'warning'
+                      : status === 'Out for Delivery'
+                        ? 'info'
+                        : status === 'Cancelled'
+                          ? 'danger'
+                          : 'info'),
+                history: [...(item.history ?? []), { at: nowLabel(), status }],
+              };
+            }
+            return item;
+          });
+        });
+        return {
+          ...prev,
+          items: nextItems,
+          feed: [
+            { id: uid(), at: nowLabel(), role: 'F&B Supervisor', text: `Order ${orderId} updated to "${status}"` },
+            ...prev.feed,
+          ].slice(0, 30),
+        };
+      });
+      notify(`Order status updated to "${status}"`);
+    },
+    [notify],
+  );
+
+  const acknowledgeSupervisorTask = useCallback<DemoApi['acknowledgeSupervisorTask']>(
+    (taskId) => {
+      const at = nowLabel();
+      setState((prev) => {
+        const nextItems = { ...prev.items };
+        (Object.keys(nextItems) as RoleId[]).forEach((role) => {
+          if (!nextItems[role]) return;
+          nextItems[role] = nextItems[role].map((item) => {
+            if (item.id === taskId || (item.ref && item.ref === taskId)) {
+              return {
+                ...item,
+                supervisorAcknowledged: true,
+                acknowledgedBySupervisorAt: at,
+                history: [
+                  ...(item.history ?? []),
+                  { at, status: 'Supervisor Acknowledged', note: 'Escalation acknowledged by supervisor' },
+                ],
+              };
+            }
+            return item;
+          });
+        });
+        return {
+          ...prev,
+          items: nextItems,
+          feed: [
+            { id: uid(), at, role: 'Supervisor', text: `Escalation acknowledged for ${taskId}` },
+            ...prev.feed,
+          ].slice(0, 30),
+        };
+      });
+      notify('Escalation acknowledged');
+    },
+    [notify],
+  );
+
+  const rejectFulfillerTask = useCallback<DemoApi['rejectFulfillerTask']>(
+    (taskId, reason) => {
+      const at = nowLabel();
+      setState((prev) => {
+        const nextItems = { ...prev.items };
+        (Object.keys(nextItems) as RoleId[]).forEach((role) => {
+          if (!nextItems[role]) return;
+          nextItems[role] = nextItems[role].map((item) => {
+            if (item.id === taskId || (item.ref && item.ref === taskId)) {
+              return {
+                ...item,
+                status: 'Rejected',
+                chip: 'Rejected',
+                tone: 'danger',
+                blockerReason: reason,
+                review: reason,
+                history: [
+                  ...(item.history ?? []),
+                  { at, status: 'Rejected by Supervisor', note: reason },
+                ],
+              };
+            }
+            return item;
+          });
+        });
+        return {
+          ...prev,
+          items: nextItems,
+          feed: [
+            { id: uid(), at, role: 'Supervisor', text: `Task ${taskId} rejected: ${reason}` },
+            ...prev.feed,
+          ].slice(0, 30),
+        };
+      });
+      notify('Task rejected with feedback provided to fulfiller');
+    },
+    [notify],
+  );
+
+  const createSupervisorEscalation = useCallback<DemoApi['createSupervisorEscalation']>(
+    (escalation) => {
+      const id = `esc-${Date.now().toString().slice(-6)}`;
+      const newEscalation: SupervisorEscalationRecord = {
+        ...escalation,
+        id,
+        escalatedAt: escalation.escalatedAt ?? 'Just now',
+        status: escalation.status ?? 'Not Viewed',
+      };
+      setState((prev) => ({
+        ...prev,
+        supervisorEscalations: [newEscalation, ...(prev.supervisorEscalations ?? [])],
+        feed: [
+          {
+            id: uid(),
+            at: nowLabel(),
+            role: 'Supervisor',
+            text: `Escalated ${newEscalation.taskRef} to ${newEscalation.department} Manager: ${newEscalation.reason}`,
+          },
+          ...prev.feed,
+        ].slice(0, 30),
+      }));
+      notify(`Escalated to ${escalation.department} Manager`);
+    },
+    [notify],
+  );
+
+  const updateSupervisorEscalationStatus = useCallback<DemoApi['updateSupervisorEscalationStatus']>(
+    (id, status, review) => {
+      setState((prev) => ({
+        ...prev,
+        supervisorEscalations: (prev.supervisorEscalations ?? []).map((esc) =>
+          esc.id === id ? { ...esc, status, ...(review ? { notes: review } : {}) } : esc,
+        ),
+      }));
+      notify(`Escalation status updated to "${status}"`);
+    },
+    [notify],
+  );
+
+  const approveDutyStatusRequest = useCallback<DemoApi['approveDutyStatusRequest']>(
+    (requestId) => {
+      let targetStaffId = '';
+      let targetStatus: 'on_duty' | 'break' | 'off_duty' = 'on_duty';
+      let empName = '';
+
+      setState((prev) => {
+        const list = prev.dutyStatusRequests ?? [];
+        const req = list.find((r) => r.id === requestId);
+        if (!req) return prev;
+        targetStaffId = req.staffId;
+        targetStatus = req.requestedStatus;
+        empName = req.employeeName;
+
+        const updatedRequests = list.map((r) =>
+          r.id === requestId
+            ? {
+                ...r,
+                status: 'approved' as const,
+                reviewedAt: 'Just now',
+                reviewedBy: 'Supervisor',
+              }
+            : r,
+        );
+
+        // Also update staff availability in staffAccounts
+        const updatedStaff = (prev.staffAccounts ?? []).map((s) =>
+          s.id === targetStaffId || s.employeeId === req.employeeId
+            ? { ...s, availability: targetStatus }
+            : s,
+        );
+
+        return {
+          ...prev,
+          dutyStatusRequests: updatedRequests,
+          staffAccounts: updatedStaff,
+          fulfillerAvailability:
+            req.employeeId === 'EMP-0103' ? targetStatus : prev.fulfillerAvailability,
+          feed: [
+            {
+              id: uid(),
+              at: nowLabel(),
+              role: 'Supervisor',
+              text: `Approved duty status change for ${empName}: now ${targetStatus.replace('_', ' ')}`,
+            },
+            ...prev.feed,
+          ].slice(0, 30),
+        };
+      });
+
+      notify(`Approved ${empName}'s duty request: status changed to ${targetStatus.replace('_', ' ')}`);
+    },
+    [notify],
+  );
+
+  const rejectDutyStatusRequest = useCallback<DemoApi['rejectDutyStatusRequest']>(
+    (requestId, reason) => {
+      let empName = '';
+      setState((prev) => {
+        const list = prev.dutyStatusRequests ?? [];
+        const req = list.find((r) => r.id === requestId);
+        if (!req) return prev;
+        empName = req.employeeName;
+
+        const updatedRequests = list.map((r) =>
+          r.id === requestId
+            ? {
+                ...r,
+                status: 'rejected' as const,
+                supervisorReviewNotes: reason.trim(),
+                reviewedAt: 'Just now',
+                reviewedBy: 'Supervisor',
+              }
+            : r,
+        );
+
+        return {
+          ...prev,
+          dutyStatusRequests: updatedRequests,
+          feed: [
+            {
+              id: uid(),
+              at: nowLabel(),
+              role: 'Supervisor',
+              text: `Rejected duty status request for ${empName}: ${reason.trim()}`,
+            },
+            ...prev.feed,
+          ].slice(0, 30),
+        };
+      });
+
+      notify(`Duty request for ${empName} rejected with feedback provided`);
+    },
+    [notify],
+  );
+
+  const approveTaskReassignRequest = useCallback<DemoApi['approveTaskReassignRequest']>(
+    (requestId, newAssigneeId, notes) => {
+      let targetStaffName = '';
+      let reqTitle = '';
+      let prevAssignee = '';
+
+      setState((prev) => {
+        const list = prev.taskReassignRequests ?? [];
+        const req = list.find((r) => r.id === requestId);
+        if (!req) return prev;
+
+        reqTitle = req.taskTitle;
+        prevAssignee = req.requesterName;
+
+        const newStaff = (prev.staffAccounts ?? []).find(
+          (s) => s.id === newAssigneeId || s.employeeId === newAssigneeId,
+        );
+        targetStaffName = newStaff ? newStaff.name : 'Colleague';
+
+        const updatedRequests = list.map((r) =>
+          r.id === requestId
+            ? {
+                ...r,
+                status: 'reassigned' as const,
+                reassignedToStaffId: newAssigneeId,
+                reassignedToName: targetStaffName,
+                supervisorNotes: notes || `Reassigned to ${targetStaffName} by Supervisor.`,
+                reviewedAt: 'Just now',
+                reviewedBy: 'Supervisor',
+              }
+            : r,
+        );
+
+        // Update the task across items
+        const historyEntry: GuestHistoryEntry = {
+          at: nowLabel(),
+          status: 'Reassigned',
+          note: `Supervisor approved reassignment from ${req.requesterName} to ${targetStaffName}. Note: ${notes || 'Workload balanced'}`,
+          actor: 'Supervisor',
+          role: 'Supervisor',
+        };
+
+        const updatedItems = { ...prev.items };
+        Object.keys(updatedItems).forEach((roleKey) => {
+          const role = roleKey as RoleId;
+          updatedItems[role] = (updatedItems[role] ?? []).map((item) => {
+            if (item.id === req.taskId || (req.taskRef && item.ref === req.taskRef)) {
+              return {
+                ...item,
+                assignee: targetStaffName,
+                assigneeId: newAssigneeId,
+                reassignPending: false,
+                reassignReason: undefined,
+                status: 'Assigned',
+                chip: `Assigned: ${targetStaffName.split(' ')[0]}`,
+                history: [...(item.history ?? []), historyEntry],
+                notes: `${item.notes || ''} [Supervisor Reassigned to ${targetStaffName}: ${notes || 'Approved'}]`.trim(),
+              };
+            }
+            return item;
+          });
+        });
+
+        return {
+          ...prev,
+          taskReassignRequests: updatedRequests,
+          items: updatedItems,
+          feed: [
+            {
+              id: uid(),
+              at: nowLabel(),
+              role: 'Supervisor',
+              text: `Reassigned "${reqTitle}" from ${prevAssignee} to ${targetStaffName}`,
+            },
+            ...prev.feed,
+          ].slice(0, 30),
+        };
+      });
+
+      notify(`Task reassigned to ${targetStaffName}`);
+    },
+    [notify],
+  );
+
+  const rejectTaskReassignRequest = useCallback<DemoApi['rejectTaskReassignRequest']>(
+    (requestId, reason) => {
+      let requester = '';
+      let reqTitle = '';
+
+      setState((prev) => {
+        const list = prev.taskReassignRequests ?? [];
+        const req = list.find((r) => r.id === requestId);
+        if (!req) return prev;
+        requester = req.requesterName;
+        reqTitle = req.taskTitle;
+
+        const updatedRequests = list.map((r) =>
+          r.id === requestId
+            ? {
+                ...r,
+                status: 'rejected' as const,
+                supervisorNotes: reason.trim(),
+                reviewedAt: 'Just now',
+                reviewedBy: 'Supervisor',
+              }
+            : r,
+        );
+
+        const historyEntry: GuestHistoryEntry = {
+          at: nowLabel(),
+          status: 'Assigned',
+          note: `Supervisor declined reassignment request from ${req.requesterName}. Note: ${reason.trim()}. Attendant retained.`,
+          actor: 'Supervisor',
+          role: 'Supervisor',
+        };
+
+        const updatedItems = { ...prev.items };
+        Object.keys(updatedItems).forEach((roleKey) => {
+          const role = roleKey as RoleId;
+          updatedItems[role] = (updatedItems[role] ?? []).map((item) => {
+            if (item.id === req.taskId || (req.taskRef && item.ref === req.taskRef)) {
+              return {
+                ...item,
+                reassignPending: false,
+                history: [...(item.history ?? []), historyEntry],
+                notes: `${item.notes || ''} [Supervisor Declined Reassignment: ${reason.trim()}]`.trim(),
+              };
+            }
+            return item;
+          });
+        });
+
+        return {
+          ...prev,
+          taskReassignRequests: updatedRequests,
+          items: updatedItems,
+          feed: [
+            {
+              id: uid(),
+              at: nowLabel(),
+              role: 'Supervisor',
+              text: `Declined reassignment request for "${reqTitle}" by ${requester}`,
+            },
+            ...prev.feed,
+          ].slice(0, 30),
+        };
+      });
+
+      notify(`Reassignment request declined for ${requester}`);
+    },
+    [notify],
+  );
+
+  const updateDispatcherTaskStatus = useCallback<DemoApi['updateDispatcherTaskStatus']>(
+    (taskId, status) => {
+      setState((prev) => {
+        const updatedItems = { ...prev.items };
+        Object.keys(updatedItems).forEach((roleKey) => {
+          const role = roleKey as RoleId;
+          updatedItems[role] = (updatedItems[role] ?? []).map((item) => {
+            if (item.id === taskId) {
+              return {
+                ...item,
+                status,
+                history: [
+                  ...(item.history ?? []),
+                  {
+                    at: nowLabel(),
+                    status,
+                    note: `Status updated to ${status} by Supervisor`,
+                    actor: 'Supervisor',
+                    role: 'Supervisor',
+                  },
+                ],
+              };
+            }
+            return item;
+          });
+        });
+        return { ...prev, items: updatedItems };
+      });
+      notify(`Task status updated to ${status}`);
+    },
+    [notify],
+  );
+
+  const updateDispatcherTaskPriority = useCallback<DemoApi['updateDispatcherTaskPriority']>(
+    (taskId, priority) => {
+      setState((prev) => {
+        const updatedItems = { ...prev.items };
+        Object.keys(updatedItems).forEach((roleKey) => {
+          const role = roleKey as RoleId;
+          updatedItems[role] = (updatedItems[role] ?? []).map((item) => {
+            if (item.id === taskId) {
+              return {
+                ...item,
+                priority: priority as any,
+                history: [
+                  ...(item.history ?? []),
+                  {
+                    at: nowLabel(),
+                    status: item.status,
+                    note: `Priority changed to ${priority.toUpperCase()} by Supervisor`,
+                    actor: 'Supervisor',
+                    role: 'Supervisor',
+                  },
+                ],
+              };
+            }
+            return item;
+          });
+        });
+        return { ...prev, items: updatedItems };
+      });
+      notify(`Task priority updated to ${priority.toUpperCase()}`);
+    },
+    [notify],
+  );
+
   const addDiningCategory = useCallback<DemoApi['addDiningCategory']>(
     (category) => {
       const clean = category.trim();
@@ -1942,14 +2604,17 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
       if (Array.isArray(dishesOrTags)) {
         tags = dishesOrTags;
+        if (extraTags && typeof extraTags === 'object' && !Array.isArray(extraTags)) {
+          dishes = extraTags as Record<string, { rating: number; comment?: string }>;
+        }
       } else if (dishesOrTags && typeof dishesOrTags === 'object') {
         dishes = dishesOrTags;
-        tags = extraTags;
+        tags = Array.isArray(extraTags) ? extraTags : undefined;
       } else if (Array.isArray(extraTags)) {
         tags = extraTags;
       }
 
-      const item = stateRef.current.items[roleId]?.find((i) => i.id === itemId || i.ref === itemId);
+      const item = (stateRef.current?.items || state.items)[roleId]?.find((i) => i.id === itemId || i.ref === itemId);
       let feedbackPatch: Partial<WorkItem> = { feedback: { rating, comment, tags, submittedAt } };
 
       if (item?.orderLines?.length) {
@@ -2019,14 +2684,14 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       });
       notify('Thank you for rating our service!');
     },
-    [notify],
+    [notify, state.items],
   );
 
   const submitCustomDiningRequest = useCallback<DemoApi['submitCustomDiningRequest']>(
     (input) => {
-      const ref = nextRef('CST', input.room);
+      const ref = nextRef('FB', input.room);
       const id = uid();
-      const createdAt = nowLabel();
+      const createdAt = new Date().toISOString();
       const newCustomItem: CustomDiningRequest = {
         id,
         ref,
@@ -2346,7 +3011,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     (input) => {
       const ref = nextRef('REF', input.room);
       const id = uid();
-      const createdAt = nowLabel();
+      const createdAt = new Date().toISOString();
       const newRequest: CompensationRefundRequest = {
         id,
         ref,
@@ -2364,7 +3029,14 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         additionalInstructions: input.additionalInstructions,
         status: 'Submitted',
         createdAt,
-        history: [{ at: createdAt, status: 'Submitted', note: `Compensation/refund request submitted: ${input.category}`, staff: 'Guest' }],
+        history: [{
+          at: createdAt,
+          status: 'Submitted',
+          note: input.source
+            ? `Logged in-person at Front Desk counter: ${input.category}`
+            : `Compensation/refund request submitted: ${input.category}`,
+          staff: input.source ? 'Front Desk · Sunita Patel' : 'Guest',
+        }],
       };
 
       const taskFloor = input.room ? parseInt(input.room[0], 10) || 1 : undefined;
@@ -2386,7 +3058,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         createdAt,
         compensationRefundId: id,
         amount: input.amountRequested,
-        history: [{ at: createdAt, status: 'Submitted', note: 'Submitted to Front Desk Duty Team' }],
+        history: [{ at: createdAt, status: 'Submitted', note: input.source ? 'Logged in-person by Front Desk' : 'Submitted to Front Desk Duty Team' }],
       };
 
       setState((prev) => ({
@@ -2397,12 +3069,19 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           front_desk_coordinator: [workItem, ...(prev.items.front_desk_coordinator ?? [])],
         },
         feed: [
-          { id: uid(), at: createdAt, role: 'Guest Relations', text: `New ${input.category} ${ref} logged for Room ${input.room} (${input.guestName})` },
+          {
+            id: uid(),
+            at: createdAt,
+            role: 'Front Desk',
+            text: input.source
+              ? `In-person financial claim ${ref} logged for Room ${input.room} (${input.guestName})`
+              : `New ${input.category} ${ref} logged for Room ${input.room} (${input.guestName})`,
+          },
           ...prev.feed,
         ].slice(0, 30),
       }));
 
-      notify(`Compensation & refund request ${ref} submitted to Front Desk team.`);
+      notify(input.source ? `In-person claim ${ref} logged for Room ${input.room}.` : `Compensation & refund request ${ref} submitted to Front Desk team.`);
       return ref;
     },
     [notify],
@@ -2547,7 +3226,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       setState((prev) => {
         const line = (prev.folios[room] ?? []).find((l) => l.id === lineId);
         if (!line) return prev;
-        const ref = nextRef('FD', room);
+        const ref = nextRef('TSK', room);
         const disputeItem: WorkItem = {
           id: uid(),
           title: `Folio dispute · ${line.label}`,
@@ -2886,7 +3565,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     (department, priority = 'normal') => {
       const testId = uid();
       const testRef = `TEST-${Math.floor(1000 + Math.random() * 9000)}`;
-      const createdAt = nowLabel();
+      const createdAt = new Date().toISOString();
       const testItem: WorkItem = {
         id: testId,
         title: `Workflow test: ${department} dispatch`,
@@ -4053,7 +4732,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     (incident) => {
       const timestamp = nowLabel();
       const id = `sec-${Date.now().toString().slice(-4)}`;
-      const ref = `SEC-2026-${String(Math.floor(Math.random() * 900) + 100)}`;
+      const ref = nextRef('INC', incident.room || incident.location);
       const toneMap: Record<string, Tone> = {
         critical: 'danger',
         major: 'danger',
@@ -4907,9 +5586,9 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
   const escalateSupervisorIssue = useCallback<DemoApi['escalateSupervisorIssue']>(
     (issue) => {
-      const timestamp = nowLabel();
-      const escId = `INC-${Date.now().toString().slice(-4)}`;
-      const escRef = `ESC-${issue.room || 'HK'}-${Date.now().toString().slice(-3)}`;
+      const timestamp = new Date().toISOString();
+      const escId = 'incident-' + uid();
+      const escRef = nextRef('ESC', issue.room);
 
       const newIncident: IncidentRecord = {
         id: escId,
@@ -4945,7 +5624,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       setState((prev) => ({
         ...prev,
         incidents: [newIncident, ...(prev.incidents ?? seedIncidents)],
-        items: { ...prev.items, department_manager: [{ id: escId, ref: escRef, title: issue.title, room: issue.room, department: issue.department || 'Housekeeping', status: 'Escalated', priority: issue.priority, meta: 'Department supervisor · ' + issue.reason, description: issue.notes || issue.reason, createdAt: new Date().toISOString() }, ...(prev.items.department_manager ?? [])] },
+        items: { ...prev.items, department_manager: [{ id: escId, ref: escRef, title: issue.title, room: issue.room, department: issue.department || 'Housekeeping', status: 'Escalated', priority: issue.priority, meta: 'Department supervisor · ' + issue.reason, description: issue.notes || issue.reason, escalationReason: issue.reason, createdAt: new Date().toISOString() }, ...(prev.items.department_manager ?? [])] },
         notifications: [newNotification, ...(prev.notifications ?? [])].slice(0, 50),
         feed: [
           {
@@ -4976,13 +5655,13 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const createDispatcherTask = useCallback<DemoApi['createDispatcherTask']>(
     (input) => {
       const timestamp = nowLabel();
-      const id = `task-${Date.now().toString().slice(-5)}`;
+      const id = 'task-' + uid();
       const refPrefix = input.department.toLowerCase().includes('house')
         ? 'HK'
         : input.department.toLowerCase().includes('maint')
-          ? 'MNT'
-          : 'ORD';
-      const ref = `${refPrefix}-${input.room || 'FL'}-${Date.now().toString().slice(-3)}`;
+          ? 'REP'
+          : /food|dining|beverage/i.test(input.department) ? 'FB' : 'TSK';
+      const ref = nextRef(refPrefix, input.room);
       const floor = input.floor || (input.room ? parseInt(input.room[0], 10) || 1 : 1);
       const isAssigned = !!(input.assigneeId && input.assigneeName);
 
@@ -5307,8 +5986,21 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         const notif: InAppNotification = {
           id: uid(),
           roleId: 'department_dispatcher_supervisor',
+          department: task.department,
           title: 'Task Self-Claimed',
           message: `${fulfillerName} self-claimed ${task.title} (Room ${task.room || 'General'})`,
+          timestamp,
+          read: false,
+          type: 'task',
+          itemId: task.id,
+        };
+
+        const fulfillerNotif: InAppNotification = {
+          id: uid(),
+          roleId: 'task_fulfiller',
+          department: task.department,
+          title: 'Task Claimed',
+          message: `You claimed "${task.title}" (Room ${task.room || 'General'}) into your active queue.`,
           timestamp,
           read: false,
           type: 'task',
@@ -5327,7 +6019,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
             ),
             task_fulfiller: nextFulfillerItems,
           },
-          notifications: [notif, ...(prev.notifications ?? [])],
+          notifications: [fulfillerNotif, notif, ...(prev.notifications ?? [])],
           feed: [
             {
               id: uid(),
@@ -5709,12 +6401,67 @@ export function DemoProvider({ children }: { children: ReactNode }) {
             type: 'alert',
             itemId: target.id,
           });
+        } else if (action === 'reject') {
+          notifs.unshift({
+            id: uid(),
+            roleId: 'front_desk_coordinator',
+            title: 'Claim Rejected by General Manager',
+            message: `GM Priya Nair declined the claim for Room ${target.room} (${target.ref}): ${comments}`,
+            timestamp,
+            read: false,
+            type: 'alert',
+            itemId: target.id,
+          });
+        }
+
+        let updatedRefunds = prev.refundRequests;
+        if (action === 'forward_to_finance' && target.category === 'Guest refund') {
+          const refundId = `RFD-${target.ref}`;
+          if (!updatedRefunds?.some((r) => r.id === refundId)) {
+            const invoice = prev.invoices?.find((i) => i.roomNumber === target.room);
+            const newRefund: FinanceRefundRequest = {
+              id: refundId,
+              invoiceId: invoice?.id ?? `FOL-${target.room}`,
+              guestName: target.guestName,
+              roomNumber: target.room,
+              amount: target.amount,
+              reason: target.reason,
+              requestedAt: `Today, ${timestamp}`,
+              requestedBy: 'Priya Nair (General Manager via Front Desk)',
+              status: 'Pending Review',
+              sourceCaseRef: target.ref.replace(/-GM$/, ''),
+              cardMask: '•••• 4242',
+            };
+            updatedRefunds = [newRefund, ...(updatedRefunds ?? [])];
+          }
+        }
+
+        let updatedGuestNotifs = prev.guestNotifications;
+        if (target.room) {
+          const guestNote = {
+            id: uid(),
+            room: target.room,
+            category: 'Payment/Billing Updates' as const,
+            title: action === 'forward_to_finance' ? 'Your financial claim was approved by GM' : 'Update on your financial claim',
+            message:
+              action === 'forward_to_finance'
+                ? `General Manager Priya Nair approved your ₹${target.amount.toLocaleString('en-IN')} ${target.category?.toLowerCase() || 'claim'}. Forwarded to Finance for final settlement.`
+                : `General Manager Priya Nair reviewed your claim: ${comments}`,
+            date: 'Today',
+            time: timestamp,
+            read: false,
+            targetTab: 'services' as const,
+            targetSubtab: 'compensation',
+          };
+          updatedGuestNotifs = [guestNote, ...(prev.guestNotifications ?? [])];
         }
 
         return {
           ...prev,
           compensationRequests: requests.map((r) => (r.id === requestId ? updatedRequest : r)),
+          refundRequests: updatedRefunds,
           notifications: notifs.slice(0, 50),
+          guestNotifications: updatedGuestNotifs,
           feed: [
             {
               id: uid(),
@@ -6038,6 +6785,38 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     [notify],
   );
 
+  const updateGuestReminderTime = useCallback<DemoApi['updateGuestReminderTime']>(
+    (id, dueTime, dueDateTime) => {
+      setState((prev) => ({
+        ...prev,
+        guestReminders: (prev.guestReminders ?? seedGuestReminders).map((r) =>
+          r.id === id
+            ? {
+                ...r,
+                dueTime,
+                dueDateTime: dueDateTime || `${r.dueDate || 'Today'}, ${dueTime}`,
+              }
+            : r,
+        ),
+      }));
+      notify(`Reminder time updated to ${dueTime}`);
+    },
+    [notify],
+  );
+
+  const updateGuestReminder = useCallback<DemoApi['updateGuestReminder']>(
+    (id, patch) => {
+      setState((prev) => ({
+        ...prev,
+        guestReminders: (prev.guestReminders ?? seedGuestReminders).map((r) =>
+          r.id === id ? { ...r, ...patch } : r,
+        ),
+      }));
+      notify(`Reminder updated for Room ${patch.room ?? ''}`);
+    },
+    [notify],
+  );
+
   const deleteGuestReminder = useCallback<DemoApi['deleteGuestReminder']>(
     (id) => {
       setState((prev) => ({
@@ -6052,7 +6831,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const submitSecuritySafetyAlert = useCallback<DemoApi['submitSecuritySafetyAlert']>(
     (input) => {
       const alertId = `alert-${Date.now().toString().slice(-4)}`;
-      const ref = `SFT-${String(Math.floor(100 + Math.random() * 900))}`;
+      const ref = nextRef('INC', input.location);
       const now = nowLabel();
       const newAlert: SafetyAlertRecord = {
         ...input,
@@ -6259,12 +7038,12 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const broadcastSafetyAlert = useCallback<DemoApi['broadcastSafetyAlert']>(
     (alertId) => {
       const now = nowLabel();
-      let alertRef = '';
+      const approved = stateRef.current.safetyAlerts?.find(alert => alert.id === alertId);
+      if (approved?.status !== 'approved_ready_broadcast') return;
       setState((prev) => {
         const list = prev.safetyAlerts ?? seedSafetyAlerts;
         const target = list.find((a) => a.id === alertId);
-        if (!target) return prev;
-        alertRef = target.ref;
+        if (target?.status !== 'approved_ready_broadcast') return prev;
 
         const updated: SafetyAlertRecord = {
           ...target,
@@ -6276,12 +7055,12 @@ export function DemoProvider({ children }: { children: ReactNode }) {
               at: now,
               actor: 'Front Desk Broadcast Engine',
               role: 'front_desk_coordinator',
-              action: 'Active broadcast dispatched across all staff consoles and property displays',
+              action: `Safety alert broadcast to ${target.broadcastScope.replaceAll('_', ' ')}`,
             },
           ],
         };
 
-        const allRoles: RoleId[] = [
+        const recipients: RoleId[] = target.broadcastScope === 'security_only' ? ['security_responder'] : [
           'task_fulfiller',
           'department_dispatcher_supervisor',
           'department_manager',
@@ -6291,34 +7070,35 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           'general_manager',
         ];
 
-        const broadcastNotifs: InAppNotification[] = allRoles.map((rId) => ({
+        const broadcastNotifs: InAppNotification[] = recipients.map((rId) => ({
           id: uid(),
           roleId: rId,
           title: `🚨 SAFETY ALERT BROADCAST: ${target.title}`,
           message: `${target.description} (Location: ${target.location}). Exercise operational precautions.`,
           timestamp: now,
           read: false,
-          priority: 'critical',
+          itemId: target.id,
+          priority: target.priority,
           link: rId === 'security_responder' ? '/staff/security' : rId === 'general_manager' ? '/staff/general-manager' : '/staff/front-desk',
         }));
 
         return {
           ...prev,
-          safetyAlerts: list.map((a) => (a.id === alertId ? updated : a)),
+          safetyAlerts: [updated, ...list.filter(alert => alert.id !== alertId)],
           notifications: [...broadcastNotifs, ...(prev.notifications ?? [])],
           feed: [
             {
               id: uid(),
               at: now,
               role: 'Front Desk',
-              text: `BROADCAST ACTIVE: Safety Alert ${target.ref} activated hotel-wide!`,
+              text: `Safety alert ${target.ref} published for ${target.broadcastScope.replaceAll('_', ' ')}`,
             },
             ...prev.feed,
           ],
         };
       });
 
-      notify(`🚨 Hotel-wide Safety Alert ${alertRef} is now BROADCAST ACTIVE!`);
+      notify(`Safety alert ${approved.ref} published`);
     },
     [notify],
   );
@@ -6628,7 +7408,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const submitGuestComplaint = useCallback<DemoApi['submitGuestComplaint']>(
     (input) => {
       const timestamp = nowLabel();
-      const complaintId = `CMP-${input.room}-${String(Date.now()).slice(-4)}`;
+      const complaintId = nextRef('GC', input.room);
       const id = `cmp-${uid()}`;
       const stay = (stateRef.current.frontDesk?.stays ?? []).find((s) => s.room === input.room && s.status === 'in_house');
 
@@ -6733,7 +7513,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     (input) => {
       const timestamp = nowLabel();
       const id = `req-${uid()}`;
-      const ref = nextRef('REQ', input.room);
+      const ref = nextRef('TSK', input.room);
       const stay = (stateRef.current.frontDesk?.stays ?? []).find((s) => s.room === input.room && s.status === 'in_house');
 
       const newMsg: GuestFrontDeskMessage = {
@@ -7149,6 +7929,17 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       updateDiningMenuItem,
       deleteDiningMenuItem,
       toggleDiningMenuItemAvailability,
+      updateOrderStatus,
+      acknowledgeSupervisorTask,
+      rejectFulfillerTask,
+      createSupervisorEscalation,
+      updateSupervisorEscalationStatus,
+      approveDutyStatusRequest,
+      rejectDutyStatusRequest,
+      approveTaskReassignRequest,
+      rejectTaskReassignRequest,
+      updateDispatcherTaskStatus,
+      updateDispatcherTaskPriority,
       addDiningCategory,
       removeDiningCategory,
       cancelGuestItem,
@@ -7182,6 +7973,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       requestTaskReassignment,
       resolveReassignment,
       requestEmergencyShiftChange,
+      notifyDepartmentSupervisor,
       attachTaskPhoto,
       markNotificationRead,
       clearAllNotifications,
@@ -7238,6 +8030,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       saveDepartmentServicePolicy,
       createGuestReminder,
       updateGuestReminderStatus,
+      updateGuestReminderTime,
+      updateGuestReminder,
       deleteGuestReminder,
       submitSecuritySafetyAlert,
       validateSafetyAlertByFrontDesk,
@@ -7279,6 +8073,17 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       updateDiningMenuItem,
       deleteDiningMenuItem,
       toggleDiningMenuItemAvailability,
+      updateOrderStatus,
+      acknowledgeSupervisorTask,
+      rejectFulfillerTask,
+      createSupervisorEscalation,
+      updateSupervisorEscalationStatus,
+      approveDutyStatusRequest,
+      rejectDutyStatusRequest,
+      approveTaskReassignRequest,
+      rejectTaskReassignRequest,
+      updateDispatcherTaskStatus,
+      updateDispatcherTaskPriority,
       addDiningCategory,
       removeDiningCategory,
       cancelGuestItem,
@@ -7312,6 +8117,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       requestTaskReassignment,
       resolveReassignment,
       requestEmergencyShiftChange,
+      notifyDepartmentSupervisor,
       attachTaskPhoto,
       markNotificationRead,
       clearAllNotifications,
@@ -7368,6 +8174,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       saveDepartmentServicePolicy,
       createGuestReminder,
       updateGuestReminderStatus,
+      updateGuestReminderTime,
+      updateGuestReminder,
       deleteGuestReminder,
       submitSecuritySafetyAlert,
       validateSafetyAlertByFrontDesk,

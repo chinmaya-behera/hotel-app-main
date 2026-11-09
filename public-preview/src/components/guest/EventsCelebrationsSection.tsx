@@ -1,5 +1,6 @@
 'use client';
 
+import { TimePickerInput } from '@/components/ui/TimePickerInput';
 import { useState, useMemo, useEffect } from 'react';
 import {
   PartyPopper,
@@ -1732,12 +1733,9 @@ export function EventsCelebrationsSection({ room, guestName, onNavigate }: Guest
                 </div>
                 <div>
                   <label className="text-mist-300 font-semibold block mb-1">Start Time</label>
-                  <input
-                    type="time"
-                    value={customEventData.startTime}
-                    onChange={(e) => setCustomEventData({ ...customEventData, startTime: e.target.value })}
-                    className="guest-field w-full px-3 py-2 text-xs text-white font-mono"
-                  />
+                  <TimePickerInput label="Start time" value={customEventData.startTime}
+                    onChange={startTime => setCustomEventData({ ...customEventData, startTime })}
+                    className="guest-field w-full px-3 py-2 text-xs text-white font-mono"/>
                 </div>
                 <div>
                   <label className="text-mist-300 font-semibold block mb-1">Estimated Duration</label>

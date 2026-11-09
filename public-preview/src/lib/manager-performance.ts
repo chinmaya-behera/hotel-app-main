@@ -1,6 +1,6 @@
 import type { DemoState, WorkItem } from '../types/demo';
-import { departmentId, isOpen, managerInspections, managerTasks, taskDepartment, type ManagerDepartmentId } from './manager-domain.ts';
-import { managerComplaints } from './manager-workflows.ts';
+import { departmentId, isOpen, managerInspections, managerTasks, taskDepartment, type ManagerDepartmentId } from './manager-domain';
+import { managerComplaints } from './manager-workflows';
 
 export type SlaOutcome = 'met' | 'breached' | 'at_risk' | 'pending' | 'unknown' | 'disabled' | 'excluded';
 export interface SlaMeasurement { kind: string; reference: string; title: string; target?: number; deadline?: number; elapsed?: number; outcome: SlaOutcome; source: string }
@@ -76,11 +76,15 @@ export function measureSla(input: { kind: string; reference: string; title: stri
 export function taskSla(state: DemoState, task: WorkItem, now: number) {
   const times = taskTimes(state, task), policy = task.serviceTiming || taskPolicy(state, task);
   const common = { reference: task.ref || task.id, title: task.title, start: times.created, now, excluded: cancelled(task.status), source: task.serviceTiming ? policy.policySource : `${policy.policySource} · historical policy not recorded` };
-  const scheduled = timestamp(task.requestedServiceAt);
+  const scheduled = timestamp(task.requestedServiceAt || task.scheduledAt);
   const acknowledgementObserved = acknowledged(task.status) || task.ackStatus === 'acknowledged' || task.history?.some(entry => acknowledged(entry.status));
   const resolutionStart = scheduled !== undefined && times.created !== undefined ? Math.max(times.created, scheduled - (policy.resolutionTargetMinutes || 0) * 60000) : times.created;
   return { task, created: times.created, resolved: times.resolved, acknowledgedAt: times.ack, ack: measureSla({ ...common, kind: 'Acknowledgement', end: times.ack, target: duration(task.ackSlaDue) ?? policy.ackTargetMinutes, deadline: deadline(task.ackSlaDue, times.created, policy.ackTargetMinutes), closed: completed(task.status) || !!acknowledgementObserved && times.ack === undefined, disabled: !policy.ackEnabled }), resolution: measureSla({ ...common, kind: 'Resolution / delivery', start: resolutionStart, end: times.resolved, target: duration(task.slaDue) ?? policy.resolutionTargetMinutes, deadline: scheduled ?? deadline(task.slaDue, times.created, policy.resolutionTargetMinutes), closed: completed(task.status), source: scheduled !== undefined ? 'Scheduled guest delivery slot' : common.source }) };
 }
+export function isPastTaskDeadline({ task, resolution }: ReturnType<typeof taskSla>) {
+  return isOpen(task.status) && resolution.outcome === 'breached';
+}
+
 export function serviceTargets(state: DemoState, department: ManagerDepartmentId) { return state.departmentServiceTargets?.[department] || { complaintMinutes: 60, inspectionMinutes: 30 }; }
 export function operationalSlas(state: DemoState, department: ManagerDepartmentId, now: number, since: number) {
   const targets = serviceTargets(state, department), rows: SlaMeasurement[] = [];
@@ -91,7 +95,7 @@ export function operationalSlas(state: DemoState, department: ManagerDepartmentI
   }
   for (const record of managerInspections(state, department)) {
     const start = timestamp(record.createdAt); if (start === undefined || start < since || start > now) continue;
-    rows.push(measureSla({ kind: 'Inspection turnaround', reference: record.id, title: `${record.typeLabel || record.type} · ${record.roomNumber}`, start, end: record.status === 'passed' ? timestamp(record.completedAt || record.inspectedAt) : undefined, closed: record.status === 'passed', target: targets.inspectionMinutes, now, source: 'Department service target' }));
+    rows.push(measureSla({ kind: 'Inspection turnaround', reference: record.ref || record.id, title: `${record.typeLabel || record.type} · ${record.roomNumber}`, start, end: record.status === 'passed' ? timestamp(record.completedAt || record.inspectedAt) : undefined, closed: record.status === 'passed', target: targets.inspectionMinutes, now, source: 'Department service target' }));
   }
   if (department === 'wellness') for (const record of state.managerOperations?.medicalCases || []) {
     const due = timestamp(record.followUpAt); if (due === undefined || due < since || due > now + 86400000) continue;

@@ -27,18 +27,45 @@ import { GuestEmptyState, GuestPill, GuestSectionHeader } from '@/components/gue
 import type { GuestTabProps } from '@/components/guest/types';
 import type { AlertCategory, AlertSeverity, HotelAlert } from '@/types/demo';
 
-const CATEGORIES: { id: 'all' | AlertCategory; label: string; icon: LucideIcon }[] = [
+type FilterCategory = 'all' | 'emergency' | 'announcement';
+
+const CATEGORIES: { id: FilterCategory; label: string; icon: LucideIcon }[] = [
   { id: 'all', label: 'All Alerts', icon: Radio },
-  { id: 'Emergency Alerts', label: 'Emergency', icon: Siren },
-  { id: 'Safety Alerts', label: 'Safety', icon: ShieldAlert },
-  { id: 'Weather Alerts', label: 'Weather', icon: Wind },
-  { id: 'Hotel Announcements', label: 'Announcements', icon: Megaphone },
-  { id: 'Important Operational Alerts', label: 'Operational', icon: Info },
+  { id: 'emergency', label: 'Emergency', icon: Siren },
+  { id: 'announcement', label: 'Announcement', icon: Megaphone },
 ];
+
+function getCategoryGroup(alert: HotelAlert): 'emergency' | 'announcement' {
+  const cat = (alert.category || '').toLowerCase();
+  if (
+    cat.includes('emergency') ||
+    cat.includes('safety') ||
+    cat.includes('weather') ||
+    alert.severity === 'Critical' ||
+    alert.severity === 'High'
+  ) {
+    return 'emergency';
+  }
+  return 'announcement';
+}
+
+function getDisplayCategory(category?: string, severity?: AlertSeverity): string {
+  const cat = (category || '').toLowerCase();
+  if (
+    cat.includes('emergency') ||
+    cat.includes('safety') ||
+    cat.includes('weather') ||
+    severity === 'Critical' ||
+    severity === 'High'
+  ) {
+    return 'Emergency';
+  }
+  return 'Announcement';
+}
 
 export function AlertsSection({ room, guestName }: GuestTabProps) {
   const { state } = useDemo();
-  const [selectedCategory, setSelectedCategory] = useState<'all' | AlertCategory>('all');
+  const [selectedCategory, setSelectedCategory] = useState<FilterCategory>('all');
   const [selectedAlert, setSelectedAlert] = useState<HotelAlert | null>(null);
   const [acknowledgedIds, setAcknowledgedIds] = useState<string[]>([]);
 
@@ -50,7 +77,7 @@ export function AlertsSection({ room, guestName }: GuestTabProps) {
 
   // Also convert any active broadcasted safety alerts from staff broadcast engine (state.safetyAlerts)
   const broadcastedSafetyAlerts: HotelAlert[] = (state.safetyAlerts ?? [])
-    .filter((s) => s.status === 'broadcast_active')
+    .filter((s) => s.status === 'broadcast_active' && s.broadcastScope === 'hotel_wide')
     .map((s) => ({
       id: `sft-${s.id}`,
       ref: s.ref,
@@ -85,7 +112,7 @@ export function AlertsSection({ room, guestName }: GuestTabProps) {
   // Filtered by active tab
   const displayedAlerts = relevantAlerts.filter((a) => {
     if (selectedCategory === 'all') return true;
-    return a.category === selectedCategory;
+    return getCategoryGroup(a) === selectedCategory;
   });
 
   function handleAcknowledge(alertId: string) {
@@ -104,7 +131,7 @@ export function AlertsSection({ room, guestName }: GuestTabProps) {
             const active = selectedCategory === cat.id;
             const count = cat.id === 'all'
               ? relevantAlerts.length
-              : relevantAlerts.filter((a) => a.category === cat.id).length;
+              : relevantAlerts.filter((a) => getCategoryGroup(a) === cat.id).length;
 
             return (
               <button
@@ -159,6 +186,9 @@ export function AlertsSection({ room, guestName }: GuestTabProps) {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-bold text-xs text-white">{alert.title}</span>
+                        <span className="text-[10px] font-semibold text-amber-300 uppercase tracking-wider px-1.5 py-0.5 rounded bg-white/5 border border-white/10">
+                          {getDisplayCategory(alert.category, alert.severity)}
+                        </span>
                         <span className="font-mono text-[10px] text-mist-400">{alert.ref}</span>
                       </div>
                       <p className="text-xs text-mist-300 mt-1 line-clamp-2">{alert.description}</p>
@@ -215,7 +245,9 @@ export function AlertsSection({ room, guestName }: GuestTabProps) {
                   <AlertTriangle className="h-4 w-4" />
                 </span>
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300">{selectedAlert.category}</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300">
+                    {getDisplayCategory(selectedAlert.category, selectedAlert.severity)}
+                  </span>
                   <h3 className="text-sm font-bold text-white">{selectedAlert.ref}</h3>
                 </div>
               </div>

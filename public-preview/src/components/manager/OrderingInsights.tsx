@@ -1,78 +1,119 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { UtensilsCrossed, Star, Clock3 } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronDown, Clock3, Star, UtensilsCrossed } from 'lucide-react';
 import { useDemo } from '@/lib/store';
-import { managerOrders } from '@/lib/manager-workflows';
+import { cancelledOrder, completedOrder, dishInsights, MEAL_PERIODS, mealPeriod, orderTimestamp } from '@/lib/department-insights';
 import { createDiningShowcase } from '@/lib/dining-showcase';
-import { MEAL_PERIODS, dishInsights, mealPeriod, orderTimestamp, cancelledOrder, type DishInsights } from '@/lib/department-insights';
-import { managerDate, useManagerClock } from './ManagerCases';
+import { managerOrders } from '@/lib/manager-workflows';
+import { useManagerClock } from './ManagerCases';
 
-const money = (value: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value);
+const currency = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
+const meals = [...MEAL_PERIODS, { id: 'unknown', label: 'Unscheduled', hours: '' }];
 
-function DishCard({ dish, denominator }: { dish: DishInsights; denominator: number }) {
-  const frequency = denominator ? Math.round(dish.orders.length / denominator * 100) : 0;
-  return <article className="dm-dish-insight">
-    <div className="dm-record-title"><div><small className="dm-reference">{dish.category}</small><h4>{dish.name}</h4></div><span className="dm-rating"><Star size={13}/>{dish.averageRating === undefined ? 'Unrated' : `${dish.averageRating.toFixed(1)} / 5`}</span></div>
-    <dl className="dm-dish-metrics">
-      <div><dt>Orders</dt><dd>{dish.orders.length}</dd></div><div><dt>Units ordered</dt><dd>{dish.units}</dd></div><div><dt>Item value</dt><dd>{money(dish.value)}</dd></div>
-      <div><dt>Order frequency</dt><dd>{frequency}%</dd></div><div><dt>Dish ratings</dt><dd>{dish.reviews.length}</dd></div><div><dt>Written reviews</dt><dd>{dish.reviews.filter(r => r.comment).length}</dd></div>
-    </dl>
-    <p className="dm-insight-status">{dish.active} active <span>·</span> {dish.completed} delivered <span>·</span> {dish.cancelled} cancelled / rejected</p>
-    <details className="dm-insight-details"><summary>View orders & reviews</summary>
-      <p className="dm-subtle">Frequency: {dish.orders.length} of {denominator} orders in this meal and cuisine. Units and item value exclude cancellations; values include dish options, before tax.</p>
-      <h5>Customer dish reviews</h5>
-      {dish.reviews.length ? dish.reviews.map(r => <blockquote key={r.reference}><strong>{r.rating} / 5</strong><p>{r.comment || 'Rating only — no written review.'}</p><small>{r.reference} · {managerDate(r.at)}</small></blockquote>) : <p className="dm-subtle">No dish ratings yet. Guests can rate each dish after delivery in My Activity.</p>}
-      <h5>Order records</h5>
-      {dish.orders.map(order => <div className="dm-insight-order" key={order.ref || order.id}><div><strong>{order.ref || order.id}</strong><span>{order.status}</span></div><small>{order.room ? `Room ${order.room} · ` : ''}{managerDate(order.requestedServiceAt || order.orderedAt || order.createdAt)}</small><ul>{order.orderLines?.filter(line => line.itemId === dish.itemId).map((line, index) => <li key={index}>{line.qty} × {line.name} · {money(line.qty * line.price)}</li>)}</ul>{order.description && <p><b>Guest instructions:</b> {order.description}</p>}{order.feedback && <p><b>Order service feedback:</b> {order.feedback.rating} / 5{order.feedback.comment ? ` · ${order.feedback.comment}` : ''}</p>}</div>)}
-    </details>
-  </article>;
-}
-
-export function OrderingInsights() {
+export function OrderingInsights({ activeLive = false }: { activeLive?: boolean }) {
   const { state } = useDemo();
-  const [meal, setMeal] = useState('breakfast'), [cuisine, setCuisine] = useState('all');
-  const [source, setSource] = useState('showcase');
-  const [search, setSearch] = useState(''), [status, setStatus] = useState('all'), [period, setPeriod] = useState('all');
+  const [source, setSource] = useState(activeLive ? 'live' : 'showcase');
+  const [meal, setMeal] = useState('all');
+  const [cuisine, setCuisine] = useState('all');
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState(activeLive ? 'active' : 'all');
+  const [period, setPeriod] = useState('all');
+  const [sort, setSort] = useState('orders');
   const now = useManagerClock();
-  const [showcaseDate] = useState(() => Date.now());
-  const showcase = useMemo(() => createDiningShowcase(showcaseDate), [showcaseDate]);
-  const liveOrders = useMemo(() => managerOrders(state), [state]);
-  const orders = source === 'showcase' ? showcase : liveOrders;
-  const dateFiltered = orders.filter(order => period === 'all' || (orderTimestamp(order) !== undefined && orderTimestamp(order)! >= now - Number(period) * 86400000 && orderTimestamp(order)! <= now));
-  const statusFiltered = dateFiltered.filter(order => mealPeriod(order) !== 'unknown' && (status === 'all' || (status === 'active' ? !cancelledOrder(order) && !/delivered|completed|closed/i.test(order.status) : /delivered|completed|closed/i.test(order.status) && !cancelledOrder(order))));
-  const meals = MEAL_PERIODS.map(m => ({ ...m, orders: statusFiltered.filter(order => mealPeriod(order) === m.id) }));
-  const selectedMeals = meals.filter(m => meal === 'all' || meal === m.id);
-  const allDishes = dishInsights(selectedMeals.flatMap(m => m.orders), state.diningMenu || []);
-  const cuisines = [...new Set(allDishes.map(dish => dish.cuisine))].sort();
-  const effectiveCuisine = cuisines.includes(cuisine) ? cuisine : 'all';
+  const [showcase] = useState(() => createDiningShowcase(Date.now()));
+  const orders = source === 'showcase' ? showcase : managerOrders(state);
   const query = search.trim().toLowerCase();
-  const groups = selectedMeals.map(m => {
-    const dishes = dishInsights(m.orders, state.diningMenu || []);
-    return { ...m, cuisines: [...new Set(dishes.map(dish => dish.cuisine))].sort().filter(c => effectiveCuisine === 'all' || c === effectiveCuisine).map(c => {
-      const rows = dishes.filter(d => d.cuisine === c);
-      const denominator = new Set(rows.flatMap(d => d.orders.map(o => o.ref || o.id))).size;
-      return { name: c, denominator, dishes: rows.filter(d => !query || `${d.name} ${d.cuisine} ${d.category} ${d.orders.map(o => `${o.ref || ''} ${o.room || ''}`).join(' ')}`.toLowerCase().includes(query)) };
-    }).filter(c => c.dishes.length) };
-  }).filter(m => m.cuisines.length);
-  const rows = groups.flatMap(m => m.cuisines.flatMap(c => c.dishes));
-  const references = new Set(rows.flatMap(d => d.orders.map(o => o.ref || o.id)));
-  const visibleOrders = statusFiltered.filter(o => references.has(o.ref || o.id));
-  const reviews = rows.flatMap(d => d.reviews);
-  const unitemised = selectedMeals.flatMap(m => m.orders).filter(o => !o.orderLines?.length && (!query || `${o.ref} ${o.title} ${o.room}`.toLowerCase().includes(query)));
-  const noLines = unitemised.length;
-  return <>
-    {source === 'showcase' && <div className="dm-followup-banner" role="status"><UtensilsCrossed size={20}/><span><strong>Demo showcase · {showcase.length} sample orders</strong><small>Three meals, seven cuisines, sample dish ratings and reviews. Choose Live orders below to view guest orders. These samples do not create charges or operational tasks.</small></span></div>}
-    <div className="dm-metric-strip"><div><small>Itemised orders in view</small><strong>{visibleOrders.length}</strong></div><div><small>Units ordered · excl. cancelled</small><strong>{rows.reduce((sum, d) => sum + d.units, 0)}</strong></div><div><small>Recorded item value · excl. cancelled</small><strong>{money(rows.reduce((sum, d) => sum + d.value, 0))}</strong></div><div><small>Average dish rating · {reviews.length} ratings</small><strong>{reviews.length ? `${(reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)} / 5` : 'Unrated'}</strong></div></div>
-    <section className="dm-panel"><div className="dm-panel-heading"><div><h2>Ordering overview</h2><p>Meal service → cuisine → dish performance. Understand what guests order and how they rate it.</p></div><span className="dm-status"><Clock3 size={13}/> Hotel time · IST</span></div>
-      <div className="dm-toolbar"><select aria-label="Order data source" value={source} onChange={e => setSource(e.target.value)}><option value="showcase">Demo showcase</option><option value="live">Live orders</option></select><input aria-label="Search dining orders" placeholder="Search dish, cuisine, reference or room" value={search} onChange={e => setSearch(e.target.value)}/><select aria-label="Order reporting period" value={period} onChange={e => setPeriod(e.target.value)}><option value="all">All dates</option><option value="7">Past 7 days</option><option value="30">Past 30 days</option></select><select aria-label="Filter dining orders" value={status} onChange={e => setStatus(e.target.value)}><option value="all">All orders</option><option value="active">Active orders</option><option value="completed">Delivered orders</option></select></div>
-      <div className="dm-meal-tabs" aria-label="Meal service"><button aria-pressed={meal === 'all'} onClick={() => { setMeal('all'); setCuisine('all'); }}><strong>All meals</strong><small>{statusFiltered.length} {statusFiltered.length === 1 ? 'order' : 'orders'}</small></button>{meals.map(m => <button key={m.id} aria-pressed={meal === m.id} onClick={() => { setMeal(m.id); setCuisine('all'); }}><strong>{m.label}</strong><small>{m.hours} · {m.orders.length}</small></button>)}</div>
-      <div className="dm-category-chips dm-insight-cuisines" aria-label="Order cuisines"><button aria-pressed={effectiveCuisine === 'all'} onClick={() => setCuisine('all')}>All cuisines</button>{cuisines.map(c => <button key={c} aria-pressed={effectiveCuisine === c} onClick={() => setCuisine(c)}>{c}</button>)}</div>
-      <p className="dm-insight-note">{source === 'showcase' ? 'All orders, ratings and reviews in this showcase are fictional. ' : ''}Meal time uses scheduled service time, or the time the order was placed. Legacy clock-only records appear under All dates. Dish averages use guest dish ratings, separately from service feedback and catalog demo scores.{period !== 'all' ? ` ${orders.filter(o => orderTimestamp(o) === undefined).length} orders without a recorded date are excluded; future scheduled service is outside the past period.` : ''}{orders.some(o => mealPeriod(o) === 'unknown') ? ' Orders with no usable service time remain available in Task Monitoring and are excluded here.' : ''}{noLines ? ` ${noLines} orders have no dish details and cannot be included in dish metrics.` : ''}</p>
-      {!groups.length && <div className="dm-empty"><UtensilsCrossed size={25}/><h3>No matching dish orders</h3><p>Orders will appear by meal and cuisine when guests place them. Try another meal or clear the filters.</p></div>}
-      {groups.map(m => <section className="dm-meal-group" key={m.id} aria-label={`${m.label} orders`}><div className="dm-meal-heading"><h3>{m.label}</h3><span>{m.hours} IST</span></div>{m.cuisines.map(c => <section className="dm-cuisine-group" key={c.name} aria-label={`${m.label} ${c.name}`}><div className="dm-cuisine-heading"><h4>{c.name}</h4><small>{c.dishes.length} {c.dishes.length === 1 ? 'dish' : 'dishes'} shown · {c.denominator} {c.denominator === 1 ? 'order' : 'orders'} in cuisine</small></div><div className="dm-insights-grid">{c.dishes.map(d => <DishCard key={d.key} dish={d} denominator={c.denominator}/>)}</div></section>)}</section>)}
-      {effectiveCuisine === 'all' && noLines > 0 && <section className="dm-meal-group"><h3>Orders without dish details</h3><p className="dm-subtle">These historical orders remain available, but cannot contribute to cuisine or dish metrics.</p>{unitemised.map(order => <article className="dm-insight-order" key={order.ref || order.id}><div><strong>{order.ref || order.id} · {order.title}</strong><span>{order.status}</span></div><p>{order.meta}</p><small>{managerDate(order.createdAt)}</small></article>)}</section>}
-      <p className="dm-insight-note">Mixed-cuisine orders count once in each cuisine they contain; the total order count is deduplicated. Item values are recorded subtotals, before tax, and do not represent collected revenue.</p>
-    </section>
-  </>;
+  const visible = orders.filter(order => {
+    const at = orderTimestamp(order);
+    const orderStatus = cancelledOrder(order) ? 'cancelled' : completedOrder(order) ? 'delivered' : 'active';
+    return (status === 'all' || status === orderStatus) &&
+      (period === 'all' || at !== undefined && at >= now - Number(period) * 86400000 && at <= now) &&
+      [order.ref, order.room, order.title].join(' ').toLowerCase().includes(query);
+  });
+  const groups = meals.filter(period => meal === 'all' || meal === period.id).map(period => {
+    const orders = visible.filter(order => mealPeriod(order) === period.id);
+    const dishes = dishInsights(orders, state.diningMenu || []);
+    const cuisineNames = [...new Set(dishes.map(dish => dish.cuisine))].sort();
+    const rows = cuisineNames.map(name => {
+      const items = dishes.filter(dish => dish.cuisine === name);
+      const distinct = [...new Map(items.flatMap(item => item.orders).map(order => [order.ref || order.id, order])).values()];
+      const delivered = distinct.filter(completedOrder).length;
+      const cancelled = distinct.filter(cancelledOrder).length;
+      const ratings = items.flatMap(item => item.reviews);
+      return {
+        name, dishes: items, records: distinct,
+        orders: distinct.length, active: distinct.length - delivered - cancelled, delivered, cancelled,
+        units: items.reduce((sum, item) => sum + item.units, 0),
+        revenue: items.reduce((sum, item) => sum + item.value, 0),
+        rating: ratings.length ? ratings.reduce((sum, rating) => sum + rating.rating, 0) / ratings.length : undefined,
+        popularity: orders.length ? Math.round(100 * distinct.length / orders.length) : 0,
+      };
+    });
+    return { ...period, rows };
+  });
+  const cuisines = [...new Set(groups.flatMap(group => group.rows.map(row => row.name)))].sort();
+  const selectedCuisine = cuisines.includes(cuisine) ? cuisine : 'all';
+  const filtered = groups.map(group => ({
+    ...group,
+    rows: group.rows.filter(row => selectedCuisine === 'all' || row.name === selectedCuisine).sort((a, b) => {
+      const difference = sort === 'subtotal' ? b.revenue - a.revenue
+        : sort === 'rating' ? (b.rating ?? 0) - (a.rating ?? 0) : b.orders - a.orders;
+      return difference || a.name.localeCompare(b.name);
+    }),
+  })).filter(group => group.rows.length);
+  return <section className="dm-panel">
+    <div className="dm-panel-heading"><div><h2>Ordering overview</h2><p>Compare cuisines by meal. Open a cuisine to see its dishes and order references.</p></div><span className="dm-status"><Clock3 size={13}/> Hotel time · IST</span></div>
+    <div className="dm-toolbar">
+      <select aria-label="Order data source" value={source} onChange={event => setSource(event.target.value)}><option value="showcase">Demo showcase</option><option value="live">Live orders</option></select>
+      <input aria-label="Search dining orders" placeholder="Search order reference or room" value={search} onChange={event => setSearch(event.target.value)}/>
+      <select aria-label="Order reporting period" value={period} onChange={event => setPeriod(event.target.value)}><option value="all">All dates</option><option value="7">Past 7 days</option><option value="30">Past 30 days</option></select>
+      <select aria-label="Filter dining orders" value={status} onChange={event => setStatus(event.target.value)}><option value="all">All orders</option><option value="active">Active orders</option><option value="delivered">Delivered orders</option><option value="cancelled">Cancelled orders</option></select>
+      <select aria-label="Meal period" value={meal} onChange={event => setMeal(event.target.value)}><option value="all">All meal periods</option>{meals.map(period => <option key={period.id} value={period.id}>{period.label}</option>)}</select>
+      <select aria-label="Cuisine" value={selectedCuisine} onChange={event => setCuisine(event.target.value)}><option value="all">All cuisines</option>{cuisines.map(name => <option key={name}>{name}</option>)}</select>
+      <select aria-label="Sort cuisines" value={sort} onChange={event => setSort(event.target.value)}>
+        <option value="orders">Most orders</option><option value="subtotal">Highest subtotal</option><option value="rating">Highest rated</option>
+      </select>
+    </div>
+    {source === 'showcase' && <p className="dm-insight-note">Demo showcase · {showcase.length} sample orders. Select Live orders to review guest activity.</p>}
+    {source === 'live' && visible.some(order => order.id.startsWith('manager-demo-')) && <p className="dm-insight-note">Includes sample orders for practice. Sample orders do not create guest charges.</p>}
+    {filtered.map(group => <section key={group.id} className="dm-meal-group" aria-label={group.label + ' cuisine totals'}>
+      <div className="dm-meal-heading"><h3>{group.label}</h3>{group.hours && <span>{group.hours} IST</span>}</div>
+      <div className="dm-insights-grid dm-cuisine-grid">
+        {group.rows.map(row => <details className="dm-cuisine-card" key={row.name}>
+          <summary>
+            <span className="dm-cuisine-card-title">
+              <strong>{row.name}</strong>
+              <span className="dm-rating"><Star size={13} aria-hidden="true"/>{row.rating === undefined ? 'Unrated' : row.rating.toFixed(1) + ' / 5'}</span>
+              <ChevronDown size={17} className="dm-cuisine-chevron" aria-hidden="true"/>
+            </span>
+            <span className="dm-cuisine-card-stats">
+              <span><b>{row.orders}</b> orders</span><span><b>{row.units}</b> units</span>
+              <span><b>{currency.format(row.revenue)}</b> subtotal</span>
+            </span>
+            <span className="dm-cuisine-share">
+              <span>{row.popularity}% of meal orders</span>
+              <span className="dm-cuisine-meter" aria-hidden="true"><span style={{ width: row.popularity + '%' }}/></span>
+            </span>
+          </summary>
+          <div className="dm-cuisine-breakdown">
+            <p className="dm-insight-status">{row.active} active · {row.delivered} delivered · {row.cancelled} cancelled</p>
+            <ul aria-label={row.name + ' dishes'}>
+              {row.dishes.map(dish => <li key={dish.key}><span><strong>{dish.name}</strong><small>{dish.category} · {dish.orders.length} orders</small></span>
+                <span>{dish.units} units · {currency.format(dish.value)}</span></li>)}
+            </ul>
+            <details className="dm-insight-details">
+              <summary>Order references ({row.records.length})</summary>
+              <ul aria-label={row.name + ' order references'}>
+                {row.records.map(order => <li key={order.ref || order.id}><span><strong>{order.ref || order.id}</strong><small>{order.title}</small></span>
+                  <span>{cancelledOrder(order) ? 'Cancelled' : completedOrder(order) ? 'Delivered' : 'Active'}</span></li>)}
+              </ul>
+            </details>
+          </div>
+        </details>)}
+      </div>
+    </section>)}
+    {!filtered.length && <div className="dm-empty"><UtensilsCrossed size={24}/><h3>No matching cuisine orders</h3></div>}
+    <p className="dm-insight-note">Mixed-cuisine orders count once in each cuisine they contain. Units and subtotals exclude cancellations. Subtotals are before tax. Popularity is the share of orders in the meal period.</p>
+  </section>;
 }

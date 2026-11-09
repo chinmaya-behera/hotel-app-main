@@ -24,6 +24,7 @@ import {
   Receipt,
   DollarSign,
   ShieldCheck,
+  ShieldAlert,
   AlertCircle,
   Tag,
   ChefHat,
@@ -33,12 +34,13 @@ import {
   Info,
   ThumbsUp,
   Image as ImageIcon,
+  Paperclip,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
 import { cn, money, statusTone } from '@/lib/utils';
 import { GuestEmptyState, GuestPill, GuestSectionHeader, GuestSheet } from '@/components/guest/guestUi';
 import type { GuestTabProps } from '@/components/guest/types';
-import type { RoleId, CustomDiningRequest, CompensationRefundRequest, WorkItem } from '@/types/demo';
+import type { RoleId, CustomDiningRequest, CompensationRefundRequest, WorkItem, GuestComplaintRecord, GuestIncidentRecord, GuestFrontDeskMessage } from '@/types/demo';
 
 /* ------------------------------------------------------------------ */
 /* Service-Specific Feedback Tags Generator (Section 3.C)             */
@@ -125,6 +127,17 @@ function getServiceFeedbackTags(category: string, serviceType?: string): string[
       'Needs Improvement',
     ];
   }
+  if (cat.includes('incident') || cat.includes('security')) {
+    return [
+      'Quick Response',
+      'Professional Handling',
+      'Reassuring Staff',
+      'Clear Resolution',
+      'Safety Prioritised',
+      'Satisfied',
+      'Needs Improvement',
+    ];
+  }
   if (cat.includes('lost') || cat.includes('found')) {
     return [
       'Quick Identification',
@@ -158,17 +171,42 @@ function getServiceFeedbackTags(category: string, serviceType?: string): string[
 }
 
 /* ------------------------------------------------------------------ */
-/* Multi-Step Service Request Timeline with Aligned Nodes             */
+/* Multi-Step Service Request Timelines for Every Specific Service   */
 /* ------------------------------------------------------------------ */
+
+export type ServiceTimelineType =
+  | 'dining' // A. Dining / Custom Food Requests (5)
+  | 'custom_dining'
+  | 'amenities' // B. Room Services / Amenities (5)
+  | 'cleaning' // C. Room Cleaning (5)
+  | 'maintenance' // D. Maintenance & Technical Support (6)
+  | 'front_desk' // E. Front Desk Requests (5)
+  | 'incident'
+  | 'complaint' // F. Complaints (6)
+  | 'financial' // G. Financial Issues / Refunds & Disputes (6)
+  | 'refund'
+  | 'reminder' // H. Reminders (4)
+  | 'chat' // I. Front Desk Chat (4)
+  | 'lost_found' // J. Lost & Found (5)
+  | 'lost';
 
 interface TimelineStage {
   key: string;
   label: string;
-  sublabel: string;
+  sublabel?: string;
 }
 
-function getStagesForType(type: 'standard' | 'custom_dining' | 'refund' | 'lost', status: string, createdAt?: string): { stages: TimelineStage[]; currentStep: number; isCancelled: boolean } {
-  let formattedTime = 'Recently';
+function getStagesForService(
+  type: ServiceTimelineType,
+  status: string,
+  createdAt?: string,
+  meta?: { hasStaffReply?: boolean; isRejected?: boolean }
+): { stages: TimelineStage[]; currentStep: number; isCancelled: boolean; isRejected: boolean } {
+  const normStatus = (status || '').toLowerCase().trim();
+  const isCancelled = ['cancelled', 'closed_unresolved', 'blocked'].includes(normStatus);
+  const isRejected = ['rejected', 'declined'].includes(normStatus) || Boolean(meta?.isRejected);
+
+  let formattedTime = 'Logged';
   if (createdAt) {
     try {
       const d = new Date(createdAt);
@@ -180,122 +218,336 @@ function getStagesForType(type: 'standard' | 'custom_dining' | 'refund' | 'lost'
     }
   }
 
-  if (type === 'custom_dining') {
-    const isCancelled = status === 'Cancelled' || status === 'Rejected';
-    let currentStep = 0;
-    if (['Delivered', 'Completed'].includes(status)) currentStep = 3;
-    else if (['In Preparation', 'Out for Delivery'].includes(status)) currentStep = 2;
-    else if (['Price Quoted', 'Under Kitchen Review', 'Clarification Requested'].includes(status)) currentStep = 1;
+  switch (type) {
+    case 'dining':
+    case 'custom_dining': {
+      // A. Dining / Custom Food Requests
+      // 1. Submitted -> 2. Chef Review -> 3. Preparation -> 4. Ready for Delivery -> 5. Delivered
+      const stages: TimelineStage[] = [
+        { key: 'submitted', label: 'Submitted', sublabel: formattedTime },
+        { key: 'chef_review', label: 'Chef Review', sublabel: 'Kitchen Desk' },
+        { key: 'preparation', label: 'Preparation', sublabel: 'In Kitchen' },
+        { key: 'ready_delivery', label: 'Ready for Delivery', sublabel: 'Runner Ready' },
+        { key: 'delivered', label: 'Delivered', sublabel: 'Delivered' },
+      ];
+      let currentStep = 0;
+      if (['delivered', 'completed', 'fulfilled'].includes(normStatus)) currentStep = 4;
+      else if (['ready for delivery', 'ready', 'out for delivery', 'on the way'].includes(normStatus)) currentStep = 3;
+      else if (['preparation', 'in preparation', 'preparing', 'cooking', 'order confirmed'].includes(normStatus)) currentStep = 2;
+      else if (['chef review', 'under review', 'under kitchen review', 'price quoted', 'clarification requested', 'assigned', 'accepted'].includes(normStatus)) currentStep = 1;
+      else currentStep = 0;
 
-    const stages: TimelineStage[] = [
-      { key: 'submitted', label: 'Submitted', sublabel: formattedTime },
-      { key: 'review', label: 'Chef Review', sublabel: currentStep >= 1 ? (status === 'Price Quoted' ? 'Quote Ready' : 'Reviewed') : 'In Queue' },
-      { key: 'cooking', label: 'Preparation', sublabel: currentStep >= 2 ? (status === 'Out for Delivery' ? 'On the Way' : 'Cooking') : 'Pending' },
-      { key: 'delivered', label: 'Delivered', sublabel: currentStep >= 3 ? 'Delivered' : 'Pending' },
-    ];
-    return { stages, currentStep, isCancelled };
+      return { stages, currentStep, isCancelled, isRejected };
+    }
+
+    case 'amenities': {
+      // B. Room Services / Amenities
+      // 1. Submitted -> 2. Received by Housekeeping -> 3. Accepted -> 4. Service in Progress -> 5. Completed
+      const stages: TimelineStage[] = [
+        { key: 'submitted', label: 'Submitted', sublabel: formattedTime },
+        { key: 'received', label: 'Received by Housekeeping', sublabel: 'Housekeeping' },
+        { key: 'accepted', label: 'Accepted', sublabel: 'Staff Confirmed' },
+        { key: 'in_progress', label: 'Service in Progress', sublabel: 'Runner Dispatched' },
+        { key: 'completed', label: 'Completed', sublabel: 'Delivered' },
+      ];
+      let currentStep = 0;
+      if (['completed', 'delivered', 'closed'].includes(normStatus)) currentStep = 4;
+      else if (['service in progress', 'in progress', 'dispatched', 'on the way'].includes(normStatus)) currentStep = 3;
+      else if (['accepted', 'acknowledged'].includes(normStatus)) currentStep = 2;
+      else if (['received by housekeeping', 'received', 'assigned', 'under review'].includes(normStatus)) currentStep = 1;
+      else currentStep = 0;
+
+      return { stages, currentStep, isCancelled, isRejected };
+    }
+
+    case 'cleaning': {
+      // C. Room Cleaning
+      // 1. Submitted -> 2. Received -> 3. Scheduled -> 4. Cleaning in Progress -> 5. Completed
+      const stages: TimelineStage[] = [
+        { key: 'submitted', label: 'Submitted', sublabel: formattedTime },
+        { key: 'received', label: 'Received', sublabel: 'Housekeeping Desk' },
+        { key: 'scheduled', label: 'Scheduled', sublabel: 'Slot Confirmed' },
+        { key: 'cleaning', label: 'Cleaning in Progress', sublabel: 'Attendant On Site' },
+        { key: 'completed', label: 'Completed', sublabel: 'Room Inspected' },
+      ];
+      let currentStep = 0;
+      if (['completed', 'finished', 'closed', 'inspected'].includes(normStatus)) currentStep = 4;
+      else if (['cleaning in progress', 'in progress', 'started'].includes(normStatus)) currentStep = 3;
+      else if (['scheduled', 'accepted', 'assigned'].includes(normStatus)) currentStep = 2;
+      else if (['received', 'under review'].includes(normStatus)) currentStep = 1;
+      else currentStep = 0;
+
+      return { stages, currentStep, isCancelled, isRejected };
+    }
+
+    case 'maintenance': {
+      // D. Maintenance & Technical Support
+      // 1. Submitted -> 2. Received by Maintenance -> 3. Technician Assigned -> 4. Work in Progress -> 5. Resolved -> 6. Completed
+      const stages: TimelineStage[] = [
+        { key: 'submitted', label: 'Submitted', sublabel: formattedTime },
+        { key: 'received', label: 'Received by Maintenance', sublabel: 'Engineering' },
+        { key: 'assigned', label: 'Technician Assigned', sublabel: 'Engineer On Duty' },
+        { key: 'in_progress', label: 'Work in Progress', sublabel: 'Repair Underway' },
+        { key: 'resolved', label: 'Resolved', sublabel: 'Fix Completed' },
+        { key: 'completed', label: 'Completed', sublabel: 'Verified & Closed' },
+      ];
+      let currentStep = 0;
+      if (['completed', 'closed'].includes(normStatus)) currentStep = 5;
+      else if (['resolved', 'fixed'].includes(normStatus)) currentStep = 4;
+      else if (['work in progress', 'in progress', 'in_progress'].includes(normStatus)) currentStep = 3;
+      else if (['technician assigned', 'assigned', 'accepted'].includes(normStatus)) currentStep = 2;
+      else if (['received by maintenance', 'received', 'under review'].includes(normStatus)) currentStep = 1;
+      else currentStep = 0;
+
+      return { stages, currentStep, isCancelled, isRejected };
+    }
+
+    case 'incident':
+    case 'front_desk': {
+      // E. Front Desk Requests
+      // 1. Submitted -> 2. Received by Front Desk -> 3. Under Review -> 4. In Progress -> 5. Completed
+      const stages: TimelineStage[] = [
+        { key: 'submitted', label: 'Submitted', sublabel: formattedTime },
+        { key: 'received', label: 'Received by Front Desk', sublabel: 'Reception' },
+        { key: 'under_review', label: 'Under Review', sublabel: 'Coordinator Desk' },
+        { key: 'in_progress', label: 'In Progress', sublabel: 'In Action' },
+        { key: 'completed', label: 'Completed', sublabel: 'Fulfilled' },
+      ];
+      let currentStep = 0;
+      if (['completed', 'delivered', 'resolved', 'closed'].includes(normStatus)) currentStep = 4;
+      else if (['in progress', 'processing', 'action in progress'].includes(normStatus)) currentStep = 3;
+      else if (['under review', 'assigned', 'reviewing'].includes(normStatus)) currentStep = 2;
+      else if (['received by front desk', 'received'].includes(normStatus)) currentStep = 1;
+      else currentStep = 0;
+
+      return { stages, currentStep, isCancelled, isRejected };
+    }
+
+    case 'complaint': {
+      // F. Complaints
+      // 1. Submitted -> 2. Received -> 3. Under Review -> 4. Action in Progress -> 5. Resolution Provided -> 6. Closed
+      const stages: TimelineStage[] = [
+        { key: 'submitted', label: 'Submitted', sublabel: formattedTime },
+        { key: 'received', label: 'Received', sublabel: 'Duty Desk' },
+        { key: 'under_review', label: 'Under Review', sublabel: 'Investigation' },
+        { key: 'action', label: 'Action in Progress', sublabel: 'Corrective Action' },
+        { key: 'resolution', label: 'Resolution Provided', sublabel: 'Outcome Offered' },
+        { key: 'closed', label: 'Closed', sublabel: 'Case Closed' },
+      ];
+      let currentStep = 0;
+      if (['closed'].includes(normStatus)) currentStep = 5;
+      else if (['resolution provided', 'resolved', 'settled'].includes(normStatus)) currentStep = 4;
+      else if (['action in progress', 'investigating', 'in progress', 'action taken'].includes(normStatus)) currentStep = 3;
+      else if (['under review', 'under investigation', 'assigned'].includes(normStatus)) currentStep = 2;
+      else if (['received'].includes(normStatus)) currentStep = 1;
+      else currentStep = 0;
+
+      return { stages, currentStep, isCancelled, isRejected };
+    }
+
+    case 'refund':
+    case 'financial': {
+      // G. Financial Issues / Refunds & Disputes
+      // 1. Submitted -> 2. Received -> 3. Under Verification -> 4. Approved / Rejected -> 5. Refund or Adjustment Processing -> 6. Resolved
+      const stages: TimelineStage[] = [
+        { key: 'submitted', label: 'Submitted', sublabel: formattedTime },
+        { key: 'received', label: 'Received', sublabel: 'Accounting' },
+        { key: 'verification', label: 'Under Verification', sublabel: 'Folio Audit' },
+        { key: 'approval', label: isRejected ? 'Rejected' : 'Approved / Rejected', sublabel: isRejected ? 'Claim Declined' : 'Decision Ready' },
+        { key: 'processing', label: 'Refund or Adjustment Processing', sublabel: 'Finance Credit' },
+        { key: 'resolved', label: 'Resolved', sublabel: 'Adjustment Done' },
+      ];
+      let currentStep = 0;
+      if (['resolved', 'completed'].includes(normStatus)) currentStep = 5;
+      else if (['refund or adjustment processing', 'processing', 'sent to finance'].includes(normStatus)) currentStep = 4;
+      else if (['approved', 'partially approved', 'rejected'].includes(normStatus)) currentStep = 3;
+      else if (['under verification', 'under review', 'additional information required'].includes(normStatus)) currentStep = 2;
+      else if (['received'].includes(normStatus)) currentStep = 1;
+      else currentStep = 0;
+
+      return { stages, currentStep, isCancelled, isRejected };
+    }
+
+    case 'reminder': {
+      // H. Reminders
+      // 1. Reminder Scheduled -> 2. Upcoming -> 3. Triggered -> 4. Completed
+      const stages: TimelineStage[] = [
+        { key: 'scheduled', label: 'Reminder Scheduled', sublabel: formattedTime },
+        { key: 'upcoming', label: 'Upcoming', sublabel: 'Queued' },
+        { key: 'triggered', label: 'Triggered', sublabel: 'Calling Room' },
+        { key: 'completed', label: 'Completed', sublabel: 'Handled' },
+      ];
+      let currentStep = 0;
+      if (['completed', 'dismissed'].includes(normStatus)) currentStep = 3;
+      else if (['triggered', 'ringing', 'calling', 'active'].includes(normStatus)) currentStep = 2;
+      else if (['upcoming', 'pending'].includes(normStatus)) currentStep = 1;
+      else currentStep = 0;
+
+      return { stages, currentStep, isCancelled, isRejected };
+    }
+
+    case 'chat': {
+      // I. Front Desk Chat
+      // 1. Message Sent -> 2. Received -> 3. Staff Replied -> 4. Conversation Resolved
+      const stages: TimelineStage[] = [
+        { key: 'sent', label: 'Message Sent', sublabel: formattedTime },
+        { key: 'received', label: 'Received', sublabel: 'Front Desk' },
+        { key: 'replied', label: 'Staff Replied', sublabel: 'Reply Available' },
+        { key: 'resolved', label: 'Conversation Resolved', sublabel: 'Resolved' },
+      ];
+      let currentStep = 0;
+      if (['resolved', 'closed', 'completed'].includes(normStatus)) currentStep = 3;
+      else if (meta?.hasStaffReply || ['replied', 'staff_replied'].includes(normStatus)) currentStep = 2;
+      else if (['received', 'acknowledged', 'read'].includes(normStatus)) currentStep = 1;
+      else currentStep = 0;
+
+      return { stages, currentStep, isCancelled, isRejected };
+    }
+
+    case 'lost':
+    case 'lost_found': {
+      // J. Lost & Found
+      // 1. Claim Submitted -> 2. Verification in Progress -> 3. Approved / Rejected -> 4. Collection Arranged -> 5. Returned to Guest
+      const stages: TimelineStage[] = [
+        { key: 'submitted', label: 'Claim Submitted', sublabel: formattedTime },
+        { key: 'verification', label: 'Verification in Progress', sublabel: 'Security Check' },
+        { key: 'decision', label: isRejected ? 'Claim Rejected' : 'Approved / Rejected', sublabel: isRejected ? 'Declined' : 'Claim Verified' },
+        { key: 'collection', label: 'Collection Arranged', sublabel: 'At Concierge' },
+        { key: 'returned', label: 'Returned to Guest', sublabel: 'Handover' },
+      ];
+      let currentStep = 0;
+      if (['returned', 'returned to guest', 'claimed'].includes(normStatus)) currentStep = 4;
+      else if (['collection arranged', 'ready for pickup', 'item located', 'found'].includes(normStatus)) currentStep = 3;
+      else if (['approved', 'claim verified', 'rejected'].includes(normStatus)) currentStep = 2;
+      else if (['verification in progress', 'searching', 'under investigation'].includes(normStatus)) currentStep = 1;
+      else currentStep = 0;
+
+      return { stages, currentStep, isCancelled, isRejected };
+    }
   }
+}
 
-  if (type === 'refund') {
-    const isCancelled = status === 'Rejected' || status === 'Cancelled';
-    let currentStep = 0;
-    if (['Resolved', 'Completed'].includes(status)) currentStep = 3;
-    else if (['Processing', 'Approved', 'Partially Approved'].includes(status)) currentStep = 2;
-    else if (['Under Review', 'Additional Information Required'].includes(status)) currentStep = 1;
-
-    const stages: TimelineStage[] = [
-      { key: 'submitted', label: 'Submitted', sublabel: formattedTime },
-      { key: 'review', label: 'Under Review', sublabel: currentStep >= 1 ? (status === 'Additional Information Required' ? 'Info Needed' : 'Reviewing') : 'Queued' },
-      { key: 'processing', label: 'Financial Action', sublabel: currentStep >= 2 ? (status === 'Approved' ? 'Approved' : 'Processing') : 'Pending' },
-      { key: 'resolved', label: 'Resolved', sublabel: currentStep >= 3 ? 'Resolved' : 'Pending' },
-    ];
-    return { stages, currentStep, isCancelled };
+function getWorkItemServiceType(item: WorkItem): ServiceTimelineType {
+  const cat = (item.category || '').toLowerCase();
+  const title = (item.title || '').toLowerCase();
+  if (
+    cat.includes('dining') ||
+    cat.includes('food') ||
+    cat === 'room_service' ||
+    title.includes('dining') ||
+    title.includes('breakfast') ||
+    title.includes('meal')
+  ) {
+    return 'dining';
   }
-
-  if (type === 'lost') {
-    const isCancelled = status === 'Cancelled' || status === 'Closed';
-    let currentStep = 0;
-    if (['Returned', 'Claimed', 'Claim Verified'].includes(status)) currentStep = 3;
-    else if (['Found', 'Ready for Pickup', 'Item Located'].includes(status)) currentStep = 2;
-    else if (['Searching', 'Under Investigation'].includes(status)) currentStep = 1;
-
-    const stages: TimelineStage[] = [
-      { key: 'reported', label: 'Reported', sublabel: formattedTime },
-      { key: 'searching', label: 'Security Search', sublabel: currentStep >= 1 ? 'Searching' : 'Logged' },
-      { key: 'located', label: 'Item Located', sublabel: currentStep >= 2 ? 'Matched' : 'Searching' },
-      { key: 'returned', label: 'Handover', sublabel: currentStep >= 3 ? 'Handed Over' : 'Pending' },
-    ];
-    return { stages, currentStep, isCancelled };
+  if (
+    cat.includes('maintenance') ||
+    cat.includes('repair') ||
+    cat.includes('engineering') ||
+    title.includes('repair') ||
+    title.includes('maintenance')
+  ) {
+    return 'maintenance';
   }
-
-  // Standard work item timeline
-  const isCancelled = status === 'Cancelled' || status === 'Rejected' || status === 'Blocked';
-  let currentStep = 0;
-  if (['Completed', 'Delivered', 'Resolved', 'Closed'].includes(status)) currentStep = 3;
-  else if (['In Progress', 'Preparing', 'Ready', 'Out for Delivery', 'On the way'].includes(status)) currentStep = 2;
-  else if (['Assigned', 'Accepted'].includes(status)) currentStep = 1;
-
-  const stages: TimelineStage[] = [
-    { key: 'requested', label: 'Requested', sublabel: formattedTime },
-    { key: 'assigned', label: 'Assigned', sublabel: currentStep >= 1 ? 'Dispatched' : 'In queue' },
-    { key: 'inprogress', label: 'In Progress', sublabel: currentStep >= 2 ? 'Underway' : 'Waiting' },
-    { key: 'completed', label: 'Completed', sublabel: currentStep >= 3 ? 'Fulfilled' : 'Pending' },
-  ];
-  return { stages, currentStep, isCancelled };
+  if (cat.includes('housekeeping')) {
+    if (
+      title.includes('cleaning') ||
+      title.includes('clean') ||
+      title.includes('turndown') ||
+      title.includes('linen')
+    ) {
+      return 'cleaning';
+    }
+    return 'amenities';
+  }
+  if (cat.includes('front_desk') || cat.includes('reception')) {
+    return 'front_desk';
+  }
+  return 'amenities';
 }
 
 function ServiceRequestTimeline({
-  type = 'standard',
-  status,
+  type = 'amenities',
+  status = 'pending',
   createdAt,
+  hasStaffReply,
+  isRejected,
 }: {
-  type?: 'standard' | 'custom_dining' | 'refund' | 'lost';
-  status: string;
+  type?: ServiceTimelineType;
+  status?: string;
   createdAt?: string;
+  hasStaffReply?: boolean;
+  isRejected?: boolean;
 }) {
-  const { stages, currentStep, isCancelled } = getStagesForType(type, status, createdAt);
+  const { stages, currentStep, isCancelled, isRejected: rejected } = getStagesForService(
+    type,
+    status,
+    createdAt,
+    { hasStaffReply, isRejected }
+  );
 
   if (isCancelled) {
     return (
       <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center gap-2">
         <XCircle className="h-4 w-4 shrink-0" />
         <span className="font-semibold">
-          This {type === 'refund' ? 'claim was declined or closed.' : type === 'custom_dining' ? 'custom food request was declined or cancelled.' : 'request was cancelled.'}
+          This request was cancelled or closed.
         </span>
       </div>
     );
   }
 
+  const numStages = stages.length;
+  const gridColClass =
+    numStages === 4
+      ? 'grid-cols-4'
+      : numStages === 5
+      ? 'grid-cols-5'
+      : 'grid-cols-6';
+
+  const progressPercent = Math.min(100, Math.max(0, (currentStep / (numStages - 1)) * 100));
+
   return (
-    <div className="w-full bg-white/[0.03] border border-white/5 rounded-2xl p-3 sm:p-4 my-2.5">
-      <div className="flex items-center justify-between text-xs mb-3 font-semibold text-mist-300">
+    <div className="w-full bg-white/[0.03] border border-white/5 rounded-2xl p-3 sm:p-4 my-2 overflow-x-auto no-scrollbar">
+      <div className="flex items-center justify-between text-xs mb-3 font-semibold text-mist-300 min-w-[340px]">
         <span className="flex items-center gap-1.5 text-cyan-300 text-[11px] uppercase tracking-wider font-bold">
           <Clock className="h-3.5 w-3.5" />
           <span>Operational Progress</span>
         </span>
         <span className="text-[11px] font-mono text-mist-400">
-          Stage {currentStep + 1} of 4: <span className="text-white font-bold">{stages[currentStep].label}</span>
+          Stage {currentStep + 1} of {numStages}:{' '}
+          <span className={rejected ? 'text-rose-400 font-bold' : 'text-white font-bold'}>
+            {stages[currentStep]?.label || status}
+          </span>
         </span>
       </div>
 
-      <div className="relative w-full">
+      <div className="relative w-full min-w-[340px] pt-1">
         {/* Background Track Line */}
-        <div className="absolute top-[13px] left-[12.5%] right-[12.5%] h-0.5 bg-white/10 -translate-y-1/2 z-0" />
-
-        {/* Active Progress Track Line */}
         <div
-          className="absolute top-[13px] left-[12.5%] h-0.5 bg-gradient-to-r from-amber-400 via-sky-400 to-emerald-400 -translate-y-1/2 z-0 transition-all duration-500"
+          className="absolute top-[13px] h-0.5 bg-white/10 -translate-y-1/2 z-0"
           style={{
-            width: `${(currentStep / 3) * 75}%`,
+            left: `${100 / (numStages * 2)}%`,
+            right: `${100 / (numStages * 2)}%`,
           }}
         />
 
-        {/* 4 Nodes Grid */}
-        <div className="relative z-10 grid grid-cols-4 w-full">
+        {/* Active Progress Track Line */}
+        <div
+          className="absolute top-[13px] h-0.5 bg-gradient-to-r from-amber-400 via-sky-400 to-emerald-400 -translate-y-1/2 z-0 transition-all duration-500"
+          style={{
+            left: `${100 / (numStages * 2)}%`,
+            width: `calc(${progressPercent}% * ${(numStages - 1) / numStages})`,
+          }}
+        />
+
+        {/* Dynamic Nodes Grid */}
+        <div className={cn('relative z-10 grid w-full', gridColClass)}>
           {stages.map((stage, idx) => {
             const isDone = idx < currentStep;
             const isCurrent = idx === currentStep;
             const isUpcoming = idx > currentStep;
+            const isStageRejected = isCurrent && rejected;
 
             return (
               <div key={stage.key} className="flex flex-col items-center text-center px-1">
@@ -304,34 +556,38 @@ function ServiceRequestTimeline({
                     className={cn(
                       'rounded-full flex items-center justify-center transition-all duration-300',
                       isDone && 'h-5 w-5 bg-emerald-400 text-ink-950 shadow-[0_0_10px_rgba(52,211,153,0.5)] ring-2 ring-emerald-400/30',
-                      isCurrent && 'h-6 w-6 bg-amber-400 text-ink-950 shadow-[0_0_12px_rgba(251,191,36,0.6)] ring-4 ring-amber-400/25 animate-pulse',
+                      isCurrent && !isStageRejected && 'h-6 w-6 bg-amber-400 text-ink-950 shadow-[0_0_12px_rgba(251,191,36,0.6)] ring-4 ring-amber-400/25 animate-pulse',
+                      isStageRejected && 'h-6 w-6 bg-rose-500 text-white shadow-[0_0_12px_rgba(244,63,94,0.6)] ring-4 ring-rose-500/30',
                       isUpcoming && 'h-4 w-4 bg-ink-900 border-2 border-white/20'
                     )}
                   >
                     {isDone && <CheckCircle2 className="h-3.5 w-3.5 stroke-[2.5]" />}
-                    {isCurrent && <span className="h-2 w-2 rounded-full bg-ink-950" />}
+                    {isCurrent && !isStageRejected && <span className="h-2 w-2 rounded-full bg-ink-950" />}
+                    {isStageRejected && <XCircle className="h-3.5 w-3.5 stroke-[2.5]" />}
                   </span>
                 </div>
 
                 <p
                   className={cn(
-                    'text-[10px] sm:text-xs font-bold mt-2 leading-tight transition-colors',
+                    'text-[9px] sm:text-[11px] font-bold mt-2 leading-tight transition-colors line-clamp-2',
                     isDone && 'text-emerald-300',
-                    isCurrent && 'text-amber-300',
+                    isCurrent && (isStageRejected ? 'text-rose-400' : 'text-amber-300'),
                     isUpcoming && 'text-mist-400'
                   )}
                 >
                   {stage.label}
                 </p>
 
-                <p
-                  className={cn(
-                    'text-[9px] sm:text-[10px] mt-0.5 truncate max-w-full font-medium',
-                    isCurrent ? 'text-amber-200/90 font-semibold' : 'text-mist-400'
-                  )}
-                >
-                  {stage.sublabel}
-                </p>
+                {stage.sublabel && (
+                  <p
+                    className={cn(
+                      'text-[8px] sm:text-[9px] mt-0.5 truncate max-w-full font-medium',
+                      isCurrent ? 'text-amber-200/90 font-semibold' : 'text-mist-500'
+                    )}
+                  >
+                    {stage.sublabel}
+                  </p>
+                )}
               </div>
             );
           })}
@@ -349,20 +605,29 @@ interface RatingFeedbackProps {
   itemId: string;
   category: string;
   serviceType?: string;
+  orderLines?: Array<{ itemId?: string; dishName?: string; name: string }>;
   existingFeedback?: {
     rating: number;
     comment?: string;
     tags?: string[];
     submittedAt?: string;
   };
-  onSubmitFeedback: (rating: number, comment?: string, tags?: string[]) => void;
+  existingDishFeedback?: Record<string, { rating: number; comment?: string; submittedAt?: string }>;
+  onSubmitFeedback: (
+    rating: number,
+    comment?: string,
+    tags?: string[],
+    dishes?: Record<string, { rating: number; comment?: string }>
+  ) => void;
 }
 
 function TaskRatingAndFeedback({
   itemId,
   category,
   serviceType,
+  orderLines,
   existingFeedback,
+  existingDishFeedback,
   onSubmitFeedback,
 }: RatingFeedbackProps) {
   const [isEditing, setIsEditing] = useState(!existingFeedback);
@@ -371,13 +636,39 @@ function TaskRatingAndFeedback({
   const [selectedTags, setSelectedTags] = useState<string[]>(existingFeedback?.tags ?? []);
   const [comment, setComment] = useState(existingFeedback?.comment ?? '');
 
+  const [dishRatings, setDishRatings] = useState<Record<string, { rating: number; comment?: string }>>(() => {
+    if (existingDishFeedback) {
+      return Object.fromEntries(
+        Object.entries(existingDishFeedback).map(([id, val]) => [id, { rating: val.rating, comment: val.comment }])
+      );
+    }
+    return {};
+  });
+
+  const uniqueDishes = useMemo(() => {
+    if (!orderLines || orderLines.length === 0) return [];
+    const map = new Map<string, { itemId: string; name: string }>();
+    for (const l of orderLines) {
+      const id = l.itemId || l.name;
+      if (!map.has(id)) {
+        map.set(id, { itemId: id, name: l.dishName || l.name });
+      }
+    }
+    return Array.from(map.values());
+  }, [orderLines]);
+
   const availableTags = useMemo(
     () => getServiceFeedbackTags(category, serviceType),
     [category, serviceType]
   );
 
   function handleSave() {
-    onSubmitFeedback(rating, comment.trim() || undefined, selectedTags);
+    onSubmitFeedback(
+      rating,
+      comment.trim() || undefined,
+      selectedTags,
+      Object.keys(dishRatings).length ? dishRatings : undefined
+    );
     setIsEditing(false);
   }
 
@@ -534,6 +825,49 @@ function TaskRatingAndFeedback({
         </div>
       )}
 
+      {/* Optional per-dish rating for dining items */}
+      {uniqueDishes.length > 0 && (
+        <div className="space-y-2 pt-2 border-t border-white/10">
+          <span className="text-[11px] font-semibold text-mist-400">
+            Rate Your Ordered Dishes (Optional)
+          </span>
+          <div className="space-y-2">
+            {uniqueDishes.map((dish) => (
+              <div key={dish.itemId} className="p-2.5 rounded-xl bg-white/5 flex items-center justify-between gap-2">
+                <span className="text-xs text-mist-200 font-medium truncate">{dish.name}</span>
+                <div className="flex items-center gap-1 shrink-0">
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() =>
+                        setDishRatings((prev) => ({
+                          ...prev,
+                          [dish.itemId]: {
+                            ...prev[dish.itemId],
+                            rating: prev[dish.itemId]?.rating === s ? 0 : s,
+                          },
+                        }))
+                      }
+                      className="p-0.5"
+                    >
+                      <Star
+                        className={cn(
+                          'h-4 w-4',
+                          (dishRatings[dish.itemId]?.rating || 0) >= s
+                            ? 'fill-amber-400 text-amber-400'
+                            : 'text-white/20'
+                        )}
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Feedback Text Area */}
       <div className="space-y-1">
         <textarea
@@ -553,7 +887,7 @@ function TaskRatingAndFeedback({
           className="px-4 py-2 rounded-xl bg-amber-400 text-ink-950 font-bold text-xs hover:bg-amber-300 shadow-md transition-all flex items-center gap-1.5"
         >
           <CheckCircle2 className="h-3.5 w-3.5" />
-          <span>{existingFeedback ? 'Update Feedback' : 'Submit Feedback'}</span>
+          <span>{existingFeedback ? 'Update Feedback' : 'Submit Review'}</span>
         </button>
       </div>
     </div>
@@ -577,17 +911,15 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
   } = useDemo();
 
   const [activeFilter, setActiveFilter] = useState<
-    'all' | 'active' | 'dining' | 'services' | 'refunds' | 'reminders' | 'complaints' | 'messages' | 'lost_found'
+    'all' | 'active' | 'dining' | 'services' | 'refunds' | 'reminders' | 'complaints' | 'incidents' | 'messages' | 'lost_found'
   >('all');
 
-  const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
-  // Feedback modal state
-  const [feedbackItem, setFeedbackItem] = useState<{ roleId: RoleId; itemId: string; title: string } | null>(null);
-  const [feedbackRating, setFeedbackRating] = useState(5);
-  const [feedbackComment, setFeedbackComment] = useState('');
-  const [dishRatings, setDishRatings] = useState<Record<string, { rating: number; comment?: string }>>({});
-  const ratedOrder = feedbackItem ? state.items[feedbackItem.roleId]?.find(i => i.id === feedbackItem.itemId) : undefined;
-  const feedbackDishes = [...new Map((ratedOrder?.orderLines || []).map(line => [line.itemId, line])).values()];
+  // Independent expand/collapse tracking for multiple tasks
+  const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
+  const toggleExpanded = (id: string) => {
+    setExpandedItems((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+  const isItemExpanded = (id: string) => Boolean(expandedItems[id]);
 
   // Quick reply modal state for messages
   const [replyMessageId, setReplyMessageId] = useState<string | null>(null);
@@ -606,14 +938,14 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
     setTimeout(() => setToastMessage(null), 5000);
   }
 
-  // 1. Custom Dining Requests (Section 1 & 5)
+  // 1. Custom Dining Requests
   const myCustomDining = useMemo(() => {
     return (state.customDiningRequests ?? [])
       .filter((c) => c.room === room)
       .sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''));
   }, [state.customDiningRequests, room]);
 
-  // 2. Compensation & Refund Requests (Section 4 & 5)
+  // 2. Compensation & Refund Requests
   const myCompensationRefunds = useMemo(() => {
     return (state.guestCompensationRefundRequests ?? [])
       .filter((cr) => cr.room === room)
@@ -637,8 +969,8 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
         (i) =>
           i.guest &&
           i.room === room &&
-          !i.customDiningId && // already rendered with full custom dish controls
-          !i.compensationRefundId // already rendered with full refund controls
+          !i.customDiningId &&
+          !i.compensationRefundId
       )
       .sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''));
   }, [uniqueItems, room]);
@@ -653,12 +985,19 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
     return (state.guestComplaints ?? []).filter((c) => c.room === room);
   }, [state.guestComplaints, room]);
 
-  // 6. Front Desk Messages
+  // 6. Incidents
+  const myIncidents = useMemo(() => {
+    return (state.guestIncidents ?? [])
+      .filter((inc) => inc.room === room)
+      .sort((a, b) => (b.submittedAt ?? '').localeCompare(a.submittedAt ?? ''));
+  }, [state.guestIncidents, room]);
+
+  // 7. Front Desk Messages
   const myMessages = useMemo(() => {
     return (state.frontDeskMessages ?? []).filter((m) => m.room === room);
   }, [state.frontDeskMessages, room]);
 
-  // 7. Lost & Found reports
+  // 8. Lost & Found reports
   const myLostReports = useMemo(() => {
     return (state.guestLostReports ?? []).filter((r) => r.room === room);
   }, [state.guestLostReports, room]);
@@ -678,13 +1017,15 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
 
   const activeRemindersCount = myReminders.filter((r) => r.status !== 'completed').length;
   const activeComplaintsCount = myComplaints.filter((c) => c.status !== 'Resolved' && c.status !== 'Rejected').length;
+  const activeIncidentsCount = myIncidents.filter((inc) => inc.status !== 'Resolved' && inc.status !== 'Closed').length;
 
   const totalActiveCount =
     activeWorkCount +
     activeCustomDiningCount +
     activeRefundsCount +
     activeRemindersCount +
-    activeComplaintsCount;
+    activeComplaintsCount +
+    activeIncidentsCount;
 
   // Filter conditions
   const showDining = activeFilter === 'all' || activeFilter === 'dining' || activeFilter === 'active';
@@ -692,6 +1033,7 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
   const showRefunds = activeFilter === 'all' || activeFilter === 'refunds' || (activeFilter === 'active' && activeRefundsCount > 0);
   const showReminders = activeFilter === 'all' || activeFilter === 'reminders' || (activeFilter === 'active' && activeRemindersCount > 0);
   const showComplaints = activeFilter === 'all' || activeFilter === 'complaints' || (activeFilter === 'active' && activeComplaintsCount > 0);
+  const showIncidents = activeFilter === 'all' || activeFilter === 'incidents' || (activeFilter === 'active' && activeIncidentsCount > 0);
   const showMessages = activeFilter === 'all' || activeFilter === 'messages';
   const showLostFound = activeFilter === 'all' || activeFilter === 'lost_found';
 
@@ -723,19 +1065,27 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
     return myCompensationRefunds;
   }, [myCompensationRefunds, activeFilter]);
 
+  // Filtered complaints
+  const filteredComplaints = useMemo(() => {
+    if (activeFilter === 'active') {
+      return myComplaints.filter((c) => !['Resolved', 'Rejected'].includes(c.status));
+    }
+    return myComplaints;
+  }, [myComplaints, activeFilter]);
+
+  // Filtered incidents
+  const filteredIncidents = useMemo(() => {
+    if (activeFilter === 'active') {
+      return myIncidents.filter((inc) => !['Resolved', 'Closed'].includes(inc.status));
+    }
+    return myIncidents;
+  }, [myIncidents, activeFilter]);
+
   function handleCancelTask(roleId: RoleId, itemId: string, title: string) {
     cancelGuestItem(roleId, itemId);
     showToast(`Request "${title}" cancelled`);
   }
 
-  function handleSendFeedback() {
-    if (!feedbackItem) return;
-    submitGuestFeedback(feedbackItem.roleId, feedbackItem.itemId, feedbackRating, feedbackComment, dishRatings);
-    setFeedbackItem(null);
-    setFeedbackComment('');
-    setDishRatings({});
-    showToast('Thank you for rating our service!');
-  }
   function handleSendReply(messageId: string) {
     if (!replyText.trim()) return;
     replyGuestMessage(messageId, replyText.trim(), 'guest');
@@ -765,6 +1115,16 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
         return Sparkles;
     }
   }
+
+  const totalSubmittedTasksCount =
+    myWorkItems.length +
+    myCustomDining.length +
+    myCompensationRefunds.length +
+    myReminders.length +
+    myComplaints.length +
+    myIncidents.length +
+    myMessages.length +
+    myLostReports.length;
 
   return (
     <div data-tour="tour-activity-tab" className="space-y-6 sm:space-y-8 pb-12 max-w-7xl mx-auto w-full">
@@ -807,7 +1167,7 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
                 : 'bg-white/5 text-mist-300 hover:text-white'
             }`}
           >
-            All Activity
+            All Activity ({totalSubmittedTasksCount})
           </button>
 
           <button
@@ -851,7 +1211,7 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
                 : 'bg-white/5 text-mist-300 hover:text-white'
             }`}
           >
-            Room Services
+            Services &amp; Maintenance ({myWorkItems.filter(i => i.category !== 'room_service').length})
           </button>
 
           <button
@@ -869,18 +1229,6 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
 
           <button
             type="button"
-            onClick={() => setActiveFilter('reminders')}
-            className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-all ${
-              activeFilter === 'reminders'
-                ? 'bg-amber-400 text-ink-950 font-bold'
-                : 'bg-white/5 text-mist-300 hover:text-white'
-            }`}
-          >
-            Reminders ({myReminders.length})
-          </button>
-
-          <button
-            type="button"
             onClick={() => setActiveFilter('complaints')}
             className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-all ${
               activeFilter === 'complaints'
@@ -893,6 +1241,19 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
 
           <button
             type="button"
+            onClick={() => setActiveFilter('incidents')}
+            className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+              activeFilter === 'incidents'
+                ? 'bg-amber-400 text-ink-950 font-bold'
+                : 'bg-white/5 text-mist-300 hover:text-white'
+            }`}
+          >
+            <ShieldAlert className="h-3 w-3" />
+            <span>Incidents ({myIncidents.length})</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setActiveFilter('messages')}
             className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-all ${
               activeFilter === 'messages'
@@ -900,7 +1261,7 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
                 : 'bg-white/5 text-mist-300 hover:text-white'
             }`}
           >
-            Front Desk Chat ({myMessages.length})
+            Front Desk ({myMessages.length})
           </button>
 
           <button
@@ -914,10 +1275,37 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
           >
             Lost &amp; Found ({myLostReports.length})
           </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveFilter('reminders')}
+            className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-all ${
+              activeFilter === 'reminders'
+                ? 'bg-amber-400 text-ink-950 font-bold'
+                : 'bg-white/5 text-mist-300 hover:text-white'
+            }`}
+          >
+            Reminders ({myReminders.length})
+          </button>
         </div>
       </div>
 
-      {/* 1. CUSTOM DINING REQUESTS (Section 1 & Section 5) */}
+      {/* Zero State if guest has submitted no activities at all */}
+      {totalSubmittedTasksCount === 0 && (
+        <div className="guest-card p-12 text-center space-y-3">
+          <div className="mx-auto w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-mist-400">
+            <ListChecks className="h-6 w-6 text-amber-400/80" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-sm font-bold text-white">No requests submitted yet</h3>
+            <p className="text-xs text-mist-400 max-w-sm mx-auto">
+              When you order dining, book spa appointments, request maintenance, or submit front desk inquiries, they will appear here with live tracking.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* 1. CUSTOM DINING REQUESTS */}
       {showDining && filteredCustomDining.length > 0 && (
         <div className="space-y-3">
           <GuestSectionHeader
@@ -927,7 +1315,7 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
 
           <div className="space-y-3">
             {filteredCustomDining.map((custom) => {
-              const isExpanded = expandedItemId === custom.id;
+              const isExpanded = isItemExpanded(custom.id);
               const isDelivered = custom.status === 'Delivered';
               const isPriceQuoted = custom.status === 'Price Quoted';
               const isClarificationNeeded = custom.status === 'Clarification Requested';
@@ -938,34 +1326,26 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
                   key={custom.id}
                   className="guest-card overflow-hidden border border-white/10 hover:border-amber-400/30 transition-all"
                 >
-                  {/* Compact Header (Always Visible) */}
+                  {/* Collapsed Header - Strictly Minimal */}
                   <div
-                    className="p-3.5 flex items-start justify-between gap-3 cursor-pointer select-none"
-                    onClick={() => setExpandedItemId(isExpanded ? null : custom.id)}
+                    className="p-3.5 flex items-center justify-between gap-3 cursor-pointer select-none hover:bg-white/[0.02] transition-colors"
+                    onClick={() => toggleExpanded(custom.id)}
                   >
-                    <div className="flex items-start gap-2.5 min-w-0">
-                      <span className="grid h-8 w-8 place-items-center rounded-xl bg-amber-400/20 text-amber-300 shrink-0 mt-0.5">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="grid h-8 w-8 place-items-center rounded-xl bg-amber-400/20 text-amber-300 shrink-0">
                         <ChefHat className="h-4 w-4" />
                       </span>
                       <div className="space-y-0.5 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-xs font-bold text-white truncate">
-                            Custom Dish: {custom.dishName || `${custom.cuisine} Dish`}
-                          </p>
-                          <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-amber-400/15 text-amber-300 border border-amber-400/30">
-                            {custom.cuisine}
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-mist-400 font-mono">
-                          {custom.ref} · {custom.createdAt} · {custom.servings} {custom.servings === 1 ? 'serving' : 'servings'}
+                        <p className="text-xs font-bold text-white truncate">
+                          Custom Dish: {custom.dishName || `${custom.cuisine} Dish`}
                         </p>
-                        <p className="text-[11px] text-mist-300 line-clamp-1">
-                          {custom.description}
+                        <p className="text-[10px] text-mist-400 font-mono">
+                          {custom.ref} · {custom.createdAt}
                         </p>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2.5 shrink-0">
                       <GuestPill tone={statusTone(custom.status)}>{custom.status}</GuestPill>
                       {isExpanded ? (
                         <ChevronDown className="h-4 w-4 text-mist-400" />
@@ -975,19 +1355,31 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
                     </div>
                   </div>
 
-                  {/* Multi-step progress timeline */}
-                  <div className="px-3.5 pb-2">
-                    <ServiceRequestTimeline
-                      type="custom_dining"
-                      status={custom.status}
-                      createdAt={custom.createdAt}
-                    />
-                  </div>
-
-                  {/* Expanded Request Details */}
+                  {/* Expanded Content: Strict Order 1. Progress -> 2. Rating & Review -> 3. Details -> 4. Staff Response */}
                   {isExpanded && (
                     <div className="px-3.5 pb-3.5 pt-1 border-t border-white/5 space-y-3.5 text-xs">
-                      {/* Dish Spec Grid */}
+                      {/* 1. Operational Progress */}
+                      <ServiceRequestTimeline
+                        type="custom_dining"
+                        status={custom.status}
+                        createdAt={custom.createdAt}
+                      />
+
+                      {/* 2. Rating & Detailed Review (Only when genuinely completed) */}
+                      {isDelivered && (
+                        <TaskRatingAndFeedback
+                          itemId={custom.id}
+                          category="custom_dining"
+                          serviceType="dining"
+                          existingFeedback={custom.feedback}
+                          onSubmitFeedback={(rating, comment, tags) => {
+                            submitGuestFeedback('task_fulfiller', custom.id, rating, comment, tags);
+                            showToast('Thank you for rating your custom dining experience!');
+                          }}
+                        />
+                      )}
+
+                      {/* 3. Relevant Task Details */}
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
                         <div className="p-2 rounded-xl bg-white/5">
                           <span className="text-[10px] text-mist-400 block font-semibold uppercase">Dietary</span>
@@ -998,36 +1390,37 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
                           <span className="text-amber-300 font-medium">{custom.spiceLevel}</span>
                         </div>
                         <div className="p-2 rounded-xl bg-white/5">
+                          <span className="text-[10px] text-mist-400 block font-semibold uppercase">Servings</span>
+                          <span className="text-white font-medium">{custom.servings}</span>
+                        </div>
+                        <div className="p-2 rounded-xl bg-white/5">
                           <span className="text-[10px] text-mist-400 block font-semibold uppercase">Delivery Time</span>
                           <span className="text-mist-200 font-medium">{custom.deliveryTimePreference}</span>
                         </div>
-                        <div className="p-2 rounded-xl bg-white/5">
-                          <span className="text-[10px] text-mist-400 block font-semibold uppercase">Allergies to Avoid</span>
-                          <span className={custom.allergiesToAvoid ? 'text-rose-300 font-semibold' : 'text-mist-400'}>
-                            {custom.allergiesToAvoid || 'None stated'}
-                          </span>
-                        </div>
                       </div>
 
-                      {/* Request Description & Special Instructions */}
                       <div className="p-2.5 rounded-xl bg-white/5 space-y-1">
                         <span className="text-[10px] font-semibold text-mist-400 uppercase">
                           Preparation Requirements
                         </span>
                         <p className="text-mist-200 text-xs whitespace-pre-line">{custom.description}</p>
+                        {custom.allergiesToAvoid && (
+                          <p className="text-[11px] text-rose-300 pt-0.5">
+                            <strong>Allergies to Avoid:</strong> {custom.allergiesToAvoid}
+                          </p>
+                        )}
                         {custom.specialPreferences && (
-                          <p className="text-mist-300 text-[11px] pt-1">
-                            <strong className="text-mist-400">Special Preferences:</strong> {custom.specialPreferences}
+                          <p className="text-mist-300 text-[11px] pt-0.5">
+                            <strong>Special Preferences:</strong> {custom.specialPreferences}
                           </p>
                         )}
                         {custom.additionalInstructions && (
                           <p className="text-mist-300 text-[11px] pt-0.5">
-                            <strong className="text-mist-400">Chef Instructions:</strong> {custom.additionalInstructions}
+                            <strong>Chef Instructions:</strong> {custom.additionalInstructions}
                           </p>
                         )}
                       </div>
 
-                      {/* Optional Photo Attachment */}
                       {custom.imageUrl && (
                         <div className="flex items-center gap-2 p-2 rounded-xl bg-white/5 border border-white/5">
                           <ImageIcon className="h-4 w-4 text-sky-400 shrink-0" />
@@ -1036,7 +1429,7 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
                         </div>
                       )}
 
-                      {/* Staff Quote & Prep Time */}
+                      {/* 4. Staff Response / Kitchen Quote / Clarification */}
                       {custom.quotedPrice !== undefined && (
                         <div className="p-3 rounded-2xl bg-amber-400/10 border border-amber-400/30 flex items-center justify-between gap-3 flex-wrap">
                           <div className="space-y-0.5">
@@ -1058,7 +1451,6 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
                             )}
                           </div>
 
-                          {/* Guest Approval Buttons if pending quote approval */}
                           {isPriceQuoted && (
                             <div className="flex items-center gap-2">
                               <button
@@ -1080,7 +1472,6 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
                         </div>
                       )}
 
-                      {/* Kitchen Clarification Inquiry & Guest Reply Form */}
                       {isClarificationNeeded && (
                         <div className="p-3 rounded-2xl bg-sky-500/10 border border-sky-400/30 space-y-2.5">
                           <div className="space-y-1">
@@ -1119,25 +1510,10 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
                         </div>
                       )}
 
-                      {/* Guest Clarification Reply History */}
                       {custom.guestClarificationReply && (
                         <div className="p-2.5 rounded-xl bg-white/5 text-[11px] text-mist-300">
                           <strong className="text-mist-400">Your Response:</strong> &ldquo;{custom.guestClarificationReply}&rdquo;
                         </div>
-                      )}
-
-                      {/* Section 3.B: Rating and Feedback for genuinely Delivered/Completed custom dishes */}
-                      {isDelivered && (
-                        <TaskRatingAndFeedback
-                          itemId={custom.id}
-                          category="custom_dining"
-                          serviceType="dining"
-                          existingFeedback={custom.feedback}
-                          onSubmitFeedback={(rating, comment, tags) => {
-                            submitGuestFeedback('task_fulfiller', custom.id, rating, comment, tags);
-                            showToast('Thank you for rating your custom dining experience!');
-                          }}
-                        />
                       )}
                     </div>
                   )}
@@ -1148,7 +1524,7 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
         </div>
       )}
 
-      {/* 2. COMPENSATION & REFUND REQUESTS (Section 4 & Section 5) */}
+      {/* 2. COMPENSATION & REFUND REQUESTS */}
       {showRefunds && filteredRefunds.length > 0 && (
         <div className="space-y-3">
           <GuestSectionHeader
@@ -1158,7 +1534,7 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
 
           <div className="space-y-3">
             {filteredRefunds.map((refund) => {
-              const isExpanded = expandedItemId === refund.id;
+              const isExpanded = isItemExpanded(refund.id);
               const isResolved = refund.status === 'Resolved';
               const isInfoRequired = refund.status === 'Additional Information Required';
               const replyInfoValue = refundInfoReplies[refund.id] ?? '';
@@ -1168,36 +1544,26 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
                   key={refund.id}
                   className="guest-card overflow-hidden border border-white/10 hover:border-amber-400/30 transition-all"
                 >
-                  {/* Compact Header */}
+                  {/* Collapsed Header - Strictly Minimal */}
                   <div
-                    className="p-3.5 flex items-start justify-between gap-3 cursor-pointer select-none"
-                    onClick={() => setExpandedItemId(isExpanded ? null : refund.id)}
+                    className="p-3.5 flex items-center justify-between gap-3 cursor-pointer select-none hover:bg-white/[0.02] transition-colors"
+                    onClick={() => toggleExpanded(refund.id)}
                   >
-                    <div className="flex items-start gap-2.5 min-w-0">
-                      <span className="grid h-8 w-8 place-items-center rounded-xl bg-amber-400/20 text-amber-300 shrink-0 mt-0.5">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="grid h-8 w-8 place-items-center rounded-xl bg-amber-400/20 text-amber-300 shrink-0">
                         <Receipt className="h-4 w-4" />
                       </span>
                       <div className="space-y-0.5 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-xs font-bold text-white truncate">
-                            {refund.category}
-                          </p>
-                          {refund.amountRequested !== undefined && refund.amountRequested > 0 && (
-                            <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-amber-400/15 text-amber-300 border border-amber-400/30">
-                              Claim: ₹{refund.amountRequested.toLocaleString('en-IN')}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[10px] text-mist-400 font-mono">
-                          {refund.ref} · {refund.createdAt} · Room {refund.room}
+                        <p className="text-xs font-bold text-white truncate">
+                          Financial Issue: {refund.category}
                         </p>
-                        <p className="text-[11px] text-mist-300 line-clamp-1">
-                          {refund.reason}: {refund.detailedExplanation}
+                        <p className="text-[10px] text-mist-400 font-mono">
+                          {refund.ref} · {refund.createdAt}
                         </p>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2.5 shrink-0">
                       <GuestPill tone={statusTone(refund.status)}>{refund.status}</GuestPill>
                       {isExpanded ? (
                         <ChevronDown className="h-4 w-4 text-mist-400" />
@@ -1207,78 +1573,83 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
                     </div>
                   </div>
 
-                  {/* Multi-step progress timeline */}
-                  <div className="px-3.5 pb-2">
-                    <ServiceRequestTimeline
-                      type="refund"
-                      status={refund.status}
-                      createdAt={refund.createdAt}
-                    />
-                  </div>
-
-                  {/* Expanded Claim Details */}
+                  {/* Expanded Content: Strict Order 1. Progress -> 2. Rating & Review -> 3. Details -> 4. Staff Response */}
                   {isExpanded && (
                     <div className="px-3.5 pb-3.5 pt-1 border-t border-white/5 space-y-3.5 text-xs">
-                      {/* Meta Grid */}
+                      {/* 1. Operational Progress */}
+                      <ServiceRequestTimeline
+                        type="refund"
+                        status={refund.status}
+                        createdAt={refund.createdAt}
+                      />
+
+                      {/* 2. Rating & Review (Only when resolved) */}
+                      {isResolved && (
+                        <TaskRatingAndFeedback
+                          itemId={refund.id}
+                          category="compensation"
+                          serviceType="finance"
+                          existingFeedback={refund.feedback}
+                          onSubmitFeedback={(rating, comment, tags) => {
+                            submitGuestFeedback('front_desk_coordinator', refund.id, rating, comment, tags);
+                            showToast('Thank you for rating our dispute resolution!');
+                          }}
+                        />
+                      )}
+
+                      {/* 3. Relevant Task Details */}
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px]">
                         <div className="p-2 rounded-xl bg-white/5">
-                          <span className="text-[10px] text-mist-400 block font-semibold uppercase">Booking Reference</span>
+                          <span className="text-[10px] text-mist-400 block font-semibold uppercase">Booking Ref</span>
                           <span className="text-white font-mono font-medium">{refund.bookingReference}</span>
                         </div>
                         <div className="p-2 rounded-xl bg-white/5">
-                          <span className="text-[10px] text-mist-400 block font-semibold uppercase">Preferred Resolution</span>
-                          <span className="text-amber-300 font-medium">{refund.preferredResolution}</span>
+                          <span className="text-[10px] text-mist-400 block font-semibold uppercase">Claim Amount</span>
+                          <span className="text-amber-300 font-bold font-mono">
+                            {refund.amountRequested !== undefined ? `₹${refund.amountRequested.toLocaleString('en-IN')}` : 'Fair credit'}
+                          </span>
                         </div>
-                        {refund.relatedService && (
-                          <div className="p-2 rounded-xl bg-white/5">
-                            <span className="text-[10px] text-mist-400 block font-semibold uppercase">Related Service</span>
-                            <span className="text-mist-200 font-medium">{refund.relatedService}</span>
-                          </div>
-                        )}
+                        <div className="p-2 rounded-xl bg-white/5">
+                          <span className="text-[10px] text-mist-400 block font-semibold uppercase">Preferred Resolution</span>
+                          <span className="text-mist-200 font-medium">{refund.preferredResolution}</span>
+                        </div>
                       </div>
 
-                      {/* Explanation */}
                       <div className="p-2.5 rounded-xl bg-white/5 space-y-1">
                         <span className="text-[10px] font-semibold text-mist-400 uppercase">
-                          Claim Description &amp; Incident Notes
+                          Claim Details
                         </span>
                         <p className="text-mist-200 text-xs whitespace-pre-line">{refund.detailedExplanation}</p>
                       </div>
 
-                      {/* Staff Guest-Visible Response */}
-                      {refund.staffGuestResponse && (
-                        <div className="p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/25 space-y-1">
-                          <span className="text-[10px] uppercase font-bold text-indigo-300 tracking-wider">
-                            Front Desk Management Response
-                          </span>
-                          <p className="text-xs text-indigo-100">{refund.staffGuestResponse}</p>
-                          {refund.approvedAmount !== undefined && (
-                            <div className="pt-1.5 flex items-center gap-2">
-                              <span className="text-[11px] font-semibold text-mist-300">Approved Refund:</span>
-                              <span className="text-sm font-bold text-emerald-400 font-mono">
-                                ₹{refund.approvedAmount.toLocaleString('en-IN')}
-                              </span>
-                            </div>
-                          )}
-                          {refund.resolutionDetails && (
-                            <p className="text-[11px] text-mist-300 italic pt-0.5">
-                              {refund.resolutionDetails}
-                            </p>
-                          )}
+                      {refund.attachments && refund.attachments.length > 0 && (
+                        <div className="space-y-1.5 p-2.5 rounded-xl bg-white/5">
+                          <span className="text-[10px] font-semibold text-mist-400 uppercase block">Attachments</span>
+                          <div className="flex flex-wrap gap-2">
+                            {refund.attachments.map((att, idx) => (
+                              <div key={idx} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-[11px] text-mist-200">
+                                <Paperclip className="h-3 w-3 text-sky-400" />
+                                <span className="truncate max-w-[140px]">{att.name}</span>
+                                <span className="text-[10px] text-mist-400 font-mono">({att.size})</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       )}
 
-                      {/* Additional Information Request from Staff */}
-                      {isInfoRequired && (
-                        <div className="p-3 rounded-2xl bg-sky-500/10 border border-sky-400/30 space-y-2.5">
-                          <span className="text-[10px] uppercase font-bold text-sky-300 tracking-wider flex items-center gap-1.5">
-                            <AlertCircle className="h-3.5 w-3.5" />
-                            Front Desk Needs Additional Information
-                          </span>
-                          <p className="text-xs text-sky-100 italic bg-white/5 p-2 rounded-xl">
-                            &ldquo;{refund.additionalInfoRequested || 'Please provide further clarification or receipts.'}&rdquo;
-                          </p>
+                      {/* 4. Staff Response / Resolution */}
+                      {refund.resolutionNotes && (
+                        <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-200">
+                          <strong>Duty Manager / Finance Remarks:</strong> {refund.resolutionNotes}
+                        </div>
+                      )}
 
+                      {isInfoRequired && (
+                        <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-400/30 space-y-2.5">
+                          <span className="text-[10px] uppercase font-bold text-amber-300 tracking-wider flex items-center gap-1.5">
+                            <AlertCircle className="h-3.5 w-3.5" />
+                            Front Desk Request for Clarification
+                          </span>
                           <div className="flex items-center gap-2">
                             <input
                               type="text"
@@ -1286,7 +1657,7 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
                               onChange={(e) =>
                                 setRefundInfoReplies((prev) => ({ ...prev, [refund.id]: e.target.value }))
                               }
-                              placeholder="Provide additional details or transaction proof..."
+                              placeholder="Provide the requested details..."
                               className="guest-field flex-1 px-3 py-1.5 text-xs text-white"
                             />
                             <button
@@ -1295,35 +1666,14 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
                               onClick={() => {
                                 guestProvideAdditionalRefundInfo(refund.id, replyInfoValue.trim());
                                 setRefundInfoReplies((prev) => ({ ...prev, [refund.id]: '' }));
-                                showToast('Information delivered to Front Desk.');
+                                showToast('Additional details sent to Front Desk!');
                               }}
-                              className="px-3 py-1.5 rounded-xl bg-sky-400 text-ink-950 font-bold text-xs hover:bg-sky-300 disabled:opacity-40"
+                              className="px-3 py-1.5 rounded-xl bg-amber-400 text-ink-950 font-bold text-xs hover:bg-amber-300 disabled:opacity-40"
                             >
-                              Submit Info
+                              Submit
                             </button>
                           </div>
                         </div>
-                      )}
-
-                      {/* Additional info already provided */}
-                      {refund.additionalInfoProvided && (
-                        <div className="p-2.5 rounded-xl bg-white/5 text-[11px] text-mist-300">
-                          <strong className="text-mist-400">Information Provided by Guest:</strong> &ldquo;{refund.additionalInfoProvided}&rdquo;
-                        </div>
-                      )}
-
-                      {/* Section 3.B: Rating and Feedback for genuinely Resolved refund claims */}
-                      {isResolved && (
-                        <TaskRatingAndFeedback
-                          itemId={refund.id}
-                          category="compensation"
-                          serviceType="refund"
-                          existingFeedback={refund.feedback}
-                          onSubmitFeedback={(rating, comment, tags) => {
-                            submitGuestFeedback('front_desk_coordinator', refund.id, rating, comment, tags);
-                            showToast('Thank you for rating our resolution process!');
-                          }}
-                        />
                       )}
                     </div>
                   )}
@@ -1334,208 +1684,131 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
         </div>
       )}
 
-      {/* 3. REGULAR SERVICE REQUESTS & ORDERS */}
-      {(activeFilter === 'all' || activeFilter === 'active' || activeFilter === 'dining' || activeFilter === 'services') && (
+      {/* 3. REGULAR WORK ITEMS (Dining Orders, Maintenance, Spa, Concierge, Recreation, Events) */}
+      {(showServices || showDining) && filteredWorkItems.length > 0 && (
         <div className="space-y-3">
           <GuestSectionHeader
             title="Service Requests &amp; Orders"
-            hint={`${filteredWorkItems.length} operational tasks registered for Room ${room}`}
+            hint={`${filteredWorkItems.length} guest requests for Room ${room}`}
           />
 
-          {filteredWorkItems.length === 0 ? (
-            <div className="guest-card p-6 text-center text-xs text-mist-400">
-              No matching service requests found in this view.
-            </div>
-          ) : (
-            <div className="space-y-2.5">
-              {filteredWorkItems.map((item) => {
-                const Icon = getCategoryIcon(item.category);
-                const isExpanded = expandedItemId === item.id;
-                const canCancel = item.status === 'Open' || item.status === 'Pending' || item.status === 'Assigned';
-                const isCompleted = item.status === 'Delivered' || item.status === 'Completed' || item.status === 'Resolved';
-                const isDelivered = item.status === 'Delivered' || item.status === 'Completed';
-                const roleId = (Object.entries(state.items).find(([, items]) => items.some(record => record.id === item.id))?.[0] || 'task_fulfiller') as RoleId;
-                const orderLines = item.orderLines || (item as any).lines as { qty: number; name: string; price: number }[] | undefined;
-
-                return (
-                  <div
-                    key={item.id}
-                    className="guest-card overflow-hidden border border-white/10 hover:border-amber-400/30 transition-all"
-                  >
-                    {/* Compact Card Header */}
-                    <div
-                      className="p-3.5 flex items-start justify-between gap-3 cursor-pointer select-none"
-                      onClick={() => setExpandedItemId(isExpanded ? null : item.id)}
-                    >
-                      <div className="flex items-start gap-2.5 min-w-0">
-                        <span className="grid h-8 w-8 place-items-center rounded-xl bg-amber-400/15 text-amber-300 shrink-0 mt-0.5">
-                          <Icon className="h-4 w-4" />
-                        </span>
-                        <div className="space-y-0.5 min-w-0">
-                          <p className="text-xs font-bold text-white truncate">{item.title}</p>
-                          <p className="text-[10px] text-mist-400 font-mono">
-                            {item.ref || 'Ref: REQ-' + item.id.slice(-4)} · {item.createdAt || 'Today'}
-                          </p>
-                          {item.description && (
-                            <p className="text-[11px] text-mist-300 line-clamp-1">{item.description}</p>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        <GuestPill tone={statusTone(item.status)}>{item.status}</GuestPill>
-                        {isExpanded ? (
-                          <ChevronDown className="h-4 w-4 text-mist-400" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 text-mist-400" />
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Live Step-by-Step Progress Timeline */}
-                    <div className="px-3.5 pb-2">
-                      <ServiceRequestTimeline status={item.status} createdAt={item.createdAt} />
-                    </div>
-
-                    {/* Expanded details */}
-                    {isExpanded && (
-                      <div className="px-3.5 pb-3.5 pt-1 border-t border-white/5 space-y-3 text-xs">
-                        {item.description && (
-                          <div className="p-2.5 rounded-xl bg-white/5 space-y-1">
-                            <span className="text-[10px] font-semibold text-mist-400 uppercase">
-                              Instructions &amp; Details
-                            </span>
-                            <p className="text-mist-200 text-xs whitespace-pre-line">{item.description}</p>
-                          </div>
-                        )}
-
-                        {/* Order lines if dining / room service */}
-                        {orderLines && orderLines.length > 0 && (
-                          <div className="space-y-1 p-2.5 rounded-xl bg-white/5">
-                            <span className="text-[10px] font-semibold text-mist-400 uppercase block mb-1">
-                              Ordered Items
-                            </span>
-                            <div className="space-y-1">
-                              {orderLines.map((l, i) => (
-                                <div key={i} className="flex justify-between text-[11px] text-mist-300">
-                                  <span>{l.qty}x {l.name}</span>
-                                  <span className="font-mono text-white">{money(l.price * l.qty)}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Staff Notes or Resolution Details */}
-                        {item.notes && (
-                          <div className="p-2.5 rounded-xl bg-sky-500/10 border border-sky-500/20 text-[11px] text-sky-200">
-                            <strong>Staff Remarks:</strong> {item.notes}
-                          </div>
-                        )}
-
-                        {/* Cancel button if pending */}
-                        {canCancel && (
-                          <div className="flex justify-end pt-1">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCancelTask(roleId, item.id, item.title);
-                              }}
-                              className="px-2.5 py-1.5 rounded-lg border border-rose-500/30 text-rose-300 hover:bg-rose-500/10 text-[11px] font-semibold transition-colors"
-                            >
-                              Cancel Request
-                            </button>
-                          </div>
-                        )}
-
-                        {/* Section 3.B: Rating and Feedback for genuinely completed work items */}
-                        {isCompleted && (
-                          <div className="flex flex-col gap-2 pt-2 border-t border-white/5">
-                            <TaskRatingAndFeedback
-                              itemId={item.id}
-                              category={item.category || 'room_service'}
-                              serviceType={item.category}
-                              existingFeedback={item.feedback}
-                              onSubmitFeedback={(rating, comment, tags) => {
-                                submitGuestFeedback(roleId, item.id, rating, comment, tags);
-                                showToast('Thank you for rating our service!');
-                              }}
-                            />
-                            {item.orderLines && item.orderLines.length > 0 && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setFeedbackItem({ roleId, itemId: item.id, title: item.title });
-                                  setFeedbackRating(item.feedback?.rating || 5);
-                                  setFeedbackComment(item.feedback?.comment || '');
-                                  setDishRatings(Object.fromEntries(Object.entries(item.dishFeedback || {}).map(([id, review]) => [id, { rating: review.rating, comment: review.comment }])));
-                                }}
-                                className="self-end px-2.5 py-1.5 rounded-lg bg-amber-400 text-ink-950 font-bold text-[11px] hover:bg-amber-300"
-                              >
-                                Rate Dishes Separately
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* 4. REMINDERS LIST */}
-      {showReminders && myReminders.length > 0 && (
-        <div className="space-y-3">
-          <GuestSectionHeader
-            title="Scheduled Reminders"
-            hint={`${myReminders.length} reminder alerts set with Front Desk`}
-          />
-
-          <div className="space-y-2">
-            {myReminders.map((rem) => {
-              const isDone = rem.status === 'completed';
+          <div className="space-y-2.5">
+            {filteredWorkItems.map((item) => {
+              const Icon = getCategoryIcon(item.category);
+              const isExpanded = isItemExpanded(item.id);
+              const canCancel = item.status === 'Open' || item.status === 'Pending' || item.status === 'Assigned';
+              const isCompleted = ['Delivered', 'Completed', 'Resolved', 'Closed'].includes(item.status);
+              const roleId = (Object.entries(state.items).find(([, items]) => items.some(record => record.id === item.id))?.[0] || 'task_fulfiller') as RoleId;
+              const orderLines = item.orderLines || (item as any).lines as Array<{ itemId?: string; dishName?: string; name: string; qty: number; price: number }> | undefined;
 
               return (
                 <div
-                  key={rem.id}
-                  className={`guest-card p-3.5 flex items-center justify-between gap-3 ${
-                    isDone ? 'opacity-60 bg-white/[0.02]' : 'border-sky-400/20 bg-sky-400/5'
-                  }`}
+                  key={item.id}
+                  className="guest-card overflow-hidden border border-white/10 hover:border-amber-400/30 transition-all"
                 >
-                  <div className="flex items-start gap-2.5 min-w-0">
-                    <span className="grid h-8 w-8 place-items-center rounded-xl bg-sky-400/20 text-sky-300 shrink-0 mt-0.5">
-                      <Clock className="h-4 w-4" />
-                    </span>
-                    <div className="space-y-0.5 min-w-0">
-                      <p className={`text-xs font-bold text-white truncate ${isDone ? 'line-through text-mist-400' : ''}`}>
-                        {rem.title || rem.text}
-                      </p>
-                      <p className="text-[10px] text-mist-400">
-                        {rem.dueDateTime} · Assigned to: {rem.assignedTo || 'Front Desk'}
-                      </p>
-                      {rem.specialInstructions && (
-                        <p className="text-[10px] text-mist-300 italic">{rem.specialInstructions}</p>
+                  {/* Collapsed Header - Strictly Minimal */}
+                  <div
+                    className="p-3.5 flex items-center justify-between gap-3 cursor-pointer select-none hover:bg-white/[0.02] transition-colors"
+                    onClick={() => toggleExpanded(item.id)}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="grid h-8 w-8 place-items-center rounded-xl bg-amber-400/15 text-amber-300 shrink-0">
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      <div className="space-y-0.5 min-w-0">
+                        <p className="text-xs font-bold text-white truncate">{item.title}</p>
+                        <p className="text-[10px] text-mist-400 font-mono">
+                          {item.ref || 'Ref: REQ-' + item.id.slice(-4)} · {item.createdAt || 'Today'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2.5 shrink-0">
+                      <GuestPill tone={statusTone(item.status)}>{item.status}</GuestPill>
+                      {isExpanded ? (
+                        <ChevronDown className="h-4 w-4 text-mist-400" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 text-mist-400" />
                       )}
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => updateGuestReminderStatus(rem.id, isDone ? 'pending' : 'completed')}
-                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all ${
-                      isDone
-                        ? 'border-white/10 text-mist-400 hover:text-white'
-                        : 'border-sky-400/40 bg-sky-400/10 text-sky-300 hover:bg-sky-400/20'
-                    }`}
-                  >
-                    {isDone ? 'Mark Active' : 'Mark Completed'}
-                  </button>
+                  {/* Expanded Content: Strict Order 1. Progress -> 2. Rating & Review -> 3. Details -> 4. Staff Response */}
+                  {isExpanded && (
+                    <div className="px-3.5 pb-3.5 pt-1 border-t border-white/5 space-y-3.5 text-xs">
+                      {/* 1. Operational Progress */}
+                      <ServiceRequestTimeline
+                        type={getWorkItemServiceType(item)}
+                        status={item.status}
+                        createdAt={item.createdAt}
+                      />
+
+                      {/* 2. Rating & Detailed Review (Only when genuinely completed) */}
+                      {isCompleted && (
+                        <TaskRatingAndFeedback
+                          itemId={item.id}
+                          category={item.category || 'room_service'}
+                          serviceType={item.category}
+                          orderLines={orderLines}
+                          existingFeedback={item.feedback}
+                          existingDishFeedback={item.dishFeedback}
+                          onSubmitFeedback={(rating, comment, tags, dishes) => {
+                            submitGuestFeedback(roleId, item.id, rating, comment, tags, dishes);
+                            showToast('Thank you for rating our service!');
+                          }}
+                        />
+                      )}
+
+                      {/* 3. Relevant Task Details */}
+                      {orderLines && orderLines.length > 0 && (
+                        <div className="space-y-1 p-2.5 rounded-xl bg-white/5">
+                          <span className="text-[10px] font-semibold text-mist-400 uppercase block mb-1">
+                            Ordered Items
+                          </span>
+                          <div className="space-y-1">
+                            {orderLines.map((l, i) => (
+                              <div key={i} className="flex justify-between text-[11px] text-mist-300">
+                                <span>{l.qty}x {l.dishName || l.name}</span>
+                                <span className="font-mono text-white">{money(l.price * l.qty)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {item.description && (
+                        <div className="p-2.5 rounded-xl bg-white/5 space-y-1">
+                          <span className="text-[10px] font-semibold text-mist-400 uppercase">
+                            Instructions &amp; Details
+                          </span>
+                          <p className="text-mist-200 text-xs whitespace-pre-line">{item.description}</p>
+                        </div>
+                      )}
+
+                      {/* 4. Staff Response or Resolution */}
+                      {item.notes && (
+                        <div className="p-2.5 rounded-xl bg-sky-500/10 border border-sky-500/20 text-[11px] text-sky-200">
+                          <strong>Staff Remarks:</strong> {item.notes}
+                        </div>
+                      )}
+
+                      {/* Cancel button if pending */}
+                      {canCancel && (
+                        <div className="flex justify-end pt-1">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCancelTask(roleId, item.id, item.title);
+                            }}
+                            className="px-2.5 py-1.5 rounded-lg border border-rose-500/30 text-rose-300 hover:bg-rose-500/10 text-[11px] font-semibold transition-colors"
+                          >
+                            Cancel Request
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -1543,60 +1816,236 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
         </div>
       )}
 
-      {/* 5. COMPLAINTS LIST */}
-      {showComplaints && myComplaints.length > 0 && (
+      {/* 4. COMPLAINTS */}
+      {showComplaints && filteredComplaints.length > 0 && (
         <div className="space-y-3">
           <GuestSectionHeader
-            title="Service Recovery Cases"
+            title="Service Recovery &amp; Complaints"
             hint="Duty Manager Marcus Vance escalation cases"
           />
 
-          <div className="space-y-2">
-            {myComplaints.map((c) => {
+          <div className="space-y-2.5">
+            {filteredComplaints.map((c) => {
+              const isExpanded = isItemExpanded(c.id);
               const isResolved = c.status === 'Resolved';
 
               return (
                 <div
                   key={c.id}
-                  className="guest-card p-3.5 space-y-2.5 border border-rose-500/20 hover:border-rose-500/40 transition-all"
+                  className="guest-card overflow-hidden border border-rose-500/20 hover:border-rose-500/40 transition-all"
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-start gap-2.5">
-                      <span className="grid h-8 w-8 place-items-center rounded-xl bg-rose-500/20 text-rose-300 shrink-0 mt-0.5">
+                  {/* Collapsed Header - Strictly Minimal */}
+                  <div
+                    className="p-3.5 flex items-center justify-between gap-3 cursor-pointer select-none hover:bg-white/[0.02] transition-colors"
+                    onClick={() => toggleExpanded(c.id)}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="grid h-8 w-8 place-items-center rounded-xl bg-rose-500/20 text-rose-300 shrink-0">
                         <HeartHandshake className="h-4 w-4" />
                       </span>
-                      <div>
-                        <span className="text-[10px] font-mono font-bold text-amber-300">{c.complaintId}</span>
-                        <h4 className="text-xs font-bold text-white">{c.title}</h4>
-                        <p className="text-[10px] text-mist-400">{c.category} · {c.submittedAt}</p>
+                      <div className="space-y-0.5 min-w-0">
+                        <p className="text-xs font-bold text-white truncate">Complaint: {c.title}</p>
+                        <p className="text-[10px] text-mist-400 font-mono">{c.complaintId} · {c.submittedAt}</p>
                       </div>
                     </div>
 
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-400/20 text-amber-300 border border-amber-400/30">
-                      {c.status}
-                    </span>
+                    <div className="flex items-center gap-2.5 shrink-0">
+                      <GuestPill tone={statusTone(c.status)}>{c.status}</GuestPill>
+                      {isExpanded ? (
+                        <ChevronDown className="h-4 w-4 text-mist-400" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 text-mist-400" />
+                      )}
+                    </div>
                   </div>
 
-                  <p className="text-[11px] text-mist-200 bg-white/5 p-2 rounded-lg">{c.description}</p>
+                  {/* Expanded Content: Strict Order 1. Progress -> 2. Rating & Review -> 3. Details -> 4. Staff Response */}
+                  {isExpanded && (
+                    <div className="px-3.5 pb-3.5 pt-1 border-t border-white/5 space-y-3.5 text-xs">
+                      {/* 1. Operational Progress */}
+                      <ServiceRequestTimeline
+                        type="complaint"
+                        status={c.status}
+                        createdAt={c.submittedAt}
+                      />
 
-                  {c.responseRemarks && (
-                    <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-200">
-                      <strong>Resolution Remarks:</strong> {c.responseRemarks}
+                      {/* 2. Rating & Review (Only when resolved) */}
+                      {isResolved && (
+                        <TaskRatingAndFeedback
+                          itemId={c.id}
+                          category="front_desk"
+                          serviceType="complaint"
+                          existingFeedback={c.feedback}
+                          onSubmitFeedback={(rating, comment, tags) => {
+                            submitGuestFeedback('front_desk_coordinator', c.id, rating, comment, tags);
+                            showToast('Thank you for rating our service recovery!');
+                          }}
+                        />
+                      )}
+
+                      {/* 3. Relevant Details */}
+                      <div className="p-2.5 rounded-xl bg-white/5 space-y-1">
+                        <span className="text-[10px] font-semibold text-mist-400 uppercase">
+                          Reported Concern ({c.category})
+                        </span>
+                        <p className="text-mist-200 text-xs whitespace-pre-line">{c.description}</p>
+                        {c.preferredResolution && (
+                          <p className="text-[11px] text-amber-300 pt-0.5">
+                            <strong>Requested Resolution:</strong> {c.preferredResolution}
+                          </p>
+                        )}
+                      </div>
+
+                      {c.attachments && c.attachments.length > 0 && (
+                        <div className="space-y-1.5 p-2.5 rounded-xl bg-white/5">
+                          <span className="text-[10px] font-semibold text-mist-400 uppercase block">Attachments</span>
+                          <div className="flex flex-wrap gap-2">
+                            {c.attachments.map((att, idx) => (
+                              <div key={idx} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-[11px] text-mist-200">
+                                <Paperclip className="h-3 w-3 text-sky-400" />
+                                <span className="truncate max-w-[140px]">{att.name}</span>
+                                <span className="text-[10px] text-mist-400 font-mono">({att.size})</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 4. Staff Response */}
+                      {c.responseRemarks && (
+                        <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-200">
+                          <strong>Duty Manager Resolution:</strong> {c.responseRemarks}
+                        </div>
+                      )}
                     </div>
                   )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
-                  {/* Rating for resolved complaint */}
-                  {isResolved && (
-                    <TaskRatingAndFeedback
-                      itemId={c.id}
-                      category="front_desk"
-                      serviceType="complaint"
-                      existingFeedback={c.feedback}
-                      onSubmitFeedback={(rating, comment, tags) => {
-                        submitGuestFeedback('front_desk_coordinator', c.id, rating, comment, tags);
-                        showToast('Thank you for rating our service recovery!');
-                      }}
-                    />
+      {/* 5. INCIDENTS */}
+      {showIncidents && filteredIncidents.length > 0 && (
+        <div className="space-y-3">
+          <GuestSectionHeader
+            title="Incident Reports"
+            hint={`${filteredIncidents.length} safety & security reports on file`}
+          />
+
+          <div className="space-y-2.5">
+            {filteredIncidents.map((inc) => {
+              const isExpanded = isItemExpanded(inc.id);
+              const isCompleted = inc.status === 'Resolved' || inc.status === 'Closed';
+
+              return (
+                <div
+                  key={inc.id}
+                  className="guest-card overflow-hidden border border-rose-500/20 hover:border-rose-500/40 transition-all"
+                >
+                  {/* Collapsed Header - Strictly Minimal */}
+                  <div
+                    className="p-3.5 flex items-center justify-between gap-3 cursor-pointer select-none hover:bg-white/[0.02] transition-colors"
+                    onClick={() => toggleExpanded(inc.id)}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="grid h-8 w-8 place-items-center rounded-xl bg-rose-500/20 text-rose-300 shrink-0">
+                        <ShieldAlert className="h-4 w-4" />
+                      </span>
+                      <div className="space-y-0.5 min-w-0">
+                        <p className="text-xs font-bold text-white truncate">Incident: {inc.category}</p>
+                        <p className="text-[10px] text-mist-400 font-mono">{inc.ref} · {inc.submittedAt}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2.5 shrink-0">
+                      <GuestPill tone={statusTone(inc.status)}>{inc.status}</GuestPill>
+                      {isExpanded ? (
+                        <ChevronDown className="h-4 w-4 text-mist-400" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 text-mist-400" />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Expanded Content: Strict Order 1. Progress -> 2. Rating & Review -> 3. Details -> 4. Staff Response */}
+                  {isExpanded && (
+                    <div className="px-3.5 pb-3.5 pt-1 border-t border-white/5 space-y-3.5 text-xs">
+                      {/* 1. Operational Progress */}
+                      <ServiceRequestTimeline
+                        type="incident"
+                        status={inc.status}
+                        createdAt={inc.submittedAt}
+                      />
+
+                      {/* 2. Rating & Review (Only when resolved) */}
+                      {isCompleted && (
+                        <TaskRatingAndFeedback
+                          itemId={inc.id}
+                          category="incident"
+                          serviceType="security"
+                          existingFeedback={inc.feedback}
+                          onSubmitFeedback={(rating, comment, tags) => {
+                            submitGuestFeedback('front_desk_coordinator', inc.id, rating, comment, tags);
+                            showToast('Thank you for rating our incident response!');
+                          }}
+                        />
+                      )}
+
+                      {/* 3. Relevant Task Details */}
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px]">
+                        <div className="p-2 rounded-xl bg-white/5">
+                          <span className="text-[10px] text-mist-400 block font-semibold uppercase">Location</span>
+                          <span className="text-white font-medium">{inc.location}</span>
+                        </div>
+                        <div className="p-2 rounded-xl bg-white/5">
+                          <span className="text-[10px] text-mist-400 block font-semibold uppercase">Urgency</span>
+                          <span className={cn('font-semibold uppercase text-[10px]', inc.immediateAssistanceRequired ? 'text-rose-400' : 'text-amber-300')}>
+                            {inc.immediateAssistanceRequired ? 'Immediate Assistance' : 'Standard'}
+                          </span>
+                        </div>
+                        {inc.peopleInvolved && (
+                          <div className="p-2 rounded-xl bg-white/5">
+                            <span className="text-[10px] text-mist-400 block font-semibold uppercase">People Involved</span>
+                            <span className="text-mist-200">{inc.peopleInvolved}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="p-2.5 rounded-xl bg-white/5 space-y-1">
+                        <span className="text-[10px] font-semibold text-mist-400 uppercase">Description</span>
+                        <p className="text-mist-200 text-xs whitespace-pre-line">{inc.description}</p>
+                        {inc.additionalInfo && (
+                          <p className="text-[11px] text-mist-300 pt-0.5">
+                            <strong>Additional Info:</strong> {inc.additionalInfo}
+                          </p>
+                        )}
+                      </div>
+
+                      {inc.attachments && inc.attachments.length > 0 && (
+                        <div className="space-y-1.5 p-2.5 rounded-xl bg-white/5">
+                          <span className="text-[10px] font-semibold text-mist-400 uppercase block">Attachments</span>
+                          <div className="flex flex-wrap gap-2">
+                            {inc.attachments.map((att, idx) => (
+                              <div key={idx} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-[11px] text-mist-200">
+                                <Paperclip className="h-3 w-3 text-sky-400" />
+                                <span className="truncate max-w-[140px]">{att.name}</span>
+                                <span className="text-[10px] text-mist-400 font-mono">({att.size})</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 4. Staff Response */}
+                      {(inc.staffResponse || inc.internalStaffNote) && (
+                        <div className="p-2.5 rounded-xl bg-sky-500/10 border border-sky-500/20 text-[11px] text-sky-200 space-y-1">
+                          {inc.staffResponse && <p><strong>Staff Response:</strong> {inc.staffResponse}</p>}
+                          {inc.internalStaffNote && <p className="text-mist-300"><strong>Notes:</strong> {inc.internalStaffNote}</p>}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               );
@@ -1614,100 +2063,101 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
           />
 
           <div className="space-y-2.5">
-            {myMessages.map((msg) => (
-              <div key={msg.id} className="guest-card p-3.5 space-y-2.5">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h4 className="text-xs font-bold text-white">{msg.subject}</h4>
-                    <p className="text-[10px] text-mist-400">{msg.createdAt}</p>
-                  </div>
-                  <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-indigo-400/20 text-indigo-300">
-                    {msg.status}
-                  </span>
-                </div>
-
-                <p className="text-[11px] text-mist-200">{msg.message}</p>
-
-                {/* Staff replies */}
-                {msg.replies && msg.replies.length > 0 && (
-                  <div className="space-y-1.5 pt-2 border-t border-white/5">
-                    {msg.replies.map((rep) => (
-                      <div
-                        key={rep.id}
-                        className={`p-2 rounded-lg text-[11px] ${
-                          rep.sender === 'front_desk'
-                            ? 'bg-indigo-500/10 border border-indigo-500/20 text-indigo-200'
-                            : 'bg-white/5 text-mist-200'
-                        }`}
-                      >
-                        <p className="text-[9px] font-bold opacity-75">{rep.senderName} · {rep.at}</p>
-                        <p>{rep.text}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <div className="flex justify-end pt-1">
-                  <button
-                    type="button"
-                    onClick={() => setReplyMessageId(msg.id)}
-                    className="text-[11px] font-bold text-amber-300 hover:text-white flex items-center gap-1"
-                  >
-                    <span>Reply</span>
-                    <Send className="h-3 w-3" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* 7. LOST AND FOUND TICKETS */}
-      {showLostFound && myLostReports.length > 0 && (
-        <div className="space-y-3">
-          <GuestSectionHeader
-            title="Lost &amp; Found Tickets"
-            hint="Property tracking with Security &amp; Front Desk"
-          />
-
-          <div className="space-y-2">
-            {myLostReports.map((r) => {
-              const isResolved = ['Claim Verified', 'Returned', 'Item Found'].includes(r.status);
+            {myMessages.map((msg) => {
+              const isExpanded = isItemExpanded(msg.id);
+              const isResolved = msg.status === 'Resolved' || msg.status === 'Closed';
 
               return (
-                <div key={r.id} className="guest-card p-3.5 space-y-2 border border-teal-500/20">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <span className="font-mono text-[10px] text-amber-300 font-bold">{r.ref}</span>
-                      <h4 className="text-xs font-bold text-white">{r.itemName}</h4>
-                      <p className="text-[10px] text-mist-400">{r.category} · Lost at: {r.lastLocation}</p>
+                <div key={msg.id} className="guest-card overflow-hidden border border-white/10 hover:border-indigo-400/30 transition-all">
+                  {/* Collapsed Header - Strictly Minimal */}
+                  <div
+                    className="p-3.5 flex items-center justify-between gap-3 cursor-pointer select-none hover:bg-white/[0.02] transition-colors"
+                    onClick={() => toggleExpanded(msg.id)}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="grid h-8 w-8 place-items-center rounded-xl bg-indigo-500/20 text-indigo-300 shrink-0">
+                        <MessageSquare className="h-4 w-4" />
+                      </span>
+                      <div className="space-y-0.5 min-w-0">
+                        <p className="text-xs font-bold text-white truncate">{msg.subject}</p>
+                        <p className="text-[10px] text-mist-400 font-mono">
+                          {(msg as any).ref || 'MSG-' + msg.id.slice(-4)} · {msg.createdAt}
+                        </p>
+                      </div>
                     </div>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-400/20 text-teal-300 border border-teal-400/30">
-                      {r.status}
-                    </span>
+
+                    <div className="flex items-center gap-2.5 shrink-0">
+                      <GuestPill tone={statusTone(msg.status)}>{msg.status}</GuestPill>
+                      {isExpanded ? (
+                        <ChevronDown className="h-4 w-4 text-mist-400" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 text-mist-400" />
+                      )}
+                    </div>
                   </div>
 
-                  <p className="text-[11px] text-mist-200">{r.description}</p>
+                  {/* Expanded Content: Strict Order 1. Progress -> 2. Rating & Review -> 3. Details -> 4. Staff Response */}
+                  {isExpanded && (
+                    <div className="px-3.5 pb-3.5 pt-1 border-t border-white/5 space-y-3.5 text-xs">
+                      {/* 1. Operational Progress */}
+                      <ServiceRequestTimeline
+                        type="chat"
+                        status={msg.status}
+                        createdAt={msg.createdAt}
+                        hasStaffReply={Boolean(msg.replies && msg.replies.some((r) => r.sender === 'front_desk'))}
+                      />
 
-                  <ServiceRequestTimeline
-                    type="lost"
-                    status={r.status}
-                    createdAt={r.submittedAt}
-                  />
+                      {/* 2. Rating & Review (Only when resolved) */}
+                      {isResolved && (
+                        <TaskRatingAndFeedback
+                          itemId={msg.id}
+                          category="front_desk"
+                          serviceType="inquiry"
+                          existingFeedback={msg.feedback}
+                          onSubmitFeedback={(rating, comment, tags) => {
+                            submitGuestFeedback('front_desk_coordinator', msg.id, rating, comment, tags);
+                            showToast('Thank you for rating our front desk service!');
+                          }}
+                        />
+                      )}
 
-                  {/* Rating for returned or claimed item */}
-                  {isResolved && (
-                    <TaskRatingAndFeedback
-                      itemId={r.id}
-                      category="lost_found"
-                      serviceType="lost"
-                      existingFeedback={r.feedback}
-                      onSubmitFeedback={(rating, comment, tags) => {
-                        submitGuestFeedback('front_desk_coordinator', r.id, rating, comment, tags);
-                        showToast('Thank you for rating our Lost & Found service!');
-                      }}
-                    />
+                      {/* 3. Relevant Task Details */}
+                      <div className="p-2.5 rounded-xl bg-white/5 space-y-1">
+                        <span className="text-[10px] font-semibold text-mist-400 uppercase">Message</span>
+                        <p className="text-mist-200 text-xs whitespace-pre-line">{msg.message}</p>
+                      </div>
+
+                      {/* 4. Staff Replies */}
+                      {msg.replies && msg.replies.length > 0 && (
+                        <div className="space-y-1.5 pt-1">
+                          <span className="text-[10px] font-semibold text-mist-400 uppercase block">Conversation Thread</span>
+                          {msg.replies.map((rep) => (
+                            <div
+                              key={rep.id}
+                              className={`p-2.5 rounded-xl text-[11px] ${
+                                rep.sender === 'front_desk'
+                                  ? 'bg-indigo-500/10 border border-indigo-500/20 text-indigo-200'
+                                  : 'bg-white/5 text-mist-200'
+                              }`}
+                            >
+                              <p className="text-[9px] font-bold opacity-75">{rep.senderName} · {rep.at}</p>
+                              <p className="mt-0.5">{rep.text}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="flex justify-end pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setReplyMessageId(msg.id)}
+                          className="px-3 py-1.5 rounded-xl bg-indigo-500/20 border border-indigo-400/40 text-indigo-200 hover:bg-indigo-500/30 text-xs font-bold flex items-center gap-1.5 transition-all"
+                        >
+                          <span>Reply to Front Desk</span>
+                          <Send className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </div>
               );
@@ -1716,55 +2166,183 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
         </div>
       )}
 
-      {/* RATING & FEEDBACK SHEET */}
-      {feedbackItem && (
-        <GuestSheet
-          title={`Rate ${feedbackItem.title}`}
-          onClose={() => { setFeedbackItem(null); setDishRatings({}); }}
-          footer={
-            <button
-              type="button"
-              onClick={handleSendFeedback}
-              className="w-full py-2.5 px-3 rounded-xl bg-amber-400 text-ink-950 text-xs font-bold hover:bg-amber-300 shadow-md"
-            >
-              Submit Star Rating
-            </button>
-          }
-        >
-          <div className="space-y-4 text-xs text-center py-2">
-            <p className="text-mist-300">How was your experience with this service?</p>
-            <div className="flex items-center justify-center gap-2">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                  key={star}
-                  type="button"
-                  aria-label={`Service rating ${star} of 5`} aria-pressed={star === feedbackRating}
-                  onClick={() => setFeedbackRating(star)}
-                  className="p-1.5 transition-transform hover:scale-125"
-                >
-                  <Star
-                    className={`h-7 w-7 ${
-                      star <= feedbackRating
-                        ? 'fill-amber-400 text-amber-400'
-                        : 'text-mist-500'
-                    }`}
-                  />
-                </button>
-              ))}
-            </div>
+      {/* 7. LOST AND FOUND TICKETS */}
+      {showLostFound && myLostReports.length > 0 && (
+        <div className="space-y-3">
+          <GuestSectionHeader
+            title="Lost &amp; Found Claims"
+            hint="Property tracking with Security &amp; Front Desk"
+          />
 
-            <textarea
-              rows={2}
-              aria-label="Service review" maxLength={1000}
-              value={feedbackComment}
-              onChange={(e) => setFeedbackComment(e.target.value)}
-              placeholder="Any compliments or suggestions for the team? (Optional)"
-              className="guest-field w-full px-3 py-2 text-xs text-white text-left"
-            />
-            {feedbackDishes.length > 0 && <div className="space-y-4 text-left border-t border-white/10 pt-4"><h3 className="font-semibold">Rate your dishes (optional)</h3><p className="text-mist-300">These ratings are separate from the service rating.</p>{feedbackDishes.map(line => <div className="space-y-2" key={line.itemId}><label className="block">{line.dishName || line.name}<select aria-label={'Rating for ' + (line.dishName || line.name)} className="guest-field w-full mt-2 p-2" value={dishRatings[line.itemId]?.rating || ''} onChange={e => setDishRatings(prev => { const next = { ...prev }; if (!e.target.value) delete next[line.itemId]; else next[line.itemId] = { ...prev[line.itemId], rating: Number(e.target.value) }; return next; })}><option value="">Skip dish rating</option>{[5,4,3,2,1].map(r => <option key={r} value={r}>{r} / 5</option>)}</select></label>{dishRatings[line.itemId] && <textarea aria-label={'Review for ' + (line.dishName || line.name)} className="guest-field w-full p-2" rows={2} maxLength={1000} placeholder="Your dish review (optional)" value={dishRatings[line.itemId].comment || ''} onChange={e => setDishRatings(prev => ({ ...prev, [line.itemId]: { ...prev[line.itemId], comment: e.target.value } }))}/>}</div>)}</div>}
+          <div className="space-y-2.5">
+            {myLostReports.map((r) => {
+              const isExpanded = isItemExpanded(r.id);
+              const isResolved = ['Claim Verified', 'Returned', 'Item Found'].includes(r.status);
+
+              return (
+                <div key={r.id} className="guest-card overflow-hidden border border-teal-500/20 hover:border-teal-500/40 transition-all">
+                  {/* Collapsed Header - Strictly Minimal */}
+                  <div
+                    className="p-3.5 flex items-center justify-between gap-3 cursor-pointer select-none hover:bg-white/[0.02] transition-colors"
+                    onClick={() => toggleExpanded(r.id)}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="grid h-8 w-8 place-items-center rounded-xl bg-teal-400/20 text-teal-300 shrink-0">
+                        <PackageSearch className="h-4 w-4" />
+                      </span>
+                      <div className="space-y-0.5 min-w-0">
+                        <p className="text-xs font-bold text-white truncate">Claim: {r.itemName}</p>
+                        <p className="text-[10px] text-mist-400 font-mono">{r.ref} · {r.submittedAt}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2.5 shrink-0">
+                      <GuestPill tone={statusTone(r.status)}>{r.status}</GuestPill>
+                      {isExpanded ? (
+                        <ChevronDown className="h-4 w-4 text-mist-400" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 text-mist-400" />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Expanded Content: Strict Order 1. Progress -> 2. Rating & Review -> 3. Details -> 4. Staff Response */}
+                  {isExpanded && (
+                    <div className="px-3.5 pb-3.5 pt-1 border-t border-white/5 space-y-3.5 text-xs">
+                      {/* 1. Operational Progress */}
+                      <ServiceRequestTimeline
+                        type="lost"
+                        status={r.status}
+                        createdAt={r.submittedAt}
+                      />
+
+                      {/* 2. Rating & Review (Only when resolved) */}
+                      {isResolved && (
+                        <TaskRatingAndFeedback
+                          itemId={r.id}
+                          category="lost_found"
+                          serviceType="lost"
+                          existingFeedback={r.feedback}
+                          onSubmitFeedback={(rating, comment, tags) => {
+                            submitGuestFeedback('front_desk_coordinator', r.id, rating, comment, tags);
+                            showToast('Thank you for rating our Lost & Found service!');
+                          }}
+                        />
+                      )}
+
+                      {/* 3. Relevant Task Details */}
+                      <div className="grid grid-cols-2 gap-2 text-[11px]">
+                        <div className="p-2 rounded-xl bg-white/5">
+                          <span className="text-[10px] text-mist-400 block font-semibold uppercase">Category</span>
+                          <span className="text-white font-medium">{r.category}</span>
+                        </div>
+                        <div className="p-2 rounded-xl bg-white/5">
+                          <span className="text-[10px] text-mist-400 block font-semibold uppercase">Reported Location</span>
+                          <span className="text-mist-200 font-medium">{r.lastLocation}</span>
+                        </div>
+                      </div>
+
+                      <div className="p-2.5 rounded-xl bg-white/5 space-y-1">
+                        <span className="text-[10px] font-semibold text-mist-400 uppercase">Item Description</span>
+                        <p className="text-mist-200 text-xs whitespace-pre-line">{r.description}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
-        </GuestSheet>
+        </div>
       )}
+
+      {/* 8. REMINDERS */}
+      {showReminders && myReminders.length > 0 && (
+        <div className="space-y-3">
+          <GuestSectionHeader
+            title="Scheduled Reminders"
+            hint={`${myReminders.length} reminder alerts set with Front Desk`}
+          />
+
+          <div className="space-y-2">
+            {myReminders.map((rem) => {
+              const isDone = rem.status === 'completed';
+              const isExpanded = isItemExpanded(rem.id);
+
+              return (
+                <div
+                  key={rem.id}
+                  className={`guest-card overflow-hidden border transition-all ${
+                    isDone ? 'opacity-60 bg-white/[0.02] border-white/5' : 'border-sky-400/20 bg-sky-400/5'
+                  }`}
+                >
+                  {/* Collapsed Header - Strictly Minimal */}
+                  <div
+                    className="p-3.5 flex items-center justify-between gap-3 cursor-pointer select-none hover:bg-white/[0.02] transition-colors"
+                    onClick={() => toggleExpanded(rem.id)}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="grid h-8 w-8 place-items-center rounded-xl bg-sky-400/20 text-sky-300 shrink-0">
+                        <Clock className="h-4 w-4" />
+                      </span>
+                      <div className="space-y-0.5 min-w-0">
+                        <p className={`text-xs font-bold text-white truncate ${isDone ? 'line-through text-mist-400' : ''}`}>
+                          {rem.title || rem.text}
+                        </p>
+                        <p className="text-[10px] text-mist-400">
+                          {rem.dueDateTime} · Assigned: {rem.assignedTo || 'Front Desk'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2.5 shrink-0">
+                      <GuestPill tone={isDone ? 'neutral' : 'info'}>{rem.status}</GuestPill>
+                      {isExpanded ? (
+                        <ChevronDown className="h-4 w-4 text-mist-400" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 text-mist-400" />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Expanded Content */}
+                  {isExpanded && (
+                    <div className="px-3.5 pb-3.5 pt-1 border-t border-white/5 space-y-3 text-xs">
+                      {/* 1. Operational Progress */}
+                      <ServiceRequestTimeline
+                        type="reminder"
+                        status={rem.status}
+                        createdAt={rem.createdAt}
+                      />
+
+                      {rem.specialInstructions && (
+                        <div className="p-2.5 rounded-xl bg-white/5 space-y-1">
+                          <span className="text-[10px] font-semibold text-mist-400 uppercase">Instructions</span>
+                          <p className="text-mist-200 text-xs">{rem.specialInstructions}</p>
+                        </div>
+                      )}
+
+                      <div className="flex justify-end pt-1">
+                        <button
+                          type="button"
+                          onClick={() => updateGuestReminderStatus(rem.id, isDone ? 'pending' : 'completed')}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                            isDone
+                              ? 'border-white/10 text-mist-400 hover:text-white'
+                              : 'border-sky-400/40 bg-sky-400/10 text-sky-300 hover:bg-sky-400/20'
+                          }`}
+                        >
+                          {isDone ? 'Mark Active' : 'Mark Completed'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* QUICK REPLY SHEET */}
       {replyMessageId && (
         <GuestSheet

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, type CSSProperties } from 'react';
+import { useState, useEffect, useMemo, type CSSProperties } from 'react';
 import {
   ArrowUpRight,
   BadgeCheck,
@@ -65,7 +65,7 @@ export type RequestSourceTab =
   | 'fulfiller_escalations'
   | 'route';
 
-type View = 'action' | 'guest' | 'done' | 'all';
+type View = 'action' | 'done' | 'all';
 type Dialog =
   | { kind: 'quote' | 'cancel' | 'route' | 'close' | 'detail' | 'escalation' | 'complaint' | 'event'; id: string }
   | { kind: 'new' }
@@ -81,7 +81,6 @@ const REQUEST_SOURCE_TABS: Array<{ id: RequestSourceTab; label: string }> = [
 
 const VIEWS: Array<{ id: View; label: string }> = [
   { id: 'action', label: 'Needs action' },
-  { id: 'guest', label: 'Awaiting guest' },
   { id: 'done', label: 'Done' },
   { id: 'all', label: 'All' },
 ];
@@ -94,12 +93,16 @@ const CANCEL_REASONS = [
 ];
 
 export const isDone = (i: WorkItem) =>
-  REQUEST_DONE.includes(i.status) || i.status === 'Resolved' || i.status === 'Completed';
-export const needsAction = (i: WorkItem) => !isDone(i) && i.status !== 'Awaiting guest';
+  REQUEST_DONE.includes(i.status) ||
+  i.status === 'Resolved' ||
+  i.status === 'Completed' ||
+  i.status === 'Closed' ||
+  i.status === 'Finished';
+export const needsAction = (i: WorkItem) => !isDone(i);
 
 function categoryOf(i: WorkItem): string {
   if (i.isEventRequest || i.ref?.startsWith('EVT')) return 'Event Request';
-  if (i.complaintId || i.ref?.startsWith('CMP')) return 'Guest Complaint';
+  if (i.complaintId || /^(?:GC|CMP)-/.test(i.ref ?? '')) return 'Guest Complaint';
   if (i.escalationId || i.status === 'Escalated') return 'Fulfiller Escalation';
   if (i.category === 'lost_found') return 'Lost & found';
   if (i.category === 'concierge') return 'Concierge';
@@ -243,15 +246,80 @@ function AttachmentArtRenderer({
 }
 
 /* --------------------------------------------------------------------- */
+/* Category matching helper                                              */
+/* --------------------------------------------------------------------- */
+
+export function matchesRequestTab(i: WorkItem, tab: RequestSourceTab) {
+  if (tab === 'guest_requests') {
+    return (
+      !i.isEventRequest &&
+      !i.complaintId &&
+      !i.escalationId &&
+      !i.suggestedDept &&
+      !i.routingReason &&
+      !i.reassignReason &&
+      !i.reassignPending &&
+      !/^(?:GC|CMP)-/.test(i.ref ?? '') &&
+      !i.ref?.startsWith('EVT') &&
+      !i.ref?.startsWith('ESC') &&
+      !i.ref?.startsWith('RT-') &&
+      !i.ref?.startsWith('REA-') &&
+      i.status !== 'Escalated'
+    );
+  }
+  if (tab === 'complaints') {
+    return (
+      Boolean(i.complaintId) ||
+      /^(?:GC|CMP)-/.test(i.ref ?? '') ||
+      i.ref?.startsWith('CR-') ||
+      i.title.toLowerCase().includes('complaint') ||
+      i.title.toLowerCase().includes('disturbance') ||
+      (i.category as string) === 'case'
+    );
+  }
+  if (tab === 'event_requests') {
+    return (
+      Boolean(i.isEventRequest) ||
+      i.ref?.startsWith('EVT') ||
+      i.title.toLowerCase().includes('celebration') ||
+      i.title.toLowerCase().includes('dinner') ||
+      i.title.toLowerCase().includes('meeting') ||
+      i.title.toLowerCase().includes('reception')
+    );
+  }
+  if (tab === 'fulfiller_escalations') {
+    return (
+      Boolean(i.escalationId) ||
+      (i.status === 'Escalated' && !i.isEventRequest) ||
+      i.ref?.startsWith('ESC') ||
+      i.meta?.toLowerCase().includes('escalat')
+    );
+  }
+  if (tab === 'route') {
+    return (
+      Boolean(i.suggestedDept) ||
+      Boolean(i.routingReason) ||
+      Boolean(i.reassignReason) ||
+      Boolean(i.reassignPending) ||
+      i.ref?.startsWith('RT-') ||
+      i.ref?.startsWith('REA-')
+    );
+  }
+  return true;
+}
+
+/* --------------------------------------------------------------------- */
 /* Main Requests Panel Component                                         */
 /* --------------------------------------------------------------------- */
 
 export function RequestsPanel({
   initialCategory = 'all',
   initialSourceTab = 'guest_requests',
+  onOpenGuestProfile,
 }: {
   initialCategory?: RequestCategory;
   initialSourceTab?: RequestSourceTab;
+  onOpenGuestProfile?: (guestName: string, room?: string) => void;
 }) {
   const { state, fdAction } = useDemo();
   const [sourceTab, setSourceTab] = useState<RequestSourceTab>(initialSourceTab);
@@ -260,6 +328,8 @@ export function RequestsPanel({
   const [selectedCase, setSelectedCase] = useState<WorkItem | null>(null);
   const [lightboxAttachments, setLightboxAttachments] = useState<CaseAttachment[] | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+
+  // Quick Action Modal states
   const [contactModalItem, setContactModalItem] = useState<WorkItem | null>(null);
   const [routeModalItem, setRouteModalItem] = useState<WorkItem | null>(null);
   const [newCaseOpen, setNewCaseOpen] = useState(false);
@@ -271,64 +341,30 @@ export function RequestsPanel({
   const all = state.items.front_desk_coordinator ?? [];
   const term = query.trim().toLowerCase();
 
-  // Category matching helper
-  const matchesSourceTab = (i: WorkItem) => {
-    if (sourceTab === 'guest_requests') {
-      return (
-        !i.isEventRequest &&
-        !i.complaintId &&
-        !i.escalationId &&
-        !i.ref?.startsWith('CMP') &&
-        !i.ref?.startsWith('EVT') &&
-        !i.ref?.startsWith('ESC') &&
-        i.status !== 'Escalated'
-      );
-    }
-    if (sourceTab === 'complaints') {
-      return (
-        Boolean(i.complaintId) ||
-        i.ref?.startsWith('CMP') ||
-        i.ref?.startsWith('CR-') ||
-        i.title.toLowerCase().includes('complaint') ||
-        i.title.toLowerCase().includes('disturbance') ||
-        (i.category as string) === 'case'
-      );
-    }
-    if (sourceTab === 'event_requests') {
-      return (
-        Boolean(i.isEventRequest) ||
-        i.ref?.startsWith('EVT') ||
-        i.title.toLowerCase().includes('celebration') ||
-        i.title.toLowerCase().includes('dinner') ||
-        i.title.toLowerCase().includes('meeting')
-      );
-    }
-    if (sourceTab === 'fulfiller_escalations') {
-      return (
-        Boolean(i.escalationId) ||
-        (i.status === 'Escalated' && !i.isEventRequest) ||
-        i.ref?.startsWith('ESC') ||
-        i.meta?.toLowerCase().includes('escalat')
-      );
-    }
-    if (sourceTab === 'route') {
-      return true;
-    }
-    return true;
-  };
+  const filteredBySource = all.filter((i) => matchesRequestTab(i, sourceTab));
 
-  const filteredBySource = all.filter(matchesSourceTab);
+  const tabCounts = useMemo(() => {
+    const res: Record<RequestSourceTab, number> = {
+      guest_requests: 0,
+      complaints: 0,
+      event_requests: 0,
+      fulfiller_escalations: 0,
+      route: 0,
+    };
+    for (const t of REQUEST_SOURCE_TABS) {
+      res[t.id] = all.filter((i) => matchesRequestTab(i, t.id)).filter(needsAction).length;
+    }
+    return res;
+  }, [all]);
 
   const counts: Record<View, number> = {
     action: filteredBySource.filter(needsAction).length,
-    guest: filteredBySource.filter((i) => i.status === 'Awaiting guest').length,
     done: filteredBySource.filter(isDone).length,
     all: filteredBySource.length,
   };
 
   const rows = filteredBySource.filter((i) => {
     if (view === 'action' && !needsAction(i)) return false;
-    if (view === 'guest' && i.status !== 'Awaiting guest') return false;
     if (view === 'done' && !isDone(i)) return false;
     if (
       term &&
@@ -340,8 +376,47 @@ export function RequestsPanel({
     return true;
   });
 
-  // For the presentation/demo view: exactly ONE realistic example request per subsection when not searching
-  const displayRows = term ? rows : rows.slice(0, 1);
+  // Display all matching rows (each section contains 2 to 3 clear, realistic requests)
+  const displayRows = rows;
+
+  const handleCompleteCase = (item: WorkItem) => {
+    fdAction((s) => {
+      const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const items = (s.items.front_desk_coordinator ?? []).map((i) =>
+        i.id === item.id
+          ? {
+              ...i,
+              status: 'Completed',
+              chip: 'Completed by Front Desk',
+              tone: 'success' as const,
+              history: [
+                ...(i.history ?? []),
+                { at: now, status: 'Completed', note: 'Marked completed by Front Desk Coordinator' },
+              ],
+            }
+          : i
+      );
+      return {
+        next: {
+          ...s,
+          items: { ...s.items, front_desk_coordinator: items },
+          feed: [
+            {
+              id: `feed-done-${Date.now()}`,
+              at: now,
+              role: 'Front Desk',
+              text: `Request completed: ${item.title} (Room ${item.room || 'General'})`,
+            },
+            ...s.feed,
+          ],
+        },
+        message: `✓ Request ${item.ref || item.id} completed and moved to Done section.`,
+      };
+    });
+    if (selectedCase && selectedCase.id === item.id) {
+      setSelectedCase(null);
+    }
+  };
 
   const handleAcknowledgeCase = (item: WorkItem) => {
     fdAction((s) => {
@@ -471,11 +546,19 @@ export function RequestsPanel({
               aria-selected={sourceTab === t.id}
               onClick={() => setSourceTab(t.id)}
               className={cn(
-                'rounded-full border px-3.5 py-1.5 text-xs font-semibold transition',
+                'rounded-full border px-3 py-1.5 text-xs font-semibold transition inline-flex items-center gap-1.5',
                 sourceTab === t.id ? 'chip-accent' : 'border-white/10 text-mist-300 hover:bg-white/5'
               )}
             >
-              {t.label}
+              <span>{t.label}</span>
+              <span
+                className={cn(
+                  'rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums',
+                  sourceTab === t.id ? 'bg-amber-400 text-ink-950' : 'bg-white/10 text-mist-300'
+                )}
+              >
+                {tabCounts[t.id] ?? 0}
+              </span>
             </button>
           ))}
         </div>
@@ -542,6 +625,7 @@ export function RequestsPanel({
                 onAcknowledge={() => handleAcknowledgeCase(item)}
                 onContact={() => setContactModalItem(item)}
                 onRoute={() => setRouteModalItem(item)}
+                onComplete={() => handleCompleteCase(item)}
               />
             </li>
           ))}
@@ -556,6 +640,7 @@ export function RequestsPanel({
           onAcknowledge={() => handleAcknowledgeCase(selectedCase)}
           onContact={() => setContactModalItem(selectedCase)}
           onRoute={() => setRouteModalItem(selectedCase)}
+          onComplete={() => handleCompleteCase(selectedCase)}
           onEscalate={(reason) => handleEscalateToManager(selectedCase, reason)}
           onCloseCase={(notes) => handleCloseCase(selectedCase, notes)}
           onOpenLightbox={(attachments, index) => {
@@ -598,7 +683,7 @@ export function RequestsPanel({
 }
 
 /* --------------------------------------------------------------------- */
-/* Unified Request Card (Clean Presentation & 1-Click Details)           */
+/* Unified Request Card (Clean Minimal Presentation & 1-Click Complete)  */
 /* --------------------------------------------------------------------- */
 
 interface UnifiedCardProps {
@@ -608,6 +693,7 @@ interface UnifiedCardProps {
   onAcknowledge: () => void;
   onContact: () => void;
   onRoute: () => void;
+  onComplete: () => void;
 }
 
 function UnifiedRequestCard({
@@ -617,13 +703,14 @@ function UnifiedRequestCard({
   onAcknowledge,
   onContact,
   onRoute,
+  onComplete,
 }: UnifiedCardProps) {
   const done = isDone(item);
   const isAck = item.status === 'Acknowledged' || done;
 
   // Enrich default attachments for visual review if not present
   const attachments: CaseAttachment[] = item.attachments ?? (
-    item.ref?.startsWith('CMP')
+    /^(?:GC|CMP)-/.test(item.ref ?? '')
       ? [
           { id: 'att-c1', name: 'bathroom_floor_moisture.jpg', type: 'image', mime: 'image/jpeg', sizeKb: 1420, art: 'bathroom', caption: 'Damp bathroom floor upon entry' },
           { id: 'att-c2', name: 'missing_towels_rack.jpg', type: 'image', mime: 'image/jpeg', sizeKb: 980, art: 'towels', caption: 'Empty towel rack in master suite' },
@@ -644,94 +731,145 @@ function UnifiedRequestCard({
 
   return (
     <div
-      className="work-row transition hover:border-amber-400/30 group"
-      data-priority={item.priority ?? 'normal'}
+      className={cn(
+        'rounded-2xl border p-4 sm:p-4.5 transition-all duration-200 group flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm',
+        done
+          ? 'border-white/10 bg-white/[0.015] hover:border-emerald-500/30 hover:bg-emerald-500/[0.02]'
+          : 'border-white/10 bg-ink-900/40 hover:border-amber-400/30 hover:bg-white/[0.03]'
+      )}
     >
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3
-              onClick={onOpenDetails}
-              className="text-sm font-semibold text-white group-hover:text-amber-200 cursor-pointer transition-colors"
-            >
-              {item.title}
-            </h3>
-            <span className="font-mono text-[10px] font-bold text-cyan-300 px-1.5 py-0.5 rounded bg-cyan-500/10 border border-cyan-400/20">
-              {item.ref || item.id}
+      <div className="min-w-0 flex-1 space-y-2">
+        {/* Top line: Room Badge, Title, Ref, VIP, Evidence */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {item.room && (
+            <span className="px-2.5 py-0.5 rounded-lg text-xs font-black bg-cyan-500/15 text-cyan-300 border border-cyan-400/25 shrink-0">
+              Room {item.room}
             </span>
-            {item.isEventRequest && <Badge tone="accent">Event Request</Badge>}
-            {item.priority === 'vip' && <Badge tone="accent">VIP Guest</Badge>}
-            {attachments.length > 0 && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-mist-300 bg-white/5 border border-white/10 px-1.5 py-0.5 rounded-full">
-                <Eye className="h-3 w-3 text-amber-300" />
-                <span>{attachments.length} photo{attachments.length > 1 ? 's' : ''}</span>
-              </span>
-            )}
-          </div>
-
-          <p className="mt-0.5 text-xs text-mist-400">
-            {item.meta} {item.room ? `· Room ${item.room}` : ''} {item.guestName ? `· ${item.guestName}` : ''}
-          </p>
-
-          {item.description && (
-            <p className="mt-1 text-xs text-mist-200 line-clamp-2 leading-relaxed">
-              {item.description}
-            </p>
           )}
-
-          <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-            <Badge tone={statusTone(item.status)}>{item.status}</Badge>
-            <Badge icon={false}>{categoryOf(item)}</Badge>
-            {item.chip && <Badge tone={item.tone ?? 'neutral'}>{item.chip}</Badge>}
-            {item.budget !== undefined && item.budget > 0 && (
-              <Badge tone="accent">Budget {money(item.budget)}</Badge>
-            )}
-            {item.routedTo && <Badge tone="info">{`Routed · ${item.routedTo}`}</Badge>}
-          </div>
+          <h3
+            onClick={onOpenDetails}
+            className="text-sm font-bold text-white group-hover:text-amber-200 cursor-pointer transition-colors"
+          >
+            {item.title}
+          </h3>
+          <span className="font-mono text-[10px] text-mist-400">
+            {item.ref || item.id}
+          </span>
+          {item.priority === 'vip' && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-400/20 text-amber-300 border border-amber-400/30 shrink-0">
+              ★ VIP
+            </span>
+          )}
+          {attachments.length > 0 && (
+            <button
+              type="button"
+              onClick={onOpenDetails}
+              className="inline-flex items-center gap-1 text-[10px] font-semibold text-mist-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-md hover:text-white hover:border-white/20 transition shrink-0"
+            >
+              <Eye className="h-3 w-3 text-amber-300" />
+              <span>{attachments.length}</span>
+            </button>
+          )}
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2 lg:justify-end shrink-0 pt-2 lg:pt-0">
-          {!isAck && (
+        {/* Clear Description */}
+        {item.description && (
+          <p className="text-xs text-mist-300 leading-relaxed line-clamp-2">
+            {item.description}
+          </p>
+        )}
+
+        {/* Bottom meta row */}
+        <div className="flex items-center gap-3 text-[11px] text-mist-400 flex-wrap pt-0.5">
+          {item.guestName && (
+            <span className="font-semibold text-mist-200 flex items-center gap-1.5">
+              <User className="h-3 w-3 text-mist-400" />
+              {item.guestName}
+            </span>
+          )}
+          {item.createdAt && (
+            <span className="flex items-center gap-1">
+              <Clock className="h-3 w-3 text-mist-400" />
+              {item.createdAt}
+            </span>
+          )}
+          <Badge tone={statusTone(item.status)}>{item.status}</Badge>
+          {item.isEventRequest && item.venue && (
+            <span className="text-[10px] font-semibold text-purple-300 bg-purple-500/15 border border-purple-400/25 px-2 py-0.5 rounded-full">
+              {item.venue} {item.attendees ? `· ${item.attendees} guests` : ''}
+            </span>
+          )}
+          {item.escalationId && (
+            <span className="text-[10px] font-semibold text-rose-300 bg-rose-500/15 border border-rose-400/25 px-2 py-0.5 rounded-full">
+              {item.fulfillerName ? `From ${item.fulfillerName}` : 'Fulfiller Escalation'}
+            </span>
+          )}
+          {item.suggestedDept && (
+            <span className="text-[10px] font-semibold text-cyan-300 bg-cyan-500/15 border border-cyan-400/25 px-2 py-0.5 rounded-full">
+              Route to: {item.suggestedDept}
+            </span>
+          )}
+          {item.complaintCategory && (
+            <span className="text-[10px] font-semibold text-amber-300 bg-amber-500/15 border border-amber-400/25 px-2 py-0.5 rounded-full">
+              {item.complaintCategory}
+            </span>
+          )}
+          {item.routedTo && (
+            <span className="text-sky-300 text-[10px] font-medium">
+              Routed to {item.routedTo}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Action buttons: Minimal, clear & accessible */}
+      <div className="flex items-center gap-2 shrink-0 pt-2 md:pt-0">
+        {!done ? (
+          <>
             <Button
               size="sm"
-              variant="subtle"
+              variant="accent"
               iconLeft={CheckCircle2}
-              onClick={onAcknowledge}
+              onClick={onComplete}
+              className="text-xs font-bold"
             >
-              Acknowledge
+              Mark Done
             </Button>
-          )}
-
-          <Button
-            size="sm"
-            variant="ghost"
-            iconLeft={PhoneCall}
-            onClick={onContact}
-          >
-            Contact Guest
-          </Button>
-
-          {sourceTab === 'route' || !item.routedTo ? (
             <Button
               size="sm"
               variant="subtle"
               iconLeft={Route}
               onClick={onRoute}
+              className="text-xs"
             >
-              Route to Dept
+              Route
             </Button>
-          ) : null}
-
-          <Button
-            size="sm"
-            variant="accent"
-            iconLeft={Eye}
-            onClick={onOpenDetails}
-          >
-            View Details
-          </Button>
-        </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              iconLeft={Eye}
+              onClick={onOpenDetails}
+              className="text-xs text-mist-300 hover:text-white"
+            >
+              Details
+            </Button>
+          </>
+        ) : (
+          <>
+            <span className="px-2.5 py-1 rounded-lg text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-1.5">
+              <Check className="h-3.5 w-3.5" /> Completed
+            </span>
+            <Button
+              size="sm"
+              variant="ghost"
+              iconLeft={Eye}
+              onClick={onOpenDetails}
+              className="text-xs text-mist-300 hover:text-white"
+            >
+              Details
+            </Button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -747,6 +885,7 @@ interface CaseDetailDrawerProps {
   onAcknowledge: () => void;
   onContact: () => void;
   onRoute: () => void;
+  onComplete: () => void;
   onEscalate: (reason: string) => void;
   onCloseCase: (notes: string) => void;
   onOpenLightbox: (attachments: CaseAttachment[], index: number) => void;
@@ -758,6 +897,7 @@ function CaseDetailDrawer({
   onAcknowledge,
   onContact,
   onRoute,
+  onComplete,
   onEscalate,
   onCloseCase,
   onOpenLightbox,
@@ -769,7 +909,7 @@ function CaseDetailDrawer({
 
   // Generate attachments if not present
   const attachments: CaseAttachment[] = item.attachments ?? (
-    item.ref?.startsWith('CMP')
+    /^(?:GC|CMP)-/.test(item.ref ?? '')
       ? [
           { id: 'att-c1', name: 'bathroom_floor_moisture.jpg', type: 'image', mime: 'image/jpeg', sizeKb: 1420, art: 'bathroom', caption: 'Damp bathroom floor upon entry' },
           { id: 'att-c2', name: 'missing_towels_rack.jpg', type: 'image', mime: 'image/jpeg', sizeKb: 980, art: 'towels', caption: 'Empty towel rack in master suite' },
@@ -1029,14 +1169,27 @@ function CaseDetailDrawer({
             </Button>
 
             {!isDone(item) && (
-              <Button
-                size="sm"
-                variant="accent"
-                iconLeft={CircleCheck}
-                onClick={() => setShowClosePrompt(true)}
-              >
-                Close Case
-              </Button>
+              <>
+                <Button
+                  size="sm"
+                  variant="accent"
+                  iconLeft={CheckCircle2}
+                  onClick={() => {
+                    onComplete();
+                    onClose();
+                  }}
+                >
+                  Mark Done
+                </Button>
+                <Button
+                  size="sm"
+                  variant="subtle"
+                  iconLeft={CircleCheck}
+                  onClick={() => setShowClosePrompt(true)}
+                >
+                  Close Case
+                </Button>
+              </>
             )}
           </div>
         </div>

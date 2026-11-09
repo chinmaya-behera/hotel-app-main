@@ -1,63 +1,195 @@
 'use client';
 
-import { useMemo, useRef, useState, type FormEvent } from 'react';
-import { AlertTriangle, Download, Settings2, X } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowRight, Download } from 'lucide-react';
 import { useDemo } from '@/lib/store';
-import { departmentId, isOpen, managerDepartment, managerTasks } from '@/lib/manager-domain';
-import { hotelDate, operationalSlas, percentile, serviceTargets, slaSummary, taskSla, type SlaMeasurement, type SlaOutcome } from '@/lib/manager-performance';
-import { useManagerClock } from './ManagerCases';
+import { cancelledOrder, completedOrder } from '@/lib/department-insights';
+import { managerDepartment, type ManagerDepartmentId } from '@/lib/manager-domain';
+import { hotelDate, isPastTaskDeadline, slaSummary, taskSla, timestamp } from '@/lib/manager-performance';
+import { managerOrders, medicalReminders } from '@/lib/manager-workflows';
+import type { DemoState, WorkItem } from '@/types/demo';
 
-const labels: Record<SlaOutcome, string> = { met: 'Met', breached: 'Breached', at_risk: 'At risk', pending: 'Within target', unknown: 'Missing timing', disabled: 'Disabled', excluded: 'Cancelled / excluded' };
-const minutes = (value?: number) => value === undefined ? 'Not recorded' : value < 60 ? `${value.toFixed(1)} min` : `${(value / 60).toFixed(1)} hr`;
-const percent = (value?: number) => value === undefined ? 'Not measurable' : `${Math.round(value)}%`;
-const date = (value?: number) => value === undefined ? 'Not recorded' : new Date(value).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'short', timeStyle: 'short' });
+export type AnalyticsDestination = 'department' | 'inspections' | 'overdue-tasks' | 'live-orders';
 
-function SlaBadge({ outcome }: { outcome: SlaOutcome }) { return <span className={`dm-status dm-sla-${outcome}`}>{labels[outcome]}</span>; }
-function MeasurementRows({ rows }: { rows: SlaMeasurement[] }) {
-  return <div className="dm-table-wrap"><table className="dm-table"><thead><tr><th>Service / reference</th><th>Target / deadline</th><th>Elapsed</th><th>Result</th></tr></thead><tbody>{rows.map((row, index) => <tr key={`${row.kind}-${row.reference}-${index}`}><td><strong>{row.title}</strong><small>{row.kind} · {row.reference}</small></td><td>{row.target === undefined ? 'Scheduled deadline' : minutes(row.target)}<small>{date(row.deadline)} · {row.source}</small></td><td>{minutes(row.elapsed)}</td><td><SlaBadge outcome={row.outcome}/></td></tr>)}</tbody></table>{!rows.length && <div className="dm-empty">No matching measurements.</div>}</div>;
+const HOUR = 3600000;
+const DAY = 24 * HOUR;
+const hotelTime = new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' });
+const shortDate = new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short' });
+
+function formatDuration(value: number) {
+  if (value < 1) return `${Math.round(value * 60)} sec`;
+  if (value < 60) return `${Math.round(value)} min`;
+  return `${(value / 60).toFixed(1)} hr`;
 }
 
-export function DepartmentAnalytics() {
-  const { state, departmentManagerCommand } = useDemo();
-  const department = managerDepartment(state.managerDepartment), now = useManagerClock();
-  const [period, setPeriod] = useState('7'), [priority, setPriority] = useState('all'), [result, setResult] = useState('risks'), [search, setSearch] = useState('');
-  const targetsDialog = useRef<HTMLDialogElement>(null);
-  const targets = serviceTargets(state, department.id);
-  const all = useMemo(() => managerTasks(state, department.id).map(task => taskSla(state, task, now)), [state, department.id, now]);
-  const filtered = all.filter(row => priority === 'all' || (priority === 'urgent' ? ['urgent','critical','safety'].includes(row.task.priority || '') : (row.task.priority || 'normal') === priority));
-  const since = now - Number(period) * 86400000;
-  const cohort = filtered.filter(row => row.created !== undefined && row.created >= since && row.created <= now);
-  const ops = operationalSlas(state, department.id, now, since);
-  const ack = slaSummary(cohort.map(row => row.ack)), resolution = slaSummary(cohort.map(row => row.resolution));
-  const completed = cohort.filter(row => row.resolved !== undefined), durations = completed.map(row => (row.resolved! - row.created!) / 60000);
-  const live = filtered.filter(row => isOpen(row.task.status));
-  const backlogRows = live.flatMap(row => [row.ack, row.resolution]);
-  const query = search.toLowerCase();
-  const detailRows = (result === 'risks' ? [...backlogRows, ...ops] : result === 'unknown' ? [...filtered.flatMap(row => [row.ack, row.resolution]), ...ops] : [...cohort.flatMap(row => [row.ack, row.resolution]), ...ops]).filter(row => (result === 'risks' ? ['breached','at_risk'].includes(row.outcome) : result === 'all' || row.outcome === result) && `${row.reference} ${row.title} ${row.kind}`.toLowerCase().includes(query));
-  const [detailPage, setDetailPage] = useState(1);
-  const trend = Array.from({ length: Number(period) === 1 ? 6 : Number(period) }, (_, index) => {
-    const width = Number(period) === 1 ? 4 * 3600000 : 86400000, start = since + index * width, end = start + width;
-    return { label: Number(period) === 1 ? new Date(end).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' }) : hotelDate(end - 1).slice(5), arrivals: filtered.filter(row => row.created !== undefined && row.created >= start && row.created < end).length, completions: filtered.filter(row => row.resolved !== undefined && row.resolved >= start && row.resolved < end).length };
+function departmentSnapshot(state: DemoState, department: ManagerDepartmentId, now: number) {
+  switch (department) {
+    case 'housekeeping': {
+      const expected = new Set(state.frontDesk.stays.filter(stay => stay.status === 'expected').map(stay => stay.room));
+      const rooms = state.frontDesk.rooms;
+      return {
+        title: 'Room readiness',
+        metrics: [
+          { label: 'Arrival rooms not ready', count: rooms.filter(room => expected.has(room.no) && room.readiness !== 'ready').length, detail: 'Assigned rooms for expected arrivals. Open Room readiness and choose Expected arrivals.' },
+          { label: 'Rooms awaiting inspection', count: rooms.filter(room => room.readiness === 'inspection_pending').length, detail: 'Check the inspection queue and assign a supervisor if needed.' },
+        ],
+        actions: [{ view: 'department', label: 'Open room readiness' }, { view: 'inspections', label: 'Open inspections' }],
+      } as const;
+    }
+    case 'engineering': {
+      const today = hotelDate(now), weekEnd = hotelDate(now + 6 * DAY);
+      const assets = (state.managerOperations?.assets ?? []).filter(asset => /^\d{4}-\d{2}-\d{2}$/.test(asset.nextDue));
+      return {
+        title: 'Preventive maintenance',
+        metrics: [
+          { label: 'Asset services overdue', count: assets.filter(asset => asset.nextDue < today).length, detail: 'The scheduled service date has passed.' },
+          { label: 'Asset services due within 7 days', count: assets.filter(asset => asset.nextDue >= today && asset.nextDue <= weekEnd).length, detail: 'Due today or in the next six days. Open the plan to create a work order or record service after completion.' },
+        ],
+        actions: [{ view: 'department', label: 'Open maintenance plan' }],
+      } as const;
+    }
+    case 'food-beverages': {
+      const orders = managerOrders(state).filter(order => !cancelledOrder(order) && !completedOrder(order));
+      const dueSoon = orders.filter(order => {
+        const due = timestamp(order.requestedServiceAt || order.scheduledAt);
+        return due !== undefined && due >= now && due <= now + HOUR;
+      });
+      return {
+        title: 'Dining service',
+        metrics: [
+          { label: 'Active dining orders', count: orders.length, detail: 'Recorded orders still open in the dining queue.' },
+          { label: 'Scheduled in the next hour', count: dueSoon.length, detail: 'Open orders with a promised slot in the next 60 minutes.' },
+        ],
+        actions: [{ view: 'live-orders', label: 'Open active dining orders' }],
+      } as const;
+    }
+    case 'wellness':
+      return {
+        title: 'Guest care',
+        metrics: [
+          { label: 'Active medical cases', count: (state.managerOperations?.medicalCases ?? []).filter(record => record.status !== 'closed').length, detail: 'Cases your department is still handling.' },
+          { label: 'Follow-ups due', count: medicalReminders(state, now).length, detail: 'Open the case, record what happened and acknowledge the reminder after following up.' },
+        ],
+        actions: [{ view: 'department', label: 'Open guest medical cases' }],
+      } as const;
+  }
+}
+
+export function DepartmentAnalytics({ tasks, now, onOpen }: { tasks: WorkItem[]; now: number; onOpen: (destination: AnalyticsDestination) => void }) {
+  const { state } = useDemo();
+  const department = managerDepartment(state.managerDepartment);
+  const [period, setPeriod] = useState('7');
+  const [priority, setPriority] = useState('all');
+  const all = tasks.map(task => taskSla(state, task, now));
+  const rows = all.filter(({ task }) => {
+    const value = task.priority || 'normal';
+    return priority === 'all' || (priority === 'urgent' ? ['urgent', 'critical', 'safety'].includes(value) : priority === value);
   });
-  const maxTrend = Math.max(1, ...trend.flatMap(bucket => [bucket.arrivals, bucket.completions]));
-  const categories = ['Complaint resolution', 'Inspection turnaround', ...(department.id === 'wellness' ? ['Medical follow-up'] : []), ...(department.id === 'engineering' ? ['Preventive servicing'] : [])];
-  const submitTargets = (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const form = new FormData(event.currentTarget); if (departmentManagerCommand({ type: 'service-targets', complaintMinutes: Number(form.get('complaints')), inspectionMinutes: Number(form.get('inspections')) })) targetsDialog.current?.close(); };
+  const days = Number(period);
+  const since = now - days * DAY;
+  const inPeriod = (time?: number): time is number => time !== undefined && time >= since && time <= now;
+  const opened = rows.filter(row => inPeriod(row.created));
+  const finished = rows.filter(row => inPeriod(row.resolved));
+  const onTime = slaSummary(finished.map(row => row.resolution));
+  const durations = finished.flatMap(({ created, resolved }) =>
+    created !== undefined && resolved !== undefined && resolved >= created ? [(resolved - created) / 60000] : [],
+  ).sort((a, b) => a - b);
+  const turnaround = durations.length
+    ? (durations[Math.floor((durations.length - 1) / 2)] + durations[Math.floor(durations.length / 2)]) / 2
+    : undefined;
+  const overdue = all.filter(isPastTaskDeadline);
+  const snapshot = departmentSnapshot(state, department.id, now);
+  const bucketSize = days === 1 ? 4 * HOUR : DAY;
+  const bucketCount = days === 1 ? 6 : days;
+  const trend = Array.from({ length: bucketCount }, (_, index) => {
+    const start = since + index * bucketSize, end = start + bucketSize;
+    const inBucket = (time?: number) => time !== undefined && time >= start && (time < end || index === bucketCount - 1 && time === end);
+    return {
+      label: days === 1 ? hotelTime.format(end) : shortDate.format(end),
+      opened: opened.filter(row => inBucket(row.created)).length,
+      finished: finished.filter(row => inBucket(row.resolved)).length,
+    };
+  });
+  const chartMax = Math.max(1, ...trend.flatMap(bucket => [bucket.opened, bucket.finished]));
+
   const exportReport = () => {
-    const cell = (value: unknown) => '"' + String(value ?? '').replace(/^[=+@-]/, "'").replaceAll('"','""') + '"';
-    const rows = [['Department','Metric','Reference','Record','Target minutes','Deadline IST','Elapsed minutes','Outcome','Policy source'], ...[...cohort.flatMap(row => [row.ack,row.resolution]), ...ops].map(row => [department.name,row.kind,row.reference,row.title,row.target,date(row.deadline),row.elapsed,labels[row.outcome],row.source])];
-    const url = URL.createObjectURL(new Blob(['\uFEFF' + rows.map(row => row.map(cell).join(',')).join('\r\n')], { type:'text/csv;charset=utf-8;' })); const link = document.createElement('a'); link.href = url; link.download = `${department.id}-sla-${period}days.csv`; link.click(); setTimeout(() => URL.revokeObjectURL(url),1000);
+    const cell = (value: unknown) => '"' + String(value ?? '').replace(/^[=+@-]/, "'").replaceAll('"', '""') + '"';
+    const exportRows = [
+      ['Department', 'Reference', 'Request', 'Priority', 'Opened (ISO)', 'Completed (ISO)', 'Deadline (ISO)', 'Deadline result'],
+      ...rows.filter(row => inPeriod(row.created) || inPeriod(row.resolved)).map(row => [
+        department.name, row.resolution.reference, row.task.title, row.task.priority || 'normal',
+        row.created === undefined ? '' : new Date(row.created).toISOString(),
+        row.resolved === undefined ? '' : new Date(row.resolved).toISOString(),
+        row.resolution.deadline === undefined ? '' : new Date(row.resolution.deadline).toISOString(),
+        inPeriod(row.resolved) && ['met', 'breached'].includes(row.resolution.outcome) ? (row.resolution.outcome === 'met' ? 'On time' : 'Late') : '',
+      ]),
+    ];
+    const url = URL.createObjectURL(new Blob(['\uFEFF' + exportRows.map(row => row.map(cell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8;' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${department.id}-task-performance-${period}d.csv`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
-  const activeRules = state.routingRules?.filter(rule => rule.active && departmentId(rule.department) === department.id) || [];
+
   return <>
-    <section className="dm-panel"><div className="dm-panel-heading"><div><h2>Service performance & SLA analytics</h2><p>Measured outcomes, current service risks and operational quality for {department.name}.</p></div><button className="dm-secondary" onClick={exportReport}><Download size={15}/> Export SLA report</button></div><div className="dm-toolbar"><select aria-label="Analytics period" value={period} onChange={e => { setPeriod(e.target.value); setDetailPage(1); }}><option value="1">Past 24 hours</option><option value="7">Past 7 days</option><option value="30">Past 30 days</option></select><select aria-label="Analytics priority" value={priority} onChange={e => { setPriority(e.target.value); setDetailPage(1); }}><option value="all">All task priorities</option><option value="urgent">Urgent / critical / safety</option><option value="vip">VIP</option><option value="normal">Normal</option></select><small className="dm-subtle">Updated {new Date(now).toLocaleTimeString('en-IN', {timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'})} IST</small></div></section>
-    <div className="dm-metric-strip dm-analytics-kpis"><div><small>Acknowledgement compliance</small><strong>{percent(ack.compliance)}</strong><small>{ack.met} met / {ack.measured} decided SLAs</small></div><div><small>Resolution / delivery compliance</small><strong>{percent(resolution.compliance)}</strong><small>{resolution.met} met / {resolution.measured} decided SLAs</small></div><div><small>Median turnaround</small><strong>{minutes(percentile(durations,0.5))}</strong><small>P90 {minutes(percentile(durations,0.9))} · {completed.length} timed completions</small></div><div><small>Live task SLA breaches</small><strong>{backlogRows.filter(row => row.outcome === 'breached').length}</strong><small>{new Set(backlogRows.filter(row => row.outcome === 'breached').map(row => row.reference)).size} affected requests · all backlog ages</small></div></div>
-    <div className="dm-analytics-grid"><section className="dm-panel"><div className="dm-panel-heading"><div><h2>Demand & completed work</h2><p>Arrivals and completions recorded in the selected period.</p></div></div><div className="dm-trend-legend"><span><i/> Arrivals</span><span><i/> Completions</span></div><div className="dm-trend-chart" role="img" aria-label={`Request trend: ${trend.reduce((sum,b)=>sum+b.arrivals,0)} arrivals and ${trend.reduce((sum,b)=>sum+b.completions,0)} completions`}>
-      {trend.map((bucket,index)=><div className="dm-trend-bucket" key={index} title={`${bucket.label}: ${bucket.arrivals} arrivals, ${bucket.completions} completions`}><div><span style={{height:`${bucket.arrivals/maxTrend*100}%`}}/><span style={{height:`${bucket.completions/maxTrend*100}%`}}/></div><small>{trend.length <= 7 || index % 5 === 0 ? bucket.label : ''}</small></div>)}
-    </div><details className="dm-chart-data"><summary>View chart data</summary><table className="dm-table"><thead><tr><th>Bucket (IST)</th><th>Arrivals</th><th>Completions</th></tr></thead><tbody>{trend.map((bucket,index)=><tr key={index}><td>{bucket.label}</td><td>{bucket.arrivals}</td><td>{bucket.completions}</td></tr>)}</tbody></table></details></section>
-    <section className="dm-panel"><div className="dm-panel-heading"><div><h2>Work & data quality</h2><p>{cohort.length} dated requests created in the period.</p></div></div><div className="dm-performance-list">{[['Open backlog',live.length],['Period completions',completed.length],['Unassigned backlog',live.filter(row=>!row.task.assigneeId&&!row.task.assignee).length],['At-risk task SLAs',backlogRows.filter(row=>row.outcome==='at_risk').length],['Requests missing creation date',filtered.filter(row=>row.created===undefined).length],['Acknowledgements missing outcome time',cohort.filter(row=>row.ack.outcome==='unknown').length],['Reported legacy alerts (not timed)',live.filter(row=>row.created===undefined&&(row.task.ackStatus==='overdue'||/overdue/i.test(`${row.task.chip} ${row.task.slaDue}`))).length]].map(([label,value])=><div key={label}><span>{label}</span><strong>{value}</strong></div>)}</div></section></div>
-    <section className="dm-panel"><div className="dm-panel-heading"><div><h2>Operational service targets</h2><p>Property acknowledgement/resolution rules plus department service commitments. Task priority filters do not change operational case/inspection metrics.</p></div><button className="dm-secondary" onClick={()=>targetsDialog.current?.showModal()}><Settings2 size={15}/> Department targets</button></div><div className="dm-table-wrap"><table className="dm-table"><thead><tr><th>Metric</th><th>Configured target</th><th>Met / decided</th><th>Compliance</th><th>Breaches / at risk</th><th>Unknown</th></tr></thead><tbody>{[{name:'Acknowledgement',rows:cohort.map(r=>r.ack),target:state.workflowConfig?.dualSlaEnabled===false?'Disabled':`${activeRules.length ? activeRules.map(rule => rule.ackSlaMinutes + 'm by rule').join(', ') + '; ' : ''}${state.workflowConfig?.ackSlaMinutes ?? 'Not configured'}m fallback`},{name:'Resolution / delivery',rows:cohort.map(r=>r.resolution),target:`${activeRules.length ? activeRules.map(rule => rule.resolutionSlaMinutes + 'm by rule').join(', ') + '; ' : ''}${state.workflowConfig?.resolutionSlaMinutes ?? 'Not configured'}m fallback`},...categories.map(name=>({name,rows:ops.filter(row=>row.kind===name),target:name==='Inspection turnaround'?`${targets.inspectionMinutes} min`:name==='Complaint resolution'?`${targets.complaintMinutes} min`:'Recorded due date / time'}))].map(metric=>{const summary=slaSummary(metric.rows);return <tr key={metric.name}><td><strong>{metric.name}</strong></td><td>{metric.target}</td><td>{summary.met} / {summary.measured}</td><td>{percent(summary.compliance)}</td><td>{summary.breached} / {summary.atRisk}</td><td>{summary.unknown}</td></tr>;})}</tbody></table></div><div className="dm-insight-note">Active routing rules override property fallback targets for matching categories. {activeRules.map(rule=>`${rule.category}: ${rule.ackSlaMinutes}m acknowledgement / ${rule.resolutionSlaMinutes}m resolution`).join(' · ')}. Department defaults are 60 minutes for complaints and 30 minutes for inspections until customised; these are hotel demo targets.</div></section>
-    <section className="dm-panel"><div className="dm-panel-heading"><div><h2>Service risk & measurement register</h2><p>Live risks include older open tasks; All period measurements follows the selected creation-date cohort.</p></div><AlertTriangle size={19}/></div><div className="dm-toolbar"><input aria-label="Search SLA measurements" value={search} onChange={e=>{setSearch(e.target.value);setDetailPage(1);}} placeholder="Search reference, service or task"/><select aria-label="SLA measurement result" value={result} onChange={e=>{setResult(e.target.value);setDetailPage(1);}}><option value="risks">Live breaches & at-risk</option><option value="all">All period measurements</option><option value="unknown">Missing timing · all records</option><option value="met">Met</option><option value="breached">Breached</option></select></div><MeasurementRows rows={detailRows.slice(0,detailPage*20)}/>{detailRows.length>detailPage*20&&<div className="dm-history-more"><button className="dm-secondary" onClick={()=>setDetailPage(value=>value+1)}>Show 20 more measurements</button></div>}</section>
-    <p className="dm-insight-note">Compliance = met ÷ (met + breached); not-yet-due, disabled, cancelled and unknown outcomes are outside that denominator. Assignment alone is not acknowledgement: an acceptance or work-start timestamp is required. Blocked and reopened requests keep the elapsed clock running. Scheduled dining uses its promised delivery slot. Old clock-only samples remain unknown; new workflow changes capture full timestamps and task policy snapshots. Operational case/inspection outcomes are evaluated against current department targets. Charts use rolling time buckets in IST.</p>
-    <dialog ref={targetsDialog} onClose={() => targetsDialog.current?.querySelector('form')?.reset()} className="dm-dialog" aria-labelledby="service-targets-title"><form onSubmit={submitTargets}><div className="dm-dialog-heading"><h2 id="service-targets-title">Department service targets</h2><button type="button" className="dm-icon-button" aria-label="Close service targets" onClick={()=>targetsDialog.current?.close()}><X size={19}/></button></div><p className="dm-dialog-description">{department.name} · These targets apply to this department's complaint and inspection reporting. Property task SLAs remain managed by the configured workflow/routing rules.</p><label className="dm-field">Complaint resolution target (minutes)<input name="complaints" type="number" min="1" max="10080" required defaultValue={targets.complaintMinutes}/></label><label className="dm-field">Inspection turnaround target (minutes)<input name="inspections" type="number" min="1" max="10080" required defaultValue={targets.inspectionMinutes}/></label><div className="dm-dialog-actions"><button type="button" className="dm-secondary" onClick={()=>targetsDialog.current?.close()}>Cancel</button><button className="dm-primary">Save service targets</button></div></form></dialog>
+    <section className="dm-panel">
+      <div className="dm-panel-heading">
+        <div><h2>Service performance</h2><p>See how much work came in, how much was finished, and what needs attention now.</p></div>
+        <button className="dm-secondary" onClick={exportReport} disabled={!opened.length && !finished.length}><Download size={15}/> Export task report</button>
+      </div>
+      <div className="dm-toolbar">
+        <select aria-label="Analytics period" value={period} onChange={event => setPeriod(event.target.value)}>
+          <option value="1">Past 24 hours</option><option value="7">Past 7 days</option><option value="30">Past 30 days</option>
+        </select>
+        <select aria-label="Analytics priority" value={priority} onChange={event => setPriority(event.target.value)}>
+          <option value="all">All task priorities</option><option value="urgent">Urgent / critical / safety</option>
+          <option value="vip">VIP</option><option value="high">High</option><option value="normal">Normal</option><option value="low">Low</option>
+        </select>
+        <small className="dm-subtle">Updated {hotelTime.format(now)} IST</small>
+      </div>
+    </section>
+    <div className="dm-metric-strip dm-analytics-kpis">
+      <div><small>Requests opened</small><strong>{opened.length}</strong><small>Created in the selected period</small></div>
+      <div><small>Requests completed</small><strong>{finished.length}</strong><small>Finished in the selected period, including older requests</small></div>
+      <div><small>Completed on time</small><strong>{onTime.compliance === undefined ? '—' : `${Math.round(onTime.compliance)}%`}</strong><small>{onTime.measured ? `${onTime.met} of ${onTime.measured} completed requests with a measurable deadline` : 'No completed requests with a measurable deadline'}</small></div>
+      <div><small>Median turnaround</small><strong>{turnaround === undefined ? '—' : formatDuration(turnaround)}</strong><small>{durations.length ? `Time from opening to completion across ${durations.length} timed requests` : 'No completions with both timestamps recorded'}</small></div>
+    </div>
+    <div className="dm-analytics-grid">
+      <section className="dm-panel">
+        <div className="dm-panel-heading"><div><h2>Requests opened vs. completed</h2><p>Compare incoming work with work finished in the same time window.</p></div></div>
+        {opened.length || finished.length ? <>
+          <div className="dm-trend-legend"><span><i/> Opened</span><span><i/> Completed</span></div>
+          <div className="dm-trend-chart" role="img" aria-label={`Request trend, ${opened.length} opened and ${finished.length} completed`}>
+            {trend.map((bucket, index) => <div className="dm-trend-bucket" key={index} title={`${bucket.label} · ${bucket.opened} opened, ${bucket.finished} completed`}>
+              <div><span style={{ height: `${bucket.opened / chartMax * 100}%` }}/><span style={{ height: `${bucket.finished / chartMax * 100}%` }}/></div>
+              <small>{trend.length <= 7 || index % 5 === 0 ? bucket.label : ''}</small>
+            </div>)}
+          </div>
+          <details className="dm-chart-data">
+            <summary>View chart data</summary>
+            <table className="dm-table"><thead><tr><th>{days === 1 ? '4-hour window ending (IST)' : '24-hour window ending (IST)'}</th><th>Opened</th><th>Completed</th></tr></thead>
+              <tbody>{trend.map((bucket, index) => <tr key={index}><td>{bucket.label}</td><td>{bucket.opened}</td><td>{bucket.finished}</td></tr>)}</tbody>
+            </table>
+          </details>
+        </> : <p className="dm-empty">No dated request activity matches these filters.</p>}
+      </section>
+      <section className="dm-panel">
+        <div className="dm-panel-heading"><div><h2>{snapshot.title}</h2><p>Current department snapshot across all dates and priorities.</p></div></div>
+        <div className="dm-performance-list">
+          {snapshot.metrics.map(metric => <div key={metric.label}><div><b>{metric.label}</b><p>{metric.detail}</p></div><strong>{metric.count}</strong></div>)}
+          <div><div><b>Open requests past deadline</b><p>Open work already past its resolution or delivery deadline.</p></div><strong>{overdue.length}</strong></div>
+          <div className="dm-analytics-actions">
+            {snapshot.actions.map(action => <button key={action.view} className="dm-text-button" onClick={() => onOpen(action.view)}>{action.label} <ArrowRight size={15}/></button>)}
+            <button className="dm-text-button" onClick={() => onOpen('overdue-tasks')}>Open overdue requests <ArrowRight size={15}/></button>
+          </div>
+        </div>
+      </section>
+    </div>
+    <details className="dm-chart-data">
+      <summary>How the numbers and report work</summary>
+      <p>The period and priority filters apply to the performance cards, chart and CSV report. The report includes requests opened or completed in that window.</p>
+      <p>On-time completion compares recorded completion with the request’s deadline, including the promised slot for scheduled deliveries. Median turnaround is the middle opening-to-completion duration, or the average of the two middle durations. Both exclude records without the timestamps needed for the calculation.</p>
+    </details>
   </>;
 }
