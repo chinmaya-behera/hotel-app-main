@@ -126,12 +126,7 @@ const MAINTENANCE_CATEGORIES: MaintenanceCategory[] = [
     name: 'Other',
     icon: Wrench,
     image: 'https://images.unsplash.com/photo-1558002038-1055907df827?auto=format&fit=crop&w=500&q=80',
-    subcategories: [
-      { id: 'other-safe', label: 'Safe / mini-bar issue', icon: Lock },
-      { id: 'other-window', label: 'Window / curtain stuck', icon: PanelTop },
-      { id: 'other-general', label: 'General maintenance', icon: Wrench },
-      { id: 'other-custom', label: 'Custom issue description', icon: HelpCircle },
-    ],
+    subcategories: [],
   },
 ];
 
@@ -285,9 +280,12 @@ export function MaintenanceTab({ room, guestName, onNavigate }: GuestTabProps) {
 
     setIsSubmitting(true);
 
-    const fullTitle = selectedSubcategory
-      ? `${selectedCategory.name} · ${selectedSubcategory}`
-      : `${selectedCategory.name} issue`;
+    const fullTitle =
+      selectedCategory.id === 'mc6'
+        ? `Other · ${description.trim().slice(0, 35)}`
+        : selectedSubcategory
+        ? `${selectedCategory.name} · ${selectedSubcategory}`
+        : `${selectedCategory.name} issue`;
 
     const descriptionSections: string[] = [
       `Issue: ${description.trim()}`,
@@ -444,7 +442,7 @@ export function MaintenanceTab({ room, guestName, onNavigate }: GuestTabProps) {
                       {c.name}
                     </span>
                     <span className="text-[10px] sm:text-xs text-mist-400 block truncate">
-                      {c.subcategories.length} issue options
+                      {c.id === 'mc6' ? 'Custom issue' : `${c.subcategories.length} issue options`}
                     </span>
                   </div>
                 </button>
@@ -453,8 +451,8 @@ export function MaintenanceTab({ room, guestName, onNavigate }: GuestTabProps) {
           </div>
         </div>
 
-        {/* 3. VISUAL SUBCATEGORY SELECTION */}
-        {selectedCategory && (
+        {/* 3. VISUAL SUBCATEGORY SELECTION (Hidden for 'Other') */}
+        {selectedCategory && selectedCategory.subcategories.length > 0 && (
           <div className="space-y-2.5 p-4 rounded-2xl bg-cyan-400/[0.05] border border-cyan-400/20 animate-in fade-in duration-200">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-white flex items-center gap-2">
@@ -500,8 +498,12 @@ export function MaintenanceTab({ room, guestName, onNavigate }: GuestTabProps) {
         <div className="space-y-1.5 sm:space-y-2">
           <div className="flex items-center justify-between">
             <GuestSectionHeader
-              title="2. Describe the issue"
-              hint="Provide details to help our engineers prepare"
+              title={selectedCategory?.id === 'mc6' ? '2. Custom Issue Description *' : '2. Describe the issue'}
+              hint={
+                selectedCategory?.id === 'mc6'
+                  ? 'Describe the issue in your own words (mandatory)'
+                  : 'Provide details to help our engineers prepare'
+              }
             />
             <span
               className={`text-[11px] sm:text-xs font-mono font-semibold ${
@@ -522,7 +524,11 @@ export function MaintenanceTab({ room, guestName, onNavigate }: GuestTabProps) {
             onBlur={() => setDescTouched(true)}
             rows={3}
             maxLength={500}
-            placeholder="Briefly describe what is wrong... (e.g. The AC is blowing warm air and the remote isn't responding)"
+            placeholder={
+              selectedCategory?.id === 'mc6'
+                ? 'Describe your custom issue in your own words (mandatory)...'
+                : "Briefly describe what is wrong... (e.g. The AC is blowing warm air and the remote isn't responding)"
+            }
             className={`guest-field w-full px-3.5 sm:px-4 py-2.5 sm:py-3.5 text-xs sm:text-sm text-white rounded-xl bg-ink-950/80 border placeholder-mist-500 focus:outline-none transition-colors ${
               descTouched && !isDescValid
                 ? 'border-rose-500 focus:border-rose-400'

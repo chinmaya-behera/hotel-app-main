@@ -185,6 +185,7 @@ export interface GuestRequestInput {
   photoUrl?: string;
   chip?: string;
   tone?: WorkItem['tone'];
+  amount?: number;
   /** optional immediate charge posted to the room folio (e.g. a spa booking) */
   folioCharge?: { label: string; amount: number };
   /** override the default simulated status timeline */
@@ -664,7 +665,17 @@ export function DemoProvider({ children }: { children: ReactNode }) {
             )),
           ],
           safetyAlerts: saved.safetyAlerts ?? base.safetyAlerts,
-          diningMenu: saved.diningMenu ?? base.diningMenu,
+          diningMenu: saved.diningMenu
+            ? [
+                ...saved.diningMenu.map((sd) => {
+                  const baseDish = (base.diningMenu ?? []).find((b) => b.id === sd.id);
+                  return baseDish ? { ...baseDish, ...sd, image: sd.image || baseDish.image } : sd;
+                }),
+                ...((base.diningMenu ?? []).filter(
+                  (bd) => !saved.diningMenu?.some((sd) => sd.id === bd.id),
+                )),
+              ]
+            : base.diningMenu,
           diningCategories: saved.diningCategories ?? base.diningCategories,
           activeDispatcherDept: saved.activeDispatcherDept ?? base.activeDispatcherDept ?? 'Housekeeping',
           customDiningRequests: saved.customDiningRequests ?? base.customDiningRequests,
@@ -941,6 +952,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         category: input.category,
         description: input.description,
         priority: input.priority ?? 'normal',
+        amount: input.amount,
         ref,
         createdAt,
         dnd: input.dnd,

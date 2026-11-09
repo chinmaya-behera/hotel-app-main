@@ -1,3 +1,8 @@
+export interface ItemPricingRule {
+  freeLimit: number; // e.g. 3 towels are free (₹0)
+  unitPrice: number; // additional charge per unit exceeding free limit
+}
+
 export interface AmenityProduct {
   id: string;
   name: string;
@@ -8,6 +13,7 @@ export interface AmenityProduct {
   maxQty: number;
   available: boolean;
   unit: string;
+  pricing?: ItemPricingRule;
 }
 
 export interface CleaningService {
@@ -17,6 +23,103 @@ export interface CleaningService {
   image: string;
   estimatedMinutes: number;
   available: boolean;
+  maxQty?: number;
+  pricing?: ItemPricingRule;
+}
+
+// Configurable hotel-specific pricing rules
+export const HOTEL_HOUSEKEEPING_PRICING: Record<string, ItemPricingRule> = {
+  // Amenities - Bathroom Essentials
+  'amenity-bath-towels': { freeLimit: 3, unitPrice: 50 },
+  'amenity-hand-towels': { freeLimit: 3, unitPrice: 30 },
+  'amenity-face-towels': { freeLimit: 4, unitPrice: 20 },
+  'amenity-bath-mats': { freeLimit: 2, unitPrice: 40 },
+  'amenity-toilet-paper': { freeLimit: 2, unitPrice: 30 },
+  'amenity-shampoo': { freeLimit: 2, unitPrice: 40 },
+  'amenity-conditioner': { freeLimit: 2, unitPrice: 40 },
+  'amenity-body-wash': { freeLimit: 2, unitPrice: 45 },
+  'amenity-shower-gel': { freeLimit: 2, unitPrice: 45 },
+  'amenity-hand-wash': { freeLimit: 2, unitPrice: 35 },
+  'amenity-soap': { freeLimit: 3, unitPrice: 25 },
+
+  // Amenities - Personal Care
+  'amenity-dental-kit': { freeLimit: 2, unitPrice: 45 },
+  'amenity-shaving-kit': { freeLimit: 2, unitPrice: 55 },
+  'amenity-vanity-kit': { freeLimit: 2, unitPrice: 35 },
+  'amenity-shower-cap': { freeLimit: 2, unitPrice: 25 },
+  'amenity-comb': { freeLimit: 2, unitPrice: 30 },
+  'amenity-hair-dryer': { freeLimit: 1, unitPrice: 0 },
+
+  // Amenities - Bedroom Essentials
+  'amenity-extra-pillows': { freeLimit: 2, unitPrice: 75 },
+  'amenity-extra-pillow': { freeLimit: 2, unitPrice: 75 },
+  'amenity-extra-blankets': { freeLimit: 1, unitPrice: 100 },
+  'amenity-blanket': { freeLimit: 1, unitPrice: 100 },
+  'amenity-bed-linen-replacement': { freeLimit: 1, unitPrice: 150 },
+  'amenity-extra-bedsheets': { freeLimit: 2, unitPrice: 90 },
+  'amenity-extra-hangers': { freeLimit: 2, unitPrice: 40 },
+  'amenity-iron-and-board': { freeLimit: 1, unitPrice: 0 },
+
+  // Amenities - Hospitality Essentials
+  'amenity-water-bottles': { freeLimit: 4, unitPrice: 40 },
+  'amenity-tea-coffee': { freeLimit: 4, unitPrice: 25 },
+  'amenity-sugar-milk': { freeLimit: 4, unitPrice: 20 },
+  'amenity-tissue-boxes': { freeLimit: 2, unitPrice: 35 },
+  'amenity-laundry-bags': { freeLimit: 2, unitPrice: 30 },
+  'amenity-room-slippers': { freeLimit: 2, unitPrice: 60 },
+  'amenity-slippers': { freeLimit: 2, unitPrice: 60 },
+  'amenity-sewing-kit': { freeLimit: 2, unitPrice: 35 },
+
+  // Cleaning Services
+  'clean-full-room': { freeLimit: 1, unitPrice: 200 },
+  'clean-quick-tidy': { freeLimit: 1, unitPrice: 150 },
+  'clean-deep-clean': { freeLimit: 0, unitPrice: 350 },
+  'clean-bathroom': { freeLimit: 1, unitPrice: 150 },
+  'clean-bed-making': { freeLimit: 1, unitPrice: 80 },
+  'clean-linen-change': { freeLimit: 1, unitPrice: 180 },
+  'clean-turndown': { freeLimit: 1, unitPrice: 0 },
+  'clean-trash-collection': { freeLimit: 3, unitPrice: 0 },
+  'clean-other': { freeLimit: 1, unitPrice: 120 },
+};
+
+export function calculateItemPrice(
+  itemId: string,
+  quantity: number,
+  customRules?: Record<string, ItemPricingRule>,
+): {
+  freeLimit: number;
+  unitPrice: number;
+  freeCount: number;
+  billableCount: number;
+  chargeableQty: number;
+  price: number;
+  isConfigured: boolean;
+} {
+  const rules = customRules || HOTEL_HOUSEKEEPING_PRICING;
+  const rule = rules[itemId];
+  if (!rule) {
+    return {
+      freeLimit: 99,
+      unitPrice: 0,
+      freeCount: quantity,
+      billableCount: 0,
+      chargeableQty: 0,
+      price: 0,
+      isConfigured: false,
+    };
+  }
+  const freeCount = Math.min(quantity, rule.freeLimit);
+  const billableCount = Math.max(0, quantity - rule.freeLimit);
+  const price = billableCount * rule.unitPrice;
+  return {
+    freeLimit: rule.freeLimit,
+    unitPrice: rule.unitPrice,
+    freeCount,
+    billableCount,
+    chargeableQty: billableCount,
+    price,
+    isConfigured: true,
+  };
 }
 
 export const AMENITY_CATEGORIES = [
@@ -46,7 +149,7 @@ export const INITIAL_AMENITIES: AmenityProduct[] = [
     category: 'bathroom',
     categoryLabel: 'Bathroom Essentials',
     description: 'Soft absorbent Turkish ring-spun cotton hand towels.',
-    image: 'https://images.unsplash.com/photo-1606293926075-69a00dbfde81?auto=format&fit=crop&w=600&q=80',
+    image: 'https://images.unsplash.com/photo-1616046229478-9901c5536a45?auto=format&fit=crop&w=600&q=80',
     maxQty: 6,
     available: true,
     unit: 'piece',
@@ -68,7 +171,7 @@ export const INITIAL_AMENITIES: AmenityProduct[] = [
     category: 'bathroom',
     categoryLabel: 'Bathroom Essentials',
     description: 'Heavyweight anti-slip ribbed bathroom floor mat.',
-    image: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80',
+    image: 'https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?auto=format&fit=crop&w=600&q=80',
     maxQty: 4,
     available: true,
     unit: 'piece',
@@ -180,7 +283,7 @@ export const INITIAL_AMENITIES: AmenityProduct[] = [
     category: 'personal_care',
     categoryLabel: 'Personal Care',
     description: 'Waterproof elastic satin-lined reusable shower cap.',
-    image: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=500&q=80',
+    image: 'https://images.unsplash.com/photo-1583947215259-38e31be8751f?auto=format&fit=crop&w=600&q=80',
     maxQty: 4,
     available: true,
     unit: 'piece',
@@ -316,7 +419,7 @@ export const INITIAL_AMENITIES: AmenityProduct[] = [
     category: 'hospitality',
     categoryLabel: 'Hospitality Essentials',
     description: 'Facial tissue box with 200 sheets of ultra-soft 3-ply paper.',
-    image: 'https://images.unsplash.com/photo-1584556812952-905ffd0c611a?auto=format&fit=crop&w=500&q=80',
+    image: 'https://images.unsplash.com/photo-1607613009820-a29f7bb81c04?auto=format&fit=crop&w=600&q=80',
     maxQty: 4,
     available: true,
     unit: 'box',
@@ -327,7 +430,7 @@ export const INITIAL_AMENITIES: AmenityProduct[] = [
     category: 'hospitality',
     categoryLabel: 'Hospitality Essentials',
     description: 'Durable cotton canvas laundry bag with dry-cleaning inventory slip.',
-    image: 'https://images.unsplash.com/photo-1582735689369-4fe89db7114c?auto=format&fit=crop&w=500&q=80',
+    image: 'https://images.unsplash.com/photo-1545173168-9f1947eebb7f?auto=format&fit=crop&w=600&q=80',
     maxQty: 4,
     available: true,
     unit: 'piece',
@@ -338,7 +441,7 @@ export const INITIAL_AMENITIES: AmenityProduct[] = [
     category: 'hospitality',
     categoryLabel: 'Hospitality Essentials',
     description: 'Velvet closed-toe cushioned anti-skid in-suite slippers.',
-    image: 'https://images.unsplash.com/photo-1582735689369-4fe89db7114c?auto=format&fit=crop&w=600&q=80',
+    image: 'https://images.unsplash.com/photo-1603561591411-07134e71a2a9?auto=format&fit=crop&w=600&q=80',
     maxQty: 4,
     available: true,
     unit: 'pair',
@@ -349,7 +452,7 @@ export const INITIAL_AMENITIES: AmenityProduct[] = [
     category: 'hospitality',
     categoryLabel: 'Hospitality Essentials',
     description: 'Emergency travel sewing kit with pre-threaded needles, safety pins & buttons.',
-    image: 'https://images.unsplash.com/photo-1584992236310-6edddc08acff?auto=format&fit=crop&w=500&q=80',
+    image: 'https://images.unsplash.com/photo-1604176354204-9268737828e4?auto=format&fit=crop&w=600&q=80',
     maxQty: 3,
     available: true,
     unit: 'kit',
