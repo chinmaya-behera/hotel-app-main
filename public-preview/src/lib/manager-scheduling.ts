@@ -1,5 +1,5 @@
 import type { DemoState, ShiftScheduleRecord, StaffAccount, WorkItem } from '../types/demo';
-import { departmentId, isOpen, managerDepartment, managerTasks, type ManagerDepartmentId } from './manager-domain.ts';
+import { departmentId, isOpen, managerDepartment, managerTasks, type ManagerDepartmentId } from './manager-domain';
 
 export const REST_HOURS = 11;
 export const SHIFT_PATTERNS = {

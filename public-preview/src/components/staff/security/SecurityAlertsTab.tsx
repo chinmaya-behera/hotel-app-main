@@ -88,7 +88,8 @@ export function SecurityAlertsTab() {
     if (found) {
       setTitle(`Safety Alert: ${found.title}`);
       setLocation(`${found.location || 'Hotel Property'}${found.floor !== undefined ? `, Level ${found.floor}` : ''}`);
-      setPriority(found.priority === 'Critical' ? 'critical' : found.priority === 'Urgent' ? 'urgent' : 'warning');
+      const prio = (found.priority || '').toLowerCase();
+      setPriority(prio === 'critical' ? 'critical' : prio === 'urgent' ? 'urgent' : 'warning');
 
       if (/smoke|fire|sensor/i.test(found.title)) {
         setIncidentType('fire_sensor');
