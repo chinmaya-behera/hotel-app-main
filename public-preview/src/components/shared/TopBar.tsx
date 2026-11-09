@@ -1,5 +1,31 @@
 'use client';
 
+function isTopBarSafetyAlert(notif: any): boolean {
+  const cat = (notif.category || '').toLowerCase();
+  const title = (notif.title || '').toLowerCase();
+  const msg = (notif.message || '').toLowerCase();
+  const dept = (notif.department || '').toLowerCase();
+  const itemId = (notif.itemId || '').toLowerCase();
+  return (
+    cat === 'safety' ||
+    cat === 'safety_alert' ||
+    dept.includes('safety') ||
+    dept.includes('security') ||
+    itemId.startsWith('alert-') ||
+    itemId.startsWith('alt-') ||
+    itemId.startsWith('sec-') ||
+    itemId.startsWith('sft-') ||
+    title.includes('safety') ||
+    title.includes('fire') ||
+    title.includes('smoke') ||
+    title.includes('hazard') ||
+    title.includes('emergency') ||
+    title.includes('broadcast') ||
+    msg.includes('safety alert') ||
+    msg.includes('life safety')
+  );
+}
+
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -12,6 +38,7 @@ import {
   LogOut,
   Moon,
   RotateCcw,
+  ShieldAlert,
   ShieldCheck,
   Sun,
   User,
@@ -45,6 +72,7 @@ export function TopBar({ active, showRail = true, hideGestureButton = false }: T
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
   const [policiesModalOpen, setPoliciesModalOpen] = useState(false);
   const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
+  const [notifCategory, setNotifCategory] = useState<'all' | 'safety'>('all');
   const notifRef = useRef<HTMLDivElement>(null);
   const [profileCardOpen, setProfileCardOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -583,6 +611,41 @@ export function TopBar({ active, showRail = true, hideGestureButton = false }: T
                             <X className="h-4 w-4" aria-hidden />
                           </button>
                         </div>
+                      </div>
+
+                      {/* Two Category Sections: All notifications & Safety Alerts */}
+                      <div className="my-2.5 grid grid-cols-2 p-1 rounded-xl border border-white/10 bg-white/[0.04] text-xs font-semibold">
+                        <button
+                          type="button"
+                          onClick={() => setNotifCategory('all')}
+                          className={cn(
+                            'py-1 px-2 rounded-lg transition flex items-center justify-center gap-1.5',
+                            notifCategory === 'all'
+                              ? 'bg-amber-500 text-white font-bold shadow-sm'
+                              : 'text-mist-400 hover:text-white'
+                          )}
+                        >
+                          <span>All notifications</span>
+                          <span className="text-[10px] font-mono px-1.5 rounded-full bg-white/10">
+                            {roleNotifications.length}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNotifCategory('safety')}
+                          className={cn(
+                            'py-1 px-2 rounded-lg transition flex items-center justify-center gap-1.5',
+                            notifCategory === 'safety'
+                              ? 'bg-rose-500 text-white font-bold shadow-sm'
+                              : 'text-mist-400 hover:text-white'
+                          )}
+                        >
+                          <ShieldAlert className="h-3 w-3" />
+                          <span>Safety Alerts</span>
+                          <span className="text-[10px] font-mono px-1.5 rounded-full bg-white/10">
+                            {roleNotifications.filter(isTopBarSafetyAlert).length}
+                          </span>
+                        </button>
                       </div>
 
                       <div className="mt-3 max-h-72 space-y-2 overflow-y-auto no-scrollbar">
