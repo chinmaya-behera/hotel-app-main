@@ -7038,7 +7038,7 @@ export const seedSafetyAlerts: SafetyAlertRecord[] = [
     id: 'alert-3',
     ref: 'SFT-003',
     title: 'West Wing Elevator B Routine Inspection',
-        priority: 'warning',
+    priority: 'warning',
     location: 'West Wing Guest Elevators (Floors 1–5)',
     affectedFloors: ['B2'],
     incidentType: 'fire_sensor',
