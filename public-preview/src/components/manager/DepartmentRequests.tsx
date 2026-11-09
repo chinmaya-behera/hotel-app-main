@@ -4,7 +4,7 @@ import { useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { CheckCheck, X } from 'lucide-react';
 import { DateTimePickerInput, localDateTime } from '@/components/ui/TimePickerInput';
 import { useDemo } from '@/lib/store';
-import { isOpen, managerDepartment, managerEscalations, MANAGER_DEPARTMENTS, departmentId } from '@/lib/manager-domain';
+import { isOpen, managerDepartment, managerEscalations, managerEscalationStatus, MANAGER_DEPARTMENTS, departmentId } from '@/lib/manager-domain';
 import { isPastTaskDeadline, taskSla } from '@/lib/manager-performance';
 import type { WorkItem } from '@/types/demo';
 import { managerDate } from './ManagerCases';
@@ -23,20 +23,26 @@ function taskStatus(task: WorkItem) {
   return task.assignee || task.assigneeId ? 'Assigned' : 'Unassigned';
 }
 
-function RequestTable({ rows, status, owner, onDetails }: {
+function RequestTable({ rows, status, owner, onDetails, actions }: {
   rows: WorkItem[];
   status: (task: WorkItem) => string;
   owner: (task: WorkItem) => string;
   onDetails: (task: WorkItem) => void;
+  actions?: (task: WorkItem) => ReactNode;
 }) {
   if (!rows.length) return <div className="dm-empty"><CheckCheck size={26}/><h3>No matching records</h3><p>Try changing your search or filters.</p></div>;
   return <div className="dm-table-wrap"><table className="dm-table">
-    <thead><tr>{['Room No.', 'Owner', 'Priority', 'Status', 'Details'].map(header => <th key={header}>{header}</th>)}</tr></thead>
+    <thead><tr>
+      {['Room No.', 'Owner', 'Priority', 'Status'].map(header => <th key={header} scope="col">{header}</th>)}
+      {actions && <th scope="col">Actions</th>}
+      <th scope="col" aria-label="Details"/>
+    </tr></thead>
     <tbody>{rows.map(task => <tr key={task.id}>
       <td><strong>{location(task)}</strong><small className="dm-reference">{reference(task)}{task.id.startsWith('manager-demo-') && ' · Sample'}</small></td>
       <td>{owner(task)}</td>
       <td><span className={'dm-status ' + (['critical', 'urgent', 'safety', 'vip'].includes(task.priority || '') ? 'urgent' : '')}>{labelPriority(task.priority)}</span></td>
-      <td><span className={'dm-status ' + (status(task) === 'Completed' ? 'good' : status(task) === 'Issue to resolve' ? 'urgent' : '')}>{status(task)}</span></td>
+      <td><span className={'dm-status ' + (/^(Completed|Approved|GM Approved)$/.test(status(task)) ? 'good' : /^(Issue to resolve|Rejected|GM Rejected)$/.test(status(task)) ? 'urgent' : '')}>{status(task)}</span></td>
+      {actions && <td>{actions(task)}</td>}
       <td><button type="button" className="dm-small-button" onClick={() => onDetails(task)} aria-label={'Details ' + reference(task)}>Details</button></td>
     </tr>)}</tbody>
   </table></div>;
@@ -175,14 +181,15 @@ export function DepartmentEscalations({ now }: { now: number }) {
   const [direction, setDirection] = useState<'to' | 'from'>('to');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<WorkItem | null>(null);
-  const [action, setAction] = useState<'acknowledge' | 'reject' | 'escalate' | null>(null);
+  const [decision, setDecision] = useState<{ task: WorkItem; action: 'reject' | 'escalate' } | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
+  const decisionDialog = useRef<HTMLDialogElement>(null);
   const rows = managerEscalations(state, department.id, direction).filter(task =>
     [reference(task), location(task), task.title, task.assignee].join(' ').toLowerCase().includes(search.trim().toLowerCase()),
   );
   const status = (task: WorkItem) => {
-    const route = task.managerEscalation;
-    return route?.status === 'Pending' && direction === 'from' ? 'Escalated' : route?.status || (/^Escalated to GM$/i.test(task.status) ? 'Escalated' : 'Pending');
+    const current = managerEscalationStatus(task);
+    return current === 'Pending' && direction === 'from' ? 'Escalated' : current;
   };
   const owner = (task: WorkItem) => {
     const target = task.managerEscalation?.target;
@@ -190,15 +197,22 @@ export function DepartmentEscalations({ now }: { now: number }) {
     const manager = managerDepartment(target || department.id);
     return state.managerProfiles?.[manager.id]?.name || manager.person;
   };
+  const canDecide = (task: WorkItem) => direction === 'to' && ['Pending', 'Acknowledged'].includes(managerEscalationStatus(task));
+  function openDecision(task: WorkItem, action: 'reject' | 'escalate') {
+    dialog.current?.close();
+    setDecision({ task, action });
+    decisionDialog.current?.showModal();
+  }
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!selected || !action) return;
+    if (!decision) return;
+    const { task, action } = decision;
     const fields = new FormData(event.currentTarget);
     if (departmentManagerCommand({
-      type: 'escalation-action', itemId: selected.id, action,
+      type: 'escalation-action', itemId: task.id, action,
       note: String(fields.get('note') || ''), target: String(fields.get('target') || ''),
     })) {
-      dialog.current?.close();
+      decisionDialog.current?.close();
       if (action === 'escalate') setDirection('from');
     }
   }
@@ -209,28 +223,32 @@ export function DepartmentEscalations({ now }: { now: number }) {
       <button aria-pressed={direction === 'from'} onClick={() => setDirection('from')}>From me</button>
     </div>
     <div className="dm-toolbar"><input aria-label="Search escalations" placeholder="Search reference, room or escalation" value={search} onChange={event => setSearch(event.target.value)}/></div>
-    <RequestTable rows={rows} status={status} owner={owner} onDetails={task => { setAction(null); setSelected(task); dialog.current?.showModal(); }}/>
+    <RequestTable rows={rows} status={status} owner={owner} onDetails={task => { setSelected(task); dialog.current?.showModal(); }}
+      actions={direction === 'to' ? task => canDecide(task) && <div className="dm-row-actions">
+        <button type="button" className="dm-small-button" disabled={status(task) !== 'Pending'}
+          onClick={() => departmentManagerCommand({ type: 'escalation-action', itemId: task.id, action: 'acknowledge' })}>Acknowledge</button>
+        <button type="button" className="dm-small-button" onClick={() => openDecision(task, 'reject')}>Reject</button>
+        <button type="button" className="dm-primary" onClick={() => departmentManagerCommand({ type: 'escalation-action', itemId: task.id, action: 'approve' })}>Approve</button>
+      </div> : undefined}/>
     <dialog className="dm-dialog dm-history-dialog" ref={dialog} aria-label="Escalation details" onClose={() => setSelected(null)}>
       <div className="dm-dialog-heading"><h2>Escalation details</h2><button type="button" className="dm-icon-button" aria-label="Close escalation details" onClick={() => dialog.current?.close()}><X size={19}/></button></div>
       {selected && <RequestDetails task={selected} now={now} escalation>
         <p className="dm-dialog-description">Owner: {owner(selected)} · {status(selected)}</p>
-        {direction === 'to' && ['Pending', 'Acknowledged'].includes(status(selected)) && <form onSubmit={submit} className="dm-record">
-          <h3>Decision</h3>
-          <div className="dm-record-actions">
-            {status(selected) === 'Pending' && <button className="dm-secondary" type="button" aria-pressed={action === 'acknowledge'} onClick={() => setAction('acknowledge')}>Acknowledge</button>}
-            <button className="dm-secondary" type="button" aria-pressed={action === 'reject'} onClick={() => setAction('reject')}>Reject</button>
-            <button className="dm-secondary" type="button" aria-pressed={action === 'escalate'} onClick={() => setAction('escalate')}>Escalate</button>
-          </div>
-          {action && <>
-            {action === 'escalate' && <label className="dm-field">Escalation target<select name="target" required defaultValue="">
-              <option value="" disabled>Select recipient</option><option value="general_manager">General Manager</option>
-              {MANAGER_DEPARTMENTS.filter(target => target.id !== department.id).map(target => <option key={target.id} value={target.id}>{target.name} Manager</option>)}
-            </select></label>}
-            <label className="dm-field">{action === 'reject' ? 'Rejection reason' : 'Decision notes'}<textarea name="note" required={action !== 'acknowledge'} maxLength={2000}/></label>
-            <button type="submit" className="dm-primary">Save decision</button>
-          </>}
-        </form>}
+        {canDecide(selected) && <button type="button" className="dm-secondary" onClick={() => openDecision(selected, 'escalate')}>Route to another manager</button>}
       </RequestDetails>}
+    </dialog>
+    <dialog className="dm-dialog" ref={decisionDialog} aria-labelledby="dm-escalation-decision" onClose={() => setDecision(null)}>
+      {decision && <form onSubmit={submit}>
+        <div className="dm-dialog-heading"><h2 id="dm-escalation-decision">{decision.action === 'reject' ? 'Reject escalation' : 'Route escalation'}</h2></div>
+        <p className="dm-dialog-description">{reference(decision.task)} · {decision.task.title}</p>
+        {decision.action === 'escalate' && <label className="dm-field">Escalation target<select name="target" required defaultValue="">
+          <option value="" disabled>Select recipient</option><option value="general_manager">General Manager</option>
+          {MANAGER_DEPARTMENTS.filter(target => target.id !== department.id).map(target => <option key={target.id} value={target.id}>{target.name} Manager</option>)}
+        </select></label>}
+        <label className="dm-field">{decision.action === 'reject' ? 'Rejection reason' : 'Decision notes'}<textarea name="note" required maxLength={2000}/></label>
+        <div className="dm-dialog-actions"><button type="button" className="dm-secondary" onClick={() => decisionDialog.current?.close()}>Cancel</button>
+          <button type="submit" className="dm-primary">{decision.action === 'reject' ? 'Reject' : 'Send escalation'}</button></div>
+      </form>}
     </dialog>
   </section>;
 }

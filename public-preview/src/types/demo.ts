@@ -129,7 +129,7 @@ export interface WorkItem {
   /** Escalation properties (Front Desk Fulfillers workflow) */
   escalationId?: string;
   managerEscalation?: {
-    status: 'Pending' | 'Acknowledged' | 'Rejected' | 'Escalated' | 'GM Approved' | 'GM Rejected' | 'Info Requested';
+    status: 'Pending' | 'Acknowledged' | 'Approved' | 'Rejected' | 'Escalated' | 'GM Approved' | 'GM Rejected' | 'Info Requested';
     source?: string;
     sentBy?: string[];
     target: string;

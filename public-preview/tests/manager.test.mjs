@@ -412,3 +412,16 @@ test('escalation decisions stay with the case and follow the assigned manager', 
   assert.deepEqual(record.managerEscalation.history.map(entry => entry.status), ['Acknowledged', 'Escalated', 'Rejected']);
   assert.equal(state.auditTrail[0].resource, record.ref);
 });
+
+test('department approval closes the escalation decision and records the audit entry', () => {
+  const state = migrateOperationalReferences(roomFixture());
+  const item = managerEscalations(state, 'housekeeping', 'to')[0];
+  const approve = { type: 'escalation-action', itemId: item.id, action: 'approve' };
+  const next = command(state, approve, 'approve');
+  const updated = managerEscalations(next, 'housekeeping', 'to').find(record => record.id === item.id);
+  assert.equal(updated.managerEscalation.status, 'Approved');
+  assert.equal(updated.managerEscalation.history.at(-1).status, 'Approved');
+  assert.equal(next.auditTrail[0].action, 'Escalation approved');
+  assert.throws(() => command(next, approve, 'repeat'), /no longer awaiting/);
+  assert.throws(() => command({ ...state, managerDepartment: 'wellness' }, approve, 'other'), /unavailable/);
+});

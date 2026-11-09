@@ -464,6 +464,28 @@
 .dm-cuisine-heading { margin: 20px 0 12px; }
 .dm-cuisine-heading h3, .dm-cuisine-heading h4 { font-size: 13px; font-weight: 600; color: var(--dm-ink); }
 .dm-insights-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 15px; align-items: start; }
+.dm-row-actions { display: flex; gap: 7px; flex-wrap: wrap; }
+.dm-row-actions button { min-height: 34px; padding: 7px 11px; }
+.dm-cuisine-grid { margin-top: 14px; }
+.dm-cuisine-card { min-width: 0; border: 1px solid var(--dm-line); border-radius: 10px; background: var(--dm-paper); }
+.dm-cuisine-card > summary { display: block; padding: 16px; border-radius: 9px; cursor: pointer; }
+.dm-cuisine-card > summary::-webkit-details-marker { display: none; }
+.dm-cuisine-card > summary:hover, .dm-cuisine-card[open] > summary { background: var(--warm-soft); }
+.dm-cuisine-card-title { display: flex; align-items: center; gap: 10px; }
+.dm-cuisine-card-title strong { flex: 1; font-size: 15px; overflow-wrap: anywhere; }
+.dm-cuisine-chevron { flex-shrink: 0; color: var(--dm-muted); }
+.dm-cuisine-card[open] .dm-cuisine-chevron { transform: rotate(180deg); }
+.dm-cuisine-card-stats { display: flex; flex-wrap: wrap; gap: 5px 15px; margin: 13px 0 9px; color: var(--dm-muted); font-size: 12px; }
+.dm-cuisine-card-stats b { color: var(--dm-ink); font-weight: 600; }
+.dm-cuisine-share { display: grid; gap: 6px; color: var(--dm-muted); font-size: 11px; }
+.dm-cuisine-meter { display: block; height: 5px; border-radius: 3px; background: var(--dm-surface); overflow: hidden; }
+.dm-cuisine-meter > span { display: block; height: 100%; background: var(--dm-accent); }
+.dm-cuisine-breakdown { border-top: 1px solid var(--dm-line); padding: 12px 16px; }
+.dm-cuisine-breakdown li { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; padding: 9px 0; border-top: 1px solid var(--dm-line); font-size: 11px; color: var(--dm-muted); }
+.dm-cuisine-breakdown li:first-child { margin-top: 6px; }
+.dm-cuisine-breakdown li strong { color: var(--dm-ink); }
+.dm-cuisine-breakdown li small { display: block; }
+.dm-cuisine-breakdown li span:last-child { text-align: right; }
 .dm-dish-insight { min-width: 0; padding: 18px; border: 1px solid var(--dm-line); border-radius: 10px; background: var(--dm-paper); }
 .dm-dish-insight h4 { font-size: 13px; line-height: 1.6; font-weight: 600; color: var(--dm-ink); overflow-wrap: anywhere; }
 .dm-dish-insight .dm-record-title { align-items: flex-start; gap: 12px; }

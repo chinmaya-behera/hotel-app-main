@@ -44,6 +44,19 @@ export function managerEscalations(state: DemoState, department: ManagerDepartme
   });
 }
 
+export function managerEscalationStatus(task: WorkItem) {
+  if (task.managerEscalation) return task.managerEscalation.status;
+  switch (task.status) {
+    case 'Acknowledged': case 'Approved': case 'Rejected': case 'Resolved':
+    case 'GM Approved': case 'GM Rejected': case 'Info Requested':
+      return task.status;
+    case 'Escalated to GM':
+      return 'Escalated';
+    default:
+      return 'Pending';
+  }
+}
+
 export function managerInspections(s: DemoState, id: ManagerDepartmentId) {
   return (s.inspections ?? []).filter(i => (departmentId(i.department) ?? (i.type === 'maintenance_check' ? 'engineering' : 'housekeeping')) === id);
 }
@@ -97,7 +110,7 @@ export type ManagerCommand =
   | { type: 'asset-service'; assetId: string }
   | { type: 'menu-availability'; menuId: string; available: boolean }
   | { type: 'inspection'; location: string; instructions: string; supervisorId: string; inspectionId?: string }
-  | { type: 'escalation-action'; itemId: string; action: 'acknowledge' | 'reject' | 'escalate'; note?: string; target?: string }
+  | { type: 'escalation-action'; itemId: string; action: 'acknowledge' | 'approve' | 'reject' | 'escalate'; note?: string; target?: string }
   | { type: 'recovery'; taskId: string; decision: 'resolve' | 'escalate'; note: string }
   | { type: 'availability'; staffId: string; value: 'on_duty' | 'break' | 'off_duty' }
   | { type: 'handover'; incoming: string; notes: string }
@@ -121,18 +134,20 @@ export function applyManagerCommand(state: DemoState, command: ManagerCommand, u
     const item = managerEscalations(s, d.id, 'to').find(record => record.id === command.itemId);
     if (!item) throw Error('Escalation unavailable in your inbox.');
     const previous = item.managerEscalation;
-    if (previous?.status === 'Rejected') throw Error('This escalation has already been rejected.');
-    if (command.action === 'acknowledge' && previous?.status === 'Acknowledged') throw Error('This escalation is already acknowledged.');
+    const currentStatus = managerEscalationStatus(item);
+    if (currentStatus !== 'Pending' && currentStatus !== 'Acknowledged') throw Error('This escalation is no longer awaiting a department decision.');
+    if (command.action === 'acknowledge' && currentStatus === 'Acknowledged') throw Error('This escalation is already acknowledged.');
     const outgoing = command.action === 'escalate';
-    const status = command.action === 'reject' ? 'Rejected' : outgoing ? 'Escalated' : 'Acknowledged';
-    const note = command.action === 'acknowledge' ? command.note?.trim() : required(command.note || '');
+    const status = { acknowledge: 'Acknowledged', approve: 'Approved', reject: 'Rejected', escalate: 'Escalated' } as const;
+    const outcome = status[command.action];
+    const note = outgoing || command.action === 'reject' ? required(command.note || '') : command.note?.trim();
     const target = outgoing ? command.target : d.id;
     if (!target || outgoing && (target === d.id || !['general_manager', ...MANAGER_DEPARTMENTS.map(department => department.id)].includes(target))) {
       throw Error('Choose a recipient for the escalation.');
     }
-    const history = [...(previous?.history ?? []), { at: now, actor: person, status, note }];
+    const history = [...(previous?.history ?? []), { at: now, actor: person, status: outcome, note }];
     item.managerEscalation = {
-      status: outgoing && target !== 'general_manager' ? 'Pending' : status,
+      status: outgoing && target !== 'general_manager' ? 'Pending' : outcome,
       source: outgoing ? d.id : previous?.source,
       sentBy: outgoing ? [...new Set([...(previous?.sentBy ?? []), d.id])] : previous?.sentBy,
       target, history,
@@ -144,7 +159,7 @@ export function applyManagerCommand(state: DemoState, command: ManagerCommand, u
     } else if (outgoing) {
       s.notifications = [{ id: uid, roleId: 'department_manager', department: managerDepartment(target).name, title: 'Escalation from ' + d.name, message: note || '', itemId: item.id, timestamp: now, read: false, type: 'alert' }, ...(s.notifications ?? [])];
     }
-    auditAction = 'Escalation ' + status.toLowerCase();
+    auditAction = 'Escalation ' + outcome.toLowerCase();
     auditResource = item.ref || item.id;
     auditDetails = note;
   } else if (command.type === 'schedule-shift') {

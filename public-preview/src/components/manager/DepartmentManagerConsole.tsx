@@ -5,7 +5,7 @@ import { Activity, ArrowUpRight, BarChart3, Bell, BookOpen, CalendarDays, CheckC
 import { TimePickerInput } from '@/components/ui/TimePickerInput';
 import { displayTime } from '@/components/ui/TimePickerModal';
 import { useDemo } from '@/lib/store';
-import { departmentId, isOpen, managerDepartment, managerEscalations, managerInspections, managerTasks, type ManagerDepartmentId } from '@/lib/manager-domain';
+import { departmentId, isOpen, managerDepartment, managerEscalations, managerEscalationStatus, managerInspections, managerTasks, type ManagerDepartmentId } from '@/lib/manager-domain';
 import type { SupervisorInspection } from '@/types/demo';
 import { DepartmentDesk, DESK_LABELS } from './DepartmentDesk';
 import '../shared/warm-theme.css';
@@ -111,7 +111,7 @@ export function DepartmentManagerConsole() {
   const inspections = managerInspections(state, d.id);
   const staff = state.staffAccounts.filter(s => departmentId(s.department) === d.id && s.roleId !== 'department_manager');
   const supervisors = staff.filter(s => ['department_supervisor', 'department_dispatcher_supervisor'].includes(s.roleId) && s.status === 'active');
-  const recovery = managerEscalations(state, d.id, 'to').filter(task => (task.managerEscalation?.status || 'Pending') === 'Pending');
+  const recovery = managerEscalations(state, d.id, 'to').filter(task => managerEscalationStatus(task) === 'Pending');
   const policies = (state.departmentPolicies ?? []).filter(p => departmentId(p.department) === d.id);
   const pending = inspections.filter(i => i.status === 'pending');
   const completed = tasks.filter(t => !isOpen(t.status));

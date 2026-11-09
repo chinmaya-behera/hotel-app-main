@@ -32,11 +32,14 @@ export function DateTimePickerInput({ label, name, defaultValue = '', value, onC
   return <div className="dm-field">
     <span>{label}</span>
     <div className="dm-form-grid">
-      <input type="date" aria-label={label + ' date'} min={minDate} value={date} onInput={event => {
+      <input type="date" aria-label={label + ' date'} min={minDate} value={date} onChange={event => {
         const nextDate = event.currentTarget.value;
         update(nextDate ? nextDate + 'T' + (time || '09:00') : '');
       }}/>
-      <TimePickerInput label={label + ' time'} value={time || ''} disabled={!date} onChange={next => update(date + 'T' + next)}/>
+      <TimePickerInput label={label + ' time'} value={time || ''} onChange={next => {
+        const today = localDateTime(new Date().toISOString()).slice(0, 10);
+        update((date || (minDate && minDate > today ? minDate : today)) + 'T' + next);
+      }}/>
     </div>
     {name && <input type="hidden" name={name} value={current}/>}
   </div>;
