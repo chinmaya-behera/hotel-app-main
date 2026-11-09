@@ -1240,6 +1240,8 @@ export interface SafetyAlertRecord {
   broadcastScope: 'all_staff' | 'hotel_wide' | 'security_only';
   auditHistory: SafetyAlertAuditStep[];
   acknowledgedBy?: string[];
+  photoUrl?: string;
+  incidentId?: string;
 }
 
 /* ---- Guest Side Domain Models (Six Main Sections) ---- */

@@ -416,6 +416,8 @@ interface DemoApi {
     incidentType: SafetyAlertRecord['incidentType'];
     description: string;
     broadcastScope: SafetyAlertRecord['broadcastScope'];
+    photoUrl?: string;
+    incidentId?: string;
   }) => void;
   validateSafetyAlertByFrontDesk: (alertId: string, notes?: string) => void;
   approveSafetyAlertByManager: (alertId: string, approved: boolean, notes?: string) => void;
