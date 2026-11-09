@@ -370,18 +370,16 @@ export function ExecutiveApprovalsTab({
                 setStatusFilter(tab.id);
                 setPage(1);
               }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 ${
-                statusFilter === tab.id
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 ${statusFilter === tab.id
                   ? 'bg-amber-500 text-white shadow-sm'
                   : 'bg-black/5 dark:bg-white/5 text-slate-600 dark:text-mist-300 hover:bg-black/10 dark:hover:bg-white/10'
-              }`}
+                }`}
             >
               <span>{tab.label}</span>
               {tab.count !== undefined && (
                 <span
-                  className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${
-                    statusFilter === tab.id ? 'bg-white/30 text-white' : 'bg-black/10 dark:bg-white/10'
-                  }`}
+                  className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${statusFilter === tab.id ? 'bg-white/30 text-white' : 'bg-black/10 dark:bg-white/10'
+                    }`}
                 >
                   {tab.count}
                 </span>
@@ -422,78 +420,77 @@ export function ExecutiveApprovalsTab({
             {pendingSafetyAlerts.map((alt) => {
               const isSelected = Boolean(
                 selectedSafetyAlertId &&
-                  (alt.id === selectedSafetyAlertId || alt.ref === selectedSafetyAlertId),
+                (alt.id === selectedSafetyAlertId || alt.ref === selectedSafetyAlertId),
               );
               return (
                 <div
                   key={alt.id}
-                  className={`p-4 rounded-2xl border transition flex flex-col md:flex-row md:items-center justify-between gap-4 ${
-                    isSelected
+                  className={`p-4 rounded-2xl border transition flex flex-col md:flex-row md:items-center justify-between gap-4 ${isSelected
                       ? 'border-rose-400 ring-2 ring-rose-500/50 bg-rose-950/80 shadow-lg'
                       : 'border-rose-500/30 bg-ink-950/60'
-                  }`}
+                    }`}
                 >
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-mono font-bold text-xs px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30">
-                      {alt.ref}
-                    </span>
-                    <span className="font-bold text-sm text-white">{alt.title}</span>
-                    <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                      {alt.priority}
-                    </span>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-mono font-bold text-xs px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                        {alt.ref}
+                      </span>
+                      <span className="font-bold text-sm text-white">{alt.title}</span>
+                      <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                        {alt.priority}
+                      </span>
+                    </div>
+                    <p className="text-xs text-mist-300">{alt.description}</p>
+                    <div className="flex items-center gap-4 text-[11px] text-mist-400 flex-wrap">
+                      <span>Location: {alt.location}</span>
+                      <span>· Floors: {alt.affectedFloors?.join(', ') || 'All'}</span>
+                      <span>· Validated by: {alt.validatedBy || 'Front Desk'}</span>
+                    </div>
                   </div>
-                  <p className="text-xs text-mist-300">{alt.description}</p>
-                  <div className="flex items-center gap-4 text-[11px] text-mist-400 flex-wrap">
-                    <span>Location: {alt.location}</span>
-                    <span>· Floors: {alt.affectedFloors?.join(', ') || 'All'}</span>
-                    <span>· Validated by: {alt.validatedBy || 'Front Desk'}</span>
-                  </div>
-                </div>
 
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setViewingAlertAudit(alt)}
-                    className="px-3 py-1.5 rounded-xl border border-white/10 hover:bg-white/5 text-xs text-mist-300 transition"
-                  >
-                    Audit Trail
-                  </button>
-                  {permissionMode === 'approver' && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          approveSafetyAlertByManager(
-                            alt.id,
-                            false,
-                            'Returned by General Manager Priya Nair: verify localized BMS sensor reading',
-                          )
-                        }
-                        className="px-3 py-1.5 rounded-xl border border-rose-500/40 text-rose-300 hover:bg-rose-500/10 text-xs font-semibold transition"
-                      >
-                        Reject / Return
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          approveSafetyAlertByManager(
-                            alt.id,
-                            true,
-                            'Authorized for hotel-wide console broadcast by Priya Nair (GM)',
-                          )
-                        }
-                        className="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition shadow-lg shadow-rose-600/30 flex items-center gap-1.5"
-                      >
-                        <Stamp className="h-3.5 w-3.5" />
-                        Authorize Broadcast
-                      </button>
-                    </>
-                  )}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setViewingAlertAudit(alt)}
+                      className="px-3 py-1.5 rounded-xl border border-white/10 hover:bg-white/5 text-xs text-mist-300 transition"
+                    >
+                      Audit Trail
+                    </button>
+                    {permissionMode === 'approver' && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            approveSafetyAlertByManager(
+                              alt.id,
+                              false,
+                              'Returned by General Manager Priya Nair: verify localized BMS sensor reading',
+                            )
+                          }
+                          className="px-3 py-1.5 rounded-xl border border-rose-500/40 text-rose-300 hover:bg-rose-500/10 text-xs font-semibold transition"
+                        >
+                          Reject / Return
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            approveSafetyAlertByManager(
+                              alt.id,
+                              true,
+                              'Authorized for hotel-wide console broadcast by Priya Nair (GM)',
+                            )
+                          }
+                          className="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition shadow-lg shadow-rose-600/30 flex items-center gap-1.5"
+                        >
+                          <Stamp className="h-3.5 w-3.5" />
+                          Authorize Broadcast
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
           </div>
         </div>
       )}
@@ -526,70 +523,69 @@ export function ExecutiveApprovalsTab({
             {pendingGmCompensations.map((comp) => {
               const isSelected = Boolean(
                 selectedCompensationId &&
-                  (comp.id === selectedCompensationId || comp.ref === selectedCompensationId),
+                (comp.id === selectedCompensationId || comp.ref === selectedCompensationId),
               );
               return (
                 <div
                   key={comp.id}
-                  className={`p-4 rounded-2xl border transition flex flex-col md:flex-row md:items-center justify-between gap-4 ${
-                    isSelected
+                  className={`p-4 rounded-2xl border transition flex flex-col md:flex-row md:items-center justify-between gap-4 ${isSelected
                       ? 'border-amber-400 ring-2 ring-amber-500/50 bg-amber-950/80 shadow-lg'
                       : 'border-amber-500/30 bg-ink-950/60'
-                  }`}
+                    }`}
                 >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-mono font-bold text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                      {comp.ref}
-                    </span>
-                    <span className="font-bold text-sm text-white">{comp.guestName}</span>
-                    <span className="text-xs text-mist-300">Room {comp.room}</span>
-                    <span className="font-mono font-bold text-sm text-amber-400">
-                      ₹{comp.amount.toLocaleString('en-IN')}
-                    </span>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-mono font-bold text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                        {comp.ref}
+                      </span>
+                      <span className="font-bold text-sm text-white">{comp.guestName}</span>
+                      <span className="text-xs text-mist-300">Room {comp.room}</span>
+                      <span className="font-mono font-bold text-sm text-amber-400">
+                        ₹{comp.amount.toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                    <p className="text-xs text-mist-300">{comp.reason}</p>
+                    <div className="flex items-center gap-3 text-[11px] text-mist-400">
+                      <span>Department: {comp.department}</span>
+                      <span>· Requested By: {comp.requestedBy}</span>
+                      {comp.incidentRef && <span>· Incident: {comp.incidentRef}</span>}
+                    </div>
                   </div>
-                  <p className="text-xs text-mist-300">{comp.reason}</p>
-                  <div className="flex items-center gap-3 text-[11px] text-mist-400">
-                    <span>Department: {comp.department}</span>
-                    <span>· Requested By: {comp.requestedBy}</span>
-                    {comp.incidentRef && <span>· Incident: {comp.incidentRef}</span>}
-                  </div>
-                </div>
 
-                {permissionMode === 'approver' && (
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        reviewGmCompensation(
-                          comp.id,
-                          'reject',
-                          'Declined by General Manager: amount exceeds discretionary policy',
-                        )
-                      }
-                      className="px-3 py-1.5 rounded-xl border border-rose-500/40 text-rose-300 hover:bg-rose-500/10 text-xs font-semibold transition"
-                    >
-                      Decline
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        reviewGmCompensation(
-                          comp.id,
-                          'forward_to_finance',
-                          'Approved by General Manager Priya Nair; forwarded to Financial Operator for credit settlement',
-                        )
-                      }
-                      className="px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-ink-950 text-xs font-bold transition shadow-lg shadow-amber-500/20 flex items-center gap-1.5"
-                    >
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                      Authorize & Forward to Finance
-                    </button>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                  {permissionMode === 'approver' && (
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          reviewGmCompensation(
+                            comp.id,
+                            'reject',
+                            'Declined by General Manager: amount exceeds discretionary policy',
+                          )
+                        }
+                        className="px-3 py-1.5 rounded-xl border border-rose-500/40 text-rose-300 hover:bg-rose-500/10 text-xs font-semibold transition"
+                      >
+                        Decline
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          reviewGmCompensation(
+                            comp.id,
+                            'forward_to_finance',
+                            'Approved by General Manager Priya Nair; forwarded to Financial Operator for credit settlement',
+                          )
+                        }
+                        className="px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-ink-950 text-xs font-bold transition shadow-lg shadow-amber-500/20 flex items-center gap-1.5"
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        Authorize & Forward to Finance
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -666,13 +662,12 @@ export function ExecutiveApprovalsTab({
                       {/* Priority */}
                       <td className="px-4 py-3 whitespace-nowrap">
                         <span
-                          className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
-                            item.priority === 'critical'
+                          className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${item.priority === 'critical'
                               ? 'bg-rose-500/15 text-rose-600 dark:text-rose-300 border border-rose-500/30'
                               : item.priority === 'vip'
-                              ? 'bg-purple-500/15 text-purple-600 dark:text-purple-300 border border-purple-500/30'
-                              : 'bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-mist-300'
-                          }`}
+                                ? 'bg-purple-500/15 text-purple-600 dark:text-purple-300 border border-purple-500/30'
+                                : 'bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-mist-300'
+                            }`}
                         >
                           {item.priority || 'Normal'}
                         </span>
@@ -681,15 +676,14 @@ export function ExecutiveApprovalsTab({
                       {/* Status */}
                       <td className="px-4 py-3 whitespace-nowrap">
                         <span
-                          className={`text-[10px] font-bold px-2.5 py-1 rounded-full inline-flex items-center gap-1 ${
-                            isApproved
+                          className={`text-[10px] font-bold px-2.5 py-1 rounded-full inline-flex items-center gap-1 ${isApproved
                               ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30'
                               : isRejected
-                              ? 'bg-rose-500/15 text-rose-600 dark:text-rose-300 border border-rose-500/30'
-                              : isInfo
-                              ? 'bg-sky-500/15 text-sky-600 dark:text-sky-300 border border-sky-500/30'
-                              : 'bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30'
-                          }`}
+                                ? 'bg-rose-500/15 text-rose-600 dark:text-rose-300 border border-rose-500/30'
+                                : isInfo
+                                  ? 'bg-sky-500/15 text-sky-600 dark:text-sky-300 border border-sky-500/30'
+                                  : 'bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30'
+                            }`}
                         >
                           {isApproved && <CheckCircle2 className="h-3 w-3" />}
                           {isRejected && <XCircle className="h-3 w-3" />}
@@ -717,11 +711,10 @@ export function ExecutiveApprovalsTab({
                                 disabled={permissionMode === 'viewer'}
                                 onClick={() => setConfirmApproveModal(item)}
                                 title={permissionMode === 'viewer' ? 'Disabled in Viewer Mode' : 'Approve Requisition'}
-                                className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 ${
-                                  permissionMode === 'viewer'
+                                className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 ${permissionMode === 'viewer'
                                     ? 'bg-slate-200 dark:bg-white/5 text-slate-400 dark:text-mist-500 cursor-not-allowed opacity-60'
                                     : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm'
-                                }`}
+                                  }`}
                               >
                                 {permissionMode === 'viewer' && <Lock className="h-3 w-3" />}
                                 <span>Approve</span>
@@ -732,11 +725,10 @@ export function ExecutiveApprovalsTab({
                                 disabled={permissionMode === 'viewer'}
                                 onClick={() => setConfirmRejectModal(item)}
                                 title={permissionMode === 'viewer' ? 'Disabled in Viewer Mode' : 'Decline Requisition'}
-                                className={`px-2 py-1.5 rounded-xl text-xs font-bold transition ${
-                                  permissionMode === 'viewer'
+                                className={`px-2 py-1.5 rounded-xl text-xs font-bold transition ${permissionMode === 'viewer'
                                     ? 'bg-slate-200 dark:bg-white/5 text-slate-400 dark:text-mist-500 cursor-not-allowed opacity-60'
                                     : 'bg-rose-500/15 hover:bg-rose-500/25 text-rose-600 dark:text-rose-300 border border-rose-500/30'
-                                }`}
+                                  }`}
                               >
                                 Decline
                               </button>
@@ -750,11 +742,10 @@ export function ExecutiveApprovalsTab({
                                 disabled={permissionMode === 'viewer'}
                                 onClick={() => setConfirmApproveModal(item)}
                                 title={permissionMode === 'viewer' ? 'Disabled in Viewer Mode' : 'Authorize Clarified Requisition'}
-                                className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 ${
-                                  permissionMode === 'viewer'
+                                className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 ${permissionMode === 'viewer'
                                     ? 'bg-slate-200 dark:bg-white/5 text-slate-400 dark:text-mist-500 cursor-not-allowed opacity-60'
                                     : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm'
-                                }`}
+                                  }`}
                               >
                                 <span>Authorize</span>
                               </button>
@@ -764,11 +755,10 @@ export function ExecutiveApprovalsTab({
                                 disabled={permissionMode === 'viewer'}
                                 onClick={() => setConfirmRejectModal(item)}
                                 title={permissionMode === 'viewer' ? 'Disabled in Viewer Mode' : 'Decline Requisition'}
-                                className={`px-2 py-1.5 rounded-xl text-xs font-bold transition ${
-                                  permissionMode === 'viewer'
+                                className={`px-2 py-1.5 rounded-xl text-xs font-bold transition ${permissionMode === 'viewer'
                                     ? 'bg-slate-200 dark:bg-white/5 text-slate-400 dark:text-mist-500 cursor-not-allowed opacity-60'
                                     : 'bg-rose-500/15 hover:bg-rose-500/25 text-rose-600 dark:text-rose-300 border border-rose-500/30'
-                                }`}
+                                  }`}
                               >
                                 Decline
                               </button>
@@ -880,7 +870,7 @@ export function ExecutiveApprovalsTab({
                       {currentItem.ref || currentItem.id}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-mist-400">
+                  <p className="text-xs text-slate-600 dark:text-mist-400">
                     {currentItem.meta}
                   </p>
                 </div>
@@ -1079,11 +1069,10 @@ export function ExecutiveApprovalsTab({
                       type="button"
                       disabled={permissionMode === 'viewer'}
                       onClick={() => setRequestInfoModal(currentItem)}
-                      className={`px-3 py-2 rounded-2xl text-xs font-semibold border transition ${
-                        permissionMode === 'viewer'
+                      className={`px-3 py-2 rounded-2xl text-xs font-semibold border transition ${permissionMode === 'viewer'
                           ? 'border-slate-200 text-slate-400 opacity-60 cursor-not-allowed'
                           : 'border-sky-500/30 text-sky-600 dark:text-sky-300 hover:bg-sky-500/10'
-                      }`}
+                        }`}
                     >
                       Request Clarification
                     </button>
@@ -1092,11 +1081,10 @@ export function ExecutiveApprovalsTab({
                       type="button"
                       disabled={permissionMode === 'viewer'}
                       onClick={() => setConfirmRejectModal(currentItem)}
-                      className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition ${
-                        permissionMode === 'viewer'
+                      className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition ${permissionMode === 'viewer'
                           ? 'bg-slate-200 text-slate-400 opacity-60 cursor-not-allowed'
                           : 'bg-rose-500/15 text-rose-600 dark:text-rose-300 hover:bg-rose-500/25 border border-rose-500/30'
-                      }`}
+                        }`}
                     >
                       Decline
                     </button>
@@ -1105,11 +1093,10 @@ export function ExecutiveApprovalsTab({
                       type="button"
                       disabled={permissionMode === 'viewer'}
                       onClick={() => setConfirmApproveModal(currentItem)}
-                      className={`px-5 py-2 rounded-2xl text-xs font-bold text-white transition shadow-md ${
-                        permissionMode === 'viewer'
+                      className={`px-5 py-2 rounded-2xl text-xs font-bold text-white transition shadow-md ${permissionMode === 'viewer'
                           ? 'bg-slate-300 opacity-60 cursor-not-allowed'
                           : 'bg-emerald-500 hover:bg-emerald-600'
-                      }`}
+                        }`}
                     >
                       Authorize Approval
                     </button>
@@ -1132,11 +1119,10 @@ export function ExecutiveApprovalsTab({
                       type="button"
                       disabled={permissionMode === 'viewer'}
                       onClick={() => setConfirmRejectModal(currentItem)}
-                      className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition ${
-                        permissionMode === 'viewer'
+                      className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition ${permissionMode === 'viewer'
                           ? 'bg-slate-200 text-slate-400 opacity-60 cursor-not-allowed'
                           : 'bg-rose-500/15 text-rose-600 dark:text-rose-300 hover:bg-rose-500/25 border border-rose-500/30'
-                      }`}
+                        }`}
                     >
                       Decline
                     </button>
@@ -1145,11 +1131,10 @@ export function ExecutiveApprovalsTab({
                       type="button"
                       disabled={permissionMode === 'viewer'}
                       onClick={() => setConfirmApproveModal(currentItem)}
-                      className={`px-5 py-2 rounded-2xl text-xs font-bold text-white transition shadow-md ${
-                        permissionMode === 'viewer'
+                      className={`px-5 py-2 rounded-2xl text-xs font-bold text-white transition shadow-md ${permissionMode === 'viewer'
                           ? 'bg-slate-300 opacity-60 cursor-not-allowed'
                           : 'bg-emerald-500 hover:bg-emerald-600'
-                      }`}
+                        }`}
                     >
                       Authorize Approval
                     </button>
