@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import {
   BarChart3,
   Bell,
@@ -23,12 +23,12 @@ import {
   ShieldAlert,
   ShieldCheck,
   Siren,
+  SlidersHorizontal,
   Stamp,
   User,
   Users,
   Wallet,
   Wrench,
-  X,
 } from 'lucide-react';
 import { ExecutiveOverviewTab } from '@/components/executive/ExecutiveOverviewTab';
 import { ExecutiveApprovalsTab } from '@/components/executive/ExecutiveApprovalsTab';
@@ -36,6 +36,7 @@ import { ExecutivePerformanceTab } from '@/components/executive/ExecutivePerform
 import { ExecutiveFinanceTab } from '@/components/executive/ExecutiveFinanceTab';
 import { ExecutiveIncidentsTab } from '@/components/executive/ExecutiveIncidentsTab';
 import { ExecutiveReportsTab } from '@/components/executive/ExecutiveReportsTab';
+import { ExecutiveAuditTab } from '@/components/executive/ExecutiveAuditTab';
 import { ExecutiveProfileTab } from '@/components/executive/ExecutiveProfileTab';
 import { GeneralManagerVipTab } from '@/components/executive/GeneralManagerVipTab';
 import { GeneralManagerRoomsTab } from '@/components/executive/GeneralManagerRoomsTab';
@@ -64,6 +65,7 @@ export type ExecutiveTabId =
   | 'audit'
   | 'notifications'
   | 'profile'
+  | 'settings';
 
 interface NavItem {
   id: ExecutiveTabId;
@@ -75,84 +77,10 @@ interface NavItem {
   badgeTone?: 'warning' | 'danger' | 'info';
 }
 
-export function isSafetyAlertNotification(notif: InAppNotification): boolean {
-  const cat = (notif.category || '').toLowerCase();
-  const title = (notif.title || '').toLowerCase();
-  const msg = (notif.message || '').toLowerCase();
-  const dept = (notif.department || '').toLowerCase();
-  const itemId = (notif.itemId || '').toLowerCase();
-
-  return (
-    cat === 'safety' ||
-    cat === 'safety_alert' ||
-    dept.includes('safety') ||
-    dept.includes('security') ||
-    itemId.startsWith('alert-') ||
-    itemId.startsWith('alt-') ||
-    itemId.startsWith('sec-') ||
-    itemId.startsWith('sft-') ||
-    title.includes('safety') ||
-    title.includes('fire') ||
-    title.includes('smoke') ||
-    title.includes('hazard') ||
-    title.includes('emergency') ||
-    title.includes('broadcast') ||
-    msg.includes('safety alert') ||
-    msg.includes('life safety') ||
-    msg.includes('hazard') ||
-    msg.includes('evacuat') ||
-    msg.includes('security')
-  );
-}
-
 export function ExecutiveConsole() {
-  const { state, markNotificationRead, clearAllNotifications } = useDemo();
+  const { state, markNotificationRead } = useDemo();
   const [activeTab, setActiveTab] = useState<ExecutiveTabId>('overview');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-
-  // Navbar Notifications Popover & Category State
-  const [notifPopoverOpen, setNotifPopoverOpen] = useState(false);
-  const [notifCategory, setNotifCategory] = useState<'all' | 'safety'>('all');
-  const notifPopoverRef = useRef<HTMLDivElement>(null);
-
-  // Categorized Notifications for GM
-  const gmNotifications = useMemo(() => {
-    return (state.notifications ?? []).filter(
-      (n) => !n.roleId || n.roleId === 'general_manager' || n.roleId === 'executive_viewer',
-    );
-  }, [state.notifications]);
-  const unreadNotificationsCount = gmNotifications.filter((n) => !n.read).length;
-
-  const safetyNotifications = useMemo(() => {
-    return gmNotifications.filter(isSafetyAlertNotification);
-  }, [gmNotifications]);
-
-  const categorizedNotifications = useMemo(() => {
-    if (notifCategory === 'safety') return safetyNotifications;
-    return gmNotifications;
-  }, [notifCategory, safetyNotifications, gmNotifications]);
-
-  // Close notifications popover on click outside or escape
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (notifPopoverRef.current && !notifPopoverRef.current.contains(event.target as Node)) {
-        setNotifPopoverOpen(false);
-      }
-    }
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        setNotifPopoverOpen(false);
-      }
-    }
-    if (notifPopoverOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      window.addEventListener('keydown', handleKeyDown);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [notifPopoverOpen]);
 
   // Permission mode: 'approver' (full decision authority) vs 'viewer' (read-only audit)
   const [permissionMode, setPermissionMode] = useState<'viewer' | 'approver'>('approver');
@@ -199,7 +127,7 @@ export function ExecutiveConsole() {
     (i) => i.status !== 'passed',
   ).length;
   const vipCount = (state.frontDesk?.stays ?? []).filter((s) => s.vip).length;
-
+  const unreadNotificationsCount = (state.notifications ?? []).filter((n) => !n.read).length;
 
   const navItems: NavItem[] = [
     {
@@ -240,7 +168,7 @@ export function ExecutiveConsole() {
     },
     {
       id: 'escalations',
-      label: 'Escalations',
+      label: 'High Escalations',
       shortLabel: 'Escalations',
       icon: Siren,
       group: 'Operations',
@@ -267,7 +195,7 @@ export function ExecutiveConsole() {
     },
     {
       id: 'vip',
-      label: 'VIP Guests',
+      label: 'VIP Portfolio & Directives',
       shortLabel: 'VIP Guests',
       icon: Crown,
       group: 'Operations',
@@ -301,13 +229,36 @@ export function ExecutiveConsole() {
       icon: FileSpreadsheet,
       group: 'Insights',
     },
+    {
+      id: 'audit',
+      label: 'Audit Log',
+      shortLabel: 'Audit',
+      icon: ShieldCheck,
+      group: 'Insights',
+    },
 
     // Group 6: Account
+    {
+      id: 'notifications',
+      label: 'Notifications',
+      shortLabel: 'Alerts',
+      icon: Bell,
+      group: 'Account',
+      badgeCount: unreadNotificationsCount,
+      badgeTone: 'info',
+    },
     {
       id: 'profile',
       label: 'My Profile',
       shortLabel: 'Profile',
       icon: User,
+      group: 'Account',
+    },
+    {
+      id: 'settings',
+      label: 'Settings',
+      shortLabel: 'Settings',
+      icon: SlidersHorizontal,
       group: 'Account',
     },
   ];
@@ -460,167 +411,8 @@ export function ExecutiveConsole() {
           </div>
         </div>
 
-        {/* Navbar Controls: Notifications & Permission Mode Toggle */}
-        <div className="flex items-center gap-3">
-          {/* Notifications in Navbar */}
-          <div className="relative" ref={notifPopoverRef}>
-            <button
-              type="button"
-              id="gm-navbar-notifications-btn"
-              onClick={() => setNotifPopoverOpen(!notifPopoverOpen)}
-              className="relative p-2 rounded-2xl border border-slate-200 dark:border-white/10 bg-black/5 dark:bg-ink-950/80 hover:bg-black/10 dark:hover:bg-white/10 text-slate-700 dark:text-mist-300 hover:text-navy-950 dark:hover:text-white transition flex items-center gap-2 cursor-pointer"
-              title="Incoming Notifications & Safety Alerts"
-              aria-label="Notifications"
-            >
-              <Bell className="h-4 w-4 text-amber-500" />
-              <span className="text-xs font-bold hidden sm:inline">Notifications</span>
-              {unreadNotificationsCount > 0 && (
-                <span className="h-5 min-w-[20px] px-1.5 rounded-full bg-rose-500 text-white font-mono text-[10px] font-bold grid place-items-center animate-pulse">
-                  {unreadNotificationsCount}
-                </span>
-              )}
-            </button>
-
-            {/* Notifications Popover with Two Sections: All notifications & Safety Alerts */}
-            {notifPopoverOpen && (
-              <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 rounded-3xl border border-white/10 bg-white/95 dark:bg-ink-900/95 shadow-2xl backdrop-blur-2xl p-4 z-50 text-navy-950 dark:text-white space-y-3">
-                {/* Header */}
-                <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-2.5">
-                  <div className="flex items-center gap-2">
-                    <Bell className="h-4 w-4 text-amber-500" />
-                    <h3 className="text-sm font-bold text-navy-950 dark:text-white">Notifications</h3>
-                    {unreadNotificationsCount > 0 && (
-                      <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-300">
-                        {unreadNotificationsCount} unread
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {gmNotifications.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => clearAllNotifications('general_manager')}
-                        className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
-                      >
-                        Mark all read
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setNotifPopoverOpen(false)}
-                      className="text-slate-400 hover:text-navy-950 dark:hover:text-white cursor-pointer"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Two Category Sections: All notifications & Safety Alerts */}
-                <div className="grid grid-cols-2 p-1 rounded-2xl border border-slate-200 dark:border-white/10 bg-black/5 dark:bg-ink-950/80 text-xs font-bold">
-                  <button
-                    type="button"
-                    id="tab-all-notifications"
-                    onClick={() => setNotifCategory('all')}
-                    className={`py-1.5 px-2 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                      notifCategory === 'all'
-                        ? 'bg-amber-500 text-white shadow-sm'
-                        : 'text-slate-500 dark:text-mist-400 hover:text-navy-950 dark:hover:text-white'
-                    }`}
-                  >
-                    <span>All notifications</span>
-                    <span className="text-[10px] font-mono px-1.5 rounded-full bg-black/10 dark:bg-white/20">
-                      {gmNotifications.length}
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    id="tab-safety-alerts"
-                    onClick={() => setNotifCategory('safety')}
-                    className={`py-1.5 px-2 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                      notifCategory === 'safety'
-                        ? 'bg-rose-500 text-white shadow-sm'
-                        : 'text-slate-500 dark:text-mist-400 hover:text-navy-950 dark:hover:text-white'
-                    }`}
-                  >
-                    <ShieldAlert className="h-3.5 w-3.5" />
-                    <span>Safety Alerts</span>
-                    <span className="text-[10px] font-mono px-1.5 rounded-full bg-black/10 dark:bg-white/20">
-                      {safetyNotifications.length}
-                    </span>
-                  </button>
-                </div>
-
-                {/* Categorized Notifications List */}
-                <div className="max-h-72 overflow-y-auto space-y-2 no-scrollbar pr-0.5">
-                  {categorizedNotifications.length === 0 ? (
-                    <div className="py-8 text-center text-xs text-slate-400 dark:text-mist-500">
-                      {notifCategory === 'safety' ? (
-                        <div className="space-y-1">
-                          <ShieldCheck className="h-6 w-6 mx-auto text-emerald-500" />
-                          <p>Zero active safety alerts. All systems secure.</p>
-                        </div>
-                      ) : (
-                        <p>No incoming notifications for your shift.</p>
-                      )}
-                    </div>
-                  ) : (
-                    categorizedNotifications.map((notif) => (
-                      <div
-                        key={notif.id}
-                        onClick={() => {
-                          handleNavigateToNotificationItem(notif);
-                          setNotifPopoverOpen(false);
-                        }}
-                        className={`p-3 rounded-2xl border transition text-left cursor-pointer group ${
-                          notif.read
-                            ? 'border-slate-100 dark:border-white/5 bg-black/[0.02] dark:bg-white/[0.02] text-slate-500 dark:text-mist-400'
-                            : 'border-amber-500/30 dark:border-amber-500/20 bg-amber-500/[0.05] dark:bg-amber-500/[0.08] text-navy-950 dark:text-white shadow-sm'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="font-bold text-xs group-hover:text-amber-600 dark:group-hover:text-amber-400 transition flex items-center gap-1.5">
-                            {isSafetyAlertNotification(notif) && (
-                              <ShieldAlert className="h-3.5 w-3.5 text-rose-500 shrink-0" />
-                            )}
-                            <span className="line-clamp-1">{notif.title}</span>
-                          </div>
-                          <span className="text-[10px] text-slate-400 font-mono shrink-0">
-                            {notif.timestamp}
-                          </span>
-                        </div>
-                        {notif.message && (
-                          <p className="text-[11px] text-slate-500 dark:text-mist-300 mt-1 line-clamp-2">
-                            {notif.message}
-                          </p>
-                        )}
-                        <div className="mt-2 flex items-center justify-between text-[10px]">
-                          <span className="font-semibold text-slate-400">
-                            {notif.department || 'Property-Wide'}
-                          </span>
-                          {!notif.read && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                markNotificationRead(notif.id);
-                              }}
-                              className="text-amber-600 dark:text-amber-400 hover:underline font-bold"
-                            >
-                              Mark read
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Permission Mode Toggle */}
-          <div className="flex items-center gap-2">
+        {/* Permission Mode Toggle */}
+        <div className="flex items-center gap-2">
           <span className="text-xs font-bold text-slate-500 dark:text-mist-400 hidden md:inline">
             Mode:
           </span>
@@ -652,7 +444,6 @@ export function ExecutiveConsole() {
           </div>
         </div>
       </div>
-    </div>
 
       {/* Main Console Layout: Collapsible Sidebar + Content View */}
       <div className="flex flex-col lg:flex-row items-start gap-6">
@@ -852,6 +643,8 @@ export function ExecutiveConsole() {
 
           {activeTab === 'reports' && <ExecutiveReportsTab />}
 
+          {activeTab === 'audit' && <ExecutiveAuditTab />}
+
           {activeTab === 'notifications' && (
             <ExecutiveProfileTab
               permissionMode={permissionMode}
@@ -872,6 +665,15 @@ export function ExecutiveConsole() {
             />
           )}
 
+          {activeTab === 'settings' && (
+            <ExecutiveProfileTab
+              permissionMode={permissionMode}
+              initialSubTab="settings"
+              onTogglePermissionMode={setPermissionMode}
+              onNavigateTab={handleNavigateTab}
+              onNavigateToItem={handleNavigateToNotificationItem}
+            />
+          )}
         </main>
       </div>
     </div>
