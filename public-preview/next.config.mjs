@@ -8,7 +8,7 @@ const __dirname = path.dirname(__filename);
 const nextConfig = {
   reactStrictMode: true,
   outputFileTracingRoot: __dirname,
-  transpilePackages: ['lucide-react', 'gsap', 'lenis'],
+  transpilePackages: ['gsap', 'lenis'],
   typescript: {
     ignoreBuildErrors: true,
   },
