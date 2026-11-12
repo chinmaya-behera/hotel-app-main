@@ -479,7 +479,7 @@ export function VipPreviewPanel({ onSwitchTab: _onSwitchTab }: { onSwitchTab?: (
           }}
           className="shrink-0"
         >
-          + Add VIP Member
+          Add VIP Member
         </Button>
       </div>
 
@@ -1091,8 +1091,8 @@ export function VipPreviewPanel({ onSwitchTab: _onSwitchTab }: { onSwitchTab?: (
                 <span className="font-bold text-white text-sm">
                   {money(
                     (folioSeed[activeFolioStay.room] ?? []).reduce((acc, curr) => acc + curr.amount, 0) ||
-                      activeFolioStay.paid ||
-                      1890
+                    activeFolioStay.paid ||
+                    1890
                   )}
                 </span>
               </div>
