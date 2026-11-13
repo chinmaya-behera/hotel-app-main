@@ -34,12 +34,7 @@ export function sanitizeConnectionString(url?: string): string {
 export function getConnectionString(): string {
   const url = process.env.DATABASE_URL;
   if (!url) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error(
-        'CRITICAL CONFIGURATION ERROR: DATABASE_URL environment variable is required in production but was not found.',
-      );
-    }
-    // Local development fallback
+    // Fallback connection string for local development, CI, and build time
     return 'postgresql://postgres:postgres@localhost:5432/grand_hotel_db';
   }
   return url;
