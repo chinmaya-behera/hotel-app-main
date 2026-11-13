@@ -386,44 +386,44 @@ export function ExecutiveConsole() {
   };
 
   return (
-    <div className="w-full pb-16">
+    <div className="w-full pb-16 bg-[#FAF9FC] text-slate-900 rounded-3xl p-4 sm:p-6 lg:p-7 shadow-sm border border-purple-100/60 font-sans">
       {/* Top Command Pill: Persona Context & Mode Switcher */}
-      <div className="mb-6 p-4 rounded-3xl border border-white/10 bg-white/70 dark:bg-ink-900/80 backdrop-blur-xl shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="mb-6 p-4 rounded-3xl border border-purple-100/80 bg-white shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-2xl bg-amber-500/20 text-amber-500 dark:text-amber-300 grid place-items-center font-bold font-mono border border-amber-500/30">
+          <div className="h-10 w-10 rounded-2xl bg-[#F3E8FF] text-[#7C3AED] grid place-items-center font-bold font-mono border border-purple-200/60 shadow-xs">
             <Crown className="h-5 w-5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-black text-navy-950 dark:text-white">
+              <span className="text-sm font-black text-slate-900">
                 Priya Nair
               </span>
-              <span className="text-xs text-slate-400 dark:text-mist-500">
+              <span className="text-xs text-slate-400">
                 · General Manager (EMP-0109)
               </span>
-              <span className="text-[10px] font-mono font-bold px-2 py-0.2 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+              <span className="text-[10px] font-mono font-bold px-2 py-0.2 rounded-full bg-purple-50 text-[#7C3AED] border border-purple-200/60">
                 Cap: ₹2,00,000
               </span>
             </div>
-            <div className="text-xs text-slate-500 dark:text-mist-400">
-              Grand Azure Executive Suite · Property Health & Beyond-Manager Authority
+            <div className="text-xs text-slate-500">
+              Grand Azure Executive Suite · Property Health &amp; Beyond-Manager Authority
             </div>
           </div>
         </div>
 
         {/* Permission Mode Toggle */}
         <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-slate-500 dark:text-mist-400 hidden md:inline">
+          <span className="text-xs font-bold text-slate-500 hidden md:inline">
             Mode:
           </span>
-          <div className="flex items-center p-1 rounded-2xl border border-slate-200 dark:border-white/10 bg-black/5 dark:bg-ink-950/80">
+          <div className="flex items-center p-1 rounded-2xl border border-slate-200 bg-slate-50">
             <button
               type="button"
               onClick={() => setPermissionMode('viewer')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
                 permissionMode === 'viewer'
-                  ? 'bg-sky-500 text-white shadow-sm'
-                  : 'text-slate-500 dark:text-mist-400 hover:text-navy-950 dark:hover:text-white'
+                  ? 'bg-purple-100 text-purple-700 shadow-xs font-semibold'
+                  : 'text-slate-500 hover:text-slate-800'
               }`}
             >
               <Lock className="h-3.5 w-3.5" />
@@ -434,8 +434,8 @@ export function ExecutiveConsole() {
               onClick={() => setPermissionMode('approver')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
                 permissionMode === 'approver'
-                  ? 'bg-emerald-500 text-white shadow-sm'
-                  : 'text-slate-500 dark:text-mist-400 hover:text-navy-950 dark:hover:text-white'
+                  ? 'bg-[#7C3AED] text-white shadow-xs font-semibold'
+                  : 'text-slate-500 hover:text-slate-800'
               }`}
             >
               <ShieldCheck className="h-3.5 w-3.5" />
@@ -453,18 +453,18 @@ export function ExecutiveConsole() {
             sidebarCollapsed ? 'w-full lg:w-20' : 'w-full lg:w-64'
           }`}
         >
-          <div className="rounded-3xl border border-white/10 bg-white/70 dark:bg-ink-900/90 p-3 backdrop-blur-xl shadow-2xl space-y-3 max-h-[calc(100vh-6rem)] overflow-y-auto no-scrollbar">
+          <div className="rounded-3xl border border-purple-100/60 bg-white p-3 shadow-sm space-y-3 max-h-[calc(100vh-6rem)] overflow-y-auto no-scrollbar">
             {/* Collapse Toggle */}
-            <div className="flex items-center justify-between px-2 py-1 text-xs text-slate-400 dark:text-mist-400 border-b border-slate-100 dark:border-white/[0.06] pb-2">
+            <div className="flex items-center justify-between px-2 py-1 text-xs text-slate-400 border-b border-slate-100 pb-2">
               {!sidebarCollapsed && (
-                <span className="font-bold uppercase text-[10px] tracking-wider text-slate-400 dark:text-mist-400">
+                <span className="font-bold uppercase text-[10px] tracking-wider text-slate-400">
                   Navigation
                 </span>
               )}
               <button
                 type="button"
                 onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                className="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/[0.08] text-slate-400 hover:text-navy-950 dark:hover:text-white transition ml-auto"
+                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-900 transition ml-auto"
                 title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               >
                 {sidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
@@ -476,7 +476,7 @@ export function ExecutiveConsole() {
               {(Object.keys(groupedNav) as Array<NavItem['group']>).map((groupName) => (
                 <div key={groupName} className="space-y-1">
                   {!sidebarCollapsed && (
-                    <div className="px-2 pt-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-mist-500">
+                    <div className="px-2 pt-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                       {groupName}
                     </div>
                   )}
@@ -493,14 +493,14 @@ export function ExecutiveConsole() {
                         title={item.label}
                         className={`w-full flex items-center justify-between rounded-2xl px-3 py-2 text-xs font-semibold transition ${
                           isActive
-                            ? 'bg-amber-500 text-white shadow-md'
-                            : 'text-slate-600 dark:text-mist-300 hover:bg-black/5 dark:hover:bg-white/[0.04] hover:text-navy-950 dark:hover:text-white'
+                            ? 'bg-[#F3E8FF] text-[#7C3AED] shadow-xs font-bold'
+                            : 'text-slate-600 hover:bg-purple-50/70 hover:text-[#7C3AED]'
                         }`}
                       >
                         <div className="flex items-center gap-2.5 truncate">
                           <Icon
                             className={`h-4 w-4 shrink-0 ${
-                              isActive ? 'text-white' : 'text-slate-400 dark:text-mist-400'
+                              isActive ? 'text-[#7C3AED]' : 'text-slate-400'
                             }`}
                           />
                           {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
@@ -510,12 +510,12 @@ export function ExecutiveConsole() {
                           <span
                             className={`rounded-full px-2 py-0.2 font-mono text-[10px] font-bold ${
                               isActive
-                                ? 'bg-white/30 text-white'
+                                ? 'bg-[#7C3AED] text-white'
                                 : item.badgeTone === 'danger'
-                                ? 'bg-rose-500/20 text-rose-600 dark:text-rose-300 border border-rose-500/30'
+                                ? 'bg-rose-50 text-rose-600 border border-rose-200'
                                 : item.badgeTone === 'warning'
-                                ? 'bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/30'
-                                : 'bg-sky-500/20 text-sky-600 dark:text-sky-300'
+                                ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                : 'bg-purple-100 text-purple-700'
                             }`}
                           >
                             {item.badgeCount}
@@ -527,6 +527,19 @@ export function ExecutiveConsole() {
                 </div>
               ))}
             </div>
+
+            {/* User Profile in sidebar footer (like "Daniel Okoro" in Cosmic Forge screenshot) */}
+            {!sidebarCollapsed && (
+              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2.5 px-2">
+                <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-[#7C3AED] to-purple-400 text-white font-bold text-xs grid place-items-center shrink-0 shadow-xs">
+                  PN
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-slate-800 truncate">Priya Nair</p>
+                  <p className="text-[10px] text-slate-400 font-medium truncate">General Manager · Lead</p>
+                </div>
+              </div>
+            )}
           </div>
         </aside>
 
@@ -676,6 +689,16 @@ export function ExecutiveConsole() {
           )}
         </main>
       </div>
+
+      {/* Footer matching Cosmic Forge screenshot */}
+      <footer className="mt-12 pt-6 border-t border-slate-200/60 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
+        <p>© 2026 Cosmic Forge &amp; Grand Azure. All systems operational.</p>
+        <div className="flex items-center gap-4">
+          <span className="hover:text-purple-600 cursor-pointer">Docs</span>
+          <span className="hover:text-purple-600 cursor-pointer">Status</span>
+          <span className="hover:text-purple-600 cursor-pointer">Support</span>
+        </div>
+      </footer>
     </div>
   );
 }

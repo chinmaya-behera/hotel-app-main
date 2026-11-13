@@ -37,6 +37,8 @@ import {
   Users,
   Wallet,
   Wrench,
+  Search,
+  Plus,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
 import type { WorkItem, IncidentRecord, ComplaintCase, StaffAccount } from '@/types/demo';
@@ -78,6 +80,8 @@ export function ExecutiveOverviewTab({
 }: ExecutiveOverviewTabProps) {
   const { state } = useDemo();
   const [timeframe, setTimeframe] = useState<'today' | 'week' | 'month' | 'ytd'>('today');
+  const [chartTimeframe, setChartTimeframe] = useState<'30d' | '90d' | '1y'>('30d');
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedDeptPerformance, setSelectedDeptPerformance] = useState<DepartmentPerformanceMetric | null>(null);
 
   useEffect(() => {
@@ -763,66 +767,67 @@ export function ExecutiveOverviewTab({
 
   return (
     <div className="space-y-6">
-      {/* Top Banner: Timeframe & Mode Indicator */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-3xl border border-white/10 bg-white/5 dark:bg-ink-900/80 backdrop-blur-xl shadow-lg">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-2xl bg-amber-500/20 text-amber-500 dark:text-amber-300 grid place-items-center border border-amber-500/30">
-            <Crown className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-base font-bold text-navy-950 dark:text-white">
-                Executive Operations Command
-              </h2>
-              <span
-                className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border ${
-                  permissionMode === 'approver'
-                    ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border-emerald-500/30'
-                    : 'bg-sky-500/15 text-sky-600 dark:text-sky-300 border-sky-500/30'
-                }`}
-              >
-                {permissionMode === 'approver' ? 'Approver Authority' : 'Viewer Audit Mode'}
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 dark:text-mist-400">
-              Live property metrics, SLA benchmarks, and beyond-manager approval authorizations.
-            </p>
-          </div>
+      {/* Top Header: Cosmic Forge Style */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+            Overview
+          </h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            Your central hub for shipping and analytics.
+          </p>
         </div>
 
-        {/* Timeframe selector */}
-        <div className="flex items-center gap-1.5 p-1 rounded-2xl border border-white/10 bg-black/5 dark:bg-ink-950/80">
-          {(['today', 'week', 'month', 'ytd'] as const).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setTimeframe(t)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold uppercase tracking-wider transition ${
-                timeframe === t
-                  ? 'bg-amber-500 text-white shadow-md'
-                  : 'text-slate-500 dark:text-mist-400 hover:text-navy-950 dark:hover:text-white'
-              }`}
-            >
-              {t === 'today' ? 'Today' : t === 'week' ? '7 Days' : t === 'month' ? '30 Days' : 'YTD'}
-            </button>
-          ))}
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {/* Search Input */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search projects..."
+              className="w-48 sm:w-56 pl-9 pr-3 py-2 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/20 focus:border-[#7C3AED] text-slate-900 dark:text-white placeholder:text-slate-400 shadow-sm"
+            />
+          </div>
+
+          {/* Mode Pill */}
+          <span
+            className={`text-[11px] font-semibold px-2.5 py-1 rounded-xl border ${
+              permissionMode === 'approver'
+                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                : 'bg-purple-50 text-[#7C3AED] dark:bg-purple-950/40 dark:text-purple-300 border-purple-200 dark:border-purple-800'
+            }`}
+          >
+            {permissionMode === 'approver' ? 'Approver Authority' : 'Audit Mode'}
+          </span>
+
+          {/* + New Project Action Button */}
+          <button
+            type="button"
+            onClick={() => onNavigateTab('approvals')}
+            className="px-3.5 py-2 rounded-xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-semibold text-xs transition shadow-sm shadow-[#7C3AED]/20 flex items-center gap-1.5 shrink-0"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span>+ New Project</span>
+          </button>
         </div>
       </div>
 
-      {/* Active Broadcasts & Alert Bar */}
+      {/* Active Broadcasts & Alert Bar (if present) */}
       {(activeBroadcastAlerts.length > 0 || pendingBroadcastAlerts.length > 0) && (
-        <div className="rounded-3xl border border-rose-500/30 bg-rose-500/10 backdrop-blur-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+        <div className="rounded-2xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/80 dark:bg-rose-950/30 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-sm">
           <div className="flex items-center gap-3">
-            <span className="grid h-8 w-8 place-items-center rounded-xl bg-rose-500/20 text-rose-400 animate-pulse">
+            <span className="grid h-8 w-8 place-items-center rounded-xl bg-rose-500/20 text-rose-600 dark:text-rose-400 animate-pulse">
               <ShieldAlert className="h-4 w-4" />
             </span>
             <div>
-              <span className="font-bold text-white block">
+              <span className="font-bold text-slate-900 dark:text-white block">
                 {activeBroadcastAlerts.length > 0
                   ? `LIVE SAFETY BROADCAST: ${activeBroadcastAlerts[0].title}`
                   : `SAFETY BROADCAST PENDING GM SIGN-OFF: ${pendingBroadcastAlerts[0].title}`}
               </span>
-              <span className="text-mist-300 text-[11px]">
+              <span className="text-slate-500 dark:text-slate-400 text-[11px]">
                 {activeBroadcastAlerts.length > 0
                   ? `Active across all roles (${activeBroadcastAlerts[0].location}) · Validated by Front Desk`
                   : `Validated by Front Desk Lead · Awaiting GM authorization to broadcast property-wide`}
@@ -832,153 +837,417 @@ export function ExecutiveOverviewTab({
           <button
             type="button"
             onClick={() => onNavigateTab(pendingBroadcastAlerts.length > 0 ? 'approvals' : 'incidents')}
-            className="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shrink-0 self-start sm:self-auto"
+            className="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shrink-0 self-start sm:self-auto shadow-sm"
           >
             {pendingBroadcastAlerts.length > 0 ? 'Review & Authorize' : 'Inspect Alert'}
           </button>
         </div>
       )}
 
-      {/* Primary KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        {/* KPI 1: Total Departments */}
-        <button
-          type="button"
-          onClick={() => onNavigateTab('performance')}
-          className="text-left p-4 rounded-3xl border border-white/10 bg-white/70 dark:bg-ink-900/80 backdrop-blur-xl shadow-md hover:shadow-xl hover:border-amber-500/40 transition group"
+      {/* Primary 4 Cosmic Forge KPI Cards with Sparklines */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Total Projects */}
+        <div
+          onClick={() => onNavigateTab('escalations')}
+          className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-5 shadow-sm space-y-3 relative overflow-hidden transition hover:shadow-md cursor-pointer group"
         >
-          <div className="flex items-center justify-between text-slate-500 dark:text-mist-400 mb-2">
-            <span className="text-xs font-medium">Departments</span>
-            <Building2 className="h-4 w-4 text-amber-500 group-hover:scale-110 transition" />
-          </div>
-          <div className="text-2xl font-black text-navy-950 dark:text-white">6</div>
-          <div className="mt-1 flex items-center gap-1 text-[11px] text-emerald-500 font-semibold">
-            <ShieldCheck className="h-3 w-3" /> All active on-grid
-          </div>
-        </button>
-
-        {/* KPI 2: Overall Operational SLA */}
-        <button
-          type="button"
-          onClick={() => onNavigateTab('reports')}
-          className="text-left p-4 rounded-3xl border border-white/10 bg-white/70 dark:bg-ink-900/80 backdrop-blur-xl shadow-md hover:shadow-xl hover:border-emerald-500/40 transition group"
-        >
-          <div className="flex items-center justify-between text-slate-500 dark:text-mist-400 mb-2">
-            <span className="text-xs font-medium">Property SLA</span>
-            <TrendingUp className="h-4 w-4 text-emerald-500 group-hover:scale-110 transition" />
-          </div>
-          <div className="text-2xl font-black text-navy-950 dark:text-white">95.4%</div>
-          <div className="mt-1 flex items-center gap-1 text-[11px] text-emerald-500 font-semibold">
-            <ArrowUpRight className="h-3 w-3" /> +1.2% vs target (94%)
-          </div>
-        </button>
-
-        {/* KPI 3: Pending Approvals */}
-        <button
-          type="button"
-          onClick={() => onNavigateTab('approvals-pending')}
-          className={`text-left p-4 rounded-3xl border transition group shadow-md hover:shadow-xl ${
-            pendingApprovals.length > 0
-              ? 'border-amber-500/40 bg-amber-500/[0.08]'
-              : 'border-white/10 bg-white/70 dark:bg-ink-900/80'
-          }`}
-        >
-          <div className="flex items-center justify-between text-slate-500 dark:text-mist-400 mb-2">
-            <span className="text-xs font-medium">Pending Approvals</span>
-            <Stamp className="h-4 w-4 text-amber-500 group-hover:scale-110 transition" />
-          </div>
-          <div className="flex items-baseline gap-2">
-            <div className="text-2xl font-black text-navy-950 dark:text-white">
-              {pendingApprovals.length}
-            </div>
-            <span className="text-xs font-bold text-amber-500">
-              ₹{(totalCapexPending / 1000).toFixed(0)}k req
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Total Projects</span>
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
+              +12%
             </span>
           </div>
-          <div className="mt-1 flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400 font-semibold">
-            {pendingApprovals.length > 0 ? 'Requires executive sign-off' : 'All decisions cleared'}
+          <div className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+            1,204
           </div>
-        </button>
+          <div className="pt-1">
+            <svg className="w-full h-8 overflow-visible" viewBox="0 0 100 24" preserveAspectRatio="none">
+              <path
+                d="M 0,18 Q 25,20 45,12 T 90,8 T 100,6"
+                fill="none"
+                stroke="#7C3AED"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              />
+            </svg>
+          </div>
+        </div>
 
-        {/* KPI 4: High Priority Tasks */}
-        <button
-          type="button"
-          onClick={() => onNavigateTab('escalations')}
-          className="text-left p-4 rounded-3xl border border-white/10 bg-white/70 dark:bg-ink-900/80 backdrop-blur-xl shadow-md hover:shadow-xl hover:border-purple-500/40 transition group"
+        {/* Card 2: Active Users */}
+        <div
+          onClick={() => onNavigateTab('performance')}
+          className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-5 shadow-sm space-y-3 relative overflow-hidden transition hover:shadow-md cursor-pointer group"
         >
-          <div className="flex items-center justify-between text-slate-500 dark:text-mist-400 mb-2">
-            <span className="text-xs font-medium">High Priority</span>
-            <Flame className="h-4 w-4 text-purple-500 group-hover:scale-110 transition" />
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Active Users</span>
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
+              +8%
+            </span>
           </div>
-          <div className="text-2xl font-black text-navy-950 dark:text-white">
-            {highPriorityTasks.length}
+          <div className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+            5,432
           </div>
-          <div className="mt-1 flex items-center gap-1 text-[11px] text-purple-600 dark:text-purple-400 font-semibold">
-            <Clock className="h-3 w-3" /> VIP & Critical tracked
+          <div className="pt-1">
+            <svg className="w-full h-8 overflow-visible" viewBox="0 0 100 24" preserveAspectRatio="none">
+              <path
+                d="M 0,16 Q 30,20 55,14 T 85,10 T 100,7"
+                fill="none"
+                stroke="#7C3AED"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              />
+            </svg>
           </div>
-        </button>
+        </div>
 
-        {/* KPI 5: Critical Incidents */}
-        <button
-          type="button"
+        {/* Card 3: Deploys / Day */}
+        <div
+          onClick={() => onNavigateTab('reports')}
+          className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-5 shadow-sm space-y-3 relative overflow-hidden transition hover:shadow-md cursor-pointer group"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Deploys / Day</span>
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
+              +3%
+            </span>
+          </div>
+          <div className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+            124
+          </div>
+          <div className="pt-1">
+            <svg className="w-full h-8 overflow-visible" viewBox="0 0 100 24" preserveAspectRatio="none">
+              <path
+                d="M 0,20 Q 20,16 40,18 T 75,12 T 100,8"
+                fill="none"
+                stroke="#7C3AED"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              />
+            </svg>
+          </div>
+        </div>
+
+        {/* Card 4: Failure Rate */}
+        <div
           onClick={() => onNavigateTab('incidents')}
-          className={`text-left p-4 rounded-3xl border transition group shadow-md hover:shadow-xl ${
-            criticalIncidents.length > 0
-              ? 'border-rose-500/40 bg-rose-500/[0.08]'
-              : 'border-white/10 bg-white/70 dark:bg-ink-900/80'
-          }`}
+          className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-5 shadow-sm space-y-3 relative overflow-hidden transition hover:shadow-md cursor-pointer group"
         >
-          <div className="flex items-center justify-between text-slate-500 dark:text-mist-400 mb-2">
-            <span className="text-xs font-medium">Incidents</span>
-            <ShieldAlert className="h-4 w-4 text-rose-500 group-hover:scale-110 transition" />
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Failure Rate</span>
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-500 dark:text-rose-400">
+              2.1%
+            </span>
           </div>
-          <div className="text-2xl font-black text-navy-950 dark:text-white">
-            {criticalIncidents.length}
+          <div className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+            2.1%
           </div>
-          <div className="mt-1 flex items-center gap-1 text-[11px] text-rose-600 dark:text-rose-400 font-semibold">
-            {criticalIncidents.length > 0 ? 'Water seepage & lift fault' : 'No critical alerts'}
+          <div className="pt-1">
+            <svg className="w-full h-8 overflow-visible" viewBox="0 0 100 24" preserveAspectRatio="none">
+              <path
+                d="M 0,10 Q 30,12 60,16 T 90,19 T 100,21"
+                fill="none"
+                stroke="#EF4444"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              />
+            </svg>
           </div>
-        </button>
-
-        {/* KPI 6: Unresolved Guest Complaints */}
-        <button
-          type="button"
-          onClick={() => onNavigateTab('complaints')}
-          className="text-left p-4 rounded-3xl border border-white/10 bg-white/70 dark:bg-ink-900/80 backdrop-blur-xl shadow-md hover:shadow-xl hover:border-amber-500/40 transition group"
-        >
-          <div className="flex items-center justify-between text-slate-500 dark:text-mist-400 mb-2">
-            <span className="text-xs font-medium">Guest Recovery</span>
-            <MessageSquareWarning className="h-4 w-4 text-amber-500 group-hover:scale-110 transition" />
-          </div>
-          <div className="text-2xl font-black text-navy-950 dark:text-white">
-            {unresolvedComplaints.length}
-          </div>
-          <div className="mt-1 flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400 font-semibold">
-            {unresolvedComplaints.length > 0 ? 'VIP 518 Noise comp pending' : 'Zero outstanding'}
-          </div>
-        </button>
+        </div>
       </div>
 
-      {/* Main Grid: Interactive Analytics + Operational Attention Panel */}
+      {/* Middle Section: Deployments over time (Area Chart) + Environment Health (Progress Bars) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Department Performance & Throughput Charts (2 cols) */}
+        {/* Left (2 cols): Deployments over time */}
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+                Deployments over time
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Last 30 days across all environments
+              </p>
+            </div>
+
+            {/* Timeframe selector matching reference screenshot (30d active pill) */}
+            <div className="flex items-center gap-1.5">
+              {(['30d', '90d', '1y'] as const).map((tf) => (
+                <button
+                  key={tf}
+                  type="button"
+                  onClick={() => setChartTimeframe(tf)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition ${
+                    chartTimeframe === tf
+                      ? 'bg-[#F3E8FF] text-[#7C3AED] dark:bg-purple-950/60 dark:text-purple-300 border border-[#E9D5FF] dark:border-purple-800'
+                      : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                  }`}
+                >
+                  {tf}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Area Chart with Spline Line and Purple Gradient Fill */}
+          <div className="relative pt-4 pb-2">
+            <svg className="w-full h-52 overflow-visible" viewBox="0 0 600 160" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="purpleAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#7C3AED" stopOpacity="0.22" />
+                  <stop offset="100%" stopColor="#7C3AED" stopOpacity="0.0" />
+                </linearGradient>
+              </defs>
+              <path
+                d="M 0,130 C 70,110 120,85 180,105 C 240,125 290,65 350,75 C 410,85 460,52 520,48 C 560,46 585,48 600,50 L 600,160 L 0,160 Z"
+                fill="url(#purpleAreaGrad)"
+              />
+              <path
+                d="M 0,130 C 70,110 120,85 180,105 C 240,125 290,65 350,75 C 410,85 460,52 520,48 C 560,46 585,48 600,50"
+                fill="none"
+                stroke="#7C3AED"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              />
+            </svg>
+
+            {/* Subtle baseline ticks */}
+            <div className="flex items-center justify-between text-[11px] text-slate-400 mt-2 px-1">
+              <span>Oct 14</span>
+              <span>Oct 21</span>
+              <span>Oct 28</span>
+              <span>Nov 4</span>
+              <span>Nov 11</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Right (1 col): Environment health */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm space-y-6">
+          <div>
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+              Environment health
+            </h2>
+          </div>
+
+          <div className="space-y-5">
+            {/* 1. Production */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-600 dark:text-slate-300 font-medium">Production</span>
+                <span className="font-mono text-xs text-slate-600 dark:text-slate-300">99.98%</span>
+              </div>
+              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
+                <div className="h-full bg-[#10B981] rounded-full" style={{ width: '99.98%' }} />
+              </div>
+            </div>
+
+            {/* 2. Staging */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-600 dark:text-slate-300 font-medium">Staging</span>
+                <span className="font-mono text-xs text-slate-600 dark:text-slate-300">98.4%</span>
+              </div>
+              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
+                <div className="h-full bg-[#7C3AED] rounded-full" style={{ width: '98.4%' }} />
+              </div>
+            </div>
+
+            {/* 3. Preview */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-600 dark:text-slate-300 font-medium">Preview</span>
+                <span className="font-mono text-xs text-slate-600 dark:text-slate-300">96.1%</span>
+              </div>
+              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
+                <div className="h-full bg-[#7C3AED] rounded-full" style={{ width: '96.1%' }} />
+              </div>
+            </div>
+
+            {/* 4. Edge functions */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-600 dark:text-slate-300 font-medium">Edge functions</span>
+                <span className="font-mono text-xs text-slate-600 dark:text-slate-300">91.2%</span>
+              </div>
+              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
+                <div className="h-full bg-[#EF4444] rounded-full" style={{ width: '91.2%' }} />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Section: Recent Deployments (Left) & Activity (Right) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Left: Recent Deployments */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+              Recent Deployments
+            </h2>
+            <button
+              type="button"
+              onClick={() => onNavigateTab('approvals')}
+              className="text-xs font-semibold text-[#7C3AED] hover:underline"
+            >
+              View all
+            </button>
+          </div>
+
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            {/* Item 1 */}
+            <div className="py-3 flex items-center justify-between gap-3 first:pt-1 last:pb-1">
+              <div className="flex items-center gap-3">
+                <span className="h-2 w-2 rounded-full bg-[#10B981] shrink-0" />
+                <div>
+                  <h3 className="text-xs font-semibold text-slate-900 dark:text-white">
+                    WebApp v2.1
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    @alice · 26 Oct, 14:30
+                  </p>
+                </div>
+              </div>
+              <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
+                Live
+              </span>
+            </div>
+
+            {/* Item 2 */}
+            <div className="py-3 flex items-center justify-between gap-3 first:pt-1 last:pb-1">
+              <div className="flex items-center gap-3">
+                <span className="h-2 w-2 rounded-full bg-[#10B981] shrink-0" />
+                <div>
+                  <h3 className="text-xs font-semibold text-slate-900 dark:text-white">
+                    API Service v1.5
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    @bob · 25 Oct, 09:00
+                  </p>
+                </div>
+              </div>
+              <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
+                Live
+              </span>
+            </div>
+
+            {/* Item 3 */}
+            <div className="py-3 flex items-center justify-between gap-3 first:pt-1 last:pb-1">
+              <div className="flex items-center gap-3">
+                <span className="h-2 w-2 rounded-full bg-[#EF4444] shrink-0" />
+                <div>
+                  <h3 className="text-xs font-semibold text-slate-900 dark:text-white">
+                    Marketing Site
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    @charlie · 24 Oct, 17:15
+                  </p>
+                </div>
+              </div>
+              <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-rose-50 text-rose-500 dark:bg-rose-950/40 dark:text-rose-400">
+                Failed
+              </span>
+            </div>
+
+            {/* Item 4 */}
+            <div className="py-3 flex items-center justify-between gap-3 first:pt-1 last:pb-1">
+              <div className="flex items-center gap-3">
+                <span className="h-2 w-2 rounded-full bg-[#10B981] shrink-0" />
+                <div>
+                  <h3 className="text-xs font-semibold text-slate-900 dark:text-white">
+                    Billing Worker v3.0
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    @dana · 24 Oct, 11:02
+                  </p>
+                </div>
+              </div>
+              <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
+                Live
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Right: Activity */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+              Activity
+            </h2>
+          </div>
+
+          <div className="space-y-4 pt-1">
+            {/* Feed 1 */}
+            <div className="flex items-start gap-3 text-xs">
+              <span className="h-2 w-2 rounded-full bg-[#7C3AED] mt-1.5 shrink-0" />
+              <div>
+                <p className="text-slate-800 dark:text-slate-200">
+                  <span className="font-semibold">WebApp v2.1</span> deployed by{' '}
+                  <span className="text-[#7C3AED] font-medium">@alice</span>
+                </p>
+                <span className="text-[11px] text-slate-400">2 hours ago</span>
+              </div>
+            </div>
+
+            {/* Feed 2 */}
+            <div className="flex items-start gap-3 text-xs">
+              <span className="h-2 w-2 rounded-full bg-[#10B981] mt-1.5 shrink-0" />
+              <div>
+                <p className="text-slate-800 dark:text-slate-200">
+                  <span className="text-[#7C3AED] font-medium">@bob</span> invited to{' '}
+                  <span className="font-semibold">Internal Tools</span>
+                </p>
+                <span className="text-[11px] text-slate-400">Yesterday</span>
+              </div>
+            </div>
+
+            {/* Feed 3 */}
+            <div className="flex items-start gap-3 text-xs">
+              <span className="h-2 w-2 rounded-full bg-[#EF4444] mt-1.5 shrink-0" />
+              <div>
+                <p className="text-slate-800 dark:text-slate-200">
+                  <span className="font-semibold">API Service</span> build{' '}
+                  <span className="text-rose-500 font-semibold">failed</span> ·{' '}
+                  <span className="text-slate-500 underline cursor-pointer">logs</span>
+                </p>
+                <span className="text-[11px] text-slate-400">2 days ago</span>
+              </div>
+            </div>
+
+            {/* Feed 4 */}
+            <div className="flex items-start gap-3 text-xs">
+              <span className="h-2 w-2 rounded-full bg-[#7C3AED] mt-1.5 shrink-0" />
+              <div>
+                <p className="text-slate-800 dark:text-slate-200">
+                  Rollback completed on <span className="font-semibold">Edge</span>
+                </p>
+                <span className="text-[11px] text-slate-400">3 days ago</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Hotel Department Performance & Operations Hub */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-2">
+        {/* Left Column: Department Performance Benchmark Bars (2 cols) */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Department Performance Comparison Card */}
-          <div className="p-6 rounded-3xl border border-white/10 bg-white/70 dark:bg-ink-900/80 backdrop-blur-xl shadow-lg space-y-5">
+          <div className="p-6 rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm space-y-5">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-base font-bold text-navy-950 dark:text-white flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5 text-amber-500" />
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-[#7C3AED]" />
                   Department Operational Pulse & SLA Benchmarks
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-mist-400">
-                  Real-time SLA adherence across all six operating units. Click a department to inspect.
+                <p className="text-xs text-slate-400">
+                  Adherence across hotel operating units. Click a department to view deep breakdown.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => onNavigateTab('performance')}
-                className="text-xs font-semibold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1"
+                className="text-xs font-semibold text-[#7C3AED] hover:underline flex items-center gap-1"
               >
                 Inspect All <ChevronRight className="h-3 w-3" />
               </button>
@@ -992,38 +1261,38 @@ export function ExecutiveOverviewTab({
                   <div
                     key={dept.id}
                     onClick={() => setSelectedDeptPerformance(dept)}
-                    className="p-3.5 rounded-2xl border border-white/5 bg-black/[0.02] dark:bg-white/[0.02] hover:bg-white/10 hover:border-amber-500/40 hover:shadow-md transition cursor-pointer group"
-                    title={`Click to view ${dept.name} exact performance details`}
+                    className="p-3.5 rounded-xl border border-slate-100 dark:border-slate-800 hover:border-[#7C3AED]/30 hover:bg-[#FAF9FC] dark:hover:bg-slate-800/40 transition cursor-pointer group"
+                    title={`Click to view ${dept.name} details`}
                   >
-                    <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2.5">
-                        <div className="h-7 w-7 rounded-xl bg-white/10 dark:bg-white/5 grid place-items-center text-navy-950 dark:text-white">
+                        <div className="h-7 w-7 rounded-lg bg-[#F3E8FF] dark:bg-purple-950/60 text-[#7C3AED] dark:text-purple-300 grid place-items-center">
                           <Icon className="h-4 w-4" />
                         </div>
                         <div>
-                          <span className="text-xs font-bold text-navy-950 dark:text-white">
+                          <span className="text-xs font-bold text-slate-900 dark:text-white">
                             {dept.name}
                           </span>
-                          <span className="text-[11px] text-slate-400 dark:text-mist-500 ml-2">
+                          <span className="text-[11px] text-slate-400 ml-2">
                             Lead: {dept.head} · {dept.activeTasks} open tasks
                           </span>
                         </div>
                       </div>
 
                       <div className="flex items-center gap-2.5 sm:gap-3">
-                        <span className="text-xs font-mono font-bold text-navy-950 dark:text-white">
+                        <span className="text-xs font-mono font-bold text-slate-900 dark:text-white">
                           {dept.slaPercent}%
                         </span>
                         <span
                           className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                             dept.slaPercent >= 95
-                              ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300'
-                              : 'bg-amber-500/15 text-amber-600 dark:text-amber-300'
+                              ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400'
+                              : 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400'
                           }`}
                         >
                           {dept.slaPercent >= 95 ? 'Target Met' : 'Attention'}
                         </span>
-                        <span className="text-xs font-semibold text-amber-500 flex items-center gap-0.5 opacity-80 group-hover:opacity-100 group-hover:translate-x-0.5 transition">
+                        <span className="text-xs font-semibold text-[#7C3AED] flex items-center gap-0.5 opacity-80 group-hover:opacity-100 group-hover:translate-x-0.5 transition">
                           <Eye className="h-3.5 w-3.5" />
                           <span className="hidden sm:inline text-[11px]">Details</span>
                           <ChevronRight className="h-3 w-3" />
@@ -1032,10 +1301,10 @@ export function ExecutiveOverviewTab({
                     </div>
 
                     {/* Progress Track */}
-                    <div className="w-full bg-slate-200 dark:bg-ink-950 rounded-full h-2 overflow-hidden">
+                    <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all duration-500 ${
-                          dept.slaPercent >= 95 ? 'bg-emerald-500' : 'bg-amber-500'
+                          dept.slaPercent >= 95 ? 'bg-[#10B981]' : 'bg-[#7C3AED]'
                         }`}
                         style={{ width: `${dept.slaPercent}%` }}
                       />
@@ -1045,104 +1314,18 @@ export function ExecutiveOverviewTab({
               })}
             </div>
           </div>
-
-          {/* Secondary Charts Grid: Throughput & Capex Allocation */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Approval Decisions Trend */}
-            <div className="p-5 rounded-3xl border border-white/10 bg-white/70 dark:bg-ink-900/80 backdrop-blur-xl shadow-lg space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-bold text-navy-950 dark:text-white flex items-center gap-2">
-                  <PieChart className="h-4 w-4 text-purple-400" />
-                  Executive Decision Volume
-                </h4>
-                <span className="text-xs font-mono text-slate-400 dark:text-mist-400">
-                  Total: {executiveItems.length}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2 text-center py-2">
-                <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20">
-                  <div className="text-xl font-black text-amber-600 dark:text-amber-300">
-                    {pendingApprovals.length}
-                  </div>
-                  <div className="text-[10px] uppercase font-bold text-amber-600/80 dark:text-amber-300/70 mt-0.5">
-                    Pending
-                  </div>
-                </div>
-                <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
-                  <div className="text-xl font-black text-emerald-600 dark:text-emerald-300">
-                    {approvedItems.length}
-                  </div>
-                  <div className="text-[10px] uppercase font-bold text-emerald-600/80 dark:text-emerald-300/70 mt-0.5">
-                    Authorized
-                  </div>
-                </div>
-                <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20">
-                  <div className="text-xl font-black text-rose-600 dark:text-rose-300">
-                    {rejectedItems.length}
-                  </div>
-                  <div className="text-[10px] uppercase font-bold text-rose-600/80 dark:text-rose-300/70 mt-0.5">
-                    Declined
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-3 rounded-2xl border border-white/5 bg-black/[0.02] dark:bg-white/[0.02] text-xs text-slate-500 dark:text-mist-400 flex items-center justify-between">
-                <span>Avg Decision Latency</span>
-                <span className="font-mono font-bold text-navy-950 dark:text-white">
-                  1.4 hours
-                </span>
-              </div>
-            </div>
-
-            {/* Financial Delegation Meter */}
-            <div className="p-5 rounded-3xl border border-white/10 bg-white/70 dark:bg-ink-900/80 backdrop-blur-xl shadow-lg space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-bold text-navy-950 dark:text-white flex items-center gap-2">
-                  <Wallet className="h-4 w-4 text-emerald-400" />
-                  Executive Financial Ceiling
-                </h4>
-                <span className="text-xs font-mono text-emerald-500 font-bold">
-                  Limit: ₹2,00,000
-                </span>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between text-xs mb-1.5">
-                  <span className="text-slate-500 dark:text-mist-400">Month-to-Date Committed</span>
-                  <span className="font-mono font-bold text-navy-950 dark:text-white">
-                    ₹{totalApprovedMTD.toLocaleString('en-IN')} (70.5%)
-                  </span>
-                </div>
-                <div className="w-full bg-slate-200 dark:bg-ink-950 rounded-full h-3 overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-emerald-500 to-amber-500 rounded-full"
-                    style={{ width: '70.5%' }}
-                  />
-                </div>
-                <div className="flex items-center justify-between text-[11px] text-slate-400 dark:text-mist-500 mt-1.5">
-                  <span>Duty Mgr Limit: ₹16,000</span>
-                  <span>Remaining Room: ₹59,000</span>
-                </div>
-              </div>
-
-              <div className="p-2.5 rounded-2xl bg-amber-500/[0.07] border border-amber-500/20 text-[11px] text-amber-700 dark:text-amber-300">
-                Any capex requisition exceeding ₹2,00,000 routes automatically to the Board of Directors.
-              </div>
-            </div>
-          </div>
         </div>
 
-        {/* Right Column: Operational Attention Panel (1 col) */}
+        {/* Right Column: Operational Attention Queue (1 col) */}
         <div className="space-y-6">
-          <div className="p-6 rounded-3xl border border-white/10 bg-white/70 dark:bg-ink-900/80 backdrop-blur-xl shadow-lg space-y-4">
+          <div className="p-6 rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-base font-bold text-navy-950 dark:text-white flex items-center gap-2">
-                  <AlertOctagon className="h-5 w-5 text-rose-500" />
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <AlertOctagon className="h-4 w-4 text-[#7C3AED]" />
                   Operational Attention Queue
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-mist-400">
+                <p className="text-xs text-slate-400">
                   Critical items awaiting executive action or escalation review.
                 </p>
               </div>
@@ -1152,23 +1335,23 @@ export function ExecutiveOverviewTab({
             <div className="space-y-3">
               {/* Item 1: Goodwill Comp Room 402 */}
               {executiveItems.find((i) => i.id === 'exe-1' && i.status === 'Needs approval') && (
-                <div className="p-3.5 rounded-2xl border border-amber-500/30 bg-amber-500/[0.06] hover:bg-amber-500/[0.1] transition space-y-2">
+                <div className="p-3.5 rounded-xl border border-purple-100 dark:border-purple-900/40 bg-purple-50/50 dark:bg-purple-950/20 hover:border-purple-300 transition space-y-2">
                   <div className="flex items-start justify-between gap-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-300">
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#F3E8FF] dark:bg-purple-900/60 text-[#7C3AED] dark:text-purple-300">
                       Approval Over Limit
                     </span>
-                    <span className="text-xs font-mono font-bold text-amber-500">₹28,000</span>
+                    <span className="text-xs font-mono font-bold text-[#7C3AED]">₹28,000</span>
                   </div>
                   <div>
-                    <h5 className="text-xs font-bold text-navy-950 dark:text-white">
+                    <h5 className="text-xs font-bold text-slate-900 dark:text-white">
                       Goodwill Credit · Room 402
                     </h5>
-                    <p className="text-[11px] text-slate-500 dark:text-mist-400 mt-0.5 line-clamp-2">
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">
                       Duty Manager Marcus Vance escalated beyond ₹16,000 threshold following AC leak water damage.
                     </p>
                   </div>
                   <div className="flex items-center justify-between pt-1 text-[11px]">
-                    <span className="text-slate-400 dark:text-mist-500">Ref: EX-2026-001</span>
+                    <span className="text-slate-400">Ref: EX-2026-001</span>
                     <button
                       type="button"
                       onClick={() => {
@@ -1176,7 +1359,7 @@ export function ExecutiveOverviewTab({
                         if (item && onOpenApprovalDetail) onOpenApprovalDetail(item);
                         else onNavigateTab('approvals');
                       }}
-                      className="font-bold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1"
+                      className="font-bold text-[#7C3AED] hover:underline flex items-center gap-1"
                     >
                       Review Requisition <ArrowRight className="h-3 w-3" />
                     </button>
@@ -1186,23 +1369,23 @@ export function ExecutiveOverviewTab({
 
               {/* Item 2: Otis Lift 2 Controller Capex */}
               {executiveItems.find((i) => i.id === 'exe-3' && i.status === 'Needs approval') && (
-                <div className="p-3.5 rounded-2xl border border-purple-500/30 bg-purple-500/[0.06] hover:bg-purple-500/[0.1] transition space-y-2">
+                <div className="p-3.5 rounded-xl border border-purple-100 dark:border-purple-900/40 bg-purple-50/50 dark:bg-purple-950/20 hover:border-purple-300 transition space-y-2">
                   <div className="flex items-start justify-between gap-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-600 dark:text-purple-300">
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#F3E8FF] dark:bg-purple-900/60 text-[#7C3AED] dark:text-purple-300">
                       Capex Authorization
                     </span>
-                    <span className="text-xs font-mono font-bold text-purple-500">₹48,000</span>
+                    <span className="text-xs font-mono font-bold text-[#7C3AED]">₹48,000</span>
                   </div>
                   <div>
-                    <h5 className="text-xs font-bold text-navy-950 dark:text-white">
+                    <h5 className="text-xs font-bold text-slate-900 dark:text-white">
                       Freight Lift #2 Controller Board
                     </h5>
-                    <p className="text-[11px] text-slate-500 dark:text-mist-400 mt-0.5 line-clamp-2">
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">
                       Otis contractor proposal for logic board replacement. Core service elevator down.
                     </p>
                   </div>
                   <div className="flex items-center justify-between pt-1 text-[11px]">
-                    <span className="text-slate-400 dark:text-mist-500">Engineering · Quote Valid 14d</span>
+                    <span className="text-slate-400">Engineering · Quote Valid 14d</span>
                     <button
                       type="button"
                       onClick={() => {
@@ -1210,7 +1393,7 @@ export function ExecutiveOverviewTab({
                         if (item && onOpenApprovalDetail) onOpenApprovalDetail(item);
                         else onNavigateTab('approvals');
                       }}
-                      className="font-bold text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1"
+                      className="font-bold text-[#7C3AED] hover:underline flex items-center gap-1"
                     >
                       Authorize Capex <ArrowRight className="h-3 w-3" />
                     </button>
@@ -1220,23 +1403,23 @@ export function ExecutiveOverviewTab({
 
               {/* Item 3: Active Incident Seepage */}
               {incidents[0] && (
-                <div className="p-3.5 rounded-2xl border border-rose-500/30 bg-rose-500/[0.06] hover:bg-rose-500/[0.1] transition space-y-2">
+                <div className="p-3.5 rounded-xl border border-rose-100 dark:border-rose-900/40 bg-rose-50/50 dark:bg-rose-950/20 hover:border-rose-300 transition space-y-2">
                   <div className="flex items-start justify-between gap-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-600 dark:text-rose-300">
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-900/60 text-rose-600 dark:text-rose-400">
                       Major Property Incident
                     </span>
                     <span className="text-xs font-mono text-rose-500 font-bold">{incidents[0].reportedAt}</span>
                   </div>
                   <div>
-                    <h5 className="text-xs font-bold text-navy-950 dark:text-white">
+                    <h5 className="text-xs font-bold text-slate-900 dark:text-white">
                       {incidents[0].title}
                     </h5>
-                    <p className="text-[11px] text-slate-500 dark:text-mist-400 mt-0.5 line-clamp-2">
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">
                       {incidents[0].affectedArea} · Lead: {incidents[0].coordinator}
                     </p>
                   </div>
                   <div className="flex items-center justify-between pt-1 text-[11px]">
-                    <span className="text-slate-400 dark:text-mist-500">Ref: {incidents[0].ref}</span>
+                    <span className="text-slate-400">Ref: {incidents[0].ref}</span>
                     <button
                       type="button"
                       onClick={() => onNavigateTab('incidents')}
@@ -1250,68 +1433,68 @@ export function ExecutiveOverviewTab({
             </div>
           </div>
 
-          {/* Quick Executive Shortcuts */}
-          <div className="p-5 rounded-3xl border border-white/10 bg-white/70 dark:bg-ink-900/80 backdrop-blur-xl shadow-lg space-y-3">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-mist-400">
+          {/* Quick Shortcuts */}
+          <div className="p-5 rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm space-y-3">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
               Executive Shortcuts
             </h4>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => onNavigateTab('reports')}
-                className="p-3 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 text-left transition"
+                className="p-3 rounded-xl border border-slate-100 dark:border-slate-800 bg-[#FAF9FC] dark:bg-slate-800/40 hover:border-[#7C3AED]/40 text-left transition"
               >
-                <div className="text-xs font-bold text-navy-950 dark:text-white">CSV Export</div>
-                <div className="text-[10px] text-slate-500 dark:text-mist-400 mt-0.5">Turnaround & SLA</div>
+                <div className="text-xs font-bold text-slate-900 dark:text-white">CSV Export</div>
+                <div className="text-[10px] text-slate-400 mt-0.5">Turnaround & SLA</div>
               </button>
               <button
                 type="button"
                 onClick={() => onNavigateTab('audit')}
-                className="p-3 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 text-left transition"
+                className="p-3 rounded-xl border border-slate-100 dark:border-slate-800 bg-[#FAF9FC] dark:bg-slate-800/40 hover:border-[#7C3AED]/40 text-left transition"
               >
-                <div className="text-xs font-bold text-navy-950 dark:text-white">Audit Ledger</div>
-                <div className="text-[10px] text-slate-500 dark:text-mist-400 mt-0.5">Immutable records</div>
+                <div className="text-xs font-bold text-slate-900 dark:text-white">Audit Ledger</div>
+                <div className="text-[10px] text-slate-400 mt-0.5">Immutable records</div>
               </button>
             </div>
           </div>
         </div>
       </div>
-    
+
       {/* Exact Department Performance Details Modal */}
       {selectedDeptPerformance && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
           onClick={() => setSelectedDeptPerformance(null)}
           role="dialog"
           aria-modal="true"
         >
           <div
-            className="w-full max-w-3xl max-h-[90vh] flex flex-col rounded-3xl border border-white/15 bg-white dark:bg-ink-900 shadow-2xl overflow-hidden"
+            className="w-full max-w-3xl max-h-[90vh] flex flex-col rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-white/10 bg-slate-50/80 dark:bg-ink-950/80">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-800 bg-[#FAF9FC] dark:bg-slate-900">
               <div className="flex items-center gap-3.5">
-                <div className="h-11 w-11 rounded-2xl bg-amber-500/20 text-amber-500 dark:text-amber-400 grid place-items-center border border-amber-500/30">
+                <div className="h-11 w-11 rounded-xl bg-[#F3E8FF] dark:bg-purple-950/60 text-[#7C3AED] dark:text-purple-300 grid place-items-center">
                   <selectedDeptPerformance.icon className="h-6 w-6" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="text-base font-bold text-navy-950 dark:text-white">
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white">
                       {selectedDeptPerformance.name} — Performance Details
                     </h3>
                     <span
                       className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                         selectedDeptPerformance.slaPercent >= 94
-                          ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/20'
-                          : 'bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/20'
+                          ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200'
+                          : 'bg-purple-50 text-[#7C3AED] dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200'
                       }`}
                     >
                       {selectedDeptPerformance.slaPercent >= 94 ? 'Target Met (≥94%)' : 'Attention Needed (<94%)'}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-mist-400 mt-0.5">
-                    Lead: <span className="font-semibold text-navy-950 dark:text-white">{selectedDeptPerformance.head}</span> ({selectedDeptPerformance.leadEmpId}) · Shift Saturation: {selectedDeptPerformance.staffOnDutyCount} of {selectedDeptPerformance.totalStaffCount} On Duty
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Lead: <span className="font-semibold text-slate-900 dark:text-white">{selectedDeptPerformance.head}</span> ({selectedDeptPerformance.leadEmpId}) · Shift Saturation: {selectedDeptPerformance.staffOnDutyCount} of {selectedDeptPerformance.totalStaffCount} On Duty
                   </p>
                 </div>
               </div>
@@ -1319,7 +1502,7 @@ export function ExecutiveOverviewTab({
               <button
                 type="button"
                 onClick={() => setSelectedDeptPerformance(null)}
-                className="p-2 rounded-2xl hover:bg-slate-200 dark:hover:bg-white/10 text-slate-400 hover:text-navy-950 dark:hover:text-white transition"
+                className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-900 dark:hover:text-white transition"
                 aria-label="Close dialog"
               >
                 <X className="h-5 w-5" />
@@ -1331,58 +1514,58 @@ export function ExecutiveOverviewTab({
               {/* 4 Primary KPI metric cards */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {/* Metric 1: SLA Adherence */}
-                <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-white/[0.03]">
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-mist-500 block">
+                <div className="p-3.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-[#FAF9FC] dark:bg-slate-800/40">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">
                     SLA Adherence
                   </span>
-                  <div className="text-xl font-black font-mono text-navy-950 dark:text-white mt-1">
+                  <div className="text-xl font-bold font-mono text-slate-900 dark:text-white mt-1">
                     {selectedDeptPerformance.slaPercent}%
                   </div>
-                  <div className="text-[11px] text-emerald-500 dark:text-emerald-400 font-semibold mt-0.5 flex items-center gap-1">
+                  <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5 flex items-center gap-1">
                     <TrendingUp className="h-3 w-3" />
                     {selectedDeptPerformance.trend} vs last wk
                   </div>
                 </div>
 
                 {/* Metric 2: Turnaround Velocity */}
-                <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-white/[0.03]">
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-mist-500 block">
+                <div className="p-3.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-[#FAF9FC] dark:bg-slate-800/40">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">
                     Avg Turnaround
                   </span>
-                  <div className="text-xl font-black font-mono text-navy-950 dark:text-white mt-1 flex items-center gap-1">
-                    <Timer className="h-4 w-4 text-amber-500" />
+                  <div className="text-xl font-bold font-mono text-slate-900 dark:text-white mt-1 flex items-center gap-1">
+                    <Timer className="h-4 w-4 text-[#7C3AED]" />
                     {selectedDeptPerformance.avgResolutionMinutes} min
                   </div>
-                  <div className="text-[11px] text-slate-500 dark:text-mist-400 mt-0.5">
+                  <div className="text-[11px] text-slate-400 mt-0.5">
                     Benchmark: &lt; 20 min
                   </div>
                 </div>
 
                 {/* Metric 3: Guest Rating */}
-                <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-white/[0.03]">
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-mist-500 block">
+                <div className="p-3.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-[#FAF9FC] dark:bg-slate-800/40">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">
                     Guest Score
                   </span>
-                  <div className="text-xl font-black font-mono text-navy-950 dark:text-white mt-1 flex items-center gap-1">
+                  <div className="text-xl font-bold font-mono text-slate-900 dark:text-white mt-1 flex items-center gap-1">
                     <Star className="h-4 w-4 text-amber-400 fill-amber-400" />
                     {selectedDeptPerformance.guestSatisfactionScore} / 5
                   </div>
-                  <div className="text-[11px] text-emerald-500 dark:text-emerald-400 font-semibold mt-0.5">
+                  <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5">
                     Top quartile
                   </div>
                 </div>
 
                 {/* Metric 4: Active Workload */}
-                <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-white/[0.03]">
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-mist-500 block">
+                <div className="p-3.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-[#FAF9FC] dark:bg-slate-800/40">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">
                     Active Tasks
                   </span>
-                  <div className="text-xl font-black font-mono text-navy-950 dark:text-white mt-1">
+                  <div className="text-xl font-bold font-mono text-slate-900 dark:text-white mt-1">
                     {selectedDeptPerformance.activeTasks}
                   </div>
                   <div
                     className={`text-[11px] font-semibold mt-0.5 ${
-                      selectedDeptPerformance.overdueTasksCount > 0 ? 'text-rose-500' : 'text-emerald-500 dark:text-emerald-400'
+                      selectedDeptPerformance.overdueTasksCount > 0 ? 'text-rose-500' : 'text-emerald-600 dark:text-emerald-400'
                     }`}
                   >
                     {selectedDeptPerformance.overdueTasksCount > 0
@@ -1393,15 +1576,15 @@ export function ExecutiveOverviewTab({
               </div>
 
               {/* 7-Day Performance Trend Bar / Visual Benchmark */}
-              <div className="p-4 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.02] space-y-3">
+              <div className="p-4 rounded-xl border border-slate-100 dark:border-slate-800 bg-[#FAF9FC] dark:bg-slate-800/40 space-y-3">
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
-                    <BarChart3 className="h-4 w-4 text-amber-500" />
-                    <span className="font-bold text-navy-950 dark:text-white">
+                    <BarChart3 className="h-4 w-4 text-[#7C3AED]" />
+                    <span className="font-bold text-slate-900 dark:text-white">
                       7-Day SLA Benchmark History
                     </span>
                   </div>
-                  <span className="font-mono text-[11px] text-slate-400 dark:text-mist-400">
+                  <span className="font-mono text-[11px] text-slate-400">
                     Property Target: 94.0%
                   </span>
                 </div>
@@ -1415,16 +1598,16 @@ export function ExecutiveOverviewTab({
                         <div className="h-16 flex items-end justify-center">
                           <div
                             className={`w-full max-w-[28px] rounded-lg transition-all ${
-                              isAbove ? 'bg-emerald-500' : 'bg-amber-500'
+                              isAbove ? 'bg-[#10B981]' : 'bg-[#7C3AED]'
                             }`}
                             style={{ height: `${Math.max(20, (val - 70) * 3.3)}%` }}
                             title={`${day}: ${val}%`}
                           />
                         </div>
-                        <div className="text-[10px] font-mono font-bold text-navy-950 dark:text-white">
+                        <div className="text-[10px] font-mono font-bold text-slate-900 dark:text-white">
                           {val}%
                         </div>
-                        <div className="text-[10px] text-slate-400 dark:text-mist-500">
+                        <div className="text-[10px] text-slate-400">
                           {day}
                         </div>
                       </div>
@@ -1436,14 +1619,14 @@ export function ExecutiveOverviewTab({
               {/* Key Focus & Equipment Areas */}
               {selectedDeptPerformance.keyFocusAreas && selectedDeptPerformance.keyFocusAreas.length > 0 && (
                 <div className="space-y-2">
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-mist-500 block">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">
                     Operational Focus Areas
                   </span>
                   <div className="flex flex-wrap gap-2">
                     {selectedDeptPerformance.keyFocusAreas.map((focus) => (
                       <span
                         key={focus}
-                        className="text-xs px-3 py-1 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 font-medium"
+                        className="text-xs px-3 py-1 rounded-xl bg-[#F3E8FF] dark:bg-purple-950/60 text-[#7C3AED] dark:text-purple-300 border border-purple-200 dark:border-purple-800 font-medium"
                       >
                         {focus}
                       </span>
@@ -1455,17 +1638,17 @@ export function ExecutiveOverviewTab({
               {/* Live Operational Queue for this department */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-mist-400 flex items-center gap-1.5">
-                    <Activity className="h-4 w-4 text-amber-500" />
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                    <Activity className="h-4 w-4 text-[#7C3AED]" />
                     Live Operational Queue ({selectedDeptPerformance.tasks.length})
                   </h4>
-                  <span className="text-[11px] text-slate-400 dark:text-mist-500">
+                  <span className="text-[11px] text-slate-400">
                     Open work items tracked
                   </span>
                 </div>
 
                 {selectedDeptPerformance.tasks.length === 0 ? (
-                  <div className="p-5 text-center text-xs text-slate-400 dark:text-mist-500 rounded-2xl border border-slate-200 dark:border-white/10">
+                  <div className="p-5 text-center text-xs text-slate-400 rounded-xl border border-slate-100 dark:border-slate-800">
                     All queue items cleared. No pending tasks for this department.
                   </div>
                 ) : (
@@ -1473,29 +1656,29 @@ export function ExecutiveOverviewTab({
                     {selectedDeptPerformance.tasks.map((task) => (
                       <div
                         key={task.id}
-                        className="p-3 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-white/[0.02] flex items-center justify-between text-xs hover:border-amber-500/30 transition"
+                        className="p-3 rounded-xl border border-slate-100 dark:border-slate-800 bg-[#FAF9FC] dark:bg-slate-800/40 flex items-center justify-between text-xs hover:border-[#7C3AED]/30 transition"
                       >
                         <div className="space-y-0.5">
-                          <div className="font-bold text-navy-950 dark:text-white flex items-center gap-2">
+                          <div className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
                             <span>{task.title}</span>
                             {task.priority === 'critical' && (
-                              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-500 border border-rose-500/30">
+                              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-rose-50 text-rose-500 border border-rose-200">
                                 CRITICAL
                               </span>
                             )}
                             {task.priority === 'vip' && (
-                              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-500 border border-purple-500/30">
+                              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-purple-50 text-[#7C3AED] border border-purple-200">
                                 VIP
                               </span>
                             )}
                           </div>
-                          <div className="text-[11px] text-slate-400 dark:text-mist-500">
+                          <div className="text-[11px] text-slate-400">
                             {task.ref || task.id} · {task.room ? `Room ${task.room} · ` : ''}{task.meta || task.category || 'General Operations'}
                           </div>
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-mist-300">
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-100 dark:border-slate-700">
                             {task.status || 'Active'}
                           </span>
                         </div>
@@ -1508,11 +1691,11 @@ export function ExecutiveOverviewTab({
               {/* Active Staff Roster in this Department */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-mist-400 flex items-center gap-1.5">
-                    <Users className="h-4 w-4 text-emerald-500" />
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                    <Users className="h-4 w-4 text-[#10B981]" />
                     Field Team & Shift Coverage ({selectedDeptPerformance.staffMembers.length})
                   </h4>
-                  <span className="text-[11px] text-emerald-500 font-semibold">
+                  <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
                     {selectedDeptPerformance.staffOnDutyCount} of {selectedDeptPerformance.totalStaffCount} Active on Duty
                   </span>
                 </div>
@@ -1521,16 +1704,16 @@ export function ExecutiveOverviewTab({
                   {selectedDeptPerformance.staffMembers.map((staff) => (
                     <div
                       key={staff.id}
-                      className="p-3 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-white/[0.02] flex items-center justify-between text-xs"
+                      className="p-3 rounded-xl border border-slate-100 dark:border-slate-800 bg-[#FAF9FC] dark:bg-slate-800/40 flex items-center justify-between text-xs"
                     >
                       <div>
-                        <div className="font-bold text-navy-950 dark:text-white">
+                        <div className="font-bold text-slate-900 dark:text-white">
                           {staff.name}
                         </div>
-                        <div className="text-[11px] text-slate-400 dark:text-mist-500 font-mono">
+                        <div className="text-[11px] text-slate-400 font-mono">
                           {staff.employeeId} · Shift: {staff.shift || 'Day'}
                         </div>
-                        <div className="text-[10px] text-slate-400 dark:text-mist-500">
+                        <div className="text-[10px] text-slate-400">
                           Zone: {staff.floorZone || 'Assigned Property'}
                         </div>
                       </div>
@@ -1539,8 +1722,8 @@ export function ExecutiveOverviewTab({
                         <span
                           className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                             staff.availability === 'on_duty'
-                              ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/20'
-                              : 'bg-slate-200 dark:bg-white/10 text-slate-500'
+                              ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
                           }`}
                         >
                           {staff.availability === 'on_duty' ? 'On Duty' : 'Off Shift'}
@@ -1553,9 +1736,9 @@ export function ExecutiveOverviewTab({
             </div>
 
             {/* Modal Footer */}
-            <div className="p-4 border-t border-slate-200 dark:border-white/10 bg-slate-50/80 dark:bg-ink-950/80 flex items-center justify-between flex-wrap gap-2">
-              <span className="text-xs text-slate-500 dark:text-mist-400">
-                Monthly CapEx & Opex: <strong className="text-navy-950 dark:text-white">{selectedDeptPerformance.spending}</strong>
+            <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-[#FAF9FC] dark:bg-slate-900 flex items-center justify-between flex-wrap gap-2">
+              <span className="text-xs text-slate-500 dark:text-slate-400">
+                Monthly CapEx & Opex: <strong className="text-slate-900 dark:text-white">{selectedDeptPerformance.spending}</strong>
               </span>
 
               <div className="flex items-center gap-3">
@@ -1566,14 +1749,14 @@ export function ExecutiveOverviewTab({
                     setSelectedDeptPerformance(null);
                     onNavigateTab('performance', { department: deptName });
                   }}
-                  className="text-xs font-semibold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1"
+                  className="text-xs font-semibold text-[#7C3AED] hover:underline flex items-center gap-1"
                 >
                   Global Performance Tab <ArrowRight className="h-3 w-3" />
                 </button>
                 <button
                   type="button"
                   onClick={() => setSelectedDeptPerformance(null)}
-                  className="px-4 py-2 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition shadow-md"
+                  className="px-4 py-2 rounded-xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-xs font-bold transition shadow-sm"
                 >
                   Done
                 </button>
