@@ -8,13 +8,24 @@ import {
   type HelpPortalAction,
   type HelpFeedbackRecord,
 } from './HelpCenterData.ts';
+import { BotMessageService, type BotMessageConfiguration } from './BotMessageConfig.ts';
+import { HotelKnowledgeBase, type HotelKnowledgeEntry } from './HotelKnowledgeBase.ts';
+import {
+  LocalGroundedEngine,
+  AssistantEngineProvider,
+  type QuestionResolution,
+} from './QuestionUnderstandingEngine.ts';
 
 export interface ResolveQuestionResult {
   isResolved: boolean;
   confidence: 'high' | 'medium' | 'low';
   matchedTopic?: string;
+  category?: string;
   node: HelpFlowNode;
   suggestedAction?: HelpPortalAction;
+  suggestedFollowUps?: string[];
+  knowledgeEntryId?: string;
+  source?: string;
   originalQuery: string;
 }
 
@@ -27,12 +38,34 @@ export interface FeedbackSubmissionInput {
 
 export class HelpCenterService {
   private static feedbackStorage: HelpFeedbackRecord[] = [];
+  private engine = new LocalGroundedEngine();
 
   /**
    * Retrieves all 8 available help categories
    */
   public getTopics(): HelpTopic[] {
     return HELP_TOPICS;
+  }
+
+  /**
+   * Retrieves centralized bot message configuration
+   */
+  public getBotConfig(): BotMessageConfiguration {
+    return BotMessageService.getConfig();
+  }
+
+  /**
+   * Updates centralized bot messages
+   */
+  public updateBotConfig(overrides: Partial<BotMessageConfiguration>): BotMessageConfiguration {
+    return BotMessageService.updateConfig(overrides);
+  }
+
+  /**
+   * Retrieves knowledge base entries
+   */
+  public getKnowledgeEntries(): HotelKnowledgeEntry[] {
+    return HotelKnowledgeBase.getAllEntries();
   }
 
   /**
@@ -46,72 +79,61 @@ export class HelpCenterService {
   }
 
   /**
-   * Resolves a free-text question using keyword & alias scoring
+   * Resolves a free-text question using layered understanding:
+   * Layer 1: Keyword/phrase scoring
+   * Layer 2: Typo and fuzzy distance matching
+   * Layer 3: Grounded Hotel Knowledge Base retrieval
    */
-  public resolveQuestion(query: string, _currentNodeId?: string): ResolveQuestionResult {
+  public resolveQuestion(query: string, currentNodeId?: string): ResolveQuestionResult {
     const rawQuery = (query || '').trim();
-    const normalized = rawQuery.toLowerCase().replace(/[^a-z0-9\s-]/g, ' ');
+    const resolution = this.engine.processQuestionSync(rawQuery, { currentNodeId });
 
-    let bestRule = null;
-    let highestScore = 0;
+    if (resolution.isResolved) {
+      const flowNodeId = resolution.flowNodeId || 'node_root';
+      const existingNode = FLOW_NODES[flowNodeId];
 
-    for (const rule of KEYWORD_RULES) {
-      for (const kw of rule.keywords) {
-        const kwLower = kw.toLowerCase().trim();
-        if (!kwLower) continue;
-
-        // 1. Phrase match (multiple words, e.g. "air conditioning", "room service")
-        if (kwLower.includes(' ')) {
-          if (normalized.includes(kwLower)) {
-            const score = 80 + kwLower.length * 3;
-            if (score > highestScore) {
-              highestScore = score;
-              bestRule = rule;
-            }
+      const node: HelpFlowNode = existingNode
+        ? {
+            ...existingNode,
+            message: resolution.answer || existingNode.message,
+            action: resolution.suggestedAction || existingNode.action,
           }
-        } else {
-          // 2. Single word match
-          // Whole word boundary match (always preferred)
-          const wordRegex = new RegExp(`\\b${kwLower.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i');
-          if (wordRegex.test(normalized)) {
-            const score = 50 + kwLower.length * 2;
-            if (score > highestScore) {
-              highestScore = score;
-              bestRule = rule;
-            }
-          } else if (kwLower.length >= 4) {
-            // Prefix match for words 4+ chars long (e.g. "plumb" matching "plumbing", "towel" matching "towels")
-            const prefixRegex = new RegExp(`\\b${kwLower.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}`, 'i');
-            if (prefixRegex.test(normalized)) {
-              const score = 30 + kwLower.length * 2;
-              if (score > highestScore) {
-                highestScore = score;
-                bestRule = rule;
-              }
-            }
-          }
-        }
-      }
-    }
+        : {
+            id: flowNodeId,
+            topicId: resolution.matchedTopic || 'stay_info',
+            title: resolution.matchedTopic || 'Guest Support',
+            message: resolution.answer,
+            choices: HELP_TOPICS.slice(0, 3).map((t) => ({
+              id: t.id,
+              label: t.title,
+              nextNodeId: t.rootNodeId,
+              icon: t.icon,
+            })),
+            action: resolution.suggestedAction,
+            canGoBack: true,
+            parentNodeId: currentNodeId || 'node_root',
+          };
 
-    if (bestRule && highestScore >= 20) {
-      const node = FLOW_NODES[bestRule.nodeId] || FLOW_NODES['node_root'];
       return {
         isResolved: true,
-        confidence: highestScore >= 50 ? 'high' : 'medium',
-        matchedTopic: bestRule.topicId,
+        confidence: resolution.confidence,
+        matchedTopic: resolution.matchedTopic,
+        category: resolution.category,
         node,
-        suggestedAction: bestRule.suggestedAction || node.action,
+        suggestedAction: resolution.suggestedAction || node.action,
+        suggestedFollowUps: resolution.suggestedFollowUps,
+        knowledgeEntryId: resolution.knowledgeEntryId,
+        source: resolution.source,
         originalQuery: rawQuery,
       };
     }
 
-    // Fallback node when no direct rule matched
+    // Safe Grounded Fallback Node
     const fallbackNode: HelpFlowNode = {
       id: 'node_fallback',
       topicId: 'front_desk',
       title: 'How can we help?',
-      message: `I couldn't find an exact match for "${rawQuery}". Our 24/7 Front Desk team is ready to assist you right away, or you can explore our service categories below.`,
+      message: resolution.answer,
       choices: HELP_TOPICS.slice(0, 4).map((t) => ({
         id: t.id,
         label: t.title,
@@ -119,7 +141,7 @@ export class HelpCenterService {
         nextNodeId: t.rootNodeId,
         icon: t.icon,
       })),
-      action: {
+      action: resolution.suggestedAction || {
         label: 'Message Front Desk Directly',
         targetTab: 'services',
         targetSubtab: 'front_desk',
@@ -131,10 +153,19 @@ export class HelpCenterService {
     return {
       isResolved: false,
       confidence: 'low',
+      category: resolution.category,
       node: fallbackNode,
-      suggestedAction: fallbackNode.action,
+      suggestedAction: resolution.suggestedAction || fallbackNode.action,
+      suggestedFollowUps: resolution.suggestedFollowUps,
       originalQuery: rawQuery,
     };
+  }
+
+  /**
+   * Async resolution method
+   */
+  public async resolveQuestionAsync(query: string, currentNodeId?: string): Promise<ResolveQuestionResult> {
+    return this.resolveQuestion(query, currentNodeId);
   }
 
   /**
@@ -172,5 +203,8 @@ export class HelpCenterService {
    */
   public static clearTestData(): void {
     HelpCenterService.feedbackStorage = [];
+    BotMessageService.resetToDefaults();
+    HotelKnowledgeBase.resetToDefaults();
+    AssistantEngineProvider.resetToDefault();
   }
 }
