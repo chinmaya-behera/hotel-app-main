@@ -171,21 +171,42 @@ function getServiceFeedbackTags(category: string, serviceType?: string): string[
 }
 
 /* ------------------------------------------------------------------ */
-/* Multi-Step Service Request Timeline with Aligned Nodes             */
+/* Multi-Step Service Request Timelines for Every Specific Service   */
 /* ------------------------------------------------------------------ */
+
+export type ServiceTimelineType =
+  | 'dining' // A. Dining / Custom Food Requests (5)
+  | 'custom_dining'
+  | 'amenities' // B. Room Services / Amenities (5)
+  | 'cleaning' // C. Room Cleaning (5)
+  | 'maintenance' // D. Maintenance & Technical Support (6)
+  | 'front_desk' // E. Front Desk Requests (5)
+  | 'incident'
+  | 'complaint' // F. Complaints (6)
+  | 'financial' // G. Financial Issues / Refunds & Disputes (6)
+  | 'refund'
+  | 'reminder' // H. Reminders (4)
+  | 'chat' // I. Front Desk Chat (4)
+  | 'lost_found' // J. Lost & Found (5)
+  | 'lost';
 
 interface TimelineStage {
   key: string;
   label: string;
-  sublabel: string;
+  sublabel?: string;
 }
 
-function getStagesForType(
-  type: 'standard' | 'custom_dining' | 'refund' | 'lost' | 'complaint' | 'incident',
+function getStagesForService(
+  type: ServiceTimelineType,
   status: string,
-  createdAt?: string
-): { stages: TimelineStage[]; currentStep: number; isCancelled: boolean } {
-  let formattedTime = 'Recently';
+  createdAt?: string,
+  meta?: { hasStaffReply?: boolean; isRejected?: boolean }
+): { stages: TimelineStage[]; currentStep: number; isCancelled: boolean; isRejected: boolean } {
+  const normStatus = (status || '').toLowerCase().trim();
+  const isCancelled = ['cancelled', 'closed_unresolved', 'blocked'].includes(normStatus);
+  const isRejected = ['rejected', 'declined'].includes(normStatus) || Boolean(meta?.isRejected);
+
+  let formattedTime = 'Logged';
   if (createdAt) {
     try {
       const d = new Date(createdAt);
@@ -197,138 +218,336 @@ function getStagesForType(
     }
   }
 
-  if (type === 'custom_dining') {
-    const isCancelled = status === 'Cancelled' || status === 'Rejected';
-    let currentStep = 0;
-    if (['Delivered', 'Completed'].includes(status)) currentStep = 3;
-    else if (['In Preparation', 'Out for Delivery'].includes(status)) currentStep = 2;
-    else if (['Price Quoted', 'Under Kitchen Review', 'Clarification Requested'].includes(status)) currentStep = 1;
+  switch (type) {
+    case 'dining':
+    case 'custom_dining': {
+      // A. Dining / Custom Food Requests
+      // 1. Submitted -> 2. Chef Review -> 3. Preparation -> 4. Ready for Delivery -> 5. Delivered
+      const stages: TimelineStage[] = [
+        { key: 'submitted', label: 'Submitted', sublabel: formattedTime },
+        { key: 'chef_review', label: 'Chef Review', sublabel: 'Kitchen Desk' },
+        { key: 'preparation', label: 'Preparation', sublabel: 'In Kitchen' },
+        { key: 'ready_delivery', label: 'Ready for Delivery', sublabel: 'Runner Ready' },
+        { key: 'delivered', label: 'Delivered', sublabel: 'Delivered' },
+      ];
+      let currentStep = 0;
+      if (['delivered', 'completed', 'fulfilled'].includes(normStatus)) currentStep = 4;
+      else if (['ready for delivery', 'ready', 'out for delivery', 'on the way'].includes(normStatus)) currentStep = 3;
+      else if (['preparation', 'in preparation', 'preparing', 'cooking', 'order confirmed'].includes(normStatus)) currentStep = 2;
+      else if (['chef review', 'under review', 'under kitchen review', 'price quoted', 'clarification requested', 'assigned', 'accepted'].includes(normStatus)) currentStep = 1;
+      else currentStep = 0;
 
-    const stages: TimelineStage[] = [
-      { key: 'submitted', label: 'Submitted', sublabel: formattedTime },
-      { key: 'review', label: 'Chef Review', sublabel: currentStep >= 1 ? (status === 'Price Quoted' ? 'Quote Ready' : 'Reviewed') : 'In Queue' },
-      { key: 'cooking', label: 'Preparation', sublabel: currentStep >= 2 ? (status === 'Out for Delivery' ? 'On the Way' : 'Cooking') : 'Pending' },
-      { key: 'delivered', label: 'Delivered', sublabel: currentStep >= 3 ? 'Delivered' : 'Pending' },
-    ];
-    return { stages, currentStep, isCancelled };
+      return { stages, currentStep, isCancelled, isRejected };
+    }
+
+    case 'amenities': {
+      // B. Room Services / Amenities
+      // 1. Submitted -> 2. Received by Housekeeping -> 3. Accepted -> 4. Service in Progress -> 5. Completed
+      const stages: TimelineStage[] = [
+        { key: 'submitted', label: 'Submitted', sublabel: formattedTime },
+        { key: 'received', label: 'Received by Housekeeping', sublabel: 'Housekeeping' },
+        { key: 'accepted', label: 'Accepted', sublabel: 'Staff Confirmed' },
+        { key: 'in_progress', label: 'Service in Progress', sublabel: 'Runner Dispatched' },
+        { key: 'completed', label: 'Completed', sublabel: 'Delivered' },
+      ];
+      let currentStep = 0;
+      if (['completed', 'delivered', 'closed'].includes(normStatus)) currentStep = 4;
+      else if (['service in progress', 'in progress', 'dispatched', 'on the way'].includes(normStatus)) currentStep = 3;
+      else if (['accepted', 'acknowledged'].includes(normStatus)) currentStep = 2;
+      else if (['received by housekeeping', 'received', 'assigned', 'under review'].includes(normStatus)) currentStep = 1;
+      else currentStep = 0;
+
+      return { stages, currentStep, isCancelled, isRejected };
+    }
+
+    case 'cleaning': {
+      // C. Room Cleaning
+      // 1. Submitted -> 2. Received -> 3. Scheduled -> 4. Cleaning in Progress -> 5. Completed
+      const stages: TimelineStage[] = [
+        { key: 'submitted', label: 'Submitted', sublabel: formattedTime },
+        { key: 'received', label: 'Received', sublabel: 'Housekeeping Desk' },
+        { key: 'scheduled', label: 'Scheduled', sublabel: 'Slot Confirmed' },
+        { key: 'cleaning', label: 'Cleaning in Progress', sublabel: 'Attendant On Site' },
+        { key: 'completed', label: 'Completed', sublabel: 'Room Inspected' },
+      ];
+      let currentStep = 0;
+      if (['completed', 'finished', 'closed', 'inspected'].includes(normStatus)) currentStep = 4;
+      else if (['cleaning in progress', 'in progress', 'started'].includes(normStatus)) currentStep = 3;
+      else if (['scheduled', 'accepted', 'assigned'].includes(normStatus)) currentStep = 2;
+      else if (['received', 'under review'].includes(normStatus)) currentStep = 1;
+      else currentStep = 0;
+
+      return { stages, currentStep, isCancelled, isRejected };
+    }
+
+    case 'maintenance': {
+      // D. Maintenance & Technical Support
+      // 1. Submitted -> 2. Received by Maintenance -> 3. Technician Assigned -> 4. Work in Progress -> 5. Resolved -> 6. Completed
+      const stages: TimelineStage[] = [
+        { key: 'submitted', label: 'Submitted', sublabel: formattedTime },
+        { key: 'received', label: 'Received by Maintenance', sublabel: 'Engineering' },
+        { key: 'assigned', label: 'Technician Assigned', sublabel: 'Engineer On Duty' },
+        { key: 'in_progress', label: 'Work in Progress', sublabel: 'Repair Underway' },
+        { key: 'resolved', label: 'Resolved', sublabel: 'Fix Completed' },
+        { key: 'completed', label: 'Completed', sublabel: 'Verified & Closed' },
+      ];
+      let currentStep = 0;
+      if (['completed', 'closed'].includes(normStatus)) currentStep = 5;
+      else if (['resolved', 'fixed'].includes(normStatus)) currentStep = 4;
+      else if (['work in progress', 'in progress', 'in_progress'].includes(normStatus)) currentStep = 3;
+      else if (['technician assigned', 'assigned', 'accepted'].includes(normStatus)) currentStep = 2;
+      else if (['received by maintenance', 'received', 'under review'].includes(normStatus)) currentStep = 1;
+      else currentStep = 0;
+
+      return { stages, currentStep, isCancelled, isRejected };
+    }
+
+    case 'incident':
+    case 'front_desk': {
+      // E. Front Desk Requests
+      // 1. Submitted -> 2. Received by Front Desk -> 3. Under Review -> 4. In Progress -> 5. Completed
+      const stages: TimelineStage[] = [
+        { key: 'submitted', label: 'Submitted', sublabel: formattedTime },
+        { key: 'received', label: 'Received by Front Desk', sublabel: 'Reception' },
+        { key: 'under_review', label: 'Under Review', sublabel: 'Coordinator Desk' },
+        { key: 'in_progress', label: 'In Progress', sublabel: 'In Action' },
+        { key: 'completed', label: 'Completed', sublabel: 'Fulfilled' },
+      ];
+      let currentStep = 0;
+      if (['completed', 'delivered', 'resolved', 'closed'].includes(normStatus)) currentStep = 4;
+      else if (['in progress', 'processing', 'action in progress'].includes(normStatus)) currentStep = 3;
+      else if (['under review', 'assigned', 'reviewing'].includes(normStatus)) currentStep = 2;
+      else if (['received by front desk', 'received'].includes(normStatus)) currentStep = 1;
+      else currentStep = 0;
+
+      return { stages, currentStep, isCancelled, isRejected };
+    }
+
+    case 'complaint': {
+      // F. Complaints
+      // 1. Submitted -> 2. Received -> 3. Under Review -> 4. Action in Progress -> 5. Resolution Provided -> 6. Closed
+      const stages: TimelineStage[] = [
+        { key: 'submitted', label: 'Submitted', sublabel: formattedTime },
+        { key: 'received', label: 'Received', sublabel: 'Duty Desk' },
+        { key: 'under_review', label: 'Under Review', sublabel: 'Investigation' },
+        { key: 'action', label: 'Action in Progress', sublabel: 'Corrective Action' },
+        { key: 'resolution', label: 'Resolution Provided', sublabel: 'Outcome Offered' },
+        { key: 'closed', label: 'Closed', sublabel: 'Case Closed' },
+      ];
+      let currentStep = 0;
+      if (['closed'].includes(normStatus)) currentStep = 5;
+      else if (['resolution provided', 'resolved', 'settled'].includes(normStatus)) currentStep = 4;
+      else if (['action in progress', 'investigating', 'in progress', 'action taken'].includes(normStatus)) currentStep = 3;
+      else if (['under review', 'under investigation', 'assigned'].includes(normStatus)) currentStep = 2;
+      else if (['received'].includes(normStatus)) currentStep = 1;
+      else currentStep = 0;
+
+      return { stages, currentStep, isCancelled, isRejected };
+    }
+
+    case 'refund':
+    case 'financial': {
+      // G. Financial Issues / Refunds & Disputes
+      // 1. Submitted -> 2. Received -> 3. Under Verification -> 4. Approved / Rejected -> 5. Refund or Adjustment Processing -> 6. Resolved
+      const stages: TimelineStage[] = [
+        { key: 'submitted', label: 'Submitted', sublabel: formattedTime },
+        { key: 'received', label: 'Received', sublabel: 'Accounting' },
+        { key: 'verification', label: 'Under Verification', sublabel: 'Folio Audit' },
+        { key: 'approval', label: isRejected ? 'Rejected' : 'Approved / Rejected', sublabel: isRejected ? 'Claim Declined' : 'Decision Ready' },
+        { key: 'processing', label: 'Refund or Adjustment Processing', sublabel: 'Finance Credit' },
+        { key: 'resolved', label: 'Resolved', sublabel: 'Adjustment Done' },
+      ];
+      let currentStep = 0;
+      if (['resolved', 'completed'].includes(normStatus)) currentStep = 5;
+      else if (['refund or adjustment processing', 'processing', 'sent to finance'].includes(normStatus)) currentStep = 4;
+      else if (['approved', 'partially approved', 'rejected'].includes(normStatus)) currentStep = 3;
+      else if (['under verification', 'under review', 'additional information required'].includes(normStatus)) currentStep = 2;
+      else if (['received'].includes(normStatus)) currentStep = 1;
+      else currentStep = 0;
+
+      return { stages, currentStep, isCancelled, isRejected };
+    }
+
+    case 'reminder': {
+      // H. Reminders
+      // 1. Reminder Scheduled -> 2. Upcoming -> 3. Triggered -> 4. Completed
+      const stages: TimelineStage[] = [
+        { key: 'scheduled', label: 'Reminder Scheduled', sublabel: formattedTime },
+        { key: 'upcoming', label: 'Upcoming', sublabel: 'Queued' },
+        { key: 'triggered', label: 'Triggered', sublabel: 'Calling Room' },
+        { key: 'completed', label: 'Completed', sublabel: 'Handled' },
+      ];
+      let currentStep = 0;
+      if (['completed', 'dismissed'].includes(normStatus)) currentStep = 3;
+      else if (['triggered', 'ringing', 'calling', 'active'].includes(normStatus)) currentStep = 2;
+      else if (['upcoming', 'pending'].includes(normStatus)) currentStep = 1;
+      else currentStep = 0;
+
+      return { stages, currentStep, isCancelled, isRejected };
+    }
+
+    case 'chat': {
+      // I. Front Desk Chat
+      // 1. Message Sent -> 2. Received -> 3. Staff Replied -> 4. Conversation Resolved
+      const stages: TimelineStage[] = [
+        { key: 'sent', label: 'Message Sent', sublabel: formattedTime },
+        { key: 'received', label: 'Received', sublabel: 'Front Desk' },
+        { key: 'replied', label: 'Staff Replied', sublabel: 'Reply Available' },
+        { key: 'resolved', label: 'Conversation Resolved', sublabel: 'Resolved' },
+      ];
+      let currentStep = 0;
+      if (['resolved', 'closed', 'completed'].includes(normStatus)) currentStep = 3;
+      else if (meta?.hasStaffReply || ['replied', 'staff_replied'].includes(normStatus)) currentStep = 2;
+      else if (['received', 'acknowledged', 'read'].includes(normStatus)) currentStep = 1;
+      else currentStep = 0;
+
+      return { stages, currentStep, isCancelled, isRejected };
+    }
+
+    case 'lost':
+    case 'lost_found': {
+      // J. Lost & Found
+      // 1. Claim Submitted -> 2. Verification in Progress -> 3. Approved / Rejected -> 4. Collection Arranged -> 5. Returned to Guest
+      const stages: TimelineStage[] = [
+        { key: 'submitted', label: 'Claim Submitted', sublabel: formattedTime },
+        { key: 'verification', label: 'Verification in Progress', sublabel: 'Security Check' },
+        { key: 'decision', label: isRejected ? 'Claim Rejected' : 'Approved / Rejected', sublabel: isRejected ? 'Declined' : 'Claim Verified' },
+        { key: 'collection', label: 'Collection Arranged', sublabel: 'At Concierge' },
+        { key: 'returned', label: 'Returned to Guest', sublabel: 'Handover' },
+      ];
+      let currentStep = 0;
+      if (['returned', 'returned to guest', 'claimed'].includes(normStatus)) currentStep = 4;
+      else if (['collection arranged', 'ready for pickup', 'item located', 'found'].includes(normStatus)) currentStep = 3;
+      else if (['approved', 'claim verified', 'rejected'].includes(normStatus)) currentStep = 2;
+      else if (['verification in progress', 'searching', 'under investigation'].includes(normStatus)) currentStep = 1;
+      else currentStep = 0;
+
+      return { stages, currentStep, isCancelled, isRejected };
+    }
   }
+}
 
-  if (type === 'refund') {
-    const isCancelled = status === 'Rejected' || status === 'Cancelled';
-    let currentStep = 0;
-    if (['Resolved', 'Completed'].includes(status)) currentStep = 3;
-    else if (['Processing', 'Approved', 'Partially Approved'].includes(status)) currentStep = 2;
-    else if (['Under Review', 'Additional Information Required'].includes(status)) currentStep = 1;
-
-    const stages: TimelineStage[] = [
-      { key: 'submitted', label: 'Submitted', sublabel: formattedTime },
-      { key: 'review', label: 'Under Review', sublabel: currentStep >= 1 ? (status === 'Additional Information Required' ? 'Info Needed' : 'Reviewing') : 'Queued' },
-      { key: 'processing', label: 'Financial Action', sublabel: currentStep >= 2 ? (status === 'Approved' ? 'Approved' : 'Processing') : 'Pending' },
-      { key: 'resolved', label: 'Resolved', sublabel: currentStep >= 3 ? 'Resolved' : 'Pending' },
-    ];
-    return { stages, currentStep, isCancelled };
+function getWorkItemServiceType(item: WorkItem): ServiceTimelineType {
+  const cat = (item.category || '').toLowerCase();
+  const title = (item.title || '').toLowerCase();
+  if (
+    cat.includes('dining') ||
+    cat.includes('food') ||
+    cat === 'room_service' ||
+    title.includes('dining') ||
+    title.includes('breakfast') ||
+    title.includes('meal')
+  ) {
+    return 'dining';
   }
-
-  if (type === 'lost') {
-    const isCancelled = status === 'Cancelled' || status === 'Closed';
-    let currentStep = 0;
-    if (['Returned', 'Claimed', 'Claim Verified'].includes(status)) currentStep = 3;
-    else if (['Found', 'Ready for Pickup', 'Item Located'].includes(status)) currentStep = 2;
-    else if (['Searching', 'Under Investigation'].includes(status)) currentStep = 1;
-
-    const stages: TimelineStage[] = [
-      { key: 'reported', label: 'Reported', sublabel: formattedTime },
-      { key: 'searching', label: 'Security Search', sublabel: currentStep >= 1 ? 'Searching' : 'Logged' },
-      { key: 'located', label: 'Item Located', sublabel: currentStep >= 2 ? 'Matched' : 'Searching' },
-      { key: 'returned', label: 'Handover', sublabel: currentStep >= 3 ? 'Handed Over' : 'Pending' },
-    ];
-    return { stages, currentStep, isCancelled };
+  if (
+    cat.includes('maintenance') ||
+    cat.includes('repair') ||
+    cat.includes('engineering') ||
+    title.includes('repair') ||
+    title.includes('maintenance')
+  ) {
+    return 'maintenance';
   }
-
-  if (type === 'complaint' || type === 'incident') {
-    const isCancelled = status === 'Rejected' || status === 'Cancelled' || status === 'Closed';
-    let currentStep = 0;
-    if (['Resolved', 'Completed'].includes(status)) currentStep = 3;
-    else if (['In Progress', 'Investigating', 'Action Taken'].includes(status)) currentStep = 2;
-    else if (['Under Review', 'Assigned', 'Reviewing'].includes(status)) currentStep = 1;
-
-    const stages: TimelineStage[] = [
-      { key: 'submitted', label: 'Submitted', sublabel: formattedTime },
-      { key: 'review', label: 'Duty Manager', sublabel: currentStep >= 1 ? 'Reviewing' : 'Queued' },
-      { key: 'investigating', label: 'Investigation', sublabel: currentStep >= 2 ? 'Underway' : 'Pending' },
-      { key: 'resolved', label: 'Resolution', sublabel: currentStep >= 3 ? 'Resolved' : 'Pending' },
-    ];
-    return { stages, currentStep, isCancelled };
+  if (cat.includes('housekeeping')) {
+    if (
+      title.includes('cleaning') ||
+      title.includes('clean') ||
+      title.includes('turndown') ||
+      title.includes('linen')
+    ) {
+      return 'cleaning';
+    }
+    return 'amenities';
   }
-
-  // Standard work item timeline
-  const isCancelled = status === 'Cancelled' || status === 'Rejected' || status === 'Blocked';
-  let currentStep = 0;
-  if (['Completed', 'Delivered', 'Resolved', 'Closed'].includes(status)) currentStep = 3;
-  else if (['In Progress', 'Preparing', 'Ready', 'Out for Delivery', 'On the way'].includes(status)) currentStep = 2;
-  else if (['Assigned', 'Accepted', 'Under Review'].includes(status)) currentStep = 1;
-
-  const stages: TimelineStage[] = [
-    { key: 'requested', label: 'Requested', sublabel: formattedTime },
-    { key: 'assigned', label: 'Assigned', sublabel: currentStep >= 1 ? 'Dispatched' : 'In queue' },
-    { key: 'inprogress', label: 'In Progress', sublabel: currentStep >= 2 ? 'Underway' : 'Waiting' },
-    { key: 'completed', label: 'Completed', sublabel: currentStep >= 3 ? 'Fulfilled' : 'Pending' },
-  ];
-  return { stages, currentStep, isCancelled };
+  if (cat.includes('front_desk') || cat.includes('reception')) {
+    return 'front_desk';
+  }
+  return 'amenities';
 }
 
 function ServiceRequestTimeline({
-  type = 'standard',
-  status,
+  type = 'amenities',
+  status = 'pending',
   createdAt,
+  hasStaffReply,
+  isRejected,
 }: {
-  type?: 'standard' | 'custom_dining' | 'refund' | 'lost' | 'complaint' | 'incident';
-  status: string;
+  type?: ServiceTimelineType;
+  status?: string;
   createdAt?: string;
+  hasStaffReply?: boolean;
+  isRejected?: boolean;
 }) {
-  const { stages, currentStep, isCancelled } = getStagesForType(type, status, createdAt);
+  const { stages, currentStep, isCancelled, isRejected: rejected } = getStagesForService(
+    type,
+    status,
+    createdAt,
+    { hasStaffReply, isRejected }
+  );
 
   if (isCancelled) {
     return (
       <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center gap-2">
         <XCircle className="h-4 w-4 shrink-0" />
         <span className="font-semibold">
-          This {type === 'refund' ? 'claim was declined or closed.' : type === 'custom_dining' ? 'custom food request was declined or cancelled.' : 'request was cancelled or closed.'}
+          This request was cancelled or closed.
         </span>
       </div>
     );
   }
 
+  const numStages = stages.length;
+  const gridColClass =
+    numStages === 4
+      ? 'grid-cols-4'
+      : numStages === 5
+      ? 'grid-cols-5'
+      : 'grid-cols-6';
+
+  const progressPercent = Math.min(100, Math.max(0, (currentStep / (numStages - 1)) * 100));
+
   return (
-    <div className="w-full bg-white/[0.03] border border-white/5 rounded-2xl p-3 sm:p-4 my-2">
-      <div className="flex items-center justify-between text-xs mb-3 font-semibold text-mist-300">
+    <div className="w-full bg-white/[0.03] border border-white/5 rounded-2xl p-3 sm:p-4 my-2 overflow-x-auto no-scrollbar">
+      <div className="flex items-center justify-between text-xs mb-3 font-semibold text-mist-300 min-w-[340px]">
         <span className="flex items-center gap-1.5 text-cyan-300 text-[11px] uppercase tracking-wider font-bold">
           <Clock className="h-3.5 w-3.5" />
           <span>Operational Progress</span>
         </span>
         <span className="text-[11px] font-mono text-mist-400">
-          Stage {currentStep + 1} of 4: <span className="text-white font-bold">{stages[currentStep].label}</span>
+          Stage {currentStep + 1} of {numStages}:{' '}
+          <span className={rejected ? 'text-rose-400 font-bold' : 'text-white font-bold'}>
+            {stages[currentStep]?.label || status}
+          </span>
         </span>
       </div>
 
-      <div className="relative w-full">
+      <div className="relative w-full min-w-[340px] pt-1">
         {/* Background Track Line */}
-        <div className="absolute top-[13px] left-[12.5%] right-[12.5%] h-0.5 bg-white/10 -translate-y-1/2 z-0" />
-
-        {/* Active Progress Track Line */}
         <div
-          className="absolute top-[13px] left-[12.5%] h-0.5 bg-gradient-to-r from-amber-400 via-sky-400 to-emerald-400 -translate-y-1/2 z-0 transition-all duration-500"
+          className="absolute top-[13px] h-0.5 bg-white/10 -translate-y-1/2 z-0"
           style={{
-            width: `${(currentStep / 3) * 75}%`,
+            left: `${100 / (numStages * 2)}%`,
+            right: `${100 / (numStages * 2)}%`,
           }}
         />
 
-        {/* 4 Nodes Grid */}
-        <div className="relative z-10 grid grid-cols-4 w-full">
+        {/* Active Progress Track Line */}
+        <div
+          className="absolute top-[13px] h-0.5 bg-gradient-to-r from-amber-400 via-sky-400 to-emerald-400 -translate-y-1/2 z-0 transition-all duration-500"
+          style={{
+            left: `${100 / (numStages * 2)}%`,
+            width: `calc(${progressPercent}% * ${(numStages - 1) / numStages})`,
+          }}
+        />
+
+        {/* Dynamic Nodes Grid */}
+        <div className={cn('relative z-10 grid w-full', gridColClass)}>
           {stages.map((stage, idx) => {
             const isDone = idx < currentStep;
             const isCurrent = idx === currentStep;
             const isUpcoming = idx > currentStep;
+            const isStageRejected = isCurrent && rejected;
 
             return (
               <div key={stage.key} className="flex flex-col items-center text-center px-1">
@@ -337,34 +556,38 @@ function ServiceRequestTimeline({
                     className={cn(
                       'rounded-full flex items-center justify-center transition-all duration-300',
                       isDone && 'h-5 w-5 bg-emerald-400 text-ink-950 shadow-[0_0_10px_rgba(52,211,153,0.5)] ring-2 ring-emerald-400/30',
-                      isCurrent && 'h-6 w-6 bg-amber-400 text-ink-950 shadow-[0_0_12px_rgba(251,191,36,0.6)] ring-4 ring-amber-400/25 animate-pulse',
+                      isCurrent && !isStageRejected && 'h-6 w-6 bg-amber-400 text-ink-950 shadow-[0_0_12px_rgba(251,191,36,0.6)] ring-4 ring-amber-400/25 animate-pulse',
+                      isStageRejected && 'h-6 w-6 bg-rose-500 text-white shadow-[0_0_12px_rgba(244,63,94,0.6)] ring-4 ring-rose-500/30',
                       isUpcoming && 'h-4 w-4 bg-ink-900 border-2 border-white/20'
                     )}
                   >
                     {isDone && <CheckCircle2 className="h-3.5 w-3.5 stroke-[2.5]" />}
-                    {isCurrent && <span className="h-2 w-2 rounded-full bg-ink-950" />}
+                    {isCurrent && !isStageRejected && <span className="h-2 w-2 rounded-full bg-ink-950" />}
+                    {isStageRejected && <XCircle className="h-3.5 w-3.5 stroke-[2.5]" />}
                   </span>
                 </div>
 
                 <p
                   className={cn(
-                    'text-[10px] sm:text-xs font-bold mt-2 leading-tight transition-colors',
+                    'text-[9px] sm:text-[11px] font-bold mt-2 leading-tight transition-colors line-clamp-2',
                     isDone && 'text-emerald-300',
-                    isCurrent && 'text-amber-300',
+                    isCurrent && (isStageRejected ? 'text-rose-400' : 'text-amber-300'),
                     isUpcoming && 'text-mist-400'
                   )}
                 >
                   {stage.label}
                 </p>
 
-                <p
-                  className={cn(
-                    'text-[9px] sm:text-[10px] mt-0.5 truncate max-w-full font-medium',
-                    isCurrent ? 'text-amber-200/90 font-semibold' : 'text-mist-400'
-                  )}
-                >
-                  {stage.sublabel}
-                </p>
+                {stage.sublabel && (
+                  <p
+                    className={cn(
+                      'text-[8px] sm:text-[9px] mt-0.5 truncate max-w-full font-medium',
+                      isCurrent ? 'text-amber-200/90 font-semibold' : 'text-mist-500'
+                    )}
+                  >
+                    {stage.sublabel}
+                  </p>
+                )}
               </div>
             );
           })}
@@ -1534,7 +1757,11 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
                   {isExpanded && (
                     <div className="px-3.5 pb-3.5 pt-1 border-t border-white/5 space-y-3.5 text-xs">
                       {/* 1. Operational Progress */}
-                      <ServiceRequestTimeline status={item.status} createdAt={item.createdAt} />
+                      <ServiceRequestTimeline
+                        type={getWorkItemServiceType(item)}
+                        status={item.status}
+                        createdAt={item.createdAt}
+                      />
 
                       {/* 2. Rating & Detailed Review (Only when genuinely completed) */}
                       {isCompleted && (
@@ -1893,7 +2120,12 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
                   {isExpanded && (
                     <div className="px-3.5 pb-3.5 pt-1 border-t border-white/5 space-y-3.5 text-xs">
                       {/* 1. Operational Progress */}
-                      <ServiceRequestTimeline status={msg.status} createdAt={msg.createdAt} />
+                      <ServiceRequestTimeline
+                        type="chat"
+                        status={msg.status}
+                        createdAt={msg.createdAt}
+                        hasStaffReply={Boolean(msg.replies && msg.replies.some((r) => r.sender === 'front_desk'))}
+                      />
 
                       {/* 2. Rating & Review (Only when resolved) */}
                       {isResolved && (
@@ -2095,6 +2327,13 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
                   {/* Expanded Content */}
                   {isExpanded && (
                     <div className="px-3.5 pb-3.5 pt-1 border-t border-white/5 space-y-3 text-xs">
+                      {/* 1. Operational Progress */}
+                      <ServiceRequestTimeline
+                        type="reminder"
+                        status={rem.status}
+                        createdAt={rem.createdAt}
+                      />
+
                       {rem.specialInstructions && (
                         <div className="p-2.5 rounded-xl bg-white/5 space-y-1">
                           <span className="text-[10px] font-semibold text-mist-400 uppercase">Instructions</span>

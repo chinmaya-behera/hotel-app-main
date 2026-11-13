@@ -13,7 +13,6 @@ import {
   CheckCircle2,
   Sparkles,
   Heart,
-  Thermometer,
   Coffee,
   BedDouble,
   CreditCard,
@@ -200,7 +199,7 @@ export function GuestProfileSubtab({ room, guestName }: GuestTabProps) {
           hint="Registered hospitality preferences automatically observed by Housekeeping, Dining & Front Desk"
         />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+        <div className="grid grid-cols-1 gap-3 text-xs">
           {/* Allergies & Dietary */}
           <div className="guest-card p-4 space-y-2">
             <div className="flex items-center gap-2 text-amber-400 font-semibold text-xs">
@@ -223,24 +222,6 @@ export function GuestProfileSubtab({ room, guestName }: GuestTabProps) {
                     ? prefs.dietaryRestrictions.join(', ')
                     : 'Standard / No restrictions'}
                 </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Climate & Room Preferences */}
-          <div className="guest-card p-4 space-y-2">
-            <div className="flex items-center gap-2 text-sky-400 font-semibold text-xs">
-              <Thermometer className="h-4 w-4" />
-              <span>Climate &amp; Turndown Service</span>
-            </div>
-            <div className="space-y-1.5 pt-1 text-[11px]">
-              <div>
-                <span className="text-mist-400 font-medium">Preferred Suite Temperature:</span>
-                <p className="text-white font-semibold">{preferredTemp}</p>
-              </div>
-              <div>
-                <span className="text-mist-400 font-medium">Pillow Selection:</span>
-                <p className="text-white font-semibold">Goose Down &amp; Memory Foam Dual Set</p>
               </div>
             </div>
           </div>
@@ -389,24 +370,6 @@ export function GuestProfileSubtab({ room, guestName }: GuestTabProps) {
                   className="guest-field w-full px-3 py-2.5 text-xs text-white"
                 />
               </div>
-            </div>
-
-            <div className="space-y-1">
-              <label htmlFor="ep-temp" className="text-mist-300 font-semibold block">
-                Preferred Suite Temperature
-              </label>
-              <select
-                id="ep-temp"
-                value={formTemp}
-                onChange={(e) => setFormTemp(e.target.value)}
-                className="guest-field w-full px-3 py-2.5 text-xs text-white"
-              >
-                <option value="19°C / 66°F" className="bg-ink-900 text-white">19°C / 66°F (Cool)</option>
-                <option value="20°C / 68°F" className="bg-ink-900 text-white">20°C / 68°F (Brisk)</option>
-                <option value="21°C / 70°F" className="bg-ink-900 text-white">21°C / 70°F (Optimal)</option>
-                <option value="22°C / 72°F" className="bg-ink-900 text-white">22°C / 72°F (Mild)</option>
-                <option value="23°C / 73°F" className="bg-ink-900 text-white">23°C / 73°F (Warm)</option>
-              </select>
             </div>
 
             <div className="space-y-1">

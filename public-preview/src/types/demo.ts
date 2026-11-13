@@ -926,6 +926,8 @@ export interface HotelServiceItem {
   availableForGuest: boolean;
   requiresSpecialist?: boolean;
   iconName?: string;
+  imageUrl?: string;
+  image?: string;
 }
 
 export interface IncidentRecord {

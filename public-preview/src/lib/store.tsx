@@ -52,6 +52,7 @@ import {
   seedGuestIncidents,
   seedSupervisorEscalations,
   seedDutyStatusRequests,
+  seedGuestComplaints,
   seedTaskReassignRequests,
   MANAGER_COMPENSATION_THRESHOLD,
 } from '@/lib/mockData';
@@ -176,6 +177,7 @@ function seedState(normalize = true): DemoState {
     guestIncidents: seedGuestIncidents,
     supervisorEscalations: seedSupervisorEscalations,
     dutyStatusRequests: seedDutyStatusRequests,
+    guestComplaints: seedGuestComplaints,
     taskReassignRequests: seedTaskReassignRequests,
   }) as DemoState);
   return normalize ? migrateOperationalReferences(seed) : seed;
@@ -205,6 +207,7 @@ export interface GuestRequestInput {
   photoUrl?: string;
   chip?: string;
   tone?: WorkItem['tone'];
+  amount?: number;
   /** optional immediate charge posted to the room folio (e.g. a spa booking) */
   folioCharge?: { label: string; amount: number };
   /** override the default simulated status timeline */
@@ -296,6 +299,7 @@ interface DemoApi {
     preferredResolution?: string;
     attachments?: CompensationRefundAttachment[];
     additionalInstructions?: string;
+    source?: string;
   }) => string;
   reviewCompensationRefundRequest: (
     id: string,
@@ -688,12 +692,28 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           incidents: saved.incidents ?? base.incidents,
           invoices: saved.invoices ?? base.invoices,
           transactions: saved.transactions ?? base.transactions,
-          refundRequests: saved.refundRequests ?? base.refundRequests,
+          refundRequests: [
+            ...((saved.refundRequests ?? []).map((sr) => {
+              const baseRef = (base.refundRequests ?? []).find((b) => b.id === sr.id);
+              return baseRef ? { ...baseRef, ...sr } : sr;
+            })),
+            ...((base.refundRequests ?? []).filter(
+              (br) => !(saved.refundRequests ?? []).some((sr) => sr.id === br.id || (br.sourceCaseRef && sr.sourceCaseRef === br.sourceCaseRef)),
+            )),
+          ],
           inspections: saved.inspections ?? base.inspections,
           hotelServices: saved.hotelServices ?? base.hotelServices,
           guestPreferences: saved.guestPreferences ?? base.guestPreferences,
           guestMessages: saved.guestMessages ?? [],
-          compensationRequests: saved.compensationRequests ?? base.compensationRequests,
+          compensationRequests: [
+            ...((saved.compensationRequests ?? []).map((sc) => {
+              const baseComp = (base.compensationRequests ?? []).find((b) => b.id === sc.id);
+              return baseComp ? { ...baseComp, ...sc } : sc;
+            })),
+            ...((base.compensationRequests ?? []).filter(
+              (bc) => !(saved.compensationRequests ?? []).some((sc) => sc.id === bc.id),
+            )),
+          ],
           shiftSchedules: saved.shiftSchedules ?? base.shiftSchedules,
           departmentPolicies: saved.departmentPolicies ?? base.departmentPolicies,
           guestReminders: [
@@ -706,14 +726,45 @@ export function DemoProvider({ children }: { children: ReactNode }) {
             )),
           ],
           safetyAlerts: saved.safetyAlerts ?? base.safetyAlerts,
-          diningMenu: saved.diningMenu ?? base.diningMenu,
+          diningMenu: saved.diningMenu
+            ? [
+                ...saved.diningMenu.map((sd) => {
+                  const baseDish = (base.diningMenu ?? []).find((b) => b.id === sd.id);
+                  return baseDish ? { ...baseDish, ...sd, image: sd.image || baseDish.image } : sd;
+                }),
+                ...((base.diningMenu ?? []).filter(
+                  (bd) => !saved.diningMenu?.some((sd) => sd.id === bd.id),
+                )),
+              ]
+            : base.diningMenu,
           diningCategories: saved.diningCategories ?? base.diningCategories,
           activeDispatcherDept: saved.activeDispatcherDept ?? base.activeDispatcherDept ?? 'Housekeeping',
           customDiningRequests: saved.customDiningRequests ?? base.customDiningRequests,
-          guestCompensationRefundRequests: saved.guestCompensationRefundRequests ?? base.guestCompensationRefundRequests,
+          guestCompensationRefundRequests: [
+            ...((saved.guestCompensationRefundRequests ?? []).map((sc) => {
+              const baseClaim = (base.guestCompensationRefundRequests ?? []).find(
+                (b) => b.id === sc.id || (b.ref && b.ref === sc.ref),
+              );
+              return baseClaim
+                ? {
+                    ...baseClaim,
+                    ...sc,
+                    attachments: (sc.attachments && sc.attachments.length > 0) ? sc.attachments : baseClaim.attachments,
+                    linkedCompId: sc.linkedCompId ?? baseClaim.linkedCompId,
+                    linkedRefundId: sc.linkedRefundId ?? baseClaim.linkedRefundId,
+                  }
+                : sc;
+            })),
+            ...((base.guestCompensationRefundRequests ?? []).filter(
+              (bc) => !(saved.guestCompensationRefundRequests ?? []).some(
+                (sc) => sc.id === bc.id || (sc.ref && sc.ref === bc.ref),
+              ),
+            )),
+          ],
           guestIncidents: saved.guestIncidents ?? base.guestIncidents,
           supervisorEscalations: saved.supervisorEscalations ?? base.supervisorEscalations,
           dutyStatusRequests: saved.dutyStatusRequests ?? base.dutyStatusRequests,
+          guestComplaints: saved.guestComplaints ?? base.guestComplaints,
           taskReassignRequests: saved.taskReassignRequests ?? base.taskReassignRequests,
         };
         const managerState = ensureManagerState(mergedState);
@@ -1011,6 +1062,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         category: input.category,
         description: input.description,
         priority: input.priority ?? 'normal',
+        amount: input.amount,
         ref,
         createdAt,
         dnd: input.dnd,
@@ -3007,7 +3059,14 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         additionalInstructions: input.additionalInstructions,
         status: 'Submitted',
         createdAt,
-        history: [{ at: createdAt, status: 'Submitted', note: `Compensation/refund request submitted: ${input.category}`, staff: 'Guest' }],
+        history: [{
+          at: createdAt,
+          status: 'Submitted',
+          note: input.source
+            ? `Logged in-person at Front Desk counter: ${input.category}`
+            : `Compensation/refund request submitted: ${input.category}`,
+          staff: input.source ? 'Front Desk · Sunita Patel' : 'Guest',
+        }],
       };
 
       const taskFloor = input.room ? parseInt(input.room[0], 10) || 1 : undefined;
@@ -3029,7 +3088,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         createdAt,
         compensationRefundId: id,
         amount: input.amountRequested,
-        history: [{ at: createdAt, status: 'Submitted', note: 'Submitted to Front Desk Duty Team' }],
+        history: [{ at: createdAt, status: 'Submitted', note: input.source ? 'Logged in-person by Front Desk' : 'Submitted to Front Desk Duty Team' }],
       };
 
       setState((prev) => ({
@@ -3040,12 +3099,19 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           front_desk_coordinator: [workItem, ...(prev.items.front_desk_coordinator ?? [])],
         },
         feed: [
-          { id: uid(), at: createdAt, role: 'Guest Relations', text: `New ${input.category} ${ref} logged for Room ${input.room} (${input.guestName})` },
+          {
+            id: uid(),
+            at: createdAt,
+            role: 'Front Desk',
+            text: input.source
+              ? `In-person financial claim ${ref} logged for Room ${input.room} (${input.guestName})`
+              : `New ${input.category} ${ref} logged for Room ${input.room} (${input.guestName})`,
+          },
           ...prev.feed,
         ].slice(0, 30),
       }));
 
-      notify(`Compensation & refund request ${ref} submitted to Front Desk team.`);
+      notify(input.source ? `In-person claim ${ref} logged for Room ${input.room}.` : `Compensation & refund request ${ref} submitted to Front Desk team.`);
       return ref;
     },
     [notify],

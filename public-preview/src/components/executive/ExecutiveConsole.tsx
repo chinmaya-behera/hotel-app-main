@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import {
   BarChart3,
   Bell,
@@ -23,12 +23,12 @@ import {
   ShieldAlert,
   ShieldCheck,
   Siren,
-  SlidersHorizontal,
   Stamp,
   User,
   Users,
   Wallet,
   Wrench,
+  X,
 } from 'lucide-react';
 import { ExecutiveOverviewTab } from '@/components/executive/ExecutiveOverviewTab';
 import { ExecutiveApprovalsTab } from '@/components/executive/ExecutiveApprovalsTab';
@@ -36,7 +36,6 @@ import { ExecutivePerformanceTab } from '@/components/executive/ExecutivePerform
 import { ExecutiveFinanceTab } from '@/components/executive/ExecutiveFinanceTab';
 import { ExecutiveIncidentsTab } from '@/components/executive/ExecutiveIncidentsTab';
 import { ExecutiveReportsTab } from '@/components/executive/ExecutiveReportsTab';
-import { ExecutiveAuditTab } from '@/components/executive/ExecutiveAuditTab';
 import { ExecutiveProfileTab } from '@/components/executive/ExecutiveProfileTab';
 import { GeneralManagerVipTab } from '@/components/executive/GeneralManagerVipTab';
 import { GeneralManagerRoomsTab } from '@/components/executive/GeneralManagerRoomsTab';
@@ -65,7 +64,6 @@ export type ExecutiveTabId =
   | 'audit'
   | 'notifications'
   | 'profile'
-  | 'settings';
 
 interface NavItem {
   id: ExecutiveTabId;
@@ -77,10 +75,84 @@ interface NavItem {
   badgeTone?: 'warning' | 'danger' | 'info';
 }
 
+export function isSafetyAlertNotification(notif: InAppNotification): boolean {
+  const cat = (notif.category || '').toLowerCase();
+  const title = (notif.title || '').toLowerCase();
+  const msg = (notif.message || '').toLowerCase();
+  const dept = (notif.department || '').toLowerCase();
+  const itemId = (notif.itemId || '').toLowerCase();
+
+  return (
+    cat === 'safety' ||
+    cat === 'safety_alert' ||
+    dept.includes('safety') ||
+    dept.includes('security') ||
+    itemId.startsWith('alert-') ||
+    itemId.startsWith('alt-') ||
+    itemId.startsWith('sec-') ||
+    itemId.startsWith('sft-') ||
+    title.includes('safety') ||
+    title.includes('fire') ||
+    title.includes('smoke') ||
+    title.includes('hazard') ||
+    title.includes('emergency') ||
+    title.includes('broadcast') ||
+    msg.includes('safety alert') ||
+    msg.includes('life safety') ||
+    msg.includes('hazard') ||
+    msg.includes('evacuat') ||
+    msg.includes('security')
+  );
+}
+
 export function ExecutiveConsole() {
-  const { state, markNotificationRead } = useDemo();
+  const { state, markNotificationRead, clearAllNotifications } = useDemo();
   const [activeTab, setActiveTab] = useState<ExecutiveTabId>('overview');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Navbar Notifications Popover & Category State
+  const [notifPopoverOpen, setNotifPopoverOpen] = useState(false);
+  const [notifCategory, setNotifCategory] = useState<'all' | 'safety'>('all');
+  const notifPopoverRef = useRef<HTMLDivElement>(null);
+
+  // Categorized Notifications for GM
+  const gmNotifications = useMemo(() => {
+    return (state.notifications ?? []).filter(
+      (n) => !n.roleId || n.roleId === 'general_manager' || n.roleId === 'executive_viewer',
+    );
+  }, [state.notifications]);
+  const unreadNotificationsCount = gmNotifications.filter((n) => !n.read).length;
+
+  const safetyNotifications = useMemo(() => {
+    return gmNotifications.filter(isSafetyAlertNotification);
+  }, [gmNotifications]);
+
+  const categorizedNotifications = useMemo(() => {
+    if (notifCategory === 'safety') return safetyNotifications;
+    return gmNotifications;
+  }, [notifCategory, safetyNotifications, gmNotifications]);
+
+  // Close notifications popover on click outside or escape
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (notifPopoverRef.current && !notifPopoverRef.current.contains(event.target as Node)) {
+        setNotifPopoverOpen(false);
+      }
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setNotifPopoverOpen(false);
+      }
+    }
+    if (notifPopoverOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [notifPopoverOpen]);
 
   // Permission mode: 'approver' (full decision authority) vs 'viewer' (read-only audit)
   const [permissionMode, setPermissionMode] = useState<'viewer' | 'approver'>('approver');
@@ -127,7 +199,7 @@ export function ExecutiveConsole() {
     (i) => i.status !== 'passed',
   ).length;
   const vipCount = (state.frontDesk?.stays ?? []).filter((s) => s.vip).length;
-  const unreadNotificationsCount = (state.notifications ?? []).filter((n) => !n.read).length;
+
 
   const navItems: NavItem[] = [
     {
@@ -168,7 +240,7 @@ export function ExecutiveConsole() {
     },
     {
       id: 'escalations',
-      label: 'High Escalations',
+      label: 'Escalations',
       shortLabel: 'Escalations',
       icon: Siren,
       group: 'Operations',
@@ -195,7 +267,7 @@ export function ExecutiveConsole() {
     },
     {
       id: 'vip',
-      label: 'VIP Portfolio & Directives',
+      label: 'VIP Guests',
       shortLabel: 'VIP Guests',
       icon: Crown,
       group: 'Operations',
@@ -229,36 +301,13 @@ export function ExecutiveConsole() {
       icon: FileSpreadsheet,
       group: 'Insights',
     },
-    {
-      id: 'audit',
-      label: 'Audit Log',
-      shortLabel: 'Audit',
-      icon: ShieldCheck,
-      group: 'Insights',
-    },
 
     // Group 6: Account
-    {
-      id: 'notifications',
-      label: 'Notifications',
-      shortLabel: 'Alerts',
-      icon: Bell,
-      group: 'Account',
-      badgeCount: unreadNotificationsCount,
-      badgeTone: 'info',
-    },
     {
       id: 'profile',
       label: 'My Profile',
       shortLabel: 'Profile',
       icon: User,
-      group: 'Account',
-    },
-    {
-      id: 'settings',
-      label: 'Settings',
-      shortLabel: 'Settings',
-      icon: SlidersHorizontal,
       group: 'Account',
     },
   ];
@@ -444,6 +493,7 @@ export function ExecutiveConsole() {
           </div>
         </div>
       </div>
+    </div>
 
       {/* Main Console Layout: Collapsible Sidebar + Content View */}
       <div className="flex flex-col lg:flex-row items-start gap-6">
@@ -656,8 +706,6 @@ export function ExecutiveConsole() {
 
           {activeTab === 'reports' && <ExecutiveReportsTab />}
 
-          {activeTab === 'audit' && <ExecutiveAuditTab />}
-
           {activeTab === 'notifications' && (
             <ExecutiveProfileTab
               permissionMode={permissionMode}
@@ -678,15 +726,6 @@ export function ExecutiveConsole() {
             />
           )}
 
-          {activeTab === 'settings' && (
-            <ExecutiveProfileTab
-              permissionMode={permissionMode}
-              initialSubTab="settings"
-              onTogglePermissionMode={setPermissionMode}
-              onNavigateTab={handleNavigateTab}
-              onNavigateToItem={handleNavigateToNotificationItem}
-            />
-          )}
         </main>
       </div>
 

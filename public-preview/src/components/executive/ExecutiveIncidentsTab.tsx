@@ -16,12 +16,14 @@ import {
   History,
   Lock,
   MessageSquareWarning,
+  Search,
   Send,
   ShieldAlert,
   ShieldCheck,
   Siren,
   Sparkles,
   User,
+  UserCheck,
   Users,
   Wrench,
   X,
@@ -51,6 +53,95 @@ function formatTaskMeta(meta?: string): string {
     .replace(/\bSpa\b(\s*·)/g, 'Wellness$1');
 }
 
+/**
+ * Extracts the room number from a complaint or task.
+ */
+export function extractItemRoom(item?: { room?: string; title?: string; meta?: string; description?: string } | null): string {
+  if (!item) return '502';
+  if (item.room) {
+    const digits = item.room.match(/\d+/);
+    if (digits) return digits[0];
+    const cleaned = item.room.replace(/^Room\s*/i, '').trim();
+    if (cleaned) return cleaned;
+  }
+  const titleRoomDigits = (item.title || '').match(/Room\s*(\d+)/i);
+  if (titleRoomDigits) return titleRoomDigits[1];
+
+  const metaRoomDigits = (item.meta || '').match(/Room\s*(\d+)/i);
+  if (metaRoomDigits) return metaRoomDigits[1];
+
+  const descRoomDigits = (item.description || '').match(/Room\s*(\d+)/i);
+  if (descRoomDigits) return descRoomDigits[1];
+
+  const generalMatch = (item.title || '').match(/(?:Suite|Pavilion|Floor)\s*([A-Za-z0-9-]+)/i);
+  if (generalMatch) return generalMatch[1];
+
+  if ((item.title || '').includes('Presidential')) return '518';
+
+  return '502';
+}
+
+/**
+ * Extracts DDMMYY (or DDMMYYYY) from date/time string, defaulting to 081126 / 08112026.
+ */
+export function extractItemDateDigits(createdAt?: string, fourDigitYear: boolean = false): string {
+  if (createdAt) {
+    const iso = createdAt.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (iso) {
+      const dd = iso[3];
+      const mm = iso[2];
+      const yy = fourDigitYear ? iso[1] : iso[1].slice(-2);
+      return `${dd}${mm}${yy}`;
+    }
+
+    const dmy = createdAt.match(/(\d{2})[-/.](\d{2})[-/.](\d{2,4})/);
+    if (dmy) {
+      const dd = dmy[1];
+      const mm = dmy[2];
+      let yy = dmy[3];
+      if (fourDigitYear && yy.length === 2) yy = `20${yy}`;
+      if (!fourDigitYear && yy.length === 4) yy = yy.slice(-2);
+      return `${dd}${mm}${yy}`;
+    }
+
+    if (createdAt.toLowerCase().includes('yesterday')) {
+      return fourDigitYear ? '08112026' : '081126';
+    }
+  }
+
+  return fourDigitYear ? '08112026' : '081126';
+}
+
+/**
+ * Formats a Guest Complaint ref ID to (Sidebar name-Room no.-DD/MM/YY)
+ * e.g. "GC-502-081126"
+ */
+export function formatComplaintRef(complaint?: { ref?: string; room?: string; createdAt?: string; summary?: string; description?: string } | null): string {
+  if (!complaint) return 'GC-502-081126';
+  if (complaint.ref && /^GC-[A-Za-z0-9]+-\d{6,8}$/.test(complaint.ref)) {
+    return complaint.ref;
+  }
+  const room = extractItemRoom(complaint);
+  const dateStr = extractItemDateDigits(complaint.createdAt, false);
+  return `GC-${room}-${dateStr}`;
+}
+
+/**
+ * Formats an Escalated Task ID to (Sidebar name-Room no.-DD/MM/YYYY or DD/MM/YY)
+ * e.g. "ES-502-08112026"
+ */
+export function formatEscalatedTaskId(task?: { id?: string; ref?: string; room?: string; title?: string; meta?: string; createdAt?: string; description?: string } | null): string {
+  if (!task) return 'ES-502-08112026';
+  const existing = task.ref || task.id;
+  if (existing && /^ES-[A-Za-z0-9]+-\d{6,8}$/.test(existing)) {
+    return existing;
+  }
+  const room = extractItemRoom(task);
+  const dateStr = extractItemDateDigits(task.createdAt, true);
+  return `ES-${room}-${dateStr}`;
+}
+
+
 interface ExecutiveIncidentsTabProps {
   permissionMode: 'viewer' | 'approver';
   initialView?: 'incidents' | 'complaints' | 'escalations';
@@ -69,6 +160,8 @@ export function ExecutiveIncidentsTab({
   const { state, requestExecutiveDirective, updateIncidentStatus } = useDemo();
   const activeView = initialView;
   const [severityFilter, setSeverityFilter] = useState<string>('all');
+  const [incidentSearchQuery, setIncidentSearchQuery] = useState('');
+  const [complaintSearchQuery, setComplaintSearchQuery] = useState('');
   const [selectedIncident, setSelectedIncident] = useState<IncidentRecord | null>(selectedIncidentFromParent || null);
   const [incidentModalTab, setIncidentModalTab] = useState<'details' | 'timeline'>('details');
   const [selectedComplaint, setSelectedComplaint] = useState<ComplaintCase | null>(null);
@@ -108,12 +201,71 @@ export function ExecutiveIncidentsTab({
   const filteredIncidents = useMemo(() => {
     return incidents.filter((i) => {
       if (severityFilter !== 'all' && i.severity !== severityFilter) return false;
+      if (incidentSearchQuery.trim()) {
+        const q = incidentSearchQuery.toLowerCase().trim();
+        const matchesRef = (i.ref || '').toLowerCase().includes(q);
+        const matchesTitle = (i.title || '').toLowerCase().includes(q);
+        const matchesArea = (i.affectedArea || '').toLowerCase().includes(q);
+        const matchesSeverity = (i.severity || '').toLowerCase().includes(q);
+        const matchesStatus = (i.status || '').toLowerCase().includes(q);
+        const matchesCoordinator = (i.coordinator || '').toLowerCase().includes(q);
+        const matchesDept = (i.department || '').toLowerCase().includes(q);
+        const matchesTaskRef = (i.relatedTaskRef || '').toLowerCase().includes(q);
+        const matchesTimeline = (i.timeline || []).some((t) => (t.text || '').toLowerCase().includes(q));
+        if (
+          !matchesRef &&
+          !matchesTitle &&
+          !matchesArea &&
+          !matchesSeverity &&
+          !matchesStatus &&
+          !matchesCoordinator &&
+          !matchesDept &&
+          !matchesTaskRef &&
+          !matchesTimeline
+        ) {
+          return false;
+        }
+      }
       return true;
     });
-  }, [incidents, severityFilter]);
+  }, [incidents, severityFilter, incidentSearchQuery]);
 
   // Complaints
   const complaints = state.frontDesk?.complaints ?? [];
+  const filteredComplaints = useMemo(() => {
+    return complaints.filter((c) => {
+      if (complaintSearchQuery.trim()) {
+        const q = complaintSearchQuery.toLowerCase().trim();
+        const formattedRef = formatComplaintRef(c).toLowerCase();
+        const rawRef = (c.ref || '').toLowerCase();
+        const matchesRef = formattedRef.includes(q) || rawRef.includes(q);
+        const matchesGuest = (c.guest || c.guestName || '').toLowerCase().includes(q);
+        const matchesRoom = (c.room || '').toLowerCase().includes(q) || `room ${c.room}`.toLowerCase().includes(q);
+        const matchesSummary = (c.summary || '').toLowerCase().includes(q);
+        const matchesDesc = (c.description || '').toLowerCase().includes(q);
+        const matchesDept = (c.department || c.category || '').toLowerCase().includes(q);
+        const matchesSeverity = (c.severity || '').toLowerCase().includes(q);
+        const matchesAssigned = (c.assignedTo || '').toLowerCase().includes(q);
+        const matchesRemarks = (c.responseRemarks || '').toLowerCase().includes(q);
+        const matchesStatus = (c.status || '').toLowerCase().includes(q);
+        if (
+          !matchesRef &&
+          !matchesGuest &&
+          !matchesRoom &&
+          !matchesSummary &&
+          !matchesDesc &&
+          !matchesDept &&
+          !matchesSeverity &&
+          !matchesAssigned &&
+          !matchesRemarks &&
+          !matchesStatus
+        ) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [complaints, complaintSearchQuery]);
 
   // Escalated tasks from other departments
   const escalatedTasks: WorkItem[] = useMemo(() => {
@@ -138,7 +290,10 @@ export function ExecutiveIncidentsTab({
   useEffect(() => {
     if (selectedTaskIdFromParent) {
       const match = escalatedTasks.find(
-        (t) => t.id === selectedTaskIdFromParent || t.ref === selectedTaskIdFromParent
+        (t) =>
+          t.id === selectedTaskIdFromParent ||
+          t.ref === selectedTaskIdFromParent ||
+          formatEscalatedTaskId(t) === selectedTaskIdFromParent
       );
       if (match) {
         setSelectedEscalatedTask(match);
@@ -172,7 +327,7 @@ export function ExecutiveIncidentsTab({
         };
       case 'escalations':
         return {
-          title: 'High Escalations',
+          title: 'Escalations',
           subtitle: 'Cross-department operational bottlenecks, urgent task fulfiller issues, and manager escalations.',
           icon: Siren,
           iconColor: 'text-purple-500 dark:text-purple-400',
@@ -184,7 +339,7 @@ export function ExecutiveIncidentsTab({
       default:
         return {
           title: 'Property Incidents',
-          subtitle: 'Cross-department emergency oversight, fire/safety responses, and building security command.',
+          subtitle: 'Cross-department emergency oversight, fire/safety responses, and building security command. All property incidents can be reported only by the Front Desk only; other departments report directly to Front Desk.',
           icon: ShieldAlert,
           iconColor: 'text-rose-500',
           badgeText: `${incidents.filter((i) => i.status !== 'resolved').length} Active`,
@@ -228,8 +383,87 @@ export function ExecutiveIncidentsTab({
       {/* View 1: Property Incidents */}
       {activeView === 'incidents' && (
         <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {filteredIncidents.map((incident) => {
+          {/* Front Desk Exclusive Reporting Protocol Notice */}
+          <div className="p-4 rounded-3xl border border-sky-500/20 bg-sky-500/10 dark:bg-sky-500/5 backdrop-blur-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-sky-950 dark:text-sky-200">
+            <div className="flex items-start sm:items-center gap-2.5">
+              <ShieldAlert className="h-4 w-4 text-sky-600 dark:text-sky-400 shrink-0 mt-0.5 sm:mt-0" />
+              <span>
+                <strong className="font-bold">Reporting Authority Policy:</strong> All property incidents can be reported only by the Front Desk only. All other departments, staff members, and field technicians must report incidents directly to the Front Desk.
+              </span>
+            </div>
+            <span className="shrink-0 text-[10px] font-bold font-mono px-2.5 py-1 rounded-full bg-sky-500/20 text-sky-700 dark:text-sky-300 border border-sky-500/30">
+              Front Desk Exclusive
+            </span>
+          </div>
+
+          {/* Search & Filter Controls */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4 rounded-3xl border border-white/10 bg-white/70 dark:bg-ink-900/80 backdrop-blur-xl shadow-lg">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-mist-400" />
+              <input
+                id="incident-search-input"
+                type="text"
+                value={incidentSearchQuery}
+                onChange={(e) => setIncidentSearchQuery(e.target.value)}
+                placeholder="Search incidents by title, reference, area, severity, or description..."
+                className="w-full pl-10 pr-9 py-2.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-white/80 dark:bg-ink-950/70 text-xs text-navy-950 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500 shadow-sm transition"
+              />
+              {incidentSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setIncidentSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-navy-950 dark:hover:text-white p-0.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition"
+                  title="Clear incident search"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between sm:justify-end gap-3 text-xs">
+              <div className="flex items-center gap-1.5">
+                <span className="text-slate-400 dark:text-mist-500 font-semibold">Severity:</span>
+                <select
+                  value={severityFilter}
+                  onChange={(e) => setSeverityFilter(e.target.value)}
+                  className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-ink-950/70 text-xs font-semibold text-navy-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500"
+                >
+                  <option value="all">All Severities</option>
+                  <option value="critical">Critical</option>
+                  <option value="major">Major</option>
+                  <option value="minor">Minor</option>
+                </select>
+              </div>
+
+              <span className="font-mono text-[11px] text-slate-500 dark:text-mist-400">
+                {filteredIncidents.length} of {incidents.length}
+              </span>
+            </div>
+          </div>
+
+          {filteredIncidents.length === 0 ? (
+            <div className="p-12 text-center rounded-3xl border border-dashed border-slate-200 dark:border-white/10 bg-white/40 dark:bg-ink-900/40">
+              <ShieldAlert className="h-10 w-10 text-slate-400 dark:text-mist-500 mx-auto mb-3" />
+              <h3 className="text-sm font-bold text-navy-950 dark:text-white">No property incidents found</h3>
+              <p className="text-xs text-slate-500 dark:text-mist-400 mt-1 max-w-sm mx-auto">
+                No property incidents match "{incidentSearchQuery}".
+              </p>
+              {(incidentSearchQuery || severityFilter !== 'all') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIncidentSearchQuery('');
+                    setSeverityFilter('all');
+                  }}
+                  className="mt-4 px-4 py-2 rounded-2xl bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold transition shadow-sm"
+                >
+                  Reset Filters
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              {filteredIncidents.map((incident) => {
               const isResolved = incident.status === 'resolved';
               return (
                 <div
@@ -265,6 +499,11 @@ export function ExecutiveIncidentsTab({
                       <h4 className="text-sm font-bold text-navy-950 dark:text-white group-hover:text-rose-500 dark:group-hover:text-rose-400 transition">
                         {incident.title}
                       </h4>
+                    </div>
+
+                    <div className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-mist-400">
+                      <ShieldCheck className="h-3 w-3 text-sky-500" />
+                      <span>Reported by: Front Desk</span>
                     </div>
                   </div>
 
@@ -325,12 +564,42 @@ export function ExecutiveIncidentsTab({
               );
             })}
           </div>
+          )}
         </div>
       )}
 
       {/* View 2: Guest Complaints */}
       {activeView === 'complaints' && (
         <div className="p-5 rounded-3xl border border-white/10 bg-white/70 dark:bg-ink-900/80 backdrop-blur-xl shadow-lg space-y-4">
+          {/* Search bar */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-white/[0.08]">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-mist-400" />
+              <input
+                id="complaint-search-input"
+                type="text"
+                value={complaintSearchQuery}
+                onChange={(e) => setComplaintSearchQuery(e.target.value)}
+                placeholder="Search complaints by guest, room, title, ref ID, department..."
+                className="w-full pl-10 pr-9 py-2 rounded-2xl border border-slate-200 dark:border-white/10 bg-white/80 dark:bg-ink-950/70 text-xs text-navy-950 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-sm transition"
+              />
+              {complaintSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setComplaintSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-navy-950 dark:hover:text-white p-0.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition"
+                  title="Clear complaint search"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+
+            <div className="text-xs text-slate-500 dark:text-mist-400 font-medium self-end sm:self-auto">
+              Showing <span className="font-bold text-navy-950 dark:text-white">{filteredComplaints.length}</span> of {complaints.length} complaints
+            </div>
+          </div>
+
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
@@ -345,7 +614,25 @@ export function ExecutiveIncidentsTab({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-white/[0.06] text-xs">
-                {complaints.map((c) => (
+                {filteredComplaints.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-12 text-center text-slate-400 dark:text-mist-400">
+                      <MessageSquareWarning className="h-8 w-8 mx-auto mb-2 opacity-50 text-amber-500" />
+                      <p className="font-bold text-navy-950 dark:text-white text-xs">No guest complaints found</p>
+                      <p className="text-[11px] text-slate-500 dark:text-mist-400 mt-0.5">
+                        No complaints match "{complaintSearchQuery}".
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setComplaintSearchQuery('')}
+                        className="mt-3 px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition shadow-sm"
+                      >
+                        Clear Search
+                      </button>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredComplaints.map((c) => (
                   <tr
                     key={c.id}
                     onClick={() => setSelectedComplaint(c)}
@@ -353,7 +640,7 @@ export function ExecutiveIncidentsTab({
                     title="Click complaint to view detailed information"
                   >
                     <td className="px-4 py-3 font-mono font-bold text-navy-950 dark:text-white">
-                      {c.ref}
+                      {formatComplaintRef(c)}
                     </td>
                     <td className="px-4 py-3">
                       <div className="font-bold text-navy-950 dark:text-white">Room {c.room}</div>
@@ -402,7 +689,7 @@ export function ExecutiveIncidentsTab({
                           onClick={(e) => {
                             e.stopPropagation();
                             setDirectiveModalTarget({
-                              id: c.ref,
+                              id: formatComplaintRef(c),
                               title: `Room ${c.room} Complaint (${c.guest})`,
                               type: 'complaint',
                             });
@@ -418,7 +705,7 @@ export function ExecutiveIncidentsTab({
                       </div>
                     </td>
                   </tr>
-                ))}
+                )))}
               </tbody>
             </table>
           </div>
@@ -442,9 +729,12 @@ export function ExecutiveIncidentsTab({
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-white/[0.06] text-xs">
                 {escalatedTasks.map((t) => {
+                  const formattedTaskId = formatEscalatedTaskId(t);
                   const isHighlighted = Boolean(
                     selectedTaskIdFromParent &&
-                      (t.id === selectedTaskIdFromParent || t.ref === selectedTaskIdFromParent),
+                      (t.id === selectedTaskIdFromParent ||
+                        t.ref === selectedTaskIdFromParent ||
+                        formattedTaskId === selectedTaskIdFromParent),
                   );
                   return (
                     <tr
@@ -458,7 +748,7 @@ export function ExecutiveIncidentsTab({
                       title="Click task to view elaborated details"
                     >
                       <td className="px-4 py-3 font-mono font-bold text-navy-950 dark:text-white">
-                        {t.ref || t.id}
+                        {formattedTaskId}
                         {isHighlighted && (
                           <span className="ml-2 text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400">
                             Selected
@@ -494,7 +784,7 @@ export function ExecutiveIncidentsTab({
                               e.stopPropagation();
                               setDirectiveDepartment('All departments');
                               setDirectiveModalTarget({
-                                id: t.ref || t.id,
+                                id: formatEscalatedTaskId(t),
                                 title: t.title,
                                 type: 'incident',
                               });
@@ -549,7 +839,7 @@ export function ExecutiveIncidentsTab({
                     </span>
                   </div>
                   <p className="text-xs text-slate-500 dark:text-mist-400 mt-0.5">
-                    Coordinator: <span className="font-semibold text-navy-950 dark:text-white">{selectedIncident.coordinator}</span> · Reported: <span className="font-semibold text-navy-950 dark:text-white">{selectedIncident.reportedAt}</span>
+                    Reported via: <span className="font-semibold text-navy-950 dark:text-white">Front Desk (Exclusive)</span> · Reported: <span className="font-semibold text-navy-950 dark:text-white">{selectedIncident.reportedAt}</span>
                   </p>
                 </div>
               </div>
@@ -599,8 +889,8 @@ export function ExecutiveIncidentsTab({
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
               {incidentModalTab === 'details' ? (
                 <>
-                  {/* 4 Quick Stat Badges */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                  {/* Quick Stat Badges: Coordinator & Department boxes removed */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                     <div className="p-3 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-white/[0.02]">
                       <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-mist-500 flex items-center gap-1">
                         <Building2 className="h-3 w-3 text-amber-500" /> Affected Area
@@ -611,18 +901,10 @@ export function ExecutiveIncidentsTab({
                     </div>
                     <div className="p-3 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-white/[0.02]">
                       <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-mist-500 flex items-center gap-1">
-                        <User className="h-3 w-3 text-sky-500" /> Coordinator
+                        <ShieldCheck className="h-3 w-3 text-sky-500" /> Reported By
                       </span>
-                      <div className="font-bold text-navy-950 dark:text-white mt-0.5 truncate" title={selectedIncident.coordinator}>
-                        {selectedIncident.coordinator}
-                      </div>
-                    </div>
-                    <div className="p-3 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-white/[0.02]">
-                      <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-mist-500 flex items-center gap-1">
-                        <Users className="h-3 w-3 text-purple-500" /> Department
-                      </span>
-                      <div className="font-bold text-navy-950 dark:text-white mt-0.5 truncate" title={selectedIncident.department || 'Property Operations'}>
-                        {selectedIncident.department || 'Property Operations'}
+                      <div className="font-bold text-navy-950 dark:text-white mt-0.5 truncate" title="Front Desk (Exclusive)">
+                        Front Desk (Exclusive)
                       </div>
                     </div>
                     <div className="p-3 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-white/[0.02]">
@@ -635,6 +917,17 @@ export function ExecutiveIncidentsTab({
                     </div>
                   </div>
 
+                  {/* Front Desk Exclusive Reporting Protocol Banner */}
+                  <div className="p-3.5 rounded-2xl border border-sky-500/20 bg-sky-500/10 dark:bg-sky-500/5 text-xs text-navy-950 dark:text-mist-200 flex items-start gap-2.5">
+                    <ShieldAlert className="h-4 w-4 text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" />
+                    <div className="space-y-0.5">
+                      <span className="font-bold text-sky-700 dark:text-sky-300">Front Desk Exclusive Reporting Protocol</span>
+                      <p className="text-slate-600 dark:text-mist-300 leading-relaxed">
+                        All property incidents can be reported only by the Front Desk only. All other departments, staff members, and field technicians must report incidents directly to the Front Desk for centralized triage and logging.
+                      </p>
+                    </div>
+                  </div>
+
                   {/* Incident Operational Scope & Overview */}
                   <div className="p-4 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.02] space-y-3">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-mist-400 flex items-center gap-1.5">
@@ -642,7 +935,7 @@ export function ExecutiveIncidentsTab({
                       Detailed Incident Scope & Assessment
                     </h4>
                     <p className="text-xs text-navy-950 dark:text-mist-200 leading-relaxed">
-                      Incident logged under executive property surveillance. Immediate response activated under lead coordinator <strong>{selectedIncident.coordinator}</strong> targeting <strong>{selectedIncident.affectedArea}</strong>. Containment protocols and safety mitigations are under active executive monitoring.
+                      Incident logged under executive property surveillance via Front Desk intake. Immediate response activated targeting <strong>{selectedIncident.affectedArea}</strong>. Containment protocols and safety mitigations are under active executive monitoring.
                     </p>
 
                     <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
@@ -876,7 +1169,7 @@ export function ExecutiveIncidentsTab({
                       {selectedEscalatedTask.title}
                     </h3>
                     <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-mist-300">
-                      {selectedEscalatedTask.ref || selectedEscalatedTask.id}
+                      {formatEscalatedTaskId(selectedEscalatedTask)}
                     </span>
                   </div>
                   <p className="text-xs text-slate-500 dark:text-mist-400 mt-0.5">
@@ -946,32 +1239,100 @@ export function ExecutiveIncidentsTab({
                   <History className="h-4 w-4 text-amber-500" />
                   Escalation Audit Trail & Timeline
                 </h4>
-                <div className="space-y-2.5 border-l-2 border-purple-500/30 dark:border-purple-500/20 pl-4 ml-2">
-                  {selectedEscalatedTask.history && selectedEscalatedTask.history.length > 0 ? (
-                    selectedEscalatedTask.history.map((h, i) => (
-                      <div key={i} className="relative text-xs">
-                        <div className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full bg-purple-500 border-2 border-white dark:border-ink-900" />
-                        <div className="font-mono text-[11px] text-slate-400">{h.at}</div>
-                        <div className="text-navy-950 dark:text-mist-200 font-semibold">{h.status}</div>
-                        {h.note && <div className="text-slate-500 dark:text-mist-400 mt-0.5">{h.note}</div>}
+
+                {/* Complete Workflow Chain Visual Progression */}
+                <div className="p-3.5 rounded-2xl bg-gradient-to-r from-purple-500/10 via-amber-500/10 to-rose-500/10 border border-purple-500/20 dark:border-purple-500/30">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-mist-400 mb-2 flex items-center justify-between">
+                    <span>Complete Escalation Workflow Progression</span>
+                    <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">Active Oversight</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs font-semibold overflow-x-auto pb-1">
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/30 whitespace-nowrap">
+                      <UserCheck className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
+                      <span>Department Supervisor / Dispatcher</span>
+                    </div>
+                    <ArrowRight className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 whitespace-nowrap">
+                      <ShieldCheck className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                      <span>Department Manager</span>
+                    </div>
+                    <ArrowRight className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30 whitespace-nowrap font-bold">
+                      <Sparkles className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
+                      <span>General Manager</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Audit Trail Timeline Stages */}
+                <div className="space-y-3.5 border-l-2 border-purple-500/30 dark:border-purple-500/20 pl-4 ml-2 mt-4">
+                  {/* Stage 1: Department Supervisor / Dispatcher */}
+                  <div className="relative text-xs space-y-1">
+                    <div className="absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full bg-purple-500 border-2 border-white dark:border-ink-900" />
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="font-mono text-[11px] text-slate-400">
+                        {selectedEscalatedTask.createdAt || '08:30'}
                       </div>
-                    ))
-                  ) : (
-                    <>
-                      <div className="relative text-xs">
-                        <div className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full bg-purple-500 border-2 border-white dark:border-ink-900" />
-                        <div className="font-mono text-[11px] text-slate-400">{selectedEscalatedTask.createdAt || 'Today 08:30'}</div>
-                        <div className="text-navy-950 dark:text-mist-200 font-semibold">Logged by Dispatch Coordinator</div>
-                        <div className="text-slate-500 dark:text-mist-400 mt-0.5">Assigned to {selectedEscalatedTask.owner || 'field operations team'} with priority {selectedEscalatedTask.priority || 'VIP'}.</div>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-600 dark:text-purple-300 border border-purple-500/20">
+                        Stage 1 · Department Supervisor / Dispatcher
+                      </span>
+                    </div>
+                    <div className="text-navy-950 dark:text-mist-200 font-bold">
+                      Intake, Triage & Blocker Flagged
+                    </div>
+                    <div className="text-slate-600 dark:text-mist-400 leading-relaxed">
+                      {selectedEscalatedTask.escalationReason ||
+                        (selectedEscalatedTask.history?.[0]?.note ??
+                          `Task initiated and triaged by ${getTaskDepartmentDisplay(selectedEscalatedTask)} Dispatcher. Field supervisor flagged an operational blocker requiring department manager attention.`)}
+                    </div>
+                    <div className="text-[11px] font-mono text-slate-400 dark:text-mist-500">
+                      Assigned: {selectedEscalatedTask.fulfillerName || selectedEscalatedTask.owner || 'Department Field Team'}
+                    </div>
+                  </div>
+
+                  {/* Stage 2: Department Manager */}
+                  <div className="relative text-xs space-y-1">
+                    <div className="absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full bg-amber-500 border-2 border-white dark:border-ink-900" />
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="font-mono text-[11px] text-slate-400">
+                        {selectedEscalatedTask.createdAt ? `${selectedEscalatedTask.createdAt} (+30m)` : '09:15'}
                       </div>
-                      <div className="relative text-xs">
-                        <div className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full bg-amber-500 border-2 border-white dark:border-ink-900" />
-                        <div className="font-mono text-[11px] text-slate-400">Today 10:15</div>
-                        <div className="text-navy-950 dark:text-mist-200 font-semibold">Escalated to General Manager Oversight</div>
-                        <div className="text-slate-500 dark:text-mist-400 mt-0.5">Operational bottleneck or SLA threshold approached. Requires GM visibility.</div>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/20">
+                        Stage 2 · Department Manager
+                      </span>
+                    </div>
+                    <div className="text-navy-950 dark:text-mist-200 font-bold">
+                      Operational Review & Executive Escalation
+                    </div>
+                    <div className="text-slate-600 dark:text-mist-400 leading-relaxed">
+                      {selectedEscalatedTask.requestedAction ||
+                        'Department Manager evaluated capacity and resolution thresholds. Local resolution constraints exceeded, escalating directly to the General Manager for executive oversight.'}
+                    </div>
+                    {selectedEscalatedTask.internalNotes && (
+                      <div className="text-[11px] text-amber-700 dark:text-amber-300/80 bg-amber-500/10 p-2 rounded-xl border border-amber-500/20">
+                        <strong>Manager Note:</strong> {selectedEscalatedTask.internalNotes}
                       </div>
-                    </>
-                  )}
+                    )}
+                  </div>
+
+                  {/* Stage 3: General Manager */}
+                  <div className="relative text-xs space-y-1">
+                    <div className="absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full bg-rose-500 border-2 border-white dark:border-ink-900 ring-2 ring-rose-500/20" />
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="font-mono text-[11px] text-rose-600 dark:text-rose-400 font-bold">
+                        Active · Executive Command
+                      </div>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-300 border border-rose-500/20">
+                        Stage 3 · General Manager
+                      </span>
+                    </div>
+                    <div className="text-navy-950 dark:text-mist-200 font-bold">
+                      General Manager Executive Governance & Directives
+                    </div>
+                    <div className="text-slate-600 dark:text-mist-400 leading-relaxed">
+                      Under direct General Manager surveillance. Executive directive authority and cross-department resource mobilization active.
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -979,7 +1340,7 @@ export function ExecutiveIncidentsTab({
             {/* Modal Footer */}
             <div className="p-4 border-t border-slate-200 dark:border-white/10 bg-slate-50/80 dark:bg-ink-950/80 flex items-center justify-between">
               <span className="text-xs text-slate-500 dark:text-mist-400">
-                Ref: <strong className="font-mono text-navy-950 dark:text-white">{selectedEscalatedTask.ref || selectedEscalatedTask.id}</strong>
+                Ref: <strong className="font-mono text-navy-950 dark:text-white">{formatEscalatedTaskId(selectedEscalatedTask)}</strong>
               </span>
 
               <div className="flex items-center gap-2">
@@ -990,7 +1351,7 @@ export function ExecutiveIncidentsTab({
                     const t = selectedEscalatedTask;
                     setSelectedEscalatedTask(null);
                     setDirectiveModalTarget({
-                      id: t.ref || t.id,
+                      id: formatEscalatedTaskId(t),
                       title: t.title,
                       type: 'incident',
                     });
@@ -1041,7 +1402,7 @@ export function ExecutiveIncidentsTab({
                       {selectedComplaint.summary}
                     </h3>
                     <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-mist-300">
-                      {selectedComplaint.ref}
+                      {formatComplaintRef(selectedComplaint)}
                     </span>
                   </div>
                   <p className="text-xs text-slate-500 dark:text-mist-400 mt-0.5">
@@ -1190,7 +1551,7 @@ export function ExecutiveIncidentsTab({
             {/* Modal Footer */}
             <div className="p-4 border-t border-slate-200 dark:border-white/10 bg-slate-50/80 dark:bg-ink-950/80 flex items-center justify-between">
               <span className="text-xs text-slate-500 dark:text-mist-400">
-                Ref: <strong className="font-mono text-navy-950 dark:text-white">{selectedComplaint.ref}</strong>
+                Ref: <strong className="font-mono text-navy-950 dark:text-white">{formatComplaintRef(selectedComplaint)}</strong>
               </span>
 
               <div className="flex items-center gap-2">
@@ -1201,7 +1562,7 @@ export function ExecutiveIncidentsTab({
                     const c = selectedComplaint;
                     setSelectedComplaint(null);
                     setDirectiveModalTarget({
-                      id: c.ref,
+                      id: formatComplaintRef(c),
                       title: `Room ${c.room} Complaint (${c.guest})`,
                       type: 'complaint',
                     });

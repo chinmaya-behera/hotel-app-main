@@ -451,10 +451,12 @@ export function SecurityApp() {
       {/* ---------------- LEFT SIDEBAR (WORKSPACE) ---------------- */}
       <aside className="dm-sidebar" id="security-navigation">
         <div className="dm-sidebar-brand">
-          <span className="dm-monogram">H</span>
+          <div className="dm-monogram">
+            <Shield size={20} />
+          </div>
           <div>
-            <strong>THE GRAND ADP</strong>
-            <small>Security Workspace</small>
+            <strong>THE GRAND AZURE</strong>
+            <small>Safety &amp; Security</small>
           </div>
           <button
             ref={navigationClose}
@@ -542,14 +544,17 @@ export function SecurityApp() {
             >
               <Menu size={20} />
             </button>
-            <span>Safety &amp; Security</span>
-            <ChevronRight size={14} />
+            <span className="flex items-center gap-1.5 font-medium">
+              <Shield size={15} className="text-[var(--dm-muted)]" />
+              Safety &amp; Security
+            </span>
+            <ChevronRight size={14} className="text-[var(--dm-muted)]" />
             <strong>{title}</strong>
           </div>
 
           <div className="dm-topline-tools">
             <span className="dm-live">
-              <i /> Department access
+              <i /> Channel 4 · Patrol Active
             </span>
 
             {/* Sound toggle button */}
@@ -576,16 +581,18 @@ export function SecurityApp() {
             <button
               className="dm-icon-button"
               aria-label={`Notifications, ${criticalItems.length} alerts`}
+              title="Urgent Alerts"
               onClick={() => navigate('notifications')}
             >
-              <Bell size={19} />
+              <Bell size={18} />
               {criticalItems.length > 0 && <b>{criticalItems.length}</b>}
             </button>
 
             {/* Profile Avatar */}
             <button
-              className="dm-avatar"
+              className="dm-avatar cursor-pointer hover:border-[var(--dm-ink)] transition-colors"
               aria-label="View security officer profile"
+              title="Inspector Roy (Safety Lead)"
               onClick={() => navigate('profile')}
             >
               IR
@@ -596,41 +603,53 @@ export function SecurityApp() {
         {/* Page Hero Header */}
         <div className="dm-page-heading">
           <div>
-            <p className="dm-eyebrow">DEPARTMENT OPERATIONS</p>
-            <h1 className="gsap-hero-title">{tab === 'overview' ? 'Safety & Security overview' : title}</h1>
-            <p className="gsap-hero-sub">Rapid emergency response, patrol coverage, and guest safety facilities</p>
+            <p className="dm-eyebrow">HOTEL SECURITY COMMAND</p>
+            <h1 className="gsap-hero-title">{tab === 'overview' ? 'Safety & Security Overview' : title}</h1>
+            <p className="gsap-hero-sub">
+              {tab === 'overview'
+                ? 'Rapid emergency dispatch, perimeter patrol coverage, and guest safety facilities'
+                : tab === 'incidents'
+                  ? 'Real-time telemetry, panic alarms, and active responder dispatch status'
+                  : tab === 'alerts'
+                    ? 'Broadcast operational alerts with photo evidence to Duty Manager, Front Desk, and Guests'
+                    : 'Emergency playbooks, patrol assignments, and escalation protocols'}
+            </p>
           </div>
 
           <div className="dm-heading-actions">
-            {tab === 'overview' ? (
-              <button className="dm-primary" onClick={() => setShowLogModal(true)}>
-                <ClipboardCheck size={17} /> + Log incident
-              </button>
-            ) : (
-              <span className="dm-date">
-                <CalendarDays size={16} />
-                {currentDateFormatted}
-              </span>
-            )}
+            <span className="dm-date">
+              <CalendarDays size={15} />
+              {currentDateFormatted}
+            </span>
+            <button className="dm-primary" onClick={() => setShowLogModal(true)}>
+              <ClipboardCheck size={16} />
+              <span>+ Log Incident</span>
+            </button>
           </div>
         </div>
 
         {/* ===================== TAB: OVERVIEW ===================== */}
         {tab === 'overview' && (
           <>
-            {/* Meta Row: Date & Department Security Lock */}
+            {/* Meta Row: Shift, Radio & Access Level */}
             <div className="dm-overview-meta gsap-meta">
-              <span>
-                <CalendarDays size={15} />
-                {currentDateFormatted}
-              </span>
-              <span>
-                <LockKeyhole size={15} />
-                Safety &amp; Security only
+              <div className="flex items-center gap-4 flex-wrap">
+                <span className="flex items-center gap-2">
+                  <Radio size={14} className="text-[var(--dm-muted)]" />
+                  Frequency: <strong>CH-4 Guard Ops</strong>
+                </span>
+                <span className="flex items-center gap-2">
+                  <Activity size={14} className="text-[var(--dm-muted)]" />
+                  Patrol Status: <strong>Night Shift Active</strong>
+                </span>
+              </div>
+              <span className="flex items-center gap-2">
+                <LockKeyhole size={14} className="text-[var(--dm-muted)]" />
+                Level 4 Security Clearance Required
               </span>
             </div>
 
-            {/* 4 Top KPI Cards in Luxury Card Boxes */}
+            {/* 4 Top KPI Cards */}
             <div className="dm-kpis">
               {kpis.map((k) => (
                 <button
@@ -638,7 +657,12 @@ export function SecurityApp() {
                   className="dm-kpi cursor-pointer"
                   onClick={() => navigate(k.next)}
                 >
-                  <span className="dm-kpi-label">{k.label}</span>
+                  <div className="flex items-center justify-between w-full">
+                    <span className="dm-kpi-label">{k.label}</span>
+                    <span className="dm-kpi-icon">
+                      <k.icon size={16} />
+                    </span>
+                  </div>
                   <strong className="gsap-kpi-num">{k.value}</strong>
                   <span className="dm-kpi-bottom">
                     <small>{k.detail}</small>
@@ -648,7 +672,7 @@ export function SecurityApp() {
               ))}
             </div>
 
-            {/* Middle Grid: Left 8 cols, Right 4 cols */}
+            {/* Middle Grid: Left 1.6fr, Right 1fr */}
             <div className="dm-overview-grid">
               {/* Left Column */}
               <div className="dm-grid-stack">
@@ -670,18 +694,33 @@ export function SecurityApp() {
                   <div className="dm-attention-list">
                     {items.slice(0, 3).map((item) => (
                       <article key={item.id} className="dm-attention-row">
-                        <div>
-                          <strong>{item.title}</strong>
-                          <small>
-                            Security · Level {item.priority === 'critical' ? '4' : '3'} · {item.status}
-                          </small>
-                          <span className="dm-status urgent">Needs review</span>
+                        <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                          <span className="dm-attention-icon">
+                            <AlertTriangle
+                              size={18}
+                              className={item.priority === 'critical' ? 'text-[var(--dm-danger)]' : 'text-amber-600'}
+                            />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <strong className="truncate cursor-pointer hover:underline" onClick={() => setSelectedIncident(item)}>
+                                {item.title}
+                              </strong>
+                              <span className={`dm-status ${item.priority === 'critical' || item.priority === 'urgent' ? 'urgent' : ''}`}>
+                                Level {item.priority === 'critical' ? '4' : '3'}
+                              </span>
+                            </div>
+                            <small>
+                              Security · {item.room ? `Zone ${item.room}` : 'Property Wide'} · {item.status}
+                            </small>
+                          </div>
                         </div>
                         <button
-                          className="dm-small-button"
+                          className="dm-small-button shrink-0"
                           onClick={() => setSelectedIncident(item)}
                         >
-                          Review &rarr;
+                          <span>Review</span>
+                          <ArrowRight size={13} />
                         </button>
                       </article>
                     ))}
@@ -709,15 +748,24 @@ export function SecurityApp() {
                   </div>
 
                   <article className="dm-attention-row dm-inspection-row">
-                    <div>
-                      <strong>402 Perimeter &amp; Service Corridors sweep</strong>
-                      <small>Awaiting supervisor assignment</small>
+                    <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                      <span className="dm-attention-icon">
+                        <ClipboardCheck size={18} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <strong>402 Perimeter &amp; Service Corridors sweep</strong>
+                          <span className="dm-status">Routine Check</span>
+                        </div>
+                        <small>Awaiting supervisor assignment · Level 4 West Wing</small>
+                      </div>
                     </div>
                     <button
-                      className="dm-small-button"
+                      className="dm-small-button shrink-0"
                       onClick={() => openModal({ kind: 'inspection', sector: 'Sector 402' })}
                     >
-                      Assign &gt;
+                      <span>Assign</span>
+                      <ArrowRight size={13} />
                     </button>
                   </article>
                 </section>
@@ -727,9 +775,11 @@ export function SecurityApp() {
               <div className="dm-grid-stack">
                 {/* 1. Shift Snapshot Card */}
                 <section className="dm-panel dm-shift-card gsap-panel">
-                  <div className="dm-section-title">
-                    <h2 className="gsap-section-title">Shift snapshot</h2>
-                    <span className="dm-shift-label">Night shift</span>
+                  <div className="dm-panel-heading" style={{ padding: 0, marginBottom: '16px' }}>
+                    <div className="dm-section-title">
+                      <h2 className="gsap-section-title">Shift Snapshot</h2>
+                      <span className="dm-shift-label">Night Shift</span>
+                    </div>
                   </div>
 
                   <div className="dm-completion">
@@ -737,28 +787,28 @@ export function SecurityApp() {
                       85<span>%</span>
                     </strong>
                     <div>
-                      <b>Patrol completion</b>
-                      <small>3 of 4 sectors covered</small>
+                      <b>Patrol Completion</b>
+                      <small>3 of 4 property sectors fully secured</small>
                     </div>
                   </div>
 
                   <progress max={100} value={85} />
 
                   <div className="dm-snapshot-details">
-                    <span>
-                      Team on duty
-                      <strong>{onDutyCount}</strong>
-                    </span>
-                    <span>
-                      Open incidents
-                      <strong>{activeIncidents.length || 5}</strong>
-                    </span>
+                    <div className="p-3.5 rounded-xl border border-[var(--dm-line)] bg-[var(--dm-paper)] flex flex-col gap-1 shadow-sm">
+                      <span className="text-xs text-[var(--dm-muted)] font-medium">Team on duty</span>
+                      <strong className="text-xl font-bold">{onDutyCount} Officers</strong>
+                    </div>
+                    <div className="p-3.5 rounded-xl border border-[var(--dm-line)] bg-[var(--dm-paper)] flex flex-col gap-1 shadow-sm">
+                      <span className="text-xs text-[var(--dm-muted)] font-medium">Open incidents</span>
+                      <strong className="text-xl font-bold">{activeIncidents.length || 5} Active</strong>
+                    </div>
                   </div>
 
                   <div className="dm-shift-actions">
-                    <button className="dm-secondary" onClick={() => openModal({ kind: 'handover' })}>
+                    <button className="dm-secondary w-full" onClick={() => openModal({ kind: 'handover' })}>
                       <Send size={14} />
-                      <span>Prepare handover</span>
+                      <span>Prepare Shift Handover</span>
                       <ArrowUpRight size={14} />
                     </button>
                   </div>
@@ -767,18 +817,28 @@ export function SecurityApp() {
                 {/* 2. Policies & SOPs / Department Tools Card */}
                 <section className="dm-panel dm-desk-summary gsap-panel">
                   <div className="dm-desk-card-label">
-                    <span>Department tools</span>
+                    <BookOpen size={15} />
+                    <span>Quick Response Protocols</span>
                   </div>
                   <h2 className="gsap-section-title">Policies &amp; SOPs</h2>
-                  <p>Emergency playbooks &amp; response protocols</p>
-                  <small>Stay ahead of critical incidents and keep emergency protocols ready.</small>
-                  <div style={{ marginTop: 'auto', paddingTop: '18px' }}>
+                  <p>Emergency Playbooks &amp; Escalation Protocols</p>
+                  <div className="flex flex-col gap-2 my-4">
+                    <div className="flex items-center justify-between p-2.5 rounded-lg border border-[var(--dm-line)] bg-[var(--dm-paper)] text-xs">
+                      <span className="font-medium text-[var(--dm-ink)]">Protocol E-1: Panic Alarm</span>
+                      <span className="dm-status urgent text-[10px]">90s Target</span>
+                    </div>
+                    <div className="flex items-center justify-between p-2.5 rounded-lg border border-[var(--dm-line)] bg-[var(--dm-paper)] text-xs">
+                      <span className="font-medium text-[var(--dm-ink)]">Protocol F-4: Fire &amp; Smoke Sweep</span>
+                      <span className="dm-status text-[10px]">Facilities</span>
+                    </div>
+                  </div>
+                  <div style={{ marginTop: 'auto', paddingTop: '8px' }}>
                     <button
-                      className="dm-primary"
-                      style={{ width: '100%' }}
+                      className="dm-primary w-full"
                       onClick={() => navigate('policies')}
                     >
-                      Open emergency playbooks &rarr;
+                      <span>Open Emergency Playbooks</span>
+                      <ArrowRight size={14} />
                     </button>
                   </div>
                 </section>
@@ -790,7 +850,7 @@ export function SecurityApp() {
               <div className="dm-panel-heading">
                 <div>
                   <h2 className="gsap-section-title">Active incidents</h2>
-                  <p>The latest work across safety &amp; security.</p>
+                  <p>Live dispatched cases and telemetry reports across property.</p>
                 </div>
                 <button className="dm-text-button" onClick={() => navigate('incidents')}>
                   All requests <ArrowUpRight size={14} />
@@ -801,72 +861,88 @@ export function SecurityApp() {
                 <table className="dm-table">
                   <thead>
                     <tr>
-                      <th>REQUEST / LOCATION</th>
-                      <th>OWNER</th>
+                      <th>INCIDENT / LOCATION</th>
+                      <th>ASSIGNED RESPONDER</th>
                       <th>PRIORITY</th>
                       <th>STATUS</th>
-                      <th>FOLLOW-UP</th>
+                      <th style={{ textAlign: 'right' }}>ACTION</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedItems.map((item) => (
-                      <tr key={item.id}>
-                        <td>
-                          <div className="flex items-center gap-3">
-                            {getIncidentPhoto(item) ? (
-                              <div
-                                onClick={() => setSelectedIncident(item)}
-                                className="relative w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-[var(--dm-line)] cursor-pointer group shadow-sm bg-stone-900"
-                                title="Click to view incident photo & details"
-                              >
-                                <img
-                                  src={getIncidentPhoto(item)!}
-                                  alt={item.title}
-                                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200"
-                                />
-                                <span className="absolute bottom-0 right-0 p-0.5 bg-black/75 text-white rounded-tl">
-                                  <Camera size={10} />
-                                </span>
+                    {sortedItems.map((item) => {
+                      const photo = getIncidentPhoto(item);
+                      return (
+                        <tr key={item.id}>
+                          <td>
+                            <div className="flex items-center gap-3.5">
+                              {photo ? (
+                                <div
+                                  onClick={() => setSelectedIncident(item)}
+                                  className="relative w-11 h-11 rounded-lg overflow-hidden shrink-0 border border-[var(--dm-line)] cursor-pointer group shadow-sm bg-[var(--dm-surface)]"
+                                  title="Click to view incident photo & details"
+                                >
+                                  <img
+                                    src={photo}
+                                    alt={item.title}
+                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200"
+                                  />
+                                  <span className="absolute bottom-0 right-0 p-0.5 bg-black/75 text-white rounded-tl">
+                                    <Camera size={10} />
+                                  </span>
+                                </div>
+                              ) : (
+                                <div
+                                  onClick={() => setSelectedIncident(item)}
+                                  className="w-11 h-11 rounded-lg shrink-0 border border-[var(--dm-line)] bg-[var(--dm-surface)] flex items-center justify-center text-[var(--dm-muted)] cursor-pointer hover:border-[var(--dm-accent)] transition-colors"
+                                  title="View incident details"
+                                >
+                                  <Shield size={18} />
+                                </div>
+                              )}
+                              <div className="min-w-0">
+                                <strong
+                                  className="cursor-pointer hover:underline block truncate text-sm"
+                                  onClick={() => setSelectedIncident(item)}
+                                >
+                                  {item.title}
+                                </strong>
+                                <small className="text-[var(--dm-muted)] block text-xs">
+                                  {item.ref || item.id} {item.room ? `· Zone ${item.room}` : ''}
+                                </small>
                               </div>
-                            ) : null}
-                            <div className="min-w-0">
-                              <strong
-                                className="cursor-pointer hover:underline block truncate"
-                                onClick={() => setSelectedIncident(item)}
-                              >
-                                {item.title}
-                              </strong>
-                              <small className="text-[var(--dm-muted)] block">
-                                {item.ref || item.id} {item.room ? `· ${item.room}` : ''}
-                              </small>
                             </div>
-                          </div>
-                        </td>
-                        <td>{item.assignee || 'Awaiting assignment'}</td>
-                        <td>
-                          <span
-                            className={
-                              item.priority === 'critical' || item.priority === 'urgent'
-                                ? 'dm-status urgent'
-                                : 'dm-status'
-                            }
-                          >
-                            {item.priority || 'Normal'}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={statusClass(item.status)}>{item.status}</span>
-                        </td>
-                        <td>
-                          <button
-                            className="dm-text-button font-semibold"
-                            onClick={() => setSelectedIncident(item)}
-                          >
-                            Review &gt;
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td>
+                            <span className="font-medium text-xs">
+                              {item.assignee || <span className="text-[var(--dm-muted)] italic">Awaiting assignment</span>}
+                            </span>
+                          </td>
+                          <td>
+                            <span
+                              className={
+                                item.priority === 'critical' || item.priority === 'urgent'
+                                  ? 'dm-status urgent'
+                                  : 'dm-status'
+                              }
+                            >
+                              {item.priority || 'Normal'}
+                            </span>
+                          </td>
+                          <td>
+                            <span className={statusClass(item.status)}>{item.status}</span>
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            <button
+                              className="dm-small-button font-medium"
+                              onClick={() => setSelectedIncident(item)}
+                            >
+                              <span>Review</span>
+                              <ArrowRight size={13} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -876,39 +952,51 @@ export function SecurityApp() {
 
         {/* ===================== TAB: INCIDENT MONITORING ===================== */}
         {tab === 'incidents' && (
-          <section className="dm-panel">
+          <section className="dm-panel gsap-panel">
             <div className="dm-panel-heading">
               <div>
-                <h2>Incident Monitoring</h2>
-                <p>Filter, search, and inspect live security dispatches and alarms across the property.</p>
+                <h2 className="gsap-section-title">Incident Monitoring &amp; Dispatch</h2>
+                <p>Filter, search, and inspect live security dispatches, telemetry alarms, and responder status across property.</p>
               </div>
               <div className="dm-heading-actions">
                 <button className="dm-primary" onClick={() => setShowLogModal(true)}>
-                  + Log incident
+                  <ClipboardCheck size={16} />
+                  <span>+ Log Incident</span>
                 </button>
               </div>
             </div>
 
-            <div className="dm-filter-bar" style={{ display: 'flex', gap: '12px', padding: '16px 24px', borderBottom: '1px solid var(--dm-line)' }}>
-              <div style={{ position: 'relative', flex: 1 }}>
-                <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--dm-muted)' }} />
-                <input
-                  type="text"
-                  placeholder="Search incidents by room, title, responder or reference..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  style={{ width: '100%', padding: '8px 12px 8px 36px', borderRadius: '7px', border: '1px solid var(--dm-line)', background: 'var(--dm-surface)', color: 'var(--dm-ink)', fontSize: '13px' }}
-                />
+            <div className="p-4 sm:p-5 border-b border-[var(--dm-line)] bg-[var(--dm-surface)] flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3 flex-1 min-w-[280px]">
+                <div className="relative flex-1">
+                  <Search
+                    size={16}
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--dm-muted)]"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Search incidents by room, title, responder or reference..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 rounded-xl text-xs font-medium border border-[var(--dm-line)] bg-[var(--dm-paper)] text-[var(--dm-ink)] placeholder:text-[var(--dm-muted)] focus:outline-none focus:border-[var(--dm-accent)] transition-colors"
+                  />
+                </div>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="px-3.5 py-2 rounded-xl text-xs font-medium border border-[var(--dm-line)] bg-[var(--dm-paper)] text-[var(--dm-ink)] cursor-pointer focus:outline-none focus:border-[var(--dm-accent)]"
+                >
+                  <option value="all">All Statuses ({items.length})</option>
+                  <option value="open">Active Only ({activeIncidents.length})</option>
+                  <option value="resolved">Resolved Only ({items.length - activeIncidents.length})</option>
+                </select>
               </div>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                style={{ padding: '8px 12px', borderRadius: '7px', border: '1px solid var(--dm-line)', background: 'var(--dm-paper)', color: 'var(--dm-ink)', fontSize: '13px' }}
-              >
-                <option value="all">All statuses</option>
-                <option value="open">Active only</option>
-                <option value="resolved">Resolved only</option>
-              </select>
+
+              <div className="flex items-center gap-2 text-xs text-[var(--dm-muted)] font-medium">
+                <span>Showing:</span>
+                <strong className="text-[var(--dm-ink)] font-bold">{visibleIncidents.length}</strong>
+                <span>of {items.length} records</span>
+              </div>
             </div>
 
             <div className="dm-table-wrap">
@@ -916,78 +1004,98 @@ export function SecurityApp() {
                 <thead>
                   <tr>
                     <th>INCIDENT / LOCATION</th>
-                    <th>RESPONDER</th>
+                    <th>ASSIGNED RESPONDER</th>
                     <th>PRIORITY</th>
                     <th>STATUS</th>
-                    <th>FOLLOW-UP</th>
+                    <th style={{ textAlign: 'right' }}>ACTION</th>
                   </tr>
                 </thead>
                 <tbody>
                   {visibleIncidents.length === 0 ? (
                     <tr>
-                      <td colSpan={5} style={{ textAlign: 'center', padding: '36px', color: 'var(--dm-muted)' }}>
-                        No incidents match the search criteria.
+                      <td colSpan={5} style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--dm-muted)' }}>
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <CheckCheck size={28} className="text-[var(--dm-muted)]" />
+                          <p className="font-semibold text-sm text-[var(--dm-ink)]">No incidents match the search criteria</p>
+                          <small className="text-xs text-[var(--dm-muted)]">Try adjusting your keyword or status filter.</small>
+                        </div>
                       </td>
                     </tr>
                   ) : (
-                    visibleIncidents.map((item) => (
-                      <tr key={item.id}>
-                        <td>
-                          <div className="flex items-center gap-3">
-                            {getIncidentPhoto(item) ? (
-                              <div
-                                onClick={() => setSelectedIncident(item)}
-                                className="relative w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-[var(--dm-line)] cursor-pointer group shadow-sm bg-stone-900"
-                                title="Click to view incident photo & details"
-                              >
-                                <img
-                                  src={getIncidentPhoto(item)!}
-                                  alt={item.title}
-                                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200"
-                                />
-                                <span className="absolute bottom-0 right-0 p-0.5 bg-black/75 text-white rounded-tl">
-                                  <Camera size={10} />
-                                </span>
+                    visibleIncidents.map((item) => {
+                      const photo = getIncidentPhoto(item);
+                      return (
+                        <tr key={item.id}>
+                          <td>
+                            <div className="flex items-center gap-3.5">
+                              {photo ? (
+                                <div
+                                  onClick={() => setSelectedIncident(item)}
+                                  className="relative w-11 h-11 rounded-lg overflow-hidden shrink-0 border border-[var(--dm-line)] cursor-pointer group shadow-sm bg-[var(--dm-surface)]"
+                                  title="Click to view incident photo & details"
+                                >
+                                  <img
+                                    src={photo}
+                                    alt={item.title}
+                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200"
+                                  />
+                                  <span className="absolute bottom-0 right-0 p-0.5 bg-black/75 text-white rounded-tl">
+                                    <Camera size={10} />
+                                  </span>
+                                </div>
+                              ) : (
+                                <div
+                                  onClick={() => setSelectedIncident(item)}
+                                  className="w-11 h-11 rounded-lg shrink-0 border border-[var(--dm-line)] bg-[var(--dm-surface)] flex items-center justify-center text-[var(--dm-muted)] cursor-pointer hover:border-[var(--dm-accent)] transition-colors"
+                                  title="View incident details"
+                                >
+                                  <Shield size={18} />
+                                </div>
+                              )}
+                              <div className="min-w-0">
+                                <strong
+                                  className="cursor-pointer hover:underline block truncate text-sm"
+                                  onClick={() => setSelectedIncident(item)}
+                                >
+                                  {item.title}
+                                </strong>
+                                <small className="text-[var(--dm-muted)] block text-xs">
+                                  {item.ref || item.id} {item.room ? `· Zone ${item.room}` : ''}
+                                </small>
                               </div>
-                            ) : null}
-                            <div className="min-w-0">
-                              <strong
-                                className="cursor-pointer hover:underline block truncate"
-                                onClick={() => setSelectedIncident(item)}
-                              >
-                                {item.title}
-                              </strong>
-                              <small className="text-[var(--dm-muted)] block">
-                                {item.ref || item.id} {item.room ? `· ${item.room}` : ''}
-                              </small>
                             </div>
-                          </div>
-                        </td>
-                        <td>{item.assignee || 'Awaiting assignment'}</td>
-                        <td>
-                          <span
-                            className={
-                              item.priority === 'critical' || item.priority === 'urgent'
-                                ? 'dm-status urgent'
-                                : 'dm-status'
-                            }
-                          >
-                            {item.priority || 'Normal'}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={statusClass(item.status)}>{item.status}</span>
-                        </td>
-                        <td>
-                          <button
-                            className="dm-text-button font-semibold"
-                            onClick={() => setSelectedIncident(item)}
-                          >
-                            Review &gt;
-                          </button>
-                        </td>
-                      </tr>
-                    ))
+                          </td>
+                          <td>
+                            <span className="font-medium text-xs">
+                              {item.assignee || <span className="text-[var(--dm-muted)] italic">Awaiting assignment</span>}
+                            </span>
+                          </td>
+                          <td>
+                            <span
+                              className={
+                                item.priority === 'critical' || item.priority === 'urgent'
+                                  ? 'dm-status urgent'
+                                  : 'dm-status'
+                              }
+                            >
+                              {item.priority || 'Normal'}
+                            </span>
+                          </td>
+                          <td>
+                            <span className={statusClass(item.status)}>{item.status}</span>
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            <button
+                              className="dm-small-button font-medium"
+                              onClick={() => setSelectedIncident(item)}
+                            >
+                              <span>Review</span>
+                              <ArrowRight size={13} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -995,173 +1103,243 @@ export function SecurityApp() {
           </section>
         )}
 
-
-
         {/* ===================== TAB: SAFETY ALERTS & BROADCASTS ===================== */}
         {tab === 'alerts' && <SecurityAlertsTab />}
 
         {/* ===================== TAB: ESCALATIONS & RECOVERY ===================== */}
         {tab === 'recovery' && (
-          <section className="dm-panel">
+          <section className="dm-panel gsap-panel">
             <div className="dm-panel-heading">
               <div>
-                <h2>Supervisor Escalations &amp; Security Recovery</h2>
-                <p>Cases escalated to executive management or awaiting GM directives.</p>
+                <h2 className="gsap-section-title">Supervisor Escalations &amp; Security Recovery</h2>
+                <p>Critical incidents escalated to executive management or awaiting General Manager directives.</p>
               </div>
             </div>
 
             {items.filter((i) => i.priority === 'critical' || /escalat/i.test(i.status)).length === 0 ? (
-              <p className="dm-empty" style={{ padding: '36px', textAlign: 'center', color: 'var(--dm-muted)' }}>
-                No active escalations. All security events are within standard operating protocols.
-              </p>
+              <div className="p-12 text-center" style={{ color: 'var(--dm-muted)' }}>
+                <CheckCheck size={32} className="mx-auto mb-3 text-[var(--dm-success)]" />
+                <h3 className="text-sm font-bold text-[var(--dm-ink)]">No Active Escalations</h3>
+                <p className="text-xs text-[var(--dm-muted)] mt-1">All security events are within standard operating protocols.</p>
+              </div>
             ) : (
-              items
-                .filter((i) => i.priority === 'critical' || /escalat/i.test(i.status))
-                .map((item) => (
-                  <article className="dm-record" key={item.id}>
-                    <div className="dm-record-title">
-                      <h3>{item.title}</h3>
-                      <span className="dm-status urgent">{item.priority}</span>
-                    </div>
-                    <p>{item.meta || 'Requires security supervisor intervention and GM briefing.'}</p>
-                    <small>
-                      {item.ref || item.id} · Location: {item.room || 'General Property'} · Status: {item.status}
-                    </small>
-                    <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
-                      <button
-                        className="dm-small-button"
-                        onClick={() => setSelectedIncident(item)}
-                      >
-                        Review details &rarr;
-                      </button>
-                      <button
-                        className="dm-secondary"
-                        onClick={() => openModal({ kind: 'recovery', task: item })}
-                      >
-                        Record decision
-                      </button>
-                    </div>
-                  </article>
-                ))
+              <div className="p-6 space-y-4">
+                {items
+                  .filter((i) => i.priority === 'critical' || /escalat/i.test(i.status))
+                  .map((item) => (
+                    <article
+                      key={item.id}
+                      className="p-5 rounded-xl border border-[var(--dm-line)] bg-[var(--dm-paper)] hover:bg-[var(--warm-soft)] transition-colors shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4"
+                    >
+                      <div className="min-w-0 flex-1 space-y-1.5">
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                          <span className="dm-status urgent font-bold text-xs uppercase tracking-wide">
+                            {item.priority || 'Critical'}
+                          </span>
+                          <h3 className="text-sm font-bold text-[var(--dm-ink)] truncate">{item.title}</h3>
+                        </div>
+                        <p className="text-xs text-[var(--dm-muted)] leading-relaxed">
+                          {item.meta || 'Requires security supervisor intervention and GM briefing.'}
+                        </p>
+                        <div className="flex items-center gap-3 text-[11px] text-[var(--dm-muted)] font-medium pt-1">
+                          <span>Ref: {item.ref || item.id}</span>
+                          <span>•</span>
+                          <span>Zone: {item.room || 'General Property'}</span>
+                          <span>•</span>
+                          <span className={statusClass(item.status)}>{item.status}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-[var(--dm-line)]">
+                        <button
+                          className="dm-small-button font-medium"
+                          onClick={() => setSelectedIncident(item)}
+                        >
+                          <span>Review Details</span>
+                          <ArrowRight size={13} />
+                        </button>
+                        <button
+                          className="dm-primary font-medium text-xs px-3.5 py-2"
+                          onClick={() => openModal({ kind: 'recovery', task: item })}
+                        >
+                          Record Decision
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+              </div>
             )}
           </section>
         )}
 
         {/* ===================== TAB: POLICIES & SOPS ===================== */}
         {tab === 'policies' && (
-          <section className="dm-panel">
+          <section className="dm-panel gsap-panel">
             <div className="dm-panel-heading">
               <div>
-                <h2>Emergency Playbooks &amp; SOPs</h2>
-                <p>Standard operating procedures, fire response guides, and escalation matrices.</p>
+                <h2 className="gsap-section-title">Emergency Playbooks &amp; Standard Operating Procedures</h2>
+                <p>Rapid emergency action protocols, evacuation plans, and escalations matrices.</p>
               </div>
             </div>
 
-            <article className="dm-record">
-              <h3>Panic Alarm &amp; Emergency Response Protocol</h3>
-              <p>
-                Immediate dispatch of two armed/trained officers to verify beacon location within 90 seconds.
-                Notify Front Desk Coordinator and establish direct radio contact on Channel 3.
-              </p>
-              <small>Protocol: E-1 · Department Owner: Inspector Roy · Escalation: General Manager</small>
-            </article>
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              <article className="p-5 rounded-xl border border-[var(--dm-line)] bg-[var(--dm-paper)] flex flex-col justify-between shadow-sm hover:border-[var(--dm-accent)] transition-all">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="dm-status urgent font-bold text-[10px]">PROTOCOL E-1</span>
+                    <span className="text-xs font-semibold text-[var(--dm-danger)]">90s Target</span>
+                  </div>
+                  <h3 className="text-sm font-bold text-[var(--dm-ink)] flex items-center gap-2">
+                    <ShieldAlert size={16} className="text-[var(--dm-danger)]" />
+                    Panic Alarm &amp; Distress Protocol
+                  </h3>
+                  <p className="text-xs text-[var(--dm-muted)] leading-relaxed">
+                    Immediate dispatch of two armed/trained officers to verify beacon location within 90 seconds. Notify Front Desk Lead and establish radio contact on CH-3.
+                  </p>
+                </div>
+                <div className="pt-4 mt-4 border-t border-[var(--dm-line)] flex items-center justify-between text-[11px] text-[var(--dm-muted)]">
+                  <span>Lead: Inspector Roy</span>
+                  <span>Escalation: GM Marcus</span>
+                </div>
+              </article>
 
-            <article className="dm-record">
-              <h3>Fire &amp; Life Safety Sweep Protocol</h3>
-              <p>
-                In the event of smoke or fire telemetry, dispatch designated zone officer to inspect sensor heads,
-                check stairwells, and stand by the riser station.
-              </p>
-              <small>Protocol: F-4 · Owner: Facilities &amp; Security</small>
-            </article>
+              <article className="p-5 rounded-xl border border-[var(--dm-line)] bg-[var(--dm-paper)] flex flex-col justify-between shadow-sm hover:border-[var(--dm-accent)] transition-all">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="dm-status urgent font-bold text-[10px]">PROTOCOL F-4</span>
+                    <span className="text-xs font-semibold text-amber-700">Immediate</span>
+                  </div>
+                  <h3 className="text-sm font-bold text-[var(--dm-ink)] flex items-center gap-2">
+                    <AlertTriangle size={16} className="text-amber-600" />
+                    Fire &amp; Life Safety Sweep
+                  </h3>
+                  <p className="text-xs text-[var(--dm-muted)] leading-relaxed">
+                    Upon smoke or fire telemetry detection, dispatch designated zone officer to inspect sensor heads, check stairwells, and stand by the riser station.
+                  </p>
+                </div>
+                <div className="pt-4 mt-4 border-t border-[var(--dm-line)] flex items-center justify-between text-[11px] text-[var(--dm-muted)]">
+                  <span>Lead: Facilities &amp; Safety</span>
+                  <span>Escalation: Fire Marshall</span>
+                </div>
+              </article>
 
-            <article className="dm-record">
-              <h3>Unauthorized Access &amp; Trespass Policy</h3>
-              <p>
-                Challenge non-badged individuals in back-of-house corridors politely. Escort off property or detain
-                if forced entry is suspected. Log full CCTV clip into incident evidence.
-              </p>
-              <small>Protocol: S-2 · Effective 2026-01-01</small>
-            </article>
+              <article className="p-5 rounded-xl border border-[var(--dm-line)] bg-[var(--dm-paper)] flex flex-col justify-between shadow-sm hover:border-[var(--dm-accent)] transition-all">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="dm-status font-bold text-[10px]">PROTOCOL S-2</span>
+                    <span className="text-xs font-semibold text-[var(--dm-muted)]">Standard</span>
+                  </div>
+                  <h3 className="text-sm font-bold text-[var(--dm-ink)] flex items-center gap-2">
+                    <LockKeyhole size={16} className="text-[var(--dm-muted)]" />
+                    Unauthorized Access &amp; Trespass
+                  </h3>
+                  <p className="text-xs text-[var(--dm-muted)] leading-relaxed">
+                    Challenge non-badged individuals in back-of-house corridors politely. Escort off property or detain if forced entry is suspected. Log CCTV clip into incident evidence.
+                  </p>
+                </div>
+                <div className="pt-4 mt-4 border-t border-[var(--dm-line)] flex items-center justify-between text-[11px] text-[var(--dm-muted)]">
+                  <span>Effective: 2026-01-01</span>
+                  <span>Escalation: Local Law</span>
+                </div>
+              </article>
+            </div>
           </section>
         )}
 
         {/* ===================== TAB: SHIFT HANDOVER ===================== */}
         {tab === 'handover' && (
-          <section className="dm-panel">
+          <section className="dm-panel gsap-panel">
             <div className="dm-panel-heading">
               <div>
-                <h2>Shift Handover</h2>
-                <p>Carry forward open incidents, key control notes, and night directives.</p>
+                <h2 className="gsap-section-title">Shift Handover &amp; Night Directives</h2>
+                <p>Transfer open incidents, key control logs, and urgent follow-ups to incoming shift lead.</p>
               </div>
               <button className="dm-primary" onClick={() => openModal({ kind: 'handover' })}>
-                Prepare handover
+                <Send size={15} />
+                <span>+ Prepare Handover</span>
               </button>
             </div>
 
-            {localHandovers.map((h) => (
-              <article className="dm-record" key={h.id}>
-                <div className="dm-record-title">
-                  <h3>
-                    {h.outgoingManager} &rarr; {h.incomingManager}
-                  </h3>
-                  <span className={statusClass(h.status)}>{h.status}</span>
-                </div>
-                <p>{h.notes}</p>
-                <small>
-                  {dateLabel(h.timestamp)} · {h.outstandingTasksCount} active incidents
-                </small>
-                <ul style={{ marginTop: '10px', paddingLeft: '20px', color: 'var(--dm-muted)', fontSize: '12px' }}>
-                  {h.priorityActions.map((p, index) => (
-                    <li key={index} style={{ marginBottom: '4px' }}>
-                      {p}
-                    </li>
-                  ))}
-                </ul>
-              </article>
-            ))}
+            <div className="p-6 space-y-4">
+              {localHandovers.map((h) => (
+                <article
+                  key={h.id}
+                  className="p-5 rounded-xl border border-[var(--dm-line)] bg-[var(--dm-paper)] shadow-sm space-y-3"
+                >
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-bold text-[var(--dm-ink)]">
+                        {h.outgoingManager} <span className="text-[var(--dm-muted)] font-normal">&rarr;</span> {h.incomingManager}
+                      </h3>
+                      <span className="dm-status good text-[11px]">Submitted</span>
+                    </div>
+                    <span className="text-xs text-[var(--dm-muted)]">
+                      {dateLabel(h.timestamp)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-[var(--dm-ink)] leading-relaxed bg-[var(--warm-soft)] p-3 rounded-lg border border-[var(--dm-line)]">
+                    {h.notes}
+                  </p>
+                  <div>
+                    <h4 className="text-xs font-bold text-[var(--dm-muted)] uppercase tracking-wider mb-2">Priority Directives:</h4>
+                    <ul className="space-y-1.5 text-xs text-[var(--dm-ink)]">
+                      {h.priorityActions.map((p, index) => (
+                        <li key={index} className="flex items-center gap-2">
+                          <ChevronRight size={13} className="text-[var(--dm-accent)] shrink-0" />
+                          <span>{p}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </article>
+              ))}
+            </div>
           </section>
         )}
 
-
-
         {/* ===================== TAB: NOTIFICATIONS / ALERTS ===================== */}
         {tab === 'notifications' && (
-          <section className="dm-panel">
+          <section className="dm-panel gsap-panel">
             <div className="dm-panel-heading">
               <div>
-                <h2>Safety &amp; Security Alerts</h2>
-                <p>{criticalItems.length} urgent alerts active · Property-wide</p>
+                <h2 className="gsap-section-title">Safety &amp; Security Alerts Feed</h2>
+                <p>{criticalItems.length} active emergency telemetry alerts across property.</p>
               </div>
             </div>
 
             {criticalItems.length === 0 ? (
-              <div className="dm-empty" style={{ padding: '36px', textAlign: 'center' }}>
-                <CheckCheck size={32} style={{ margin: '0 auto 12px', color: 'var(--dm-muted)' }} />
-                <h3>All quiet on property</h3>
-                <p>No critical alarms or pending panic signals.</p>
+              <div className="p-12 text-center" style={{ color: 'var(--dm-muted)' }}>
+                <CheckCheck size={32} className="mx-auto mb-3 text-[var(--dm-success)]" />
+                <h3 className="text-sm font-bold text-[var(--dm-ink)]">All Quiet on Property</h3>
+                <p className="text-xs text-[var(--dm-muted)] mt-1">No critical alarms or pending panic signals.</p>
               </div>
             ) : (
-              criticalItems.map((n) => (
-                <article className="dm-record" key={n.id}>
-                  <div className="dm-record-title">
-                    <h3>{n.title}</h3>
-                    <span className="dm-status urgent">{n.priority}</span>
-                  </div>
-                  <p>{n.meta || 'Emergency alert triggered. Immediate response required.'}</p>
-                  <small>
-                    Location: {n.room || 'General Property'} · Status: {n.status}
-                  </small>
-                  <div style={{ marginTop: '10px' }}>
+              <div className="p-6 space-y-3">
+                {criticalItems.map((n) => (
+                  <article
+                    key={n.id}
+                    className="p-4 rounded-xl border border-[var(--dm-line)] bg-[var(--dm-paper)] hover:bg-[var(--warm-soft)] transition-colors flex items-center justify-between gap-4"
+                  >
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="dm-status urgent font-bold text-xs">{n.priority || 'Critical'}</span>
+                        <h3 className="text-sm font-bold text-[var(--dm-ink)] truncate">{n.title}</h3>
+                      </div>
+                      <p className="text-xs text-[var(--dm-muted)]">{n.meta || 'Emergency alert triggered. Immediate response required.'}</p>
+                      <small className="text-[11px] text-[var(--dm-muted)] block">
+                        Zone: {n.room || 'General Property'} · Status: {n.status}
+                      </small>
+                    </div>
                     <button
-                      className="dm-small-button"
+                      className="dm-primary shrink-0 text-xs px-3.5 py-2 font-medium"
                       onClick={() => setSelectedIncident(n)}
                     >
-                      Acknowledge &amp; Respond &rarr;
+                      <span>Acknowledge &amp; Respond</span>
+                      <ArrowRight size={13} />
                     </button>
-                  </div>
-                </article>
-              ))
+                  </article>
+                ))}
+              </div>
             )}
           </section>
         )}

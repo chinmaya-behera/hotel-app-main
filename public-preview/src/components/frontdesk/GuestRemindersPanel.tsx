@@ -308,20 +308,19 @@ export function GuestRemindersPanel() {
               key={t}
               type="button"
               onClick={() => setActiveTab(t)}
-              className={`px-3 py-1.5 rounded-lg font-semibold capitalize transition-all ${
-                activeTab === t
+              className={`px-3 py-1.5 rounded-lg font-semibold capitalize transition-all ${activeTab === t
                   ? 'bg-amber-400 text-ink-950 shadow-sm'
                   : 'text-mist-300 hover:text-white'
-              }`}
+                }`}
             >
               {t} ({
                 t === 'all'
                   ? effectiveReminders.length
                   : t === 'upcoming'
-                  ? effectiveReminders.filter((r) => r.status === 'pending').length
-                  : t === 'overdue'
-                  ? effectiveReminders.filter((r) => r.status === 'pending' && r.dueTime && r.dueTime < '12:00').length
-                  : effectiveReminders.filter((r) => r.status === 'completed').length
+                    ? effectiveReminders.filter((r) => r.status === 'pending').length
+                    : t === 'overdue'
+                      ? effectiveReminders.filter((r) => r.status === 'pending' && r.dueTime && r.dueTime < '12:00').length
+                      : effectiveReminders.filter((r) => r.status === 'completed').length
               })
             </button>
           ))}
@@ -333,7 +332,7 @@ export function GuestRemindersPanel() {
           iconLeft={Plus}
           onClick={handleOpenAddModal}
         >
-          + Add Reminder
+          Add Reminder
         </Button>
       </div>
 
@@ -356,13 +355,12 @@ export function GuestRemindersPanel() {
               return (
                 <div
                   key={rem.id}
-                  className={`p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition ${
-                    isRinging
+                  className={`p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition ${isRinging
                       ? 'bg-amber-400/10 border-l-4 border-l-amber-400'
                       : !isPending
-                      ? 'opacity-60 bg-white/[0.01]'
-                      : 'hover:bg-white/[0.02]'
-                  }`}
+                        ? 'opacity-60 bg-white/[0.01]'
+                        : 'hover:bg-white/[0.02]'
+                    }`}
                 >
                   <div className="space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -389,9 +387,8 @@ export function GuestRemindersPanel() {
                       <button
                         type="button"
                         onClick={() => isPending && handleOpenEditModal(rem)}
-                        className={`inline-flex items-center gap-1 text-left ${
-                          isPending ? 'hover:text-blue-300 hover:underline cursor-pointer group' : ''
-                        }`}
+                        className={`inline-flex items-center gap-1 text-left ${isPending ? 'hover:text-blue-300 hover:underline cursor-pointer group' : ''
+                          }`}
                         title={isPending ? 'Click to customize reminding time and notes' : undefined}
                       >
                         <Clock className="h-3 w-3 text-amber-300 group-hover:text-blue-300" />
@@ -476,19 +473,19 @@ export function GuestRemindersPanel() {
         initialData={
           editingReminder
             ? {
-                title: editingReminder.title,
-                room: editingReminder.room,
-                guestName: editingReminder.guestName,
-                assignedTo: editingReminder.assignedTo || 'Front Desk Coordinator',
-                instructions: editingReminder.text,
-              }
+              title: editingReminder.title,
+              room: editingReminder.room,
+              guestName: editingReminder.guestName,
+              assignedTo: editingReminder.assignedTo || 'Front Desk Coordinator',
+              instructions: editingReminder.text,
+            }
             : {
-                title: '',
-                room: '',
-                guestName: '',
-                assignedTo: 'Front Desk Coordinator',
-                instructions: '',
-              }
+              title: '',
+              room: '',
+              guestName: '',
+              assignedTo: 'Front Desk Coordinator',
+              instructions: '',
+            }
         }
         title={
           editingReminder

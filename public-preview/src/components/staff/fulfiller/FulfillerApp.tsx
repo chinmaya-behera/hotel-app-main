@@ -5,16 +5,19 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
   Activity,
+  ArrowRight,
   Bell,
   CheckCircle2,
   House,
   ListChecks,
   Moon,
+  ShieldAlert,
   ShieldCheck,
   Sun,
   User,
   Volume2,
   VolumeX,
+  X,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
 import { cn } from '@/lib/utils';
@@ -37,8 +40,19 @@ import { useBreakRequest } from './breakRequests';
 type FulfillerTab = 'tasks' | 'notifications' | 'policies' | 'performance' | 'profile';
 
 function FulfillerAppContent() {
-  const { state, setPersona, setSoundEnabled, setTheme, setActiveDispatcherDept, toasts, setFulfillerAvailability, notify } = useDemo();
+  const {
+    state,
+    setPersona,
+    setSoundEnabled,
+    setTheme,
+    setActiveDispatcherDept,
+    toasts,
+    setFulfillerAvailability,
+    notify,
+    markNotificationRead,
+  } = useDemo();
   const [activeTab, setActiveTab] = useState<FulfillerTab>('tasks');
+  const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
   const [breakModalOpen, setBreakModalOpen] = useState(false);
   const { breakRequest } = useBreakRequest();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -106,7 +120,16 @@ function FulfillerAppContent() {
         ? taskMatchesFulfillerDept({ department: n.department } as any, activeDeptKey)
         : true),
   );
-  const unreadNotifCount = notifications.filter((n) => !n.read).length;
+  const safetyAlerts = state.safetyAlerts ?? [];
+  const unacknowledgedSafetyAlerts = safetyAlerts.filter(
+    (a) =>
+      a.status === 'broadcast_active' &&
+      !(a.acknowledgedBy ?? []).includes(profile.employeeName) &&
+      !(a.acknowledgedBy ?? []).includes(profile.employeeId) &&
+      !(a.acknowledgedBy ?? []).includes('task_fulfiller'),
+  );
+  const unreadNotifCount =
+    notifications.filter((n) => !n.read).length + unacknowledgedSafetyAlerts.length;
 
   const isLight = state.theme === 'light';
 
@@ -543,8 +566,8 @@ function FulfillerAppContent() {
                             : 'bg-[#dfc187]/20 text-[#e8cf9a] border-[#dfc187]/40'
                           : currentAvail === 'off_duty'
                             ? isLight
-                              ? 'bg-[#fff1f0] text-[#991b1b] border-[#fecaca]'
-                              : 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                              ? 'bg-[#f6f3ec] text-[#686252] border-[#e7e2d7] hover:border-[#b7b09e]'
+                              : 'bg-white/[0.06] text-[#ded6c9] border-white/10 hover:border-white/20'
                             : isLight
                               ? 'bg-[#f6f3ec] text-[#353229] border-[#e7e2d7] hover:border-[#b7b09e]'
                               : 'bg-[#c8a96e]/20 text-[#dfc187] border-[#c8a96e]/40 hover:border-[#dfc187]',
@@ -567,7 +590,7 @@ function FulfillerAppContent() {
                           : currentAvail === 'break'
                             ? isLight ? 'bg-[#8b7550] animate-pulse' : 'bg-[#dfc187] animate-pulse'
                             : currentAvail === 'off_duty'
-                              ? 'bg-rose-500'
+                              ? isLight ? 'bg-[#8c8472]' : 'bg-[#a69886]'
                               : isLight ? 'bg-[#353229]' : 'bg-[#c8a96e]',
                       )}
                     />
@@ -640,35 +663,183 @@ function FulfillerAppContent() {
                 {isLight ? <Moon className="h-3.5 w-3.5" /> : <Sun className="h-3.5 w-3.5 text-[#dfc187]" />}
               </button>
 
-              {/* Notification Symbol Button */}
-              <button
-                type="button"
-                onClick={() => setActiveTab('notifications')}
-                className={cn(
-                  'relative grid h-8 w-8 place-items-center rounded-lg border transition-colors',
-                  activeTab === 'notifications'
-                    ? isLight
-                      ? 'border-[#b7b09e] bg-[#ebe2cc] text-[#353229] ring-2 ring-[#ded6c1]'
-                      : 'border-[#dfc187] bg-[#c8a96e]/20 text-[#dfc187] ring-2 ring-[#dfc187]/25'
-                    : isLight
-                      ? 'border-[#e7e2d7] bg-[#ffffff] text-[#353229] hover:bg-[#f6f3ec] hover:border-[#b7b09e]'
-                      : 'border-[rgba(165,130,95,0.24)] bg-[#1f1f24] text-[#d9cebe] hover:text-[#f7f4ed] hover:border-[rgba(195,160,115,0.4)]',
+              {/* Notification Symbol Button with Recent Messages Dropdown */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setNotifDropdownOpen((prev) => !prev)}
+                  className={cn(
+                    'relative grid h-8 w-8 place-items-center rounded-lg border transition-colors cursor-pointer',
+                    notifDropdownOpen || activeTab === 'notifications'
+                      ? isLight
+                        ? 'border-[#b7b09e] bg-[#ebe2cc] text-[#353229] ring-2 ring-[#ded6c1]'
+                        : 'border-[#dfc187] bg-[#c8a96e]/20 text-[#dfc187] ring-2 ring-[#dfc187]/25'
+                      : isLight
+                        ? 'border-[#e7e2d7] bg-[#ffffff] text-[#353229] hover:bg-[#f6f3ec] hover:border-[#b7b09e]'
+                        : 'border-[rgba(165,130,95,0.24)] bg-[#1f1f24] text-[#d9cebe] hover:text-[#f7f4ed] hover:border-[rgba(195,160,115,0.4)]',
+                  )}
+                  title={unreadNotifCount > 0 ? `${unreadNotifCount} unread notifications` : 'Notifications & Alerts'}
+                  aria-label="View notifications"
+                >
+                  <Bell className="h-3.5 w-3.5" />
+                  {unreadNotifCount > 0 && (
+                    <span
+                      className={cn(
+                        'absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[8px] font-extrabold shadow-sm animate-pulse',
+                        isLight ? 'bg-[#353229] text-[#ffffff]' : 'bg-[#c8a96e] text-[#141417]',
+                      )}
+                    >
+                      {unreadNotifCount}
+                    </span>
+                  )}
+                </button>
+
+                {/* Recent Notifications Dropdown Popover */}
+                {notifDropdownOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40 bg-black/25 backdrop-blur-[1px]"
+                      onClick={() => setNotifDropdownOpen(false)}
+                    />
+                    <div
+                      className={cn(
+                        'absolute right-0 top-10 z-50 w-80 sm:w-96 rounded-2xl border p-3 shadow-2xl transition-all animate-in fade-in slide-in-from-top-2 duration-150',
+                        isLight
+                          ? 'border-[#e7e2d7] bg-[#ffffff] text-[#353229] shadow-[0_12px_36px_rgba(53,50,41,0.16)]'
+                          : 'border-[rgba(165,130,95,0.35)] bg-[#1a1918] text-[#f7f4ed] shadow-2xl',
+                      )}
+                    >
+                      {/* Dropdown Header */}
+                      <div className="flex items-center justify-between border-b pb-2 mb-2 border-inherit">
+                        <div className="flex items-center gap-1.5">
+                          <Bell className={cn('h-3.5 w-3.5', isLight ? 'text-[#8b7550]' : 'text-[#dfc187]')} />
+                          <span className="text-xs font-bold">Recent Messages</span>
+                          {unreadNotifCount > 0 && (
+                            <span
+                              className={cn(
+                                'rounded-full px-1.5 py-0.2 text-[9px] font-mono font-bold',
+                                isLight ? 'bg-[#353229] text-white' : 'bg-[#dfc187] text-[#14120e]',
+                              )}
+                            >
+                              {unreadNotifCount} new
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setNotifDropdownOpen(false)}
+                          className={cn(
+                            'grid h-6 w-6 place-items-center rounded-md text-xs cursor-pointer',
+                            isLight ? 'hover:bg-[#f6f3ec] text-[#8c8472]' : 'hover:bg-white/10 text-[#a89f91]',
+                          )}
+                          title="Close"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+
+                      {/* Dropdown List */}
+                      <div className="max-h-72 overflow-y-auto space-y-1.5 no-scrollbar">
+                        {unacknowledgedSafetyAlerts.length > 0 && (
+                          <div
+                            onClick={() => {
+                              setNotifDropdownOpen(false);
+                              setActiveTab('notifications');
+                            }}
+                            className={cn(
+                              'flex items-start gap-2 p-2.5 rounded-xl border text-xs cursor-pointer transition-colors',
+                              isLight
+                                ? 'border-rose-300 bg-rose-50 text-rose-900 hover:bg-rose-100'
+                                : 'border-rose-500/40 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20',
+                            )}
+                          >
+                            <ShieldAlert className="h-4 w-4 shrink-0 text-rose-500 mt-0.5 animate-pulse" />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold text-[11px] truncate">Security Alert Broadcast</span>
+                                <span className="text-[9px] font-mono uppercase bg-rose-500 text-white px-1.5 py-0.2 rounded font-bold">Live</span>
+                              </div>
+                              <p className="text-[11px] line-clamp-1 mt-0.5">
+                                {unacknowledgedSafetyAlerts[0].description}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        {notifications.length === 0 && unacknowledgedSafetyAlerts.length === 0 ? (
+                          <div className="py-7 text-center">
+                            <Bell className="h-6 w-6 mx-auto opacity-30 mb-1" />
+                            <p className={cn('text-xs font-medium', isLight ? 'text-[#8c8472]' : 'text-[#a89f91]')}>
+                              No recent messages
+                            </p>
+                          </div>
+                        ) : (
+                          notifications.slice(0, 4).map((notif) => (
+                            <div
+                              key={notif.id}
+                              onClick={() => {
+                                if (!notif.read) markNotificationRead(notif.id);
+                                setNotifDropdownOpen(false);
+                                if (notif.itemId) {
+                                  setActiveTab('tasks');
+                                } else {
+                                  setActiveTab('notifications');
+                                }
+                              }}
+                              className={cn(
+                                'flex items-start gap-2 p-2.5 rounded-xl border text-xs cursor-pointer transition-colors text-left',
+                                isLight
+                                  ? notif.read
+                                    ? 'border-[#e7e2d7] bg-[#fbfaf7] text-[#686252] hover:bg-[#f6f3ec]'
+                                    : 'border-[#b7b09e] bg-[#ffffff] text-[#353229] font-medium hover:bg-[#f6f3ec]'
+                                  : notif.read
+                                    ? 'border-white/5 bg-white/[0.02] text-[#ded6c9] hover:bg-white/[0.05]'
+                                    : 'border-[rgba(200,169,110,0.3)] bg-[rgba(200,169,110,0.08)] text-[#f7f4ed] font-medium hover:bg-[rgba(200,169,110,0.12)]',
+                              )}
+                            >
+                              <span
+                                className={cn(
+                                  'h-2 w-2 rounded-full shrink-0 mt-1',
+                                  notif.read
+                                    ? 'bg-transparent'
+                                    : isLight
+                                      ? 'bg-[#353229]'
+                                      : 'bg-[#dfc187]',
+                                )}
+                              />
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center justify-between gap-1">
+                                  <span className="text-[11px] font-bold truncate">{notif.title}</span>
+                                  <span className="text-[9px] font-mono opacity-70 shrink-0">{notif.timestamp}</span>
+                                </div>
+                                <p className="text-[11px] line-clamp-1 opacity-80 mt-0.5">{notif.message}</p>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+
+                      {/* Dropdown Footer: See All Button */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNotifDropdownOpen(false);
+                          setActiveTab('notifications');
+                        }}
+                        className={cn(
+                          'w-full mt-2.5 pt-2 border-t flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border-inherit shadow-2xs',
+                          isLight
+                            ? 'bg-[#f6f3ec] hover:bg-[#ebe2cc] text-[#353229]'
+                            : 'bg-white/[0.05] hover:bg-white/[0.1] text-[#dfc187]',
+                        )}
+                      >
+                        <span>See All Notifications & Alerts</span>
+                        <ArrowRight className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </>
                 )}
-                title={unreadNotifCount > 0 ? `${unreadNotifCount} unread notifications` : 'Notifications & Alerts'}
-                aria-label="View notifications"
-              >
-                <Bell className="h-3.5 w-3.5" />
-                {unreadNotifCount > 0 && (
-                  <span
-                    className={cn(
-                      'absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[8px] font-extrabold shadow-sm animate-pulse',
-                      isLight ? 'bg-[#353229] text-[#ffffff]' : 'bg-[#c8a96e] text-[#141417]',
-                    )}
-                  >
-                    {unreadNotifCount}
-                  </span>
-                )}
-              </button>
+              </div>
 
               {/* Exit to Portals / Public */}
               <Link
@@ -709,7 +880,7 @@ function FulfillerAppContent() {
               : 'border-[rgba(165,130,95,0.24)] bg-[#18181c]/95 text-[#d9cebe]',
           )}
         >
-          <div className="grid grid-cols-5 items-center px-2 py-1.5 max-w-md sm:max-w-xl md:max-w-2xl mx-auto">
+          <div className="grid grid-cols-4 items-center px-2 py-1.5 max-w-md sm:max-w-xl md:max-w-2xl mx-auto">
             {/* My Tasks */}
             <button
               type="button"
@@ -739,37 +910,6 @@ function FulfillerAppContent() {
                 )}
               </span>
               <span className="text-[9px] leading-tight">Tasks</span>
-            </button>
-
-            {/* Notifications */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('notifications')}
-              className={cn(
-                'relative flex flex-col items-center gap-1 py-1 text-center transition-colors',
-                activeTab === 'notifications'
-                  ? isLight
-                    ? 'text-[#353229] font-bold'
-                    : 'text-[#dfc187] font-bold'
-                  : isLight
-                    ? 'text-[#686252] hover:text-[#353229]'
-                    : 'text-[#a69886] hover:text-[#f7f4ed]',
-              )}
-            >
-              <span className="relative">
-                <Bell className="h-4 w-4" />
-                {unreadNotifCount > 0 && (
-                  <span
-                    className={cn(
-                      'absolute -top-1 -right-2 flex h-3.5 min-w-[14px] items-center justify-center rounded-full px-0.5 text-[8px] font-bold animate-pulse',
-                      isLight ? 'bg-[#353229] text-[#ffffff]' : 'bg-[#dfc187] text-[#14120e]',
-                    )}
-                  >
-                    {unreadNotifCount}
-                  </span>
-                )}
-              </span>
-              <span className="text-[9px] leading-tight">Alerts</span>
             </button>
 
             {/* Policies */}

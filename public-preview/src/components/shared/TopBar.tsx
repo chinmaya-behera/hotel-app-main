@@ -1,5 +1,31 @@
 'use client';
 
+function isTopBarSafetyAlert(notif: any): boolean {
+  const cat = (notif.category || '').toLowerCase();
+  const title = (notif.title || '').toLowerCase();
+  const msg = (notif.message || '').toLowerCase();
+  const dept = (notif.department || '').toLowerCase();
+  const itemId = (notif.itemId || '').toLowerCase();
+  return (
+    cat === 'safety' ||
+    cat === 'safety_alert' ||
+    dept.includes('safety') ||
+    dept.includes('security') ||
+    itemId.startsWith('alert-') ||
+    itemId.startsWith('alt-') ||
+    itemId.startsWith('sec-') ||
+    itemId.startsWith('sft-') ||
+    title.includes('safety') ||
+    title.includes('fire') ||
+    title.includes('smoke') ||
+    title.includes('hazard') ||
+    title.includes('emergency') ||
+    title.includes('broadcast') ||
+    msg.includes('safety alert') ||
+    msg.includes('life safety')
+  );
+}
+
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -12,8 +38,8 @@ import {
   LogOut,
   Moon,
   RotateCcw,
-  ShieldCheck,
   ShieldAlert,
+  ShieldCheck,
   Sun,
   User,
   X,
@@ -48,6 +74,7 @@ export function TopBar({ active, showRail = true, hideGestureButton = false }: T
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
   const [policiesModalOpen, setPoliciesModalOpen] = useState(false);
   const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
+  const [notifCategory, setNotifCategory] = useState<'all' | 'safety'>('all');
   const notifRef = useRef<HTMLDivElement>(null);
   const [profileCardOpen, setProfileCardOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -68,83 +95,83 @@ export function TopBar({ active, showRail = true, hideGestureButton = false }: T
   const managerStaff = roleId === 'department_manager' ? { name: state.managerProfiles?.[department.id]?.name || department.person, employeeId: `MGR-${department.id.toUpperCase()}`, department: department.name, shift: 'Day' as const, floorZone: 'Property-Wide', email: `${department.id}@thegrandadp.com`, financialLimit: 15000 } : null;
   const staff = managerStaff ?? (roleId
     ? (state.staffAccounts ?? []).find((s) => {
-        if (
-          roleId === 'department_dispatcher_supervisor' ||
-          roleId === 'department_dispatcher' ||
-          roleId === 'department_supervisor'
-        ) {
-          const isDispRole =
-            s.roleId === 'department_dispatcher_supervisor' ||
-            s.roleId === 'department_dispatcher' ||
-            s.roleId === 'department_supervisor';
-          if (!isDispRole) return false;
+      if (
+        roleId === 'department_dispatcher_supervisor' ||
+        roleId === 'department_dispatcher' ||
+        roleId === 'department_supervisor'
+      ) {
+        const isDispRole =
+          s.roleId === 'department_dispatcher_supervisor' ||
+          s.roleId === 'department_dispatcher' ||
+          s.roleId === 'department_supervisor';
+        if (!isDispRole) return false;
 
-          const activeDept = state.activeDispatcherDept || 'Housekeeping';
-          const d = s.department.toLowerCase();
-          if (activeDept === 'Housekeeping') return d.includes('house');
-          if (activeDept === 'Wellness') return d.includes('spa') || d.includes('wellness');
-          if (activeDept === 'Maintenance & Engineering') return d.includes('maint') || d.includes('eng');
-          if (activeDept === 'Food & Beverages') return d.includes('food') || d.includes('bev');
-          return true;
-        }
+        const activeDept = state.activeDispatcherDept || 'Housekeeping';
+        const d = s.department.toLowerCase();
+        if (activeDept === 'Housekeeping') return d.includes('house');
+        if (activeDept === 'Wellness') return d.includes('spa') || d.includes('wellness');
+        if (activeDept === 'Maintenance & Engineering') return d.includes('maint') || d.includes('eng');
+        if (activeDept === 'Food & Beverages') return d.includes('food') || d.includes('bev');
+        return true;
+      }
 
-        if (roleId === 'general_manager' || roleId === 'executive_viewer') {
-          return s.roleId === 'general_manager' || s.roleId === 'executive_viewer';
-        }
+      if (roleId === 'general_manager' || roleId === 'executive_viewer') {
+        return s.roleId === 'general_manager' || s.roleId === 'executive_viewer';
+      }
 
-        return s.roleId === roleId;
-      }) ?? {
-        id: `staff-${roleId}`,
-        name:
-          roleId === 'department_dispatcher_supervisor'
-            ? state.activeDispatcherDept === 'Wellness'
-              ? 'Ananya Deshmukh'
-              : state.activeDispatcherDept === 'Maintenance & Engineering'
+      return s.roleId === roleId;
+    }) ?? {
+      id: `staff-${roleId}`,
+      name:
+        roleId === 'department_dispatcher_supervisor'
+          ? state.activeDispatcherDept === 'Wellness'
+            ? 'Ananya Deshmukh'
+            : state.activeDispatcherDept === 'Maintenance & Engineering'
               ? 'Arjun Mehta'
               : state.activeDispatcherDept === 'Food & Beverages'
-              ? 'Marco Rossi'
-              : 'Meera Nambiar'
-            : role?.name ?? 'Staff Member',
-        employeeId:
-          roleId === 'department_dispatcher_supervisor'
-            ? state.activeDispatcherDept === 'Wellness'
-              ? 'EMP-0118'
-              : state.activeDispatcherDept === 'Maintenance & Engineering'
+                ? 'Marco Rossi'
+                : 'Meera Nambiar'
+          : role?.name ?? 'Staff Member',
+      employeeId:
+        roleId === 'department_dispatcher_supervisor'
+          ? state.activeDispatcherDept === 'Wellness'
+            ? 'EMP-0118'
+            : state.activeDispatcherDept === 'Maintenance & Engineering'
               ? 'EMP-0104'
               : state.activeDispatcherDept === 'Food & Beverages'
-              ? 'EMP-0116'
-              : 'EMP-0105'
-            : 'EMP-0100',
-        email:
-          roleId === 'department_dispatcher_supervisor'
-            ? state.activeDispatcherDept === 'Wellness'
-              ? 'a.deshmukh@thegrandadp.com'
-              : state.activeDispatcherDept === 'Maintenance & Engineering'
+                ? 'EMP-0116'
+                : 'EMP-0105'
+          : 'EMP-0100',
+      email:
+        roleId === 'department_dispatcher_supervisor'
+          ? state.activeDispatcherDept === 'Wellness'
+            ? 'a.deshmukh@thegrandadp.com'
+            : state.activeDispatcherDept === 'Maintenance & Engineering'
               ? 'a.mehta@thegrandadp.com'
               : state.activeDispatcherDept === 'Food & Beverages'
-              ? 'm.rossi@thegrandadp.com'
-              : 'm.nambiar@thegrandadp.com'
-            : `${(role?.name ?? 'staff').toLowerCase().replace(/\s+/g, '.')}@grandazure.com`,
-        department:
-          roleId === 'department_dispatcher_supervisor'
-            ? state.activeDispatcherDept || 'Housekeeping'
-            : role?.scopes[0] ?? 'Operations',
-        shift: 'Day' as const,
-        floorZone:
-          roleId === 'department_dispatcher_supervisor'
-            ? state.activeDispatcherDept === 'Wellness'
-              ? 'Level 2 & Wellness Pavilion'
-              : state.activeDispatcherDept === 'Maintenance & Engineering'
+                ? 'm.rossi@thegrandadp.com'
+                : 'm.nambiar@thegrandadp.com'
+          : `${(role?.name ?? 'staff').toLowerCase().replace(/\s+/g, '.')}@grandazure.com`,
+      department:
+        roleId === 'department_dispatcher_supervisor'
+          ? state.activeDispatcherDept || 'Housekeeping'
+          : role?.scopes[0] ?? 'Operations',
+      shift: 'Day' as const,
+      floorZone:
+        roleId === 'department_dispatcher_supervisor'
+          ? state.activeDispatcherDept === 'Wellness'
+            ? 'Level 2 & Wellness Pavilion'
+            : state.activeDispatcherDept === 'Maintenance & Engineering'
               ? 'All Floors & Plant Rooms'
               : state.activeDispatcherDept === 'Food & Beverages'
-              ? 'Kitchen & In-Room Dining'
-              : 'Floors 1–5'
-            : 'Property-Wide',
-        financialLimit: 25000,
-        roleId,
-        status: 'active' as const,
-        createdAt: '2026-01-01',
-      }
+                ? 'Kitchen & In-Room Dining'
+                : 'Floors 1–5'
+          : 'Property-Wide',
+      financialLimit: 25000,
+      roleId,
+      status: 'active' as const,
+      createdAt: '2026-01-01',
+    }
     : null);
 
   // Notifications for this specific active role
@@ -667,7 +694,7 @@ export function TopBar({ active, showRail = true, hideGestureButton = false }: T
                           {roleNotifications.length > 0 && (
                             <button
                               type="button"
-                    onClick={() => roleId === 'department_manager' ? roleNotifications.filter(n => !n.read).forEach(n => departmentManagerCommand({ type: 'read', notificationId: n.id })) : clearAllNotifications(roleId ?? undefined)}
+                              onClick={() => roleId === 'department_manager' ? roleNotifications.filter(n => !n.read).forEach(n => departmentManagerCommand({ type: 'read', notificationId: n.id })) : clearAllNotifications(roleId ?? undefined)}
                               className="text-[11px] text-mist-400 hover:text-white transition-colors"
                             >
                               Clear

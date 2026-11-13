@@ -24,6 +24,7 @@ import { cn, money, statusTone } from '@/lib/utils';
 import { GuestEmptyState, GuestPill, GuestSectionHeader, StatusTimeline } from '@/components/guest/guestUi';
 import type { GuestTabProps } from '@/components/guest/types';
 import type { ComplaintStatus, GuestComplaintRecord } from '@/types/demo';
+import { GuestAlarmTimePicker } from './GuestAlarmTimePicker';
 
 const COMPLAINT_CATEGORIES = [
   'Room Issues',
@@ -42,8 +43,8 @@ export function ComplaintsSection({ room, guestName }: GuestTabProps) {
 
   // Form inputs
   const [category, setCategory] = useState<(typeof COMPLAINT_CATEGORIES)[number]>('Room Issues');
-  const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [incidentTime, setIncidentTime] = useState('Immediately');
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
@@ -63,19 +64,20 @@ export function ComplaintsSection({ room, guestName }: GuestTabProps) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim() || !description.trim()) return;
+    if (!description.trim()) return;
 
+    const autoTitle = `${category} · ${description.trim().slice(0, 32)}`;
     const complaintId = submitGuestComplaint({
       room,
       guestName,
-      title: title.trim(),
+      title: autoTitle,
       category,
-      description: description.trim(),
+      description: `${description.trim()}${incidentTime && incidentTime !== 'Immediately' ? `\n(Time of Issue: ${incidentTime})` : ''}`,
       photoUrl: photoPreview || undefined,
     });
 
-    setTitle('');
     setDescription('');
+    setIncidentTime('Immediately');
     setPhotoPreview(null);
     setIsSubmitOpen(false);
     setSelectedComplaintId(complaintId);
@@ -112,7 +114,6 @@ export function ComplaintsSection({ room, guestName }: GuestTabProps) {
           <button
             type="button"
             onClick={() => {
-              setTitle('');
               setDescription('');
               setPhotoPreview(null);
               setIsSubmitOpen(true);
@@ -272,25 +273,23 @@ export function ComplaintsSection({ room, guestName }: GuestTabProps) {
               </div>
 
               <div>
-                <label className="block text-mist-300 font-semibold mb-1">Title / Issue Summary *</label>
-                <input
-                  type="text"
-                  required
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. Excessive noise from adjacent corridor, Minibar overcharge"
-                  className="w-full px-3 py-2 rounded-xl border border-white/10 bg-ink-950 text-white placeholder-mist-500 focus:border-amber-400 focus:outline-none"
+                <GuestAlarmTimePicker
+                  id="complaint-sec-time"
+                  label="Time of Incident / Preferred Follow-up"
+                  value={incidentTime}
+                  onChange={setIncidentTime}
+                  showImmediately={true}
                 />
               </div>
 
               <div>
-                <label className="block text-mist-300 font-semibold mb-1">Detailed Description *</label>
+                <label className="block text-mist-300 font-semibold mb-1">Description *</label>
                 <textarea
                   rows={4}
                   required
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Please describe what happened, the time, and any staff involved..."
+                  placeholder="Please describe what happened, any specific details, and how our team can assist..."
                   className="w-full px-3 py-2 rounded-xl border border-white/10 bg-ink-950 text-white placeholder-mist-500 focus:border-amber-400 focus:outline-none"
                 />
               </div>
@@ -333,7 +332,7 @@ export function ComplaintsSection({ room, guestName }: GuestTabProps) {
                 </button>
                 <button
                   type="submit"
-                  disabled={!title.trim() || !description.trim()}
+                  disabled={!description.trim()}
                   className="px-4 py-2 rounded-xl bg-rose-500 text-white font-bold hover:bg-rose-600 disabled:opacity-40 flex items-center gap-1.5"
                 >
                   <CheckCircle2 className="h-3.5 w-3.5" />

@@ -7,15 +7,20 @@ import {
   Award,
   Building2,
   Calendar,
+  Camera,
   Check,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
   Clock,
+  Eye,
+  Film,
   Filter,
   History,
+  Image as ImageIcon,
   Layers,
   MapPin,
+  Play,
   PlusCircle,
   RotateCcw,
   Search,
@@ -26,12 +31,14 @@ import {
   Tag,
   User,
   Users,
+  Video,
+  X,
 } from 'lucide-react';
 import { MANAGER_DEPARTMENTS, departmentId, managerDepartment } from '@/lib/manager-domain';
 import { useDemo } from '@/lib/store';
 import type { SupervisorInspection, InspectionType, InspectionStatus } from '@/types/demo';
 
-type InspectionsView = 'create' | 'due' | 'history';
+type InspectionsView = 'due' | 'history';
 
 // Helper to reliably extract department identifier and display name
 function getInspectionDepartment(inspection: SupervisorInspection): { id: string; name: string } {
@@ -60,6 +67,31 @@ const PRESET_DEADLINES: Record<string, string> = {
 };
 
 // Helper to resolve an inspection deadline
+
+// 12-hour / 24-hour time conversion helpers for inspection deadline clock
+export function format12HourTime(time24: string): { time12: string; period: 'AM' | 'PM' } {
+  if (!time24) return { time12: '12:00', period: 'PM' };
+  const [hStr, mStr] = time24.split(':');
+  let h = parseInt(hStr, 10);
+  const m = mStr || '00';
+  if (isNaN(h)) return { time12: time24, period: 'PM' };
+  const period: 'AM' | 'PM' = h >= 12 ? 'PM' : 'AM';
+  h = h % 12;
+  if (h === 0) h = 12;
+  const hFormatted = h.toString().padStart(2, '0');
+  return { time12: `${hFormatted}:${m}`, period };
+}
+
+export function convertTo24Hour(time12: string, period: 'AM' | 'PM'): string {
+  const [hStr, mStr] = time12.split(':');
+  let h = parseInt(hStr, 10);
+  const m = mStr || '00';
+  if (isNaN(h)) return '12:00';
+  if (period === 'PM' && h < 12) h += 12;
+  if (period === 'AM' && h === 12) h = 0;
+  return `${h.toString().padStart(2, '0')}:${m}`;
+}
+
 function getInspectionDeadline(inspection: SupervisorInspection): string {
   if (inspection.scheduledTime && inspection.scheduledTime.trim()) {
     return inspection.scheduledTime;
@@ -72,13 +104,259 @@ function getInspectionDeadline(inspection: SupervisorInspection): string {
   return 'Today 16:00';
 }
 
-const INSPECTION_TYPE_LABELS: Record<InspectionType, string> = {
-  turnover: 'Turnover Inspection',
+const INSPECTION_TYPE_LABELS: Record<string, string> = {
+  turnover: 'Turnover & Checkout Inspection',
   deep_clean: 'Deep Clean Verification',
   vip_prep: 'VIP Arrival Prep',
   maintenance_check: 'Maintenance & Safety Check',
   periodic: 'Periodic Quality Audit',
+  linen_amenities: 'Linen Quality & Amenities Audit',
+  hvac_diagnostics: 'HVAC & Air Flow Diagnostics',
+  plumbing_sanitary: 'Plumbing & Water Pressure Audit',
+  electrical_lighting: 'Electrical & Lighting Inspection',
+  haccp_hygiene: 'Kitchen Hygiene & HACCP Audit',
+  buffet_temperature: 'Buffet Temperature & Hot Holding Check',
+  bar_inventory: 'Bar Quality & Beverage Inventory Audit',
+  room_service_expedite: 'In-Room Dining Expediting Check',
+  spa_hygiene: 'Spa Treatment Room Hygiene & Sanitization',
+  hydrotherapy_check: 'Hydrotherapy & Sauna Safety Audit',
+  aromatherapy_compliance: 'Aromatherapy & Product Inventory Audit',
 };
+
+// Department-specific inspection types for the dynamic dropdown
+const DEPARTMENT_INSPECTION_TYPES: Record<string, { id: string; label: string }[]> = {
+  housekeeping: [
+    { id: 'turnover', label: 'Turnover & Checkout Inspection' },
+    { id: 'deep_clean', label: 'Deep Clean Verification' },
+    { id: 'vip_prep', label: 'VIP Suite Presentation Prep' },
+    { id: 'linen_amenities', label: 'Linen Quality & Amenities Audit' },
+    { id: 'periodic', label: 'Periodic Sanitation Check' },
+  ],
+  engineering: [
+    { id: 'maintenance_check', label: 'Maintenance & Safety Check' },
+    { id: 'hvac_diagnostics', label: 'HVAC & Air Flow Diagnostics' },
+    { id: 'plumbing_sanitary', label: 'Plumbing & Water Pressure Audit' },
+    { id: 'electrical_lighting', label: 'Electrical & Lighting Inspection' },
+    { id: 'periodic', label: 'Preventative Plant & Equipment Audit' },
+  ],
+  'food-beverages': [
+    { id: 'haccp_hygiene', label: 'Kitchen Hygiene & HACCP Audit' },
+    { id: 'buffet_temperature', label: 'Buffet Temperature & Hot Holding Check' },
+    { id: 'bar_inventory', label: 'Bar Quality & Beverage Inventory Audit' },
+    { id: 'room_service_expedite', label: 'In-Room Dining Expediting Check' },
+    { id: 'periodic', label: 'Food Safety & Service Standards Audit' },
+  ],
+  wellness: [
+    { id: 'spa_hygiene', label: 'Spa Treatment Room Hygiene & Sanitization' },
+    { id: 'hydrotherapy_check', label: 'Hydrotherapy & Sauna Safety Audit' },
+    { id: 'vip_prep', label: 'VIP Wellness Prep & Therapy Suite Verification' },
+    { id: 'aromatherapy_compliance', label: 'Aromatherapy & Product Inventory Audit' },
+    { id: 'periodic', label: 'Wellness Quality & Guest Safety Audit' },
+  ],
+};
+
+// Interface for media uploaded by inspection teams
+interface InspectionMediaItem {
+  id: string;
+  type: 'photo' | 'video';
+  title: string;
+  timestamp: string;
+  uploadedBy: string;
+  notes: string;
+  tag: string;
+  duration?: string;
+  gradient: string;
+}
+
+// Generate realistic simulated inspection media uploaded by the field inspection team
+function getInspectionMedia(inspection: SupervisorInspection): InspectionMediaItem[] {
+  const dept = getInspectionDepartment(inspection);
+  const deptId = dept.id;
+  const inspector = inspection.inspectedBy || inspection.assignedSupervisorName || 'Inspection Team';
+
+  if (deptId === 'engineering') {
+    return [
+      {
+        id: 'med-1',
+        type: 'photo',
+        title: 'FCU Actuator & Chilled Water Valve Inspection',
+        timestamp: 'Today 09:30 AM',
+        uploadedBy: inspector,
+        notes: 'Actuator motor replaced and tested. Pressure valve seal intact with zero seepage.',
+        tag: 'Passed · High Pressure Certified',
+        gradient: 'from-blue-600/30 to-cyan-800/40',
+      },
+      {
+        id: 'med-2',
+        type: 'photo',
+        title: 'Electrical Distribution Board & Breaker Sweep',
+        timestamp: 'Today 09:35 AM',
+        uploadedBy: inspector,
+        notes: 'Thermal scan completed. All circuits operating at normal ambient temperatures.',
+        tag: 'Passed · Thermal Scan Normal',
+        gradient: 'from-amber-600/30 to-orange-800/40',
+      },
+      {
+        id: 'med-3',
+        type: 'photo',
+        title: 'Bathroom Drainage & Plumbing Pressure Test',
+        timestamp: 'Today 09:40 AM',
+        uploadedBy: inspector,
+        notes: 'Trap cleaned and aerator replaced. Hot water delivery at 48°C in under 12 seconds.',
+        tag: 'Passed · 4.2 Bar Pressure',
+        gradient: 'from-teal-600/30 to-emerald-800/40',
+      },
+      {
+        id: 'med-4',
+        type: 'video',
+        title: 'Exhaust & Acoustic Sound Meter Verification',
+        timestamp: 'Today 09:45 AM',
+        uploadedBy: inspector,
+        notes: 'Recorded acoustic sweep showing ambient noise below 30dB threshold.',
+        tag: 'Video · 28 dB Passed',
+        duration: '0:38',
+        gradient: 'from-indigo-600/40 to-purple-800/50',
+      },
+    ];
+  }
+
+  if (deptId === 'food-beverages') {
+    return [
+      {
+        id: 'med-1',
+        type: 'photo',
+        title: 'Hot Holding Temperature Digital Probe Verification',
+        timestamp: 'Today 08:20 AM',
+        uploadedBy: inspector,
+        notes: 'Soup and hot entree counters certified at 74°C (HACCP threshold >65°C passed).',
+        tag: 'HACCP Certified · 74°C',
+        gradient: 'from-rose-600/30 to-red-800/40',
+      },
+      {
+        id: 'med-2',
+        type: 'photo',
+        title: 'Cold Storage & Raw Produce Separation Audit',
+        timestamp: 'Today 08:30 AM',
+        uploadedBy: inspector,
+        notes: 'Walk-in chiller at 3.2°C. Color-coded allergen prep boards sanitized.',
+        tag: 'Sanitized · 3.2°C Chilled',
+        gradient: 'from-emerald-600/30 to-teal-800/40',
+      },
+      {
+        id: 'med-3',
+        type: 'photo',
+        title: 'VIP In-Room Dining Tray Presentation & Cloche Polish',
+        timestamp: 'Today 08:45 AM',
+        uploadedBy: inspector,
+        notes: 'Silver cloche polished, fresh linen liner, allergen card signed by Executive Chef.',
+        tag: 'Executive Standard Passed',
+        gradient: 'from-amber-600/30 to-yellow-800/40',
+      },
+      {
+        id: 'med-4',
+        type: 'video',
+        title: 'Kitchen Sanitization & Hygiene Sweep Walkthrough',
+        timestamp: 'Today 08:50 AM',
+        uploadedBy: inspector,
+        notes: 'Recorded walkthrough of prep line, dishwashing station, and hand-wash monitoring.',
+        tag: 'Video · Line Hygiene Passed',
+        duration: '1:05',
+        gradient: 'from-orange-600/40 to-rose-800/50',
+      },
+    ];
+  }
+
+  if (deptId === 'wellness') {
+    return [
+      {
+        id: 'med-1',
+        type: 'photo',
+        title: 'Therapy Suite Sanitization & Linen Hygiene',
+        timestamp: 'Today 10:10 AM',
+        uploadedBy: inspector,
+        notes: 'Treatment bed disinfected with organic lavender spray, plush warm linens prepared.',
+        tag: 'Ultra-Clean · Organic Cleared',
+        gradient: 'from-purple-600/30 to-pink-800/40',
+      },
+      {
+        id: 'med-2',
+        type: 'photo',
+        title: 'Hydrotherapy Pool Chemical Balance & Temp Check',
+        timestamp: 'Today 10:20 AM',
+        uploadedBy: inspector,
+        notes: 'Water temperature 36.5°C, pH balanced at 7.4, chlorine levels optimal.',
+        tag: 'Water Safety Certified',
+        gradient: 'from-cyan-600/30 to-blue-800/40',
+      },
+      {
+        id: 'med-3',
+        type: 'photo',
+        title: 'Aromatherapy Oil Lot Inspection & Expiry Audit',
+        timestamp: 'Today 10:30 AM',
+        uploadedBy: inspector,
+        notes: '100% pure organic essential oils authenticated. Allergen warnings updated.',
+        tag: 'Certified Organic',
+        gradient: 'from-emerald-600/30 to-lime-800/40',
+      },
+      {
+        id: 'med-4',
+        type: 'video',
+        title: 'Sauna & Steam Room Steam Cycle Test',
+        timestamp: 'Today 10:40 AM',
+        uploadedBy: inspector,
+        notes: 'Steam generator automated timer and emergency shutoff safety response tested.',
+        tag: 'Video · Auto Shutoff Verified',
+        duration: '0:45',
+        gradient: 'from-amber-600/40 to-purple-800/50',
+      },
+    ];
+  }
+
+  // Default: Housekeeping
+  return [
+    {
+      id: 'med-1',
+      type: 'photo',
+      title: 'Turn-down & Egyptian Cotton Bed Presentation',
+      timestamp: 'Today 09:15 AM',
+      uploadedBy: inspector,
+      notes: 'Crisp military corners, triple sheet tuck, pillow menu alignment verified.',
+      tag: '5-Star Standard Passed',
+      gradient: 'from-amber-600/30 to-amber-800/40',
+    },
+    {
+      id: 'med-2',
+      type: 'photo',
+      title: 'Bathroom White Glove Sanitization & Mirror Shine',
+      timestamp: 'Today 09:25 AM',
+      uploadedBy: inspector,
+      notes: 'Zero water spots on chrome fixtures, vanity sealed, luxury branded toiletries replenished.',
+      tag: 'Sanitized & Certified',
+      gradient: 'from-sky-600/30 to-indigo-800/40',
+    },
+    {
+      id: 'med-3',
+      type: 'photo',
+      title: 'VIP Welcome Amenities & Fruit Basket Setup',
+      timestamp: 'Today 09:35 AM',
+      uploadedBy: inspector,
+      notes: 'Handwritten GM welcome note, fresh orchid stem, chilled mineral water placed.',
+      tag: 'VIP Setup Passed',
+      gradient: 'from-purple-600/30 to-fuchsia-800/40',
+    },
+    {
+      id: 'med-4',
+      type: 'video',
+      title: '360° Suite Panorama & Acoustic Noise Sweep',
+      timestamp: 'Today 09:40 AM',
+      uploadedBy: inspector,
+      notes: 'Full panoramic scan of master bedroom, private balcony, and bathroom layout.',
+      tag: 'Video · Full Suite Walkthrough',
+      duration: '0:52',
+      gradient: 'from-emerald-600/40 to-teal-800/50',
+    },
+  ];
+}
 
 export interface GeneralManagerInspectionsTabProps {
   selectedInspectionId?: string | null;
@@ -91,7 +369,7 @@ export function GeneralManagerInspectionsTab({
 }: GeneralManagerInspectionsTabProps = {}) {
   const { state, initiateInspectionDirective, approveInspection } = useDemo();
 
-  // Navigation: 3 primary options
+  // Navigation views: 'due' | 'history' (Renamed 'history' to 'Inspections')
   const [activeView, setActiveView] = useState<InspectionsView>('due');
 
   // Filtering & Search state
@@ -100,13 +378,35 @@ export function GeneralManagerInspectionsTab({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [expandedChecklistId, setExpandedChecklistId] = useState<string | null>(null);
 
-  // Create form state
+  // Modal Frame State for Create Inspections Form
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
+
+  // Modal Frame State for Photos & Videos Uploaded by Inspection Team
+  const [viewingMediaInspection, setViewingMediaInspection] = useState<SupervisorInspection | null>(null);
+  const [mediaFilter, setMediaFilter] = useState<'all' | 'photo' | 'video'>('all');
+  const [selectedPreviewMedia, setSelectedPreviewMedia] = useState<InspectionMediaItem | null>(null);
+
+  // Create Form State
   const [createDeptId, setCreateDeptId] = useState<string>('housekeeping');
-  const [createLocation, setCreateLocation] = useState<string>('');
-  const [createType, setCreateType] = useState<InspectionType>('turnover');
+  const [locationScope, setLocationScope] = useState<'all' | 'floor' | 'rooms'>('rooms');
+  const [floorInput, setFloorInput] = useState<string>('');
+  const [roomInput, setRoomInput] = useState<string>('');
+  const [createType, setCreateType] = useState<string>('turnover');
   const [createPriority, setCreatePriority] = useState<'normal' | 'vip' | 'urgent'>('normal');
-  const [createDeadlinePreset, setCreateDeadlinePreset] = useState<string>('Today 12:30');
-  const [customDeadline, setCustomDeadline] = useState<string>('');
+
+  // Deadline clock, AM/PM, and manual box inputs
+  const [clockTime, setClockTime] = useState<string>('12:30');
+  const [clockPeriod, setClockPeriod] = useState<'AM' | 'PM'>('PM');
+  const [manualDeadline, setManualDeadline] = useState<string>('Today 12:30 PM');
+
+  const handlePeriodToggle = (newPeriod: 'AM' | 'PM') => {
+    setClockPeriod(newPeriod);
+    const { time12 } = format12HourTime(clockTime);
+    const new24 = convertTo24Hour(time12, newPeriod);
+    setClockTime(new24);
+    setManualDeadline(`Today ${time12} ${newPeriod}`);
+  };
+
   const [createInstructions, setCreateInstructions] = useState<string>(
     managerDepartment('housekeeping').standard,
   );
@@ -119,18 +419,28 @@ export function GeneralManagerInspectionsTab({
 
   const selectedDepartment = managerDepartment(createDeptId);
 
-  // Sync instructions when selected department changes in form
+  // Escape key listener for modal frames
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsCreateModalOpen(false);
+        setViewingMediaInspection(null);
+        setSelectedPreviewMedia(null);
+      }
+    };
+    if (isCreateModalOpen || viewingMediaInspection || selectedPreviewMedia) {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isCreateModalOpen, viewingMediaInspection, selectedPreviewMedia]);
+
+  // Sync instructions & dynamic types when department changes in form
   const handleDeptChange = (deptId: string) => {
     setCreateDeptId(deptId);
     const d = managerDepartment(deptId);
     setCreateInstructions(d.standard);
-    if (deptId === 'engineering') {
-      setCreateType('maintenance_check');
-    } else if (deptId === 'wellness') {
-      setCreateType('vip_prep');
-    } else {
-      setCreateType('turnover');
-    }
+    const availableTypes = DEPARTMENT_INSPECTION_TYPES[deptId] || DEPARTMENT_INSPECTION_TYPES.housekeeping;
+    setCreateType(availableTypes[0].id);
   };
 
   const allInspections = state.inspections ?? [];
@@ -150,7 +460,7 @@ export function GeneralManagerInspectionsTab({
     }
   }, [selectedInspectionId, allInspections]);
 
-  // Completed inspections for History view (status === 'passed')
+  // Completed inspections for Inspections view (status === 'passed')
   const completedInspections = useMemo(() => {
     return allInspections.filter((i) => i.status === 'passed');
   }, [allInspections]);
@@ -206,7 +516,7 @@ export function GeneralManagerInspectionsTab({
     });
   }, [dueInspections, departmentFilter, priorityFilter, searchQuery]);
 
-  // Filtered History Inspections
+  // Filtered Inspections (Completed)
   const filteredHistoryInspections = useMemo(() => {
     return completedInspections.filter((i) => {
       const dept = getInspectionDepartment(i);
@@ -234,20 +544,29 @@ export function GeneralManagerInspectionsTab({
     });
   }, [completedInspections, departmentFilter, searchQuery]);
 
-  // Submit new inspection directive
+  // Submit new inspection directive from modal frame
   const handleSubmitDirective = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!createLocation.trim()) return;
 
-    const deadlineValue = customDeadline.trim() || createDeadlinePreset;
+    let finalLocation = 'All Areas';
+    if (locationScope === 'floor') {
+      if (!floorInput.trim()) return;
+      const cleanFloor = floorInput.trim();
+      finalLocation = cleanFloor.toLowerCase().startsWith('floor') ? cleanFloor : `Floor ${cleanFloor}`;
+    } else if (locationScope === 'rooms') {
+      if (!roomInput.trim()) return;
+      const cleanRoom = roomInput.trim();
+      finalLocation = cleanRoom.toLowerCase().startsWith('room') ? cleanRoom : `Room ${cleanRoom}`;
+    }
 
+    const deadlineValue = manualDeadline.trim() || (clockTime ? `Today ${format12HourTime(clockTime).time12} ${clockPeriod}` : 'Today 16:00');
     const selectedDeptName = selectedDepartment.id === 'wellness' ? 'Wellness' : selectedDepartment.name;
 
     initiateInspectionDirective({
       department: selectedDeptName,
-      roomNumber: createLocation.trim(),
+      roomNumber: finalLocation,
       roomType: `${selectedDeptName} Location`,
-      type: createType,
+      type: createType as any,
       priority: createPriority,
       instructions: createInstructions.trim(),
       scheduledTime: deadlineValue,
@@ -255,13 +574,13 @@ export function GeneralManagerInspectionsTab({
       initiatedRole: 'general_manager',
     });
 
-    const targetRoom = createLocation.trim();
-    setCreateLocation('');
-    setCustomDeadline('');
+    setFloorInput('');
+    setRoomInput('');
+    setIsCreateModalOpen(false);
 
     setFeedbackBanner({
       type: 'success',
-      message: `Directive issued to ${selectedDepartment.person} (${selectedDeptName}). Target deadline: ${deadlineValue}.`,
+      message: `Directive issued to ${selectedDepartment.person} (${selectedDeptName}) for ${finalLocation}. Target deadline: ${deadlineValue}.`,
       actionLabel: 'View in Due Inspections →',
       onAction: () => {
         setActiveView('due');
@@ -275,8 +594,8 @@ export function GeneralManagerInspectionsTab({
     approveInspection(inspectionId, 'Verified and passed by General Manager directive review.');
     setFeedbackBanner({
       type: 'success',
-      message: `Inspection for ${roomNumber} approved & signed off! Moved to Inspection History.`,
-      actionLabel: 'View Inspection History →',
+      message: `Inspection for ${roomNumber} approved & signed off! Moved to Inspections.`,
+      actionLabel: 'View Inspections →',
       onAction: () => {
         setActiveView('history');
         setFeedbackBanner(null);
@@ -300,7 +619,7 @@ export function GeneralManagerInspectionsTab({
             Department Inspections
           </h1>
           <p className="mt-1 text-xs text-slate-500 dark:text-mist-400 max-w-2xl">
-            Dispatch operational directives to department heads, monitor active due inspections with clear deadlines, and inspect verified historical quality audits.
+            Dispatch operational directives to department heads, monitor active due inspections with clear deadlines, inspect uploaded photos & videos, and review verified audits.
           </p>
         </div>
 
@@ -311,7 +630,7 @@ export function GeneralManagerInspectionsTab({
             <div className="text-base font-extrabold text-amber-500 dark:text-amber-400">{dueCount}</div>
           </div>
           <div className="px-3 py-2 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-ink-950/70 text-center">
-            <div className="text-[10px] uppercase font-bold text-slate-400 dark:text-mist-400">History</div>
+            <div className="text-[10px] uppercase font-bold text-slate-400 dark:text-mist-400">Inspections</div>
             <div className="text-base font-extrabold text-emerald-500 dark:text-emerald-400">{passedCount}</div>
           </div>
           <div className="px-3 py-2 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-ink-950/70 text-center">
@@ -323,25 +642,21 @@ export function GeneralManagerInspectionsTab({
 
       {/* Primary 3-Option Navigation Tabs */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {/* Option 1: Create Inspections */}
+        {/* Option 1: Create Inspections (Opens in another frame with background blur) */}
         <button
           type="button"
           onClick={() => {
-            setActiveView('create');
+            setIsCreateModalOpen(true);
             setFeedbackBanner(null);
           }}
-          className={`flex items-center justify-between p-4 rounded-2xl border text-left transition-all ${activeView === 'create'
+          className={`flex items-center justify-between p-4 rounded-2xl border text-left transition-all ${
+            isCreateModalOpen
               ? 'bg-amber-500/10 border-amber-500/40 text-amber-500 shadow-sm'
               : 'bg-white/70 dark:bg-ink-900/60 border-slate-200 dark:border-white/10 text-slate-600 dark:text-mist-300 hover:border-amber-500/30'
-            }`}
+          }`}
         >
           <div className="flex items-center gap-3">
-            <div
-              className={`p-2.5 rounded-xl ${activeView === 'create'
-                  ? 'bg-amber-500 text-ink-950 font-bold'
-                  : 'bg-slate-100 dark:bg-ink-950 text-slate-500 dark:text-mist-400'
-                }`}
-            >
+            <div className="p-2.5 rounded-xl bg-amber-500 text-ink-950 font-bold shadow-sm">
               <PlusCircle className="h-5 w-5" />
             </div>
             <div>
@@ -349,8 +664,8 @@ export function GeneralManagerInspectionsTab({
               <div className="text-xs text-slate-500 dark:text-mist-400">Dispatch quality directives</div>
             </div>
           </div>
-          <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-slate-100 dark:bg-ink-950 border border-slate-200 dark:border-white/10 text-slate-500 dark:text-mist-400">
-            Form
+          <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400">
+            Open Form
           </span>
         </button>
 
@@ -361,17 +676,19 @@ export function GeneralManagerInspectionsTab({
             setActiveView('due');
             setFeedbackBanner(null);
           }}
-          className={`flex items-center justify-between p-4 rounded-2xl border text-left transition-all ${activeView === 'due'
+          className={`flex items-center justify-between p-4 rounded-2xl border text-left transition-all ${
+            activeView === 'due' && !isCreateModalOpen
               ? 'bg-amber-500/10 border-amber-500/40 text-amber-500 shadow-sm'
               : 'bg-white/70 dark:bg-ink-900/60 border-slate-200 dark:border-white/10 text-slate-600 dark:text-mist-300 hover:border-amber-500/30'
-            }`}
+          }`}
         >
           <div className="flex items-center gap-3">
             <div
-              className={`p-2.5 rounded-xl ${activeView === 'due'
+              className={`p-2.5 rounded-xl ${
+                activeView === 'due' && !isCreateModalOpen
                   ? 'bg-amber-500 text-ink-950 font-bold'
                   : 'bg-slate-100 dark:bg-ink-950 text-slate-500 dark:text-mist-400'
-                }`}
+              }`}
             >
               <Clock className="h-5 w-5" />
             </div>
@@ -381,38 +698,41 @@ export function GeneralManagerInspectionsTab({
             </div>
           </div>
           <span
-            className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${urgentDueCount > 0
+            className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
+              urgentDueCount > 0
                 ? 'bg-red-500/20 text-red-500 border border-red-500/30'
                 : 'bg-amber-500/20 text-amber-500 border border-amber-500/30'
-              }`}
+            }`}
           >
             {dueCount} Due
           </span>
         </button>
 
-        {/* Option 3: History of Inspections */}
+        {/* Option 3: Inspections (formerly History of Inspections) */}
         <button
           type="button"
           onClick={() => {
             setActiveView('history');
             setFeedbackBanner(null);
           }}
-          className={`flex items-center justify-between p-4 rounded-2xl border text-left transition-all ${activeView === 'history'
+          className={`flex items-center justify-between p-4 rounded-2xl border text-left transition-all ${
+            activeView === 'history' && !isCreateModalOpen
               ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-500 shadow-sm'
               : 'bg-white/70 dark:bg-ink-900/60 border-slate-200 dark:border-white/10 text-slate-600 dark:text-mist-300 hover:border-emerald-500/30'
-            }`}
+          }`}
         >
           <div className="flex items-center gap-3">
             <div
-              className={`p-2.5 rounded-xl ${activeView === 'history'
+              className={`p-2.5 rounded-xl ${
+                activeView === 'history' && !isCreateModalOpen
                   ? 'bg-emerald-500 text-ink-950 font-bold'
                   : 'bg-slate-100 dark:bg-ink-950 text-slate-500 dark:text-mist-400'
-                }`}
+              }`}
             >
               <History className="h-5 w-5" />
             </div>
             <div>
-              <div className="text-sm font-bold text-navy-950 dark:text-white">History of Inspections</div>
+              <div className="text-sm font-bold text-navy-950 dark:text-white">Inspections</div>
               <div className="text-xs text-slate-500 dark:text-mist-400">Completed & verified audits</div>
             </div>
           </div>
@@ -424,7 +744,7 @@ export function GeneralManagerInspectionsTab({
 
       {/* Global Feedback Banner */}
       {feedbackBanner && (
-        <div className="p-4 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-between gap-3 text-xs text-navy-950 dark:text-white">
+        <div className="p-4 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-between gap-3 text-xs text-navy-950 dark:text-white animate-fade-in">
           <div className="flex items-center gap-2.5">
             <CheckCircle2 className="h-4 w-4 text-amber-500 shrink-0" />
             <span>{feedbackBanner.message}</span>
@@ -442,247 +762,7 @@ export function GeneralManagerInspectionsTab({
       )}
 
       {/* ========================================================================= */}
-      {/* OPTION 1: CREATE INSPECTIONS FORM */}
-      {/* ========================================================================= */}
-      {activeView === 'create' && (
-        <div className="space-y-6">
-          <section className="p-6 rounded-3xl border border-white/10 bg-white/70 dark:bg-ink-900/80 backdrop-blur-xl shadow-md space-y-6">
-            <div className="border-b border-slate-100 dark:border-white/10 pb-4">
-              <div className="flex items-center gap-2 text-xs font-semibold text-amber-500 mb-1">
-                <Sparkles className="h-3.5 w-3.5" />
-                <span>Executive Directive Dispatch</span>
-              </div>
-              <h2 className="text-xl font-bold text-navy-950 dark:text-white">
-                Issue Department Inspection Directive
-              </h2>
-              <p className="mt-1 text-xs text-slate-500 dark:text-mist-400">
-                Send an official quality inspection directive to a department manager. The department manager coordinates supervisor assignment and tracking.
-              </p>
-            </div>
-
-            <form onSubmit={handleSubmitDirective} className="space-y-5">
-              {/* Department Selection */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-mist-300 mb-2">
-                  Target Department
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  {MANAGER_DEPARTMENTS.map((d) => {
-                    const isSelected = createDeptId === d.id;
-                    const deptDisplayName = d.id === 'wellness' ? 'Wellness' : d.name;
-                    return (
-                      <button
-                        key={d.id}
-                        type="button"
-                        onClick={() => handleDeptChange(d.id)}
-                        className={`p-3.5 rounded-2xl border text-left transition-all flex items-center justify-between gap-2 ${isSelected
-                            ? 'bg-amber-500/15 border-amber-500 text-navy-950 dark:text-white ring-2 ring-amber-500/20'
-                            : 'bg-white dark:bg-ink-950/60 border-slate-200 dark:border-white/10 text-slate-600 dark:text-mist-400 hover:border-slate-300 dark:hover:border-white/20'
-                          }`}
-                      >
-                        <strong className="text-xs font-bold text-navy-950 dark:text-white">
-                          {deptDisplayName}
-                        </strong>
-                        {isSelected && <Check className="h-4 w-4 text-amber-500 shrink-0" />}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Location and Type Row */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Location */}
-                <div className="md:col-span-2">
-                  <label className="block text-xs font-semibold text-slate-600 dark:text-mist-300 mb-1.5">
-                    Room or Service Location <span className="text-red-400">*</span>
-                  </label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-mist-400" />
-                    <input
-                      type="text"
-                      required
-                      value={createLocation}
-                      onChange={(e) => setCreateLocation(e.target.value)}
-                      placeholder="e.g. Room 402, Spa Hydrotherapy Pool, Main Restaurant, Chiller Plant..."
-                      className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-ink-950/70 text-xs text-navy-950 dark:text-white placeholder:text-slate-400 dark:placeholder:text-mist-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
-                    />
-                  </div>
-                </div>
-
-                {/* Inspection Type */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 dark:text-mist-300 mb-1.5">
-                    Inspection Type
-                  </label>
-                  <select
-                    value={createType}
-                    onChange={(e) => setCreateType(e.target.value as InspectionType)}
-                    className="w-full px-3 py-2.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-ink-950/70 text-xs text-navy-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/40"
-                  >
-                    <option value="turnover">Turnover Inspection</option>
-                    <option value="deep_clean">Deep Clean Verification</option>
-                    <option value="vip_prep">VIP Arrival Prep</option>
-                    <option value="maintenance_check">Maintenance & Safety Check</option>
-                    <option value="periodic">Periodic Quality Audit</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Priority & Deadline Row */}
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                {/* Priority */}
-                <div className="md:col-span-4">
-                  <label className="block text-xs font-semibold text-slate-600 dark:text-mist-300 mb-1.5">
-                    Directive Priority Level
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { id: 'normal', label: 'Normal', color: 'border-slate-200 text-slate-700 dark:text-mist-300' },
-                      { id: 'vip', label: 'VIP Prep', color: 'border-purple-400/40 text-purple-600 dark:text-purple-400' },
-                      { id: 'urgent', label: 'Urgent', color: 'border-red-400/40 text-red-600 dark:text-red-400' },
-                    ].map((p) => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => setCreatePriority(p.id as any)}
-                        className={`py-2 px-2 text-center text-xs font-bold rounded-xl border transition ${createPriority === p.id
-                            ? 'bg-amber-500/20 border-amber-500 text-navy-950 dark:text-white'
-                            : 'bg-white dark:bg-ink-950/60 border-slate-200 dark:border-white/10 text-slate-500 dark:text-mist-400'
-                          }`}
-                      >
-                        {p.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Deadline Selector */}
-                <div className="md:col-span-8">
-                  <label className="block text-xs font-semibold text-slate-600 dark:text-mist-300 mb-1.5">
-                    Inspection Deadline / Target Completion Time
-                  </label>
-                  <div className="flex flex-wrap items-center gap-2 mb-2">
-                    {[
-                      'Today 11:30',
-                      'Today 12:30',
-                      'Today 14:00',
-                      'Today 16:00',
-                      'Today 18:00',
-                      'Tomorrow 10:00',
-                    ].map((preset) => (
-                      <button
-                        key={preset}
-                        type="button"
-                        onClick={() => {
-                          setCreateDeadlinePreset(preset);
-                          setCustomDeadline('');
-                        }}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition ${createDeadlinePreset === preset && !customDeadline
-                            ? 'bg-amber-400 text-ink-950 font-bold border-amber-400'
-                            : 'bg-white dark:bg-ink-950/60 border-slate-200 dark:border-white/10 text-slate-600 dark:text-mist-300 hover:border-slate-300'
-                          }`}
-                      >
-                        <Clock className="inline h-3 w-3 mr-1 -mt-0.5" />
-                        {preset}
-                      </button>
-                    ))}
-                  </div>
-                  <input
-                    type="text"
-                    value={customDeadline}
-                    onChange={(e) => setCustomDeadline(e.target.value)}
-                    placeholder="Or specify custom deadline (e.g. Today 15:45, End of PM shift...)"
-                    className="w-full px-3.5 py-2 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-ink-950/70 text-xs text-navy-950 dark:text-white placeholder:text-slate-400 dark:placeholder:text-mist-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
-                  />
-                </div>
-              </div>
-
-              {/* Instructions Textarea */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-mist-300 mb-1.5">
-                  Inspection Directive & Quality Standard Instructions
-                </label>
-                <textarea
-                  required
-                  rows={3}
-                  value={createInstructions}
-                  onChange={(e) => setCreateInstructions(e.target.value)}
-                  className="w-full p-3.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-ink-950/70 text-xs text-navy-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/40"
-                />
-                <p className="mt-1 text-[11px] text-slate-400 dark:text-mist-500">
-                  Standard pre-loaded from {selectedDepartment.id === 'wellness' ? 'Wellness' : selectedDepartment.name} specifications. Edit if this inspection requires custom checks.
-                </p>
-              </div>
-
-              {/* Submit CTA */}
-              <div className="pt-2 flex items-center justify-between gap-3 border-t border-slate-100 dark:border-white/10">
-                <span className="text-xs text-slate-500 dark:text-mist-400">
-                  Directive will be routed to <strong>{selectedDepartment.person}</strong> ({selectedDepartment.email})
-                </span>
-                <button
-                  type="submit"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-ink-950 font-bold text-xs shadow-md transition"
-                >
-                  <Send className="h-4 w-4" />
-                  Dispatch Directive to {selectedDepartment.id === 'wellness' ? 'Wellness' : selectedDepartment.name} Manager
-                </button>
-              </div>
-            </form>
-          </section>
-
-          {/* Quick List of Recent Directives */}
-          <div className="p-6 rounded-3xl border border-white/10 bg-white/70 dark:bg-ink-900/80 backdrop-blur-xl shadow-md space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-navy-950 dark:text-white">
-                Active Directives Overview · All Departments
-              </h3>
-              <button
-                type="button"
-                onClick={() => setActiveView('due')}
-                className="text-xs font-semibold text-amber-500 hover:underline"
-              >
-                View all in Due Inspections ({dueCount}) →
-              </button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {dueInspections.slice(0, 6).map((item) => {
-                const dept = getInspectionDepartment(item);
-                const deadline = getInspectionDeadline(item);
-                return (
-                  <div
-                    key={item.id}
-                    className="p-4 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-ink-950/60 space-y-2"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <strong className="text-sm font-bold text-navy-950 dark:text-white">
-                        {item.roomNumber}
-                      </strong>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/20">
-                        {dept.name}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-xs text-amber-500 font-semibold">
-                      <Clock className="h-3 w-3" />
-                      <span>Due: {deadline}</span>
-                    </div>
-                    <p className="text-xs text-slate-500 dark:text-mist-400 line-clamp-2">
-                      {item.instructions || item.notes}
-                    </p>
-                    <div className="pt-2 text-[11px] text-slate-400 dark:text-mist-500 border-t border-slate-100 dark:border-white/5 flex items-center justify-between">
-                      <span>Supervisor: {item.assignedSupervisorName || 'Pending'}</span>
-                      <span className="capitalize">{item.priority}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* OPTION 2: DUE INSPECTIONS VIEW (WITH DEADLINES) */}
+      {/* OPTION 2: DUE INSPECTIONS VIEW (WITH DEADLINES & PHOTOS/VIDEOS) */}
       {/* ========================================================================= */}
       {activeView === 'due' && (
         <div className="space-y-6">
@@ -770,7 +850,7 @@ export function GeneralManagerInspectionsTab({
               </p>
               <button
                 type="button"
-                onClick={() => setActiveView('create')}
+                onClick={() => setIsCreateModalOpen(true)}
                 className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-400 text-ink-950 font-bold text-xs shadow-sm hover:bg-amber-300 transition"
               >
                 <PlusCircle className="h-4 w-4" />
@@ -787,16 +867,16 @@ export function GeneralManagerInspectionsTab({
                 const isExpanded = expandedChecklistId === item.id;
                 const itemsCount = item.items?.length ?? 0;
                 const passedItems = (item.items ?? []).filter((ci) => ci.passed).length;
-
                 const isTargetSelected = selectedInspectionId === item.id;
 
                 return (
                   <article
                     key={item.id}
-                    className={`p-5 rounded-3xl border backdrop-blur-xl shadow-sm space-y-4 transition ${isTargetSelected
+                    className={`p-5 rounded-3xl border backdrop-blur-xl shadow-sm space-y-4 transition ${
+                      isTargetSelected
                         ? 'border-amber-500 ring-2 ring-amber-500/40 bg-amber-500/10 dark:bg-amber-500/15'
                         : 'border-slate-200 dark:border-white/10 bg-white/70 dark:bg-ink-900/80 hover:border-amber-500/30'
-                      }`}
+                    }`}
                   >
                     {/* Header Row: Room, Department, Status, and DEADLINE */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -824,12 +904,13 @@ export function GeneralManagerInspectionsTab({
                       {/* Prominent Deadline Badge */}
                       <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                         <div
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-bold border ${isUrgent
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-bold border ${
+                            isUrgent
                               ? 'bg-red-500/15 border-red-500/30 text-red-600 dark:text-red-400 animate-pulse'
                               : isVip
-                                ? 'bg-purple-500/15 border-purple-500/30 text-purple-600 dark:text-purple-400'
-                                : 'bg-amber-500/15 border-amber-500/30 text-amber-600 dark:text-amber-400'
-                            }`}
+                              ? 'bg-purple-500/15 border-purple-500/30 text-purple-600 dark:text-purple-400'
+                              : 'bg-amber-500/15 border-amber-500/30 text-amber-600 dark:text-amber-400'
+                          }`}
                         >
                           <Clock className="h-4 w-4" />
                           <span>Deadline: {deadline}</span>
@@ -838,10 +919,11 @@ export function GeneralManagerInspectionsTab({
 
                         {/* Status Tag */}
                         <span
-                          className={`px-2.5 py-1 rounded-full text-xs font-bold capitalize ${item.status === 'reopened'
+                          className={`px-2.5 py-1 rounded-full text-xs font-bold capitalize ${
+                            item.status === 'reopened'
                               ? 'bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/30'
                               : 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30'
-                            }`}
+                          }`}
                         >
                           {item.status === 'reopened' ? 'Reopened (Corrective)' : 'Pending Inspection'}
                         </span>
@@ -893,16 +975,18 @@ export function GeneralManagerInspectionsTab({
                           {item.items.map((chk) => (
                             <div
                               key={chk.id}
-                              className={`p-2.5 rounded-xl border text-xs flex items-start gap-2 ${chk.passed
+                              className={`p-2.5 rounded-xl border text-xs flex items-start gap-2 ${
+                                chk.passed
                                   ? 'bg-emerald-500/10 border-emerald-500/20 text-slate-700 dark:text-mist-300'
                                   : 'bg-slate-50 dark:bg-ink-950/60 border-slate-200 dark:border-white/10 text-slate-500 dark:text-mist-400'
-                                }`}
+                              }`}
                             >
                               <div
-                                className={`p-1 rounded-md mt-0.5 ${chk.passed
+                                className={`p-1 rounded-md mt-0.5 ${
+                                  chk.passed
                                     ? 'bg-emerald-500 text-ink-950'
                                     : 'bg-slate-200 dark:bg-ink-800 text-slate-400'
-                                  }`}
+                                }`}
                               >
                                 <Check className="h-3 w-3" />
                               </div>
@@ -918,8 +1002,8 @@ export function GeneralManagerInspectionsTab({
                       </div>
                     )}
 
-                    {/* Action Bar */}
-                    <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-white/5">
+                    {/* Action Bar with Photos & Videos Option */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-white/5">
                       <button
                         type="button"
                         onClick={() => setExpandedChecklistId(isExpanded ? null : item.id)}
@@ -929,7 +1013,20 @@ export function GeneralManagerInspectionsTab({
                         <span>{isExpanded ? 'Hide Checklist' : `View Checklist (${itemsCount} items)`}</span>
                       </button>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {/* Option to View Photos and Videos uploaded by Inspection Team */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setViewingMediaInspection(item);
+                            setSelectedPreviewMedia(null);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-300 text-xs font-bold transition shadow-sm"
+                        >
+                          <Camera className="h-3.5 w-3.5" />
+                          <span>Photos & Videos (4)</span>
+                        </button>
+
                         <button
                           type="button"
                           onClick={() => handleMarkPassed(item.id, item.roomNumber)}
@@ -949,7 +1046,7 @@ export function GeneralManagerInspectionsTab({
       )}
 
       {/* ========================================================================= */}
-      {/* OPTION 3: HISTORY OF INSPECTIONS (COMPLETED AUDITS) */}
+      {/* OPTION 3: INSPECTIONS (FORMERLY HISTORY OF INSPECTIONS) */}
       {/* ========================================================================= */}
       {activeView === 'history' && (
         <div className="space-y-6">
@@ -963,7 +1060,7 @@ export function GeneralManagerInspectionsTab({
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search inspection history by room, inspector, findings..."
+                  placeholder="Search completed inspections by room, inspector, findings..."
                   className="w-full pl-10 pr-4 py-2 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-ink-950/70 text-xs text-navy-950 dark:text-white placeholder:text-slate-400 dark:placeholder:text-mist-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
                 />
               </div>
@@ -995,7 +1092,7 @@ export function GeneralManagerInspectionsTab({
             {/* Quality Summary Strip */}
             <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-white/[0.06] text-xs">
               <div className="flex items-center gap-2">
-                <span className="text-slate-500 dark:text-mist-400">Quality History:</span>
+                <span className="text-slate-500 dark:text-mist-400">Inspections:</span>
                 <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 font-semibold border border-emerald-500/20">
                   {passedCount} Completed Inspections
                 </span>
@@ -1009,7 +1106,7 @@ export function GeneralManagerInspectionsTab({
             </div>
           </div>
 
-          {/* Completed History Cards */}
+          {/* Completed Inspections Cards */}
           {filteredHistoryInspections.length === 0 ? (
             <div className="p-12 text-center rounded-3xl border border-white/10 bg-white/70 dark:bg-ink-900/80 backdrop-blur-xl">
               <History className="mx-auto h-10 w-10 text-slate-400 dark:text-mist-500 mb-3" />
@@ -1017,7 +1114,7 @@ export function GeneralManagerInspectionsTab({
                 No Completed Inspections Found
               </h3>
               <p className="mt-1 text-xs text-slate-500 dark:text-mist-400 max-w-md mx-auto">
-                No inspection history matches your search or department filter.
+                No inspection records match your search or department filter.
               </p>
             </div>
           ) : (
@@ -1028,16 +1125,16 @@ export function GeneralManagerInspectionsTab({
                 const itemsCount = item.items?.length ?? 0;
                 const passedItems = (item.items ?? []).filter((ci) => ci.passed).length;
                 const score = item.score ?? 100;
-
                 const isTargetSelected = selectedInspectionId === item.id;
 
                 return (
                   <article
                     key={item.id}
-                    className={`p-5 rounded-3xl border backdrop-blur-xl shadow-sm space-y-4 transition ${isTargetSelected
+                    className={`p-5 rounded-3xl border backdrop-blur-xl shadow-sm space-y-4 transition ${
+                      isTargetSelected
                         ? 'border-emerald-500 ring-2 ring-emerald-500/40 bg-emerald-500/10 dark:bg-emerald-500/15'
                         : 'border-slate-200 dark:border-white/10 bg-white/70 dark:bg-ink-900/80 hover:border-emerald-500/30'
-                      }`}
+                    }`}
                   >
                     {/* Header Row */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1132,8 +1229,8 @@ export function GeneralManagerInspectionsTab({
                       </div>
                     )}
 
-                    {/* Action Bar */}
-                    <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-white/5">
+                    {/* Action Bar with Photos & Videos Option */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-white/5">
                       <button
                         type="button"
                         onClick={() => setExpandedChecklistId(isExpanded ? null : item.id)}
@@ -1143,15 +1240,503 @@ export function GeneralManagerInspectionsTab({
                         <span>{isExpanded ? 'Hide Verified Items' : `View Verified Items (${itemsCount || 4})`}</span>
                       </button>
 
-                      <span className="text-[11px] text-slate-400 dark:text-mist-500">
-                        Audit ID: <span className="font-mono">{item.id}</span>
-                      </span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {/* Option to View Photos and Videos uploaded by Inspection Team */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setViewingMediaInspection(item);
+                            setSelectedPreviewMedia(null);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-300 text-xs font-bold transition shadow-sm"
+                        >
+                          <Camera className="h-3.5 w-3.5" />
+                          <span>Photos & Videos (4)</span>
+                        </button>
+
+                        <span className="text-[11px] text-slate-400 dark:text-mist-500">
+                          Audit ID: <span className="font-mono">{item.id}</span>
+                        </span>
+                      </div>
                     </div>
                   </article>
                 );
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL FRAME: CREATE INSPECTIONS FORM (IN ANOTHER FRAME WITH BACKGROUND BLUR) */}
+      {/* ========================================================================= */}
+      {isCreateModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+          onClick={() => setIsCreateModalOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="create-inspection-modal-title"
+        >
+          <div
+            className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl border border-white/15 bg-white dark:bg-ink-900 shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-white/10 bg-slate-50/80 dark:bg-ink-950/80">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-2xl bg-amber-500/20 text-amber-500 grid place-items-center border border-amber-500/30">
+                  <PlusCircle className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 id="create-inspection-modal-title" className="text-base font-bold text-navy-950 dark:text-white">
+                    Create Department Inspection Directive
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-mist-400 mt-0.5">
+                    Issue operational parameters and quality deadlines to department teams.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsCreateModalOpen(false)}
+                className="p-2 rounded-2xl hover:bg-slate-200 dark:hover:bg-white/10 text-slate-400 hover:text-navy-950 dark:hover:text-white transition"
+                aria-label="Close form"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Modal Form Body */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <form onSubmit={handleSubmitDirective} className="space-y-4">
+                {/* 1. Target Department in a Dropdown */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 dark:text-mist-300 mb-1.5">
+                    Target Department
+                  </label>
+                  <select
+                    id="inspection-department-select"
+                    value={createDeptId}
+                    onChange={(e) => handleDeptChange(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-ink-950/70 text-xs font-semibold text-navy-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+                  >
+                    <option value="housekeeping">Housekeeping</option>
+                    <option value="engineering">Maintenance & Engineering</option>
+                    <option value="food-beverages">Food & Beverages</option>
+                    <option value="wellness">Wellness</option>
+                  </select>
+                </div>
+
+                {/* 2. Inspection Location Dropdown (All, Floor, Rooms) with dynamic input box */}
+                <div className="space-y-2.5 p-3.5 rounded-2xl bg-slate-50/70 dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/5">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-mist-300 mb-1.5">
+                      Inspection Location
+                    </label>
+                    <select
+                      id="inspection-location-scope-select"
+                      value={locationScope}
+                      onChange={(e) => setLocationScope(e.target.value as 'all' | 'floor' | 'rooms')}
+                      className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-ink-950/70 text-xs font-semibold text-navy-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+                    >
+                      <option value="all">All (Property-wide / Common Areas)</option>
+                      <option value="floor">Floor</option>
+                      <option value="rooms">Rooms</option>
+                    </select>
+                  </div>
+
+                  {/* Dynamic Box for Floor Number */}
+                  {locationScope === 'floor' && (
+                    <div className="animate-fade-in">
+                      <label className="block text-xs font-semibold text-slate-600 dark:text-mist-300 mb-1.5">
+                        Floor Number <span className="text-red-400">*</span>
+                      </label>
+                      <div className="relative">
+                        <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-mist-400" />
+                        <input
+                          type="text"
+                          id="inspection-floor-input"
+                          required
+                          value={floorInput}
+                          onChange={(e) => setFloorInput(e.target.value)}
+                          placeholder="Enter floor number (e.g. 3, 4, Floor 5)"
+                          className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-ink-950/70 text-xs text-navy-950 dark:text-white placeholder:text-slate-400 dark:placeholder:text-mist-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Dynamic Box for Room Number */}
+                  {locationScope === 'rooms' && (
+                    <div className="animate-fade-in">
+                      <label className="block text-xs font-semibold text-slate-600 dark:text-mist-300 mb-1.5">
+                        Room Number <span className="text-red-400">*</span>
+                      </label>
+                      <div className="relative">
+                        <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-mist-400" />
+                        <input
+                          type="text"
+                          id="inspection-room-input"
+                          required
+                          value={roomInput}
+                          onChange={(e) => setRoomInput(e.target.value)}
+                          placeholder="Enter room number (e.g. 402, Suite 518)"
+                          className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-ink-950/70 text-xs text-navy-950 dark:text-white placeholder:text-slate-400 dark:placeholder:text-mist-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Inspection Type Dropdown (Changes according to the four departments) & Priority Dropdown */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-mist-300 mb-1.5">
+                      Inspection Type
+                    </label>
+                    <select
+                      id="inspection-type-select"
+                      value={createType}
+                      onChange={(e) => setCreateType(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-ink-950/70 text-xs text-navy-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+                    >
+                      {(DEPARTMENT_INSPECTION_TYPES[createDeptId] || DEPARTMENT_INSPECTION_TYPES.housekeeping).map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-mist-300 mb-1.5">
+                      Priority Level
+                    </label>
+                    <select
+                      id="inspection-priority-select"
+                      value={createPriority}
+                      onChange={(e) => setCreatePriority(e.target.value as any)}
+                      className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-ink-950/70 text-xs text-navy-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+                    >
+                      <option value="normal">Normal</option>
+                      <option value="vip">VIP Prep</option>
+                      <option value="urgent">Urgent</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* 4. Deadline Section with Clock Option & Manual Input Box Underneath */}
+                <div className="space-y-2 p-3.5 rounded-2xl bg-slate-50/70 dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/5">
+                  <label className="block text-xs font-semibold text-slate-600 dark:text-mist-300">
+                    Inspection Deadline & Target Time
+                  </label>
+
+                  {/* Clock Option: Exact Time Input with AM and PM options inside */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <div className="relative flex-1 flex items-center">
+                      <Clock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-amber-500 pointer-events-none" />
+                      <input
+                        type="time"
+                        id="inspection-clock-time-input"
+                        value={clockTime}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setClockTime(val);
+                          if (val) {
+                            const { time12, period } = format12HourTime(val);
+                            setClockPeriod(period);
+                            setManualDeadline(`Today ${time12} ${period}`);
+                          }
+                        }}
+                        className="w-full pl-10 pr-24 py-2.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-ink-950/70 text-xs text-navy-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+                      />
+
+                      {/* AM and PM options inside the clock control */}
+                      <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center p-0.5 rounded-xl bg-slate-100 dark:bg-white/10 border border-slate-200 dark:border-white/10">
+                        <button
+                          type="button"
+                          id="clock-period-am"
+                          onClick={() => handlePeriodToggle('AM')}
+                          className={`px-2 py-1 rounded-lg text-[10px] font-bold transition ${
+                            clockPeriod === 'AM'
+                              ? 'bg-amber-500 text-white shadow-sm'
+                              : 'text-slate-500 dark:text-mist-400 hover:text-navy-950 dark:hover:text-white'
+                          }`}
+                        >
+                          AM
+                        </button>
+                        <button
+                          type="button"
+                          id="clock-period-pm"
+                          onClick={() => handlePeriodToggle('PM')}
+                          className={`px-2 py-1 rounded-lg text-[10px] font-bold transition ${
+                            clockPeriod === 'PM'
+                              ? 'bg-amber-500 text-white shadow-sm'
+                              : 'text-slate-500 dark:text-mist-400 hover:text-navy-950 dark:hover:text-white'
+                          }`}
+                        >
+                          PM
+                        </button>
+                      </div>
+                    </div>
+
+                    {clockTime && (
+                      <span className="text-[11px] font-mono font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-3 py-2 rounded-xl border border-amber-500/20 whitespace-nowrap self-start sm:self-auto flex items-center gap-1.5">
+                        <Clock className="h-3 w-3 text-amber-500" />
+                        Today {format12HourTime(clockTime).time12} {clockPeriod}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Box Underneath for Manual Time Writing */}
+                  <div>
+                    <input
+                      type="text"
+                      id="inspection-manual-time-input"
+                      value={manualDeadline}
+                      onChange={(e) => setManualDeadline(e.target.value)}
+                      placeholder="Or manually write time (e.g. Today 16:30, Within 2 Hours, Tomorrow 10:00 AM...)"
+                      className="w-full px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-ink-950/70 text-xs text-navy-950 dark:text-white placeholder:text-slate-400 dark:placeholder:text-mist-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+                    />
+                  </div>
+                </div>
+
+                {/* 5. Instructions & Standard */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 dark:text-mist-300 mb-1.5">
+                    Directive Instructions & Quality Standard
+                  </label>
+                  <textarea
+                    required
+                    rows={3}
+                    value={createInstructions}
+                    onChange={(e) => setCreateInstructions(e.target.value)}
+                    className="w-full p-3.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-ink-950/70 text-xs text-navy-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+                  />
+                  <p className="mt-1 text-[11px] text-slate-400 dark:text-mist-500">
+                    Standard pre-loaded from {selectedDepartment.id === 'wellness' ? 'Wellness' : selectedDepartment.name} specifications.
+                  </p>
+                </div>
+
+                {/* Submit Action Bar */}
+                <div className="pt-3 flex items-center justify-between gap-3 border-t border-slate-200 dark:border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => setIsCreateModalOpen(false)}
+                    className="px-4 py-2 rounded-2xl border border-slate-200 dark:border-white/10 text-xs font-semibold text-slate-600 dark:text-mist-300 hover:bg-slate-100 dark:hover:bg-white/5 transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-ink-950 font-bold text-xs shadow-md transition"
+                  >
+                    <Send className="h-4 w-4" />
+                    Dispatch Directive to {selectedDepartment.id === 'wellness' ? 'Wellness' : selectedDepartment.name}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL FRAME: PHOTOS & VIDEOS UPLOADED BY INSPECTION TEAM */}
+      {/* ========================================================================= */}
+      {viewingMediaInspection && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+          onClick={() => {
+            setViewingMediaInspection(null);
+            setSelectedPreviewMedia(null);
+          }}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="w-full max-w-3xl max-h-[90vh] flex flex-col rounded-3xl border border-white/15 bg-white dark:bg-ink-900 shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-white/10 bg-slate-50/80 dark:bg-ink-950/80">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-2xl bg-purple-500/20 text-purple-600 dark:text-purple-400 grid place-items-center border border-purple-500/30">
+                  <Camera className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-base font-bold text-navy-950 dark:text-white">
+                      Inspection Photos & Videos · {viewingMediaInspection.roomNumber}
+                    </h3>
+                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-600 dark:text-purple-300 border border-purple-500/20">
+                      {getInspectionDepartment(viewingMediaInspection).name}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-mist-400 mt-0.5">
+                    Photographic proof & video walk-throughs uploaded directly by the active inspection crew.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setViewingMediaInspection(null);
+                  setSelectedPreviewMedia(null);
+                }}
+                className="p-2 rounded-2xl hover:bg-slate-200 dark:hover:bg-white/10 text-slate-400 hover:text-navy-950 dark:hover:text-white transition"
+                aria-label="Close media gallery"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Sub-header Filter Strip */}
+            <div className="px-6 py-3 border-b border-slate-200 dark:border-white/10 bg-slate-50/40 dark:bg-ink-950/40 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                {(['all', 'photo', 'video'] as const).map((filter) => (
+                  <button
+                    key={filter}
+                    type="button"
+                    onClick={() => setMediaFilter(filter)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                      mediaFilter === filter
+                        ? 'bg-purple-600 text-white shadow-sm'
+                        : 'bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-mist-300 hover:text-navy-950 dark:hover:text-white'
+                    }`}
+                  >
+                    {filter === 'all' ? 'All Media (4)' : filter === 'photo' ? 'Photos (3)' : 'Videos (1)'}
+                  </button>
+                ))}
+              </div>
+              <div className="text-[11px] font-mono text-slate-400 dark:text-mist-500 hidden sm:block">
+                Inspector: {viewingMediaInspection.inspectedBy || viewingMediaInspection.assignedSupervisorName || 'Department Team'}
+              </div>
+            </div>
+
+            {/* Media Gallery Grid */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              {/* Detailed Expanded Preview if an item is selected */}
+              {selectedPreviewMedia && (
+                <div className="p-4 rounded-2xl border border-purple-500/40 bg-purple-500/10 dark:bg-purple-500/15 animate-fade-in space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-300 flex items-center gap-1.5">
+                      {selectedPreviewMedia.type === 'video' ? <Video className="h-3.5 w-3.5" /> : <Camera className="h-3.5 w-3.5" />}
+                      Enlarged Inspection Evidence ({selectedPreviewMedia.type.toUpperCase()})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPreviewMedia(null)}
+                      className="text-xs text-slate-400 hover:text-navy-950 dark:hover:text-white"
+                    >
+                      Close Preview ✕
+                    </button>
+                  </div>
+                  <div className={`h-48 rounded-xl bg-gradient-to-br ${selectedPreviewMedia.gradient} flex flex-col items-center justify-center text-white relative shadow-inner`}>
+                    {selectedPreviewMedia.type === 'video' ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="h-12 w-12 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/40 shadow-lg">
+                          <Play className="h-6 w-6 fill-white ml-0.5" />
+                        </div>
+                        <span className="text-xs font-mono font-bold bg-black/40 px-2 py-0.5 rounded-md">
+                          Playing Inspection Recording ({selectedPreviewMedia.duration})
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2">
+                        <ImageIcon className="h-12 w-12 opacity-80" />
+                        <span className="text-xs font-bold bg-black/40 px-3 py-1 rounded-md backdrop-blur-sm">
+                          1080p High-Resolution Photographic Evidence
+                        </span>
+                      </div>
+                    )}
+                    <span className="absolute bottom-3 right-3 text-[10px] font-mono bg-black/60 px-2 py-0.5 rounded-full text-mist-200">
+                      Watermark: Verified {selectedPreviewMedia.timestamp}
+                    </span>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-navy-950 dark:text-white">
+                      {selectedPreviewMedia.title}
+                    </h4>
+                    <p className="text-xs text-slate-600 dark:text-mist-300 mt-1">
+                      {selectedPreviewMedia.notes}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Grid of uploaded inspection photos & videos */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {getInspectionMedia(viewingMediaInspection)
+                  .filter((m) => mediaFilter === 'all' || m.type === mediaFilter)
+                  .map((media) => (
+                    <div
+                      key={media.id}
+                      onClick={() => setSelectedPreviewMedia(media)}
+                      className="cursor-pointer group p-3.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.02] hover:border-purple-500/40 hover:shadow-md transition space-y-3"
+                    >
+                      {/* Media Simulated Thumbnail */}
+                      <div className={`h-36 rounded-xl bg-gradient-to-br ${media.gradient} relative overflow-hidden flex items-center justify-center text-white shadow-inner`}>
+                        {media.type === 'video' ? (
+                          <div className="h-10 w-10 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center border border-white/30 group-hover:scale-110 transition">
+                            <Play className="h-5 w-5 fill-white ml-0.5" />
+                          </div>
+                        ) : (
+                          <Camera className="h-8 w-8 opacity-70 group-hover:scale-110 transition" />
+                        )}
+
+                        <span className="absolute top-2.5 left-2.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-white border border-white/20">
+                          {media.type === 'video' ? `Video · ${media.duration}` : 'Photo · JPEG'}
+                        </span>
+
+                        <span className="absolute bottom-2.5 right-2.5 text-[9px] font-mono px-2 py-0.5 rounded bg-black/50 text-mist-300">
+                          {media.timestamp}
+                        </span>
+                      </div>
+
+                      {/* Content Info */}
+                      <div>
+                        <div className="flex items-center justify-between gap-1">
+                          <h4 className="text-xs font-bold text-navy-950 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition line-clamp-1">
+                            {media.title}
+                          </h4>
+                          <span className="text-[10px] font-bold text-purple-600 dark:text-purple-300 shrink-0">
+                            View ↗
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 dark:text-mist-400 mt-1 line-clamp-2 leading-relaxed">
+                          {media.notes}
+                        </p>
+                        <div className="pt-2 mt-2 border-t border-slate-100 dark:border-white/5 flex items-center justify-between text-[10px] text-slate-400 dark:text-mist-500 font-mono">
+                          <span>By: {media.uploadedBy}</span>
+                          <span className="text-emerald-600 dark:text-emerald-400 font-bold">{media.tag}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-slate-200 dark:border-white/10 bg-slate-50/80 dark:bg-ink-950/80 flex items-center justify-between">
+              <span className="text-xs text-slate-500 dark:text-mist-400">
+                Inspection evidence is cryptographically signed and archived for GM audits.
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setViewingMediaInspection(null);
+                  setSelectedPreviewMedia(null);
+                }}
+                className="px-5 py-2 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition shadow-md"
+              >
+                Done
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
