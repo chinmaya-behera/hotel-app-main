@@ -652,7 +652,6 @@ export function ExecutiveConsole() {
           </div>
         </div>
       </div>
-    </div>
 
       {/* Main Console Layout: Collapsible Sidebar + Content View */}
       <div className="flex flex-col lg:flex-row items-start gap-6">

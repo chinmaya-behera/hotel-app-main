@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test:manager": "node --test tests/manager.test.mjs tests/department-insights.test.mjs tests/department-record-history.test.mjs tests/manager-workspace.test.mjs",
     "db:generate": "drizzle-kit generate",
-    "db:push": "drizzle-kit push",
+    "db:push": "drizzle-kit push --force",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio"
   },
@@ -30,7 +30,6 @@
     "@types/node": "^24.0.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
-    "autoprefixer": "^10.4.20",
     "drizzle-kit": "^0.31.11",
     "eslint": "^8.57.1",
     "eslint-config-next": "15.5.28",
