@@ -31,7 +31,7 @@ import { TimePickerInput } from '@/components/ui/TimePickerInput';
 import { displayTime } from '@/components/ui/TimePickerModal';
 import { scheduledDiningTime } from '@/lib/department-insights';
 import { useDemo } from '@/lib/store';
-import { cn, money } from '@/lib/utils';
+import { money } from '@/lib/utils';
 import { GuestSheet } from '@/components/guest/guestUi';
 import { CustomDishRequestModal } from './CustomDishRequestModal';
 import type { GuestTabProps } from '@/components/guest/types';
@@ -72,10 +72,6 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
     guestApproveCustomDiningQuote,
     guestReplyCustomDiningClarification,
   } = useDemo();
-
-  const guestPalette = state.guestPalette ?? 'burgundy';
-  const guestTheme = state.guestTheme ?? 'light';
-  const isDark = guestTheme === 'dark';
 
   // Custom Dish Request states
   const [customDishModalOpen, setCustomDishModalOpen] = useState(false);
@@ -427,36 +423,21 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
 
   return (
     <div className="space-y-6 sm:space-y-8 pb-32 max-w-7xl mx-auto w-full">
-      {/* HEADER BREADCRUMB & TITLE */}
-      <div className="space-y-1">
-        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold tracking-[0.2em] uppercase text-stone-500 dark:text-stone-400">
-          <span className="cursor-pointer hover:underline" onClick={() => onNavigate('services')}>Services</span>
-          <span>/</span>
-          <span className={guestPalette === 'burgundy' ? 'text-[#74172F] dark:text-[#C9A45C]' : 'text-[#175B49] dark:text-[#A9C8B9]'}>Dining</span>
-        </div>
-        <h1 className="guest-serif text-3xl sm:text-4xl font-bold text-stone-900 dark:text-white">
-          Dining
-        </h1>
-        <p className="text-xs sm:text-sm text-stone-500 dark:text-stone-400">
-          Menu &amp; Order
-        </p>
-      </div>
-
       {/* 1. SEARCH BAR - PROMINENT FIRST ELEMENT */}
       <div className="relative w-full pt-1">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-mist-400" />
         <input
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search dishes, cuisines, or ingredients..."
-          className="w-full rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 pl-10 pr-9 py-3 text-xs sm:text-sm text-stone-900 dark:text-white placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-400/30 shadow-sm transition-colors"
+          className="w-full rounded-2xl bg-ink-900/90 border border-white/10 pl-10 pr-9 py-3 text-xs sm:text-sm text-white placeholder-mist-400 focus:outline-none focus:border-amber-400/60 shadow-md transition-colors"
         />
         {searchQuery && (
           <button
             type="button"
             onClick={() => setSearchQuery('')}
-            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 dark:hover:text-white p-1"
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-mist-400 hover:text-white p-1"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -588,44 +569,23 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
       )}
 
       {/* DISTINCT CUSTOMISE YOUR ORDER CARD */}
-      <div
-        className={cn(
-          'p-4 sm:p-5 rounded-2xl relative overflow-hidden shadow-sm border',
-          guestPalette === 'burgundy'
-            ? 'bg-[#FFFCF8] dark:bg-[#220B15] border-[#E0CBA9] dark:border-[#461628]'
-            : 'bg-[#FFFCF6] dark:bg-[#0E241C] border-[#DDD9CC] dark:border-[#174233]'
-        )}
-      >
+      <div className="guest-card p-4 sm:p-5 border-amber-400/30 bg-gradient-to-r from-amber-500/10 via-amber-400/[0.04] to-ink-900/40 relative overflow-hidden shadow-lg">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2.5">
-              <span
-                className={cn(
-                  'grid h-9 w-9 place-items-center rounded-xl shrink-0',
-                  guestPalette === 'burgundy'
-                    ? 'bg-[#F2E4CE] text-[#74172F] dark:bg-[#381222] dark:text-[#C9A45C]'
-                    : 'bg-[#F1EBDD] text-[#1A6650] dark:bg-[#15382B] dark:text-[#34D399]'
-                )}
-              >
+              <span className="grid h-9 w-9 place-items-center rounded-xl bg-amber-400/20 text-amber-300 border border-amber-400/30 shrink-0">
                 <ChefHat className="h-5 w-5" />
               </span>
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm sm:text-base font-bold text-stone-900 dark:text-white">
-                  Customise Your Order
+              <div>
+                <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                  <span>Customise Your Order</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-mono font-bold uppercase">
+                    Chef&apos;s Table
+                  </span>
                 </h3>
-                <span
-                  className={cn(
-                    'text-[10px] px-2 py-0.5 rounded-full font-mono font-bold uppercase border',
-                    guestPalette === 'burgundy'
-                      ? 'bg-[#C9A45C]/15 text-[#8B682A] dark:text-[#C9A45C] border-[#DEC9A4]/40'
-                      : 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border-emerald-500/30'
-                  )}
-                >
-                  Chef&apos;s Table
-                </span>
               </div>
             </div>
-            <p className="text-xs text-stone-500 dark:text-stone-400 max-w-xl pl-0 sm:pl-11">
+            <p className="text-xs text-mist-300 max-w-xl pl-0 sm:pl-11">
               Can&apos;t find what you&apos;re craving? Tell us what you&apos;d like, and we&apos;ll check if we can prepare it.
             </p>
           </div>
@@ -633,12 +593,7 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
           <button
             type="button"
             onClick={() => setCustomDishModalOpen(true)}
-            className={cn(
-              'inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white shadow-md transition-all shrink-0 cursor-pointer self-start sm:self-auto',
-              guestPalette === 'burgundy'
-                ? 'bg-[#74172F] hover:bg-[#8A2443]'
-                : 'bg-[#175B49] hover:bg-[#206A55]'
-            )}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-400 text-ink-950 text-xs font-bold hover:bg-amber-300 shadow-md transition-all shrink-0 cursor-pointer self-start sm:self-auto"
           >
             <UtensilsCrossed className="h-3.5 w-3.5" />
             <span>Request a Custom Dish</span>
@@ -654,14 +609,11 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
             <button
               type="button"
               onClick={() => setDietaryFilter('all')}
-              className={cn(
-                'px-4 py-1.5 rounded-full text-xs font-bold transition-all shadow-sm',
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
                 dietaryFilter === 'all'
-                  ? guestPalette === 'burgundy'
-                    ? 'bg-[#74172F] text-white'
-                    : 'bg-[#175B49] text-white'
-                  : 'bg-white dark:bg-stone-900 text-stone-700 dark:text-stone-300 border border-stone-200 dark:border-stone-800 hover:bg-stone-50 dark:hover:bg-stone-800'
-              )}
+                  ? 'bg-amber-400 text-ink-950 font-bold shadow-sm'
+                  : 'bg-white/5 text-mist-300 hover:text-white border border-white/5'
+              }`}
             >
               All
             </button>
@@ -669,12 +621,11 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
             <button
               type="button"
               onClick={() => setDietaryFilter(dietaryFilter === 'veg' ? 'all' : 'veg')}
-              className={cn(
-                'flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all border',
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
                 dietaryFilter === 'veg'
-                  ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-500 font-bold'
-                  : 'bg-white dark:bg-stone-900 text-stone-700 dark:text-stone-300 border-stone-200 dark:border-stone-800 hover:bg-stone-50 dark:hover:bg-stone-800'
-              )}
+                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 font-bold'
+                  : 'bg-white/5 text-mist-300 hover:text-white border border-white/5'
+              }`}
             >
               <span className="h-2 w-2 rounded-full bg-emerald-500" />
               <span>Veg</span>
@@ -683,12 +634,11 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
             <button
               type="button"
               onClick={() => setDietaryFilter(dietaryFilter === 'non_veg' ? 'all' : 'non_veg')}
-              className={cn(
-                'flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all border',
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
                 dietaryFilter === 'non_veg'
-                  ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-500 font-bold'
-                  : 'bg-white dark:bg-stone-900 text-stone-700 dark:text-stone-300 border-stone-200 dark:border-stone-800 hover:bg-stone-50 dark:hover:bg-stone-800'
-              )}
+                  ? 'bg-rose-500/20 text-rose-300 border border-rose-500/50 font-bold'
+                  : 'bg-white/5 text-mist-300 hover:text-white border border-white/5'
+              }`}
             >
               <span className="h-2 w-2 rounded-full bg-rose-500" />
               <span>Non-Veg</span>
@@ -697,14 +647,13 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
             <button
               type="button"
               onClick={() => setDietaryFilter(dietaryFilter === 'vegan' ? 'all' : 'vegan')}
-              className={cn(
-                'flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all border',
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
                 dietaryFilter === 'vegan'
-                  ? 'bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border-teal-500 font-bold'
-                  : 'bg-white dark:bg-stone-900 text-stone-700 dark:text-stone-300 border-stone-200 dark:border-stone-800 hover:bg-stone-50 dark:hover:bg-stone-800'
-              )}
+                  ? 'bg-teal-500/20 text-teal-300 border border-teal-500/50 font-bold'
+                  : 'bg-white/5 text-mist-300 hover:text-white border border-white/5'
+              }`}
             >
-              <Leaf className="h-3 w-3 text-teal-500" />
+              <Leaf className="h-3 w-3 text-teal-400" />
               <span>Vegan</span>
             </button>
           </div>
@@ -714,19 +663,16 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
             <button
               type="button"
               onClick={() => setAllergenModalOpen(true)}
-              className={cn(
-                'flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all border',
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
                 excludedAllergens.length > 0
-                  ? guestPalette === 'burgundy'
-                    ? 'bg-[#C9A45C]/15 text-[#8B682A] dark:text-[#C9A45C] border-[#DEC9A4]/40 font-bold'
-                    : 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border-emerald-500/40 font-bold'
-                  : 'bg-white dark:bg-stone-900 text-stone-700 dark:text-stone-300 border-stone-200 dark:border-stone-800 hover:bg-stone-50 dark:hover:bg-stone-800'
-              )}
+                  ? 'bg-amber-400/20 text-amber-300 border border-amber-400/40 font-bold'
+                  : 'bg-white/5 text-mist-300 hover:text-white border border-white/5'
+              }`}
             >
               <SlidersHorizontal className="h-3.5 w-3.5" />
               <span>Allergens</span>
               {excludedAllergens.length > 0 && (
-                <span className="grid h-4 w-4 place-items-center rounded-full bg-amber-500 text-white font-mono text-[10px] font-black">
+                <span className="grid h-4 w-4 place-items-center rounded-full bg-amber-400 text-ink-950 font-mono text-[10px] font-black">
                   {excludedAllergens.length}
                 </span>
               )}
@@ -755,19 +701,16 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
         )}
       </div>
 
-      {/* 3. MENU CATEGORIES */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar border-b border-stone-200 dark:border-stone-800">
+      {/* 3. MENU CATEGORIES (Configurable 10 Categories) */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar border-b border-white/5">
         <button
           type="button"
           onClick={() => setActiveCategory('all')}
-          className={cn(
-            'px-3 py-2 text-xs whitespace-nowrap transition-all font-semibold',
+          className={`px-3 py-1.5 rounded-lg text-xs whitespace-nowrap transition-all ${
             activeCategory === 'all'
-              ? guestPalette === 'burgundy'
-                ? 'text-stone-900 dark:text-white font-bold border-b-2 border-[#C9A45C]'
-                : 'text-stone-900 dark:text-white font-bold border-b-2 border-[#175B49] dark:border-[#A9C8B9]'
-              : 'text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white'
-          )}
+              ? 'bg-white/15 text-white font-bold border-b-2 border-amber-400'
+              : 'text-mist-400 hover:text-white'
+          }`}
         >
           All Categories ({menuList.filter((d) => d.isAvailable).length})
         </button>
@@ -780,14 +723,11 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
               key={cat}
               type="button"
               onClick={() => setActiveCategory(cat)}
-              className={cn(
-                'px-3 py-2 text-xs whitespace-nowrap transition-all flex items-center gap-1.5 font-semibold',
+              className={`px-3 py-1.5 rounded-lg text-xs whitespace-nowrap transition-all flex items-center gap-1.5 ${
                 isActive
-                  ? guestPalette === 'burgundy'
-                    ? 'text-stone-900 dark:text-white font-bold border-b-2 border-[#C9A45C]'
-                    : 'text-stone-900 dark:text-white font-bold border-b-2 border-[#175B49] dark:border-[#A9C8B9]'
-                  : 'text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white'
-              )}
+                  ? 'bg-amber-400/15 text-amber-300 font-bold border-b-2 border-amber-400'
+                  : 'text-mist-400 hover:text-white'
+              }`}
             >
               <span>{cat}</span>
               {count > 0 && (
@@ -834,23 +774,18 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
             return (
               <div
                 key={dish.id}
-                className={cn(
-                  'p-4 sm:p-5 flex gap-4 items-start justify-between rounded-2xl shadow-sm hover:shadow-md transition-all border group',
-                  guestPalette === 'burgundy'
-                    ? 'bg-[#FFFCF8] dark:bg-[#220B15] border-[#E0CBA9] dark:border-[#461628]'
-                    : 'bg-[#FFFCF6] dark:bg-[#0E241C] border-[#DDD9CC] dark:border-[#174233]'
-                )}
+                className="guest-card p-4 sm:p-5 flex gap-4 items-start justify-between hover:border-amber-400/30 transition-all group"
               >
                 {/* Left: Info, Price, Description, Rating */}
                 <div className="flex-1 min-w-0 space-y-1.5">
                   <div className="flex items-center gap-2">
                     {renderDietaryIcon(dish.dietary)}
                     {dish.rating && (
-                      <span className="flex items-center gap-0.5 text-[11px] font-bold text-amber-500">
+                      <span className="flex items-center gap-0.5 text-[11px] font-bold text-amber-400">
                         <span>★</span>
                         <span>{dish.rating.toFixed(1)}</span>
                         {dish.ratingCount && (
-                          <span className="text-[10px] text-stone-400 font-normal">
+                          <span className="text-[10px] text-mist-400 font-normal">
                             ({dish.ratingCount})
                           </span>
                         )}
@@ -858,16 +793,16 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
                     )}
                   </div>
 
-                  <h3 className="text-sm sm:text-base font-bold text-stone-900 dark:text-white tracking-tight leading-snug">
+                  <h3 className="text-sm sm:text-base font-bold text-white tracking-tight leading-snug group-hover:text-amber-300 transition-colors">
                     {dish.name}
                   </h3>
 
-                  <p className="text-sm sm:text-base font-bold text-stone-900 dark:text-stone-100">
+                  <p className="text-sm sm:text-base font-mono font-bold text-amber-300">
                     ₹{dish.price}
                   </p>
 
                   {dish.desc && (
-                    <p className="text-xs sm:text-sm text-stone-500 dark:text-stone-400 line-clamp-2 leading-relaxed">
+                    <p className="text-xs sm:text-sm text-mist-300 line-clamp-2 leading-relaxed">
                       {dish.desc}
                     </p>
                   )}
@@ -877,13 +812,13 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
                     <button
                       type="button"
                       onClick={() => setInfoDish(dish)}
-                      className="text-[10px] text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white flex items-center gap-1 font-medium transition-colors"
+                      className="text-[10px] text-mist-400 hover:text-amber-300 flex items-center gap-1 font-medium transition-colors"
                     >
                       <Info className="h-3 w-3" />
                       <span>Ingredients &amp; Allergens</span>
                     </button>
                     {dish.allergens.length > 0 && (
-                      <span className="text-[10px] text-stone-400 dark:text-stone-500">
+                      <span className="text-[10px] text-mist-500">
                         &bull; Contains: {dish.allergens.slice(0, 2).join(', ')}
                         {dish.allergens.length > 2 && ' +more'}
                       </span>
@@ -891,9 +826,9 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
                   </div>
                 </div>
 
-                {/* Right: High-Quality Food Photography with ADD Button */}
+                {/* Right: High-Quality Food Photography with Swiggy/Zomato ADD Button */}
                 <div className="relative shrink-0 flex flex-col items-center">
-                  <div className="relative h-28 w-28 sm:h-32 sm:w-32 lg:h-36 lg:w-36 rounded-2xl overflow-hidden bg-stone-100 dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-sm">
+                  <div className="relative h-28 w-28 sm:h-32 sm:w-32 lg:h-36 lg:w-36 rounded-2xl overflow-hidden bg-ink-950/60 border border-white/10 shadow-md">
                     <img
                       src={dish.image}
                       alt={dish.name}
@@ -906,37 +841,27 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
                     />
                   </div>
 
-                  {/* ADD Button / Stepper */}
+                  {/* ADD Button / Stepper (Swiggy / Zomato pattern) */}
                   <div className="absolute -bottom-2.5 z-10">
                     {qty === 0 ? (
                       <button
                         type="button"
                         onClick={() => handleAddClick(dish)}
-                        className={cn(
-                          'px-5 py-1.5 rounded-xl font-bold text-xs text-white shadow-lg active:scale-95 transition-all flex flex-col items-center leading-tight',
-                          guestPalette === 'burgundy'
-                            ? 'bg-[#74172F] hover:bg-[#8A2443]'
-                            : 'bg-[#175B49] hover:bg-[#206A55]'
-                        )}
+                        className="px-5 py-1.5 rounded-xl bg-ink-950/95 border border-emerald-500/50 text-emerald-400 font-extrabold text-xs hover:bg-emerald-500 hover:text-ink-950 shadow-lg active:scale-95 transition-all flex flex-col items-center leading-tight"
                       >
                         <span>ADD</span>
                         {isCustomizable && (
-                          <span className="text-[8px] font-normal text-white/80 -mt-0.5">
+                          <span className="text-[8px] font-normal text-emerald-300/80 -mt-0.5">
                             customisable
                           </span>
                         )}
                       </button>
                     ) : (
-                      <div
-                        className={cn(
-                          'flex items-center rounded-xl text-white font-black text-xs shadow-xl overflow-hidden',
-                          guestPalette === 'burgundy' ? 'bg-[#74172F]' : 'bg-[#175B49]'
-                        )}
-                      >
+                      <div className="flex items-center rounded-xl bg-ink-950 border border-emerald-500/60 text-emerald-400 font-black text-xs shadow-xl overflow-hidden">
                         <button
                           type="button"
                           onClick={() => handleDecrementDish(dish)}
-                          className="px-2.5 py-1.5 hover:bg-black/20 active:scale-90 transition-transform"
+                          className="px-2 py-1 hover:bg-emerald-500/20 active:scale-90 transition-transform"
                           title="Decrease"
                         >
                           <Minus className="h-3 w-3" />
@@ -947,7 +872,7 @@ export function DiningSection({ room, guestName, onNavigate }: GuestTabProps) {
                         <button
                           type="button"
                           onClick={() => handleIncrementDish(dish)}
-                          className="px-2.5 py-1.5 hover:bg-black/20 active:scale-90 transition-transform"
+                          className="px-2 py-1 hover:bg-emerald-500/20 active:scale-90 transition-transform"
                           title="Increase"
                         >
                           <Plus className="h-3 w-3" />

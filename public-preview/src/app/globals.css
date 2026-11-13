@@ -1,7 +1,6 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-@import '../components/guest/guest-theme.css';
 
 /* ===================================================================== */
 /* Theme tokens (one toggle re-themes the whole site via <html data-theme>) */
@@ -749,7 +748,10 @@ option {
     align-items: center;
     justify-content: center;
     overflow: hidden;
-    background: var(--guest-bg, #0b1426);
+    background:
+      radial-gradient(900px 520px at 50% -10%, rgb(56 189 248 / 0.12), transparent 60%),
+      radial-gradient(700px 480px at 100% 100%, rgb(129 140 248 / 0.12), transparent 60%),
+      #0b1426;
   }
 
   .guest-shell {
@@ -799,7 +801,9 @@ option {
       align-items: center;
       justify-content: flex-start;
       overflow-y: auto;
-      background: var(--guest-bg, #070d18);
+      background:
+        radial-gradient(1200px 600px at 50% 0%, rgb(56 189 248 / 0.08), transparent 70%),
+        #070d18;
     }
     .guest-frame {
       width: 100%;
@@ -809,8 +813,7 @@ option {
       margin: 0 auto;
       border: none;
       border-radius: 0;
-      box-shadow: 0 0 80px rgba(0, 0, 0, 0.35);
-      background: var(--guest-bg, var(--gs-bg));
+      box-shadow: 0 0 80px rgba(0, 0, 0, 0.5);
     }
     .guest-scroll {
       flex: 1 1 auto;
