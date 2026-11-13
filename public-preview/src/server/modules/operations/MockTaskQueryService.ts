@@ -83,4 +83,8 @@ export class MockTaskQueryService implements ITaskQueryService {
     this.tasksByStay.clear();
     this.seedDefaultTasks();
   }
+
+  public reset(): void {
+    this.resetSeed();
+  }
 }
