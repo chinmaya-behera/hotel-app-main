@@ -435,44 +435,203 @@ export function ExecutiveConsole() {
   };
 
   return (
-    <div className="w-full pb-16 bg-[#FAF9FC] text-slate-900 rounded-3xl p-4 sm:p-6 lg:p-7 shadow-sm border border-purple-100/60 font-sans">
+    <div className="w-full pb-16">
       {/* Top Command Pill: Persona Context & Mode Switcher */}
-      <div className="mb-6 p-4 rounded-3xl border border-purple-100/80 bg-white shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="mb-6 p-4 rounded-3xl border border-white/10 bg-white/70 dark:bg-ink-900/80 backdrop-blur-xl shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-2xl bg-[#F3E8FF] text-[#7C3AED] grid place-items-center font-bold font-mono border border-purple-200/60 shadow-xs">
+          <div className="h-10 w-10 rounded-2xl bg-amber-500/20 text-amber-500 dark:text-amber-300 grid place-items-center font-bold font-mono border border-amber-500/30">
             <Crown className="h-5 w-5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-black text-slate-900">
+              <span className="text-sm font-black text-navy-950 dark:text-white">
                 Priya Nair
               </span>
-              <span className="text-xs text-slate-400">
+              <span className="text-xs text-slate-400 dark:text-mist-500">
                 · General Manager (EMP-0109)
               </span>
-              <span className="text-[10px] font-mono font-bold px-2 py-0.2 rounded-full bg-purple-50 text-[#7C3AED] border border-purple-200/60">
+              <span className="text-[10px] font-mono font-bold px-2 py-0.2 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20">
                 Cap: ₹2,00,000
               </span>
             </div>
-            <div className="text-xs text-slate-500">
-              Grand Azure Executive Suite · Property Health &amp; Beyond-Manager Authority
+            <div className="text-xs text-slate-500 dark:text-mist-400">
+              Grand Azure Executive Suite · Property Health & Beyond-Manager Authority
             </div>
           </div>
         </div>
 
-        {/* Permission Mode Toggle */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-slate-500 hidden md:inline">
+        {/* Navbar Controls: Notifications & Permission Mode Toggle */}
+        <div className="flex items-center gap-3">
+          {/* Notifications in Navbar */}
+          <div className="relative" ref={notifPopoverRef}>
+            <button
+              type="button"
+              id="gm-navbar-notifications-btn"
+              onClick={() => setNotifPopoverOpen(!notifPopoverOpen)}
+              className="relative p-2 rounded-2xl border border-slate-200 dark:border-white/10 bg-black/5 dark:bg-ink-950/80 hover:bg-black/10 dark:hover:bg-white/10 text-slate-700 dark:text-mist-300 hover:text-navy-950 dark:hover:text-white transition flex items-center gap-2 cursor-pointer"
+              title="Incoming Notifications & Safety Alerts"
+              aria-label="Notifications"
+            >
+              <Bell className="h-4 w-4 text-amber-500" />
+              <span className="text-xs font-bold hidden sm:inline">Notifications</span>
+              {unreadNotificationsCount > 0 && (
+                <span className="h-5 min-w-[20px] px-1.5 rounded-full bg-rose-500 text-white font-mono text-[10px] font-bold grid place-items-center animate-pulse">
+                  {unreadNotificationsCount}
+                </span>
+              )}
+            </button>
+
+            {/* Notifications Popover with Two Sections: All notifications & Safety Alerts */}
+            {notifPopoverOpen && (
+              <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 rounded-3xl border border-white/10 bg-white/95 dark:bg-ink-900/95 shadow-2xl backdrop-blur-2xl p-4 z-50 text-navy-950 dark:text-white space-y-3">
+                {/* Header */}
+                <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <Bell className="h-4 w-4 text-amber-500" />
+                    <h3 className="text-sm font-bold text-navy-950 dark:text-white">Notifications</h3>
+                    {unreadNotificationsCount > 0 && (
+                      <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-300">
+                        {unreadNotificationsCount} unread
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {gmNotifications.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => clearAllNotifications('general_manager')}
+                        className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
+                      >
+                        Mark all read
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setNotifPopoverOpen(false)}
+                      className="text-slate-400 hover:text-navy-950 dark:hover:text-white cursor-pointer"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Two Category Sections: All notifications & Safety Alerts */}
+                <div className="grid grid-cols-2 p-1 rounded-2xl border border-slate-200 dark:border-white/10 bg-black/5 dark:bg-ink-950/80 text-xs font-bold">
+                  <button
+                    type="button"
+                    id="tab-all-notifications"
+                    onClick={() => setNotifCategory('all')}
+                    className={`py-1.5 px-2 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                      notifCategory === 'all'
+                        ? 'bg-amber-500 text-white shadow-sm'
+                        : 'text-slate-500 dark:text-mist-400 hover:text-navy-950 dark:hover:text-white'
+                    }`}
+                  >
+                    <span>All notifications</span>
+                    <span className="text-[10px] font-mono px-1.5 rounded-full bg-black/10 dark:bg-white/20">
+                      {gmNotifications.length}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    id="tab-safety-alerts"
+                    onClick={() => setNotifCategory('safety')}
+                    className={`py-1.5 px-2 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                      notifCategory === 'safety'
+                        ? 'bg-rose-500 text-white shadow-sm'
+                        : 'text-slate-500 dark:text-mist-400 hover:text-navy-950 dark:hover:text-white'
+                    }`}
+                  >
+                    <ShieldAlert className="h-3.5 w-3.5" />
+                    <span>Safety Alerts</span>
+                    <span className="text-[10px] font-mono px-1.5 rounded-full bg-black/10 dark:bg-white/20">
+                      {safetyNotifications.length}
+                    </span>
+                  </button>
+                </div>
+
+                {/* Categorized Notifications List */}
+                <div className="max-h-72 overflow-y-auto space-y-2 no-scrollbar pr-0.5">
+                  {categorizedNotifications.length === 0 ? (
+                    <div className="py-8 text-center text-xs text-slate-400 dark:text-mist-500">
+                      {notifCategory === 'safety' ? (
+                        <div className="space-y-1">
+                          <ShieldCheck className="h-6 w-6 mx-auto text-emerald-500" />
+                          <p>Zero active safety alerts. All systems secure.</p>
+                        </div>
+                      ) : (
+                        <p>No incoming notifications for your shift.</p>
+                      )}
+                    </div>
+                  ) : (
+                    categorizedNotifications.map((notif) => (
+                      <div
+                        key={notif.id}
+                        onClick={() => {
+                          handleNavigateToNotificationItem(notif);
+                          setNotifPopoverOpen(false);
+                        }}
+                        className={`p-3 rounded-2xl border transition text-left cursor-pointer group ${
+                          notif.read
+                            ? 'border-slate-100 dark:border-white/5 bg-black/[0.02] dark:bg-white/[0.02] text-slate-500 dark:text-mist-400'
+                            : 'border-amber-500/30 dark:border-amber-500/20 bg-amber-500/[0.05] dark:bg-amber-500/[0.08] text-navy-950 dark:text-white shadow-sm'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="font-bold text-xs group-hover:text-amber-600 dark:group-hover:text-amber-400 transition flex items-center gap-1.5">
+                            {isSafetyAlertNotification(notif) && (
+                              <ShieldAlert className="h-3.5 w-3.5 text-rose-500 shrink-0" />
+                            )}
+                            <span className="line-clamp-1">{notif.title}</span>
+                          </div>
+                          <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                            {notif.timestamp}
+                          </span>
+                        </div>
+                        {notif.message && (
+                          <p className="text-[11px] text-slate-500 dark:text-mist-300 mt-1 line-clamp-2">
+                            {notif.message}
+                          </p>
+                        )}
+                        <div className="mt-2 flex items-center justify-between text-[10px]">
+                          <span className="font-semibold text-slate-400">
+                            {notif.department || 'Property-Wide'}
+                          </span>
+                          {!notif.read && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                markNotificationRead(notif.id);
+                              }}
+                              className="text-amber-600 dark:text-amber-400 hover:underline font-bold"
+                            >
+                              Mark read
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Permission Mode Toggle */}
+          <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-slate-500 dark:text-mist-400 hidden md:inline">
             Mode:
           </span>
-          <div className="flex items-center p-1 rounded-2xl border border-slate-200 bg-slate-50">
+          <div className="flex items-center p-1 rounded-2xl border border-slate-200 dark:border-white/10 bg-black/5 dark:bg-ink-950/80">
             <button
               type="button"
               onClick={() => setPermissionMode('viewer')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
                 permissionMode === 'viewer'
-                  ? 'bg-purple-100 text-purple-700 shadow-xs font-semibold'
-                  : 'text-slate-500 hover:text-slate-800'
+                  ? 'bg-sky-500 text-white shadow-sm'
+                  : 'text-slate-500 dark:text-mist-400 hover:text-navy-950 dark:hover:text-white'
               }`}
             >
               <Lock className="h-3.5 w-3.5" />
@@ -483,8 +642,8 @@ export function ExecutiveConsole() {
               onClick={() => setPermissionMode('approver')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
                 permissionMode === 'approver'
-                  ? 'bg-[#7C3AED] text-white shadow-xs font-semibold'
-                  : 'text-slate-500 hover:text-slate-800'
+                  ? 'bg-emerald-500 text-white shadow-sm'
+                  : 'text-slate-500 dark:text-mist-400 hover:text-navy-950 dark:hover:text-white'
               }`}
             >
               <ShieldCheck className="h-3.5 w-3.5" />
@@ -503,18 +662,18 @@ export function ExecutiveConsole() {
             sidebarCollapsed ? 'w-full lg:w-20' : 'w-full lg:w-64'
           }`}
         >
-          <div className="rounded-3xl border border-purple-100/60 bg-white p-3 shadow-sm space-y-3 max-h-[calc(100vh-6rem)] overflow-y-auto no-scrollbar">
+          <div className="rounded-3xl border border-white/10 bg-white/70 dark:bg-ink-900/90 p-3 backdrop-blur-xl shadow-2xl space-y-3 max-h-[calc(100vh-6rem)] overflow-y-auto no-scrollbar">
             {/* Collapse Toggle */}
-            <div className="flex items-center justify-between px-2 py-1 text-xs text-slate-400 border-b border-slate-100 pb-2">
+            <div className="flex items-center justify-between px-2 py-1 text-xs text-slate-400 dark:text-mist-400 border-b border-slate-100 dark:border-white/[0.06] pb-2">
               {!sidebarCollapsed && (
-                <span className="font-bold uppercase text-[10px] tracking-wider text-slate-400">
+                <span className="font-bold uppercase text-[10px] tracking-wider text-slate-400 dark:text-mist-400">
                   Navigation
                 </span>
               )}
               <button
                 type="button"
                 onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-900 transition ml-auto"
+                className="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/[0.08] text-slate-400 hover:text-navy-950 dark:hover:text-white transition ml-auto"
                 title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               >
                 {sidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
@@ -526,7 +685,7 @@ export function ExecutiveConsole() {
               {(Object.keys(groupedNav) as Array<NavItem['group']>).map((groupName) => (
                 <div key={groupName} className="space-y-1">
                   {!sidebarCollapsed && (
-                    <div className="px-2 pt-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    <div className="px-2 pt-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-mist-500">
                       {groupName}
                     </div>
                   )}
@@ -543,14 +702,14 @@ export function ExecutiveConsole() {
                         title={item.label}
                         className={`w-full flex items-center justify-between rounded-2xl px-3 py-2 text-xs font-semibold transition ${
                           isActive
-                            ? 'bg-[#F3E8FF] text-[#7C3AED] shadow-xs font-bold'
-                            : 'text-slate-600 hover:bg-purple-50/70 hover:text-[#7C3AED]'
+                            ? 'bg-amber-500 text-white shadow-md'
+                            : 'text-slate-600 dark:text-mist-300 hover:bg-black/5 dark:hover:bg-white/[0.04] hover:text-navy-950 dark:hover:text-white'
                         }`}
                       >
                         <div className="flex items-center gap-2.5 truncate">
                           <Icon
                             className={`h-4 w-4 shrink-0 ${
-                              isActive ? 'text-[#7C3AED]' : 'text-slate-400'
+                              isActive ? 'text-white' : 'text-slate-400 dark:text-mist-400'
                             }`}
                           />
                           {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
@@ -560,12 +719,12 @@ export function ExecutiveConsole() {
                           <span
                             className={`rounded-full px-2 py-0.2 font-mono text-[10px] font-bold ${
                               isActive
-                                ? 'bg-[#7C3AED] text-white'
+                                ? 'bg-white/30 text-white'
                                 : item.badgeTone === 'danger'
-                                ? 'bg-rose-50 text-rose-600 border border-rose-200'
+                                ? 'bg-rose-500/20 text-rose-600 dark:text-rose-300 border border-rose-500/30'
                                 : item.badgeTone === 'warning'
-                                ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                                : 'bg-purple-100 text-purple-700'
+                                ? 'bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/30'
+                                : 'bg-sky-500/20 text-sky-600 dark:text-sky-300'
                             }`}
                           >
                             {item.badgeCount}
@@ -577,19 +736,6 @@ export function ExecutiveConsole() {
                 </div>
               ))}
             </div>
-
-            {/* User Profile in sidebar footer (like "Daniel Okoro" in Cosmic Forge screenshot) */}
-            {!sidebarCollapsed && (
-              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2.5 px-2">
-                <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-[#7C3AED] to-purple-400 text-white font-bold text-xs grid place-items-center shrink-0 shadow-xs">
-                  PN
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-slate-800 truncate">Priya Nair</p>
-                  <p className="text-[10px] text-slate-400 font-medium truncate">General Manager · Lead</p>
-                </div>
-              </div>
-            )}
           </div>
         </aside>
 
@@ -728,16 +874,6 @@ export function ExecutiveConsole() {
 
         </main>
       </div>
-
-      {/* Footer matching Cosmic Forge screenshot */}
-      <footer className="mt-12 pt-6 border-t border-slate-200/60 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
-        <p>© 2026 Cosmic Forge &amp; Grand Azure. All systems operational.</p>
-        <div className="flex items-center gap-4">
-          <span className="hover:text-purple-600 cursor-pointer">Docs</span>
-          <span className="hover:text-purple-600 cursor-pointer">Status</span>
-          <span className="hover:text-purple-600 cursor-pointer">Support</span>
-        </div>
-      </footer>
     </div>
   );
 }

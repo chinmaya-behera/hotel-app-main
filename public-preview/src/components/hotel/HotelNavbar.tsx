@@ -22,7 +22,9 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { ThemeToggle } from '@/components/shared/ThemeToggle';
+import { LanguageSelector } from '@/components/shared/LanguageSelector';
 import { useDemo } from '@/lib/store';
+import { useI18n } from '@/lib/i18n';
 import { HOTEL_NAME } from '@/lib/hotelCatalog';
 
 interface HotelNavbarProps {
@@ -33,6 +35,7 @@ interface HotelNavbarProps {
 
 export function HotelNavbar({ onOpenBooking, onOpenManage, activeSection }: HotelNavbarProps) {
   const { state } = useDemo();
+  const { t } = useI18n();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isNavigatingToLogin, setIsNavigatingToLogin] = useState(false);
   const router = useRouter();
@@ -43,11 +46,11 @@ export function HotelNavbar({ onOpenBooking, onOpenManage, activeSection }: Hote
   const bookingCount = state.bookings.filter((b) => b.status !== 'cancelled').length;
 
   const navLinks = [
-    { label: 'Rooms & Suites', href: '#rooms', icon: BedDouble },
-    { label: 'Floor Explorer', href: '#explorer', icon: Compass },
-    { label: 'Dining', href: '#dining', icon: UtensilsCrossed },
-    { label: 'Wellness & Spa', href: '#spa', icon: Flower2 },
-    { label: 'Gallery', href: '#gallery', icon: ImageIcon },
+    { label: t('nav.roomsSuites'), href: '#rooms', icon: BedDouble },
+    { label: t('nav.floorExplorer'), href: '#explorer', icon: Compass },
+    { label: t('nav.dining'), href: '#dining', icon: UtensilsCrossed },
+    { label: t('nav.wellnessSpa'), href: '#spa', icon: Flower2 },
+    { label: t('nav.gallery'), href: '#gallery', icon: ImageIcon },
     { label: 'Location', href: '#location', icon: MapPin },
   ];
 
@@ -90,7 +93,7 @@ export function HotelNavbar({ onOpenBooking, onOpenManage, activeSection }: Hote
             className="relative inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-mist-200 hover:text-white hover:bg-white/[0.08] transition"
           >
             <KeyRound className="h-3.5 w-3.5 text-amber-300" aria-hidden />
-            <span>Manage Stay</span>
+            <span>{t('nav.manageStay')}</span>
             {bookingCount > 0 && (
               <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-[10px] font-bold text-ink-950">
                 {bookingCount}
@@ -99,10 +102,12 @@ export function HotelNavbar({ onOpenBooking, onOpenManage, activeSection }: Hote
           </button>
 
           <Button size="sm" variant="accent" iconLeft={Sparkles} onClick={onOpenBooking}>
-            Book a Room
+            {t('nav.bookRoom')}
           </Button>
 
           <div className="mx-1 h-5 w-px bg-white/10" aria-hidden />
+
+          <LanguageSelector />
 
           <ThemeToggle />
 
@@ -122,7 +127,7 @@ export function HotelNavbar({ onOpenBooking, onOpenManage, activeSection }: Hote
             ) : (
               <>
                 <LogIn className="h-3.5 w-3.5 text-amber-300" aria-hidden />
-                <span>Staff Login</span>
+                <span>{t('nav.staffLogin')}</span>
               </>
             )}
           </Link>
@@ -130,6 +135,7 @@ export function HotelNavbar({ onOpenBooking, onOpenManage, activeSection }: Hote
 
         {/* Mobile controls */}
         <div className="flex sm:hidden items-center gap-2">
+          <LanguageSelector variant="compact" />
           <ThemeToggle />
           <button
             type="button"

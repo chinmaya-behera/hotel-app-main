@@ -1,8 +1,8 @@
-import { COMMON_ALLERGENS } from './dining-allergens';
-import { nextOperationalReference } from './operational-references';
-import { REPAIR_CATEGORIES } from './department-insights';
+import { COMMON_ALLERGENS } from './dining-allergens.ts';
+import { nextOperationalReference } from './operational-references.ts';
+import { REPAIR_CATEGORIES } from './department-insights.ts';
 import type { ComplaintStatus, DemoState, DietaryType, DiningMenuItem, InspectionCheckItem, InspectionType, ManagerMedicalCase, SupervisorInspection, WorkItem } from '../types/demo';
-import { departmentId, isOpen, managerDepartment, managerTasks, type ManagerDepartmentId } from './manager-domain';
+import { departmentId, isOpen, managerDepartment, managerTasks, type ManagerDepartmentId } from './manager-domain.ts';
 
 export const INSPECTION_OPTIONS: Record<ManagerDepartmentId, { type: InspectionType; label: string; checks: string[] }[]> = {
   housekeeping: [

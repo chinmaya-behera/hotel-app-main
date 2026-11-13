@@ -103,28 +103,11 @@ export function RoleDashboard({ roleId }: { roleId: RoleId }) {
 
   // Front Desk Coordinator enterprise console (Fixed full-viewport application shell)
   if (roleId === 'front_desk_coordinator') {
-    const fdTheme = state.frontDeskTheme ?? 'light';
-    const fdPalette = state.frontDeskPalette ?? 'moobi';
-    const isFdLight = fdTheme === 'light';
     return (
-      <div
-        data-fd-theme={fdTheme}
-        data-fd-palette={fdPalette}
-        style={accentVars(role)}
-        className={cn(
-          "min-h-screen lg:h-screen w-full overflow-x-hidden lg:overflow-hidden flex flex-col font-sans transition-colors",
-          isFdLight
-            ? fdPalette === 'cosmic'
-              ? "bg-[#FAF9FC] text-slate-900"
-              : "bg-[#F8F9FD] text-slate-900"
-            : fdPalette === 'cosmic'
-              ? "bg-[#0D0B18] text-white"
-              : "bg-ink-950 text-white"
-        )}
-      >
+      <div style={accentVars(role)} className="min-h-screen lg:h-screen w-full overflow-x-hidden lg:overflow-hidden flex flex-col bg-ink-950">
         <TopBar active={roleId} />
         <main className="flex-1 min-h-0 w-full max-w-[1720px] mx-auto px-2 sm:px-4 lg:px-5 pt-2 pb-6 lg:pb-2 overflow-x-hidden lg:overflow-hidden flex flex-col">
-          <FrontDeskConsole isLight={isFdLight} palette={fdPalette} />
+          <FrontDeskConsole />
         </main>
       </div>
     );
