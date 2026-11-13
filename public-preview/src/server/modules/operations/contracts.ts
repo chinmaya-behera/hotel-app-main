@@ -27,7 +27,7 @@ export interface CreateCaseAndTaskInput {
   source: 'guest_portal' | 'front_desk' | 'system';
   instructions: string;
   createdByStaffId?: string;
-  attachments?: Array<{ name: string; url: string; size: number; mimeType: string }>;
+  attachments?: Array<{ name: string; url: string; size?: number; mimeType?: string }>;
 }
 
 export interface CanonicalTaskResult {
