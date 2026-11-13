@@ -458,9 +458,9 @@ export function SupervisorRoomsTab({
                       if (onSelectInspectionByRoom) onSelectInspectionByRoom(rm.no);
                       else onInspectRoom?.(rm.no);
                     }}
-                    className="flex-1 py-2 px-3 rounded-xl border border-slate-300 hover:border-slate-400 dark:border-white/10 bg-white hover:bg-slate-100 dark:bg-white/[0.03] dark:hover:bg-white/[0.08] text-xs font-bold text-slate-800 hover:text-slate-950 dark:text-mist-200 dark:hover:text-white transition flex items-center justify-center gap-1.5 min-w-0 truncate cursor-pointer shadow-2xs"
+                    className="flex-1 py-2 px-3 rounded-xl border border-slate-300 hover:border-slate-400 dark:border-slate-700 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-900 dark:text-slate-100 transition flex items-center justify-center gap-1.5 min-w-0 truncate cursor-pointer shadow-xs"
                   >
-                    <FileText className="h-3.5 w-3.5 text-slate-500 dark:text-mist-400 shrink-0" />
+                    <FileText className="h-3.5 w-3.5 text-slate-700 dark:text-slate-300 shrink-0" />
                     <span className="truncate">Inspect / Status Log</span>
                   </button>
                 )}
