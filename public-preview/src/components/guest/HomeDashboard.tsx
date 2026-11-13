@@ -109,6 +109,9 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
   } = useDemo();
 
   const prefs = state.guestPreferences?.[room];
+  const guestPalette = state.guestPalette ?? 'burgundy';
+  const guestTheme = state.guestTheme ?? 'light';
+  const isDark = guestTheme === 'dark';
 
   // Front Desk Emergency Broadcast (Default active, dismissed upon guest acknowledgement)
   const { alert: emergencyAlert, isBroadcastActive, isAcknowledged, acknowledge } = useEmergencyBroadcast();
@@ -329,71 +332,124 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
 
       {/* CONDITIONAL FRONT DESK EMERGENCY BROADCAST BANNER (Default active, dismissed upon guest acknowledgement) */}
       {isBroadcastActive && emergencyAlert && !isAcknowledged && (
-        <div className="guest-card p-3 sm:p-4 border-rose-500/50 bg-rose-500/15 flex items-center justify-between gap-2.5 sm:gap-4 shadow-md transition-all animate-in fade-in slide-in-from-top-2 duration-200">
-          <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0 flex-1">
-            <span className="grid h-8 w-8 sm:h-9 sm:w-9 place-items-center rounded-xl bg-rose-500/25 text-rose-400 shrink-0">
-              <AlertTriangle className="h-4.5 w-4.5 sm:h-5 sm:w-5" />
+        <div
+          className={cn(
+            'p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 transition-all border animate-in fade-in min-h-[85px]',
+            'border-l-4 sm:border-l-[5px]',
+            guestPalette === 'burgundy'
+              ? 'rounded-[5px] shadow-none bg-[#FFFCF8] dark:bg-[#220B15] border-[#E0CBA9] dark:border-[#461628] border-l-[#74172F] dark:border-l-[#C9A45C]'
+              : 'rounded-[16px] shadow-none bg-[#FFFCF6] dark:bg-[#0E241C] border-[#DDD9CC] dark:border-[#174233] border-l-[#1A6954] dark:border-l-[#175B49]'
+          )}
+        >
+          <div className="flex items-start sm:items-center gap-3 sm:gap-3.5 min-w-0 flex-1">
+            <span
+              className={cn(
+                'grid h-10 w-10 place-items-center shrink-0 mt-0.5 sm:mt-0',
+                guestPalette === 'burgundy'
+                  ? 'rounded-[4px] bg-[#F2E5D0] text-[#74172F] dark:bg-[#381222] dark:text-[#C9A45C]'
+                  : 'rounded-[12px] bg-[#F1EBDD] text-[#1A6650] dark:bg-[#15382B] dark:text-[#34D399]'
+              )}
+            >
+              <AlertTriangle className="h-5 w-5" />
             </span>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <span className="px-1.5 py-0.2 rounded text-[9px] sm:text-[10px] font-extrabold uppercase bg-rose-500 text-white tracking-wider shrink-0">
-                  {emergencyAlert.severity || 'Urgent'}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span
+                  className={cn(
+                    'px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shrink-0 border',
+                    guestPalette === 'burgundy'
+                      ? 'border-[#74172F]/50 text-[#74172F] dark:text-[#C9A45C]'
+                      : 'border-[#1A6954]/50 text-[#1A6954] dark:text-[#A9C8B9]'
+                  )}
+                >
+                  {emergencyAlert.severity || 'CRITICAL'}
                 </span>
-                <p className="text-xs sm:text-sm font-bold text-white truncate">{emergencyAlert.title}</p>
+                <p
+                  className={cn(
+                    'text-xs sm:text-sm font-semibold truncate',
+                    guestPalette === 'burgundy'
+                      ? 'text-[#332D2A] dark:text-[#FFF8F0]'
+                      : 'text-[#173C32] dark:text-[#F8F5EC]'
+                  )}
+                >
+                  {emergencyAlert.title}
+                </p>
               </div>
-              <p className="text-[11px] sm:text-xs text-rose-200/90 truncate mt-0.5">{emergencyAlert.description}</p>
+              <p
+                className={cn(
+                  'text-[11px] sm:text-xs truncate mt-0.5',
+                  guestPalette === 'burgundy'
+                    ? 'text-[#786B60] dark:text-[#E2BDC5]'
+                    : 'text-[#68736A] dark:text-[#C6D8CB]'
+                )}
+              >
+                {emergencyAlert.description}
+              </p>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
             <button
               type="button"
               onClick={() => setAlertDetailModalOpen(true)}
-              className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-rose-500 text-white text-xs font-bold hover:bg-rose-400 transition-colors shadow-sm"
+              className={cn(
+                'px-4 py-2 text-xs font-semibold text-[#FFF8F0] transition-all shadow-sm',
+                guestPalette === 'burgundy'
+                  ? 'rounded-[4px] bg-[#74172F] hover:bg-[#8A2443]'
+                  : 'rounded-[10px] bg-[#175B49] hover:bg-[#206A55] text-[#F8F5EC]'
+              )}
             >
               View
             </button>
             <button
               type="button"
               onClick={() => acknowledge(emergencyAlert.id)}
-              className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-lg bg-white/10 hover:bg-emerald-500 text-mist-200 hover:text-white border border-white/15 text-xs font-bold transition-all shadow-sm"
-              title="Acknowledge and dismiss notice"
-              aria-label="Acknowledge and dismiss notice"
+              className={cn(
+                'px-4 py-2 text-xs font-semibold transition-all shadow-sm border',
+                guestPalette === 'burgundy'
+                  ? 'rounded-[4px] bg-[#FFFCF8] dark:bg-[#1B070F] border-[#DEC9A4] dark:border-[#461628] hover:bg-[#F8F1E7] text-[#74172F] dark:text-[#FFF8F0]'
+                  : 'rounded-[10px] bg-[#FFFCF6] dark:bg-[#0B1D16] border-[#DDD9CC] dark:border-[#174233] hover:bg-[#F1EBDD] text-[#175B49] dark:text-[#A9C8B9]'
+              )}
             >
-              <Check className="h-3.5 w-3.5 text-emerald-400 hover:text-white" />
-              <span className="hidden sm:inline">Acknowledge</span>
+              Acknowledge
             </button>
           </div>
         </div>
       )}
 
-      {/* 1. COMPACT LUXURY HOTEL HEADER */}
+      {/* 1. LUXURY WELCOME BANNER */}
       <div
         data-tour="tour-welcome-card"
-        className="guest-card p-4 sm:p-6 lg:p-7 flex flex-row items-center justify-between gap-3 sm:gap-6 border border-cyan-500/20 shadow-sm relative overflow-hidden"
+        className={cn(
+          'flex flex-row items-center justify-between gap-4 shadow-none relative overflow-hidden transition-colors border min-h-[120px] sm:min-h-[124px]',
+          guestPalette === 'burgundy'
+            ? 'p-6 sm:p-8 px-[26px] rounded-[5px] bg-[#74172F] text-[#FFF8F0] border-l-[5px] border-l-[#C9A45C] border-[#8A2443]'
+            : 'p-7 sm:p-8 px-[28px] rounded-[20px] bg-[#175B49] text-[#F8F5EC] border-l-[5px] border-l-[#A9C8B9] border-[#206A55]'
+        )}
       >
-        <div className="flex items-center gap-3 sm:gap-5 min-w-0">
-          <div className="grid h-11 w-11 sm:h-14 sm:w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-cyan-400/25 to-cyan-600/10 border border-cyan-400/35 text-cyan-300 shadow-[0_0_20px_rgba(34,211,238,0.25)]">
-            <Hotel className="h-5 w-5 sm:h-7 sm:w-7" />
-          </div>
-          <div className="min-w-0 space-y-0.5 sm:space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.22em] text-cyan-400">
-                The Grand ADP
-              </span>
-              <span className="hidden sm:inline-block text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-mist-400 border-l border-white/10 pl-2.5">
-                Luxury Resort &amp; Suites
-              </span>
-            </div>
-            <h1 className="text-base sm:text-2xl lg:text-3xl font-extrabold text-white tracking-tight truncate">
-              Welcome, {guestName.split(' ')[0]}
-            </h1>
-          </div>
+        <div className="min-w-0 space-y-1.5">
+          <p
+            className={cn(
+              'text-[10px] sm:text-xs font-bold uppercase tracking-[0.2em]',
+              guestPalette === 'burgundy' ? 'text-[#DCC69A]' : 'text-[#A9C8B9]'
+            )}
+          >
+            The Grand ADP / Luxury Resort &amp; Suites
+          </p>
+          <h1 className="guest-serif text-[34px] sm:text-[38px] lg:text-[40px] font-normal tracking-normal text-[#F8F5EC] leading-tight">
+            Welcome, {guestName.split(' ')[0]}
+          </h1>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <div className="flex items-center gap-3 shrink-0">
           {prefs?.dnd && (
-            <span className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold">
-              <span className="h-2 w-2 rounded-full bg-rose-400 animate-pulse" />
+            <span
+              className={cn(
+                'hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/30 text-xs font-bold border',
+                guestPalette === 'burgundy'
+                  ? 'text-[#DCC69A] border-[#C9A45C]/30'
+                  : 'text-[#A9C8B9] border-[#A9C8B9]/30'
+              )}
+            >
               <MoonStar className="h-3.5 w-3.5" />
               <span>DND Active</span>
             </span>
@@ -401,201 +457,359 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
           <button
             type="button"
             onClick={() => onNavigate('profile')}
-            className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl border border-white/10 bg-white/5 hover:border-cyan-400/40 text-xs sm:text-sm font-semibold text-mist-200 hover:text-white flex items-center gap-1.5 sm:gap-2 transition-all shadow-sm group whitespace-nowrap"
+            className={cn(
+              'w-[136px] py-2.5 font-bold text-xs sm:text-sm transition-transform hover:scale-105 active:scale-95 border text-center shadow-sm',
+              guestPalette === 'burgundy'
+                ? 'rounded-[4px] bg-[#FFFCF8] text-[#74172F] border-[#DEC9A4] hover:bg-[#F8F1E7]'
+                : 'rounded-[14px] bg-[#FFFCF6] text-[#173C32] border-[#DDD9CC] hover:bg-[#F8F5EC]'
+            )}
             title="View Room & Stay Details"
           >
-            <BedDouble className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-cyan-400 group-hover:scale-110 transition-transform" />
-            <span>Room {room}</span>
+            Room {room}
           </button>
         </div>
       </div>
 
-      {/* 2. QUICK SERVICES (PRIMARY SECTION) */}
-      <section
-        data-tour="tour-services-grid"
-        className="space-y-3"
-      >
+      {/* 2. QUICK SERVICES SECTION */}
+      <section data-tour="tour-services-grid" className="space-y-3.5">
         <div className="flex items-center justify-between">
-          <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2.5">
-            <Sparkles className="h-5 w-5 text-cyan-400" />
-            <span>Quick Services</span>
+          <h2
+            className={cn(
+              'guest-serif text-[26px] sm:text-[28px] font-normal',
+              guestPalette === 'burgundy'
+                ? 'text-[#332D2A] dark:text-[#FFF8F0]'
+                : 'text-[#173C32] dark:text-[#F8F5EC]'
+            )}
+          >
+            Quick Services
           </h2>
           <button
             type="button"
             onClick={() => onNavigate('services')}
-            className="text-xs sm:text-sm font-semibold text-cyan-300 hover:text-cyan-200 flex items-center gap-1.5 transition-colors group"
+            className={cn(
+              'px-4 py-1.5 text-xs font-semibold shadow-none hover:shadow-sm transition-all flex items-center gap-1.5 group border',
+              guestPalette === 'burgundy'
+                ? 'rounded-[4px] bg-[#F7EEDF] hover:bg-[#F2E5D0] text-[#74172F] border-[#E0CBA9] dark:bg-[#220B15] dark:border-[#461628] dark:text-[#DCC69A]'
+                : 'rounded-[10px] bg-[#F1EBDD] hover:bg-[#EDE8DA] text-[#175B49] border-[#DDD9CC] dark:bg-[#0E241C] dark:border-[#174233] dark:text-[#A9C8B9]'
+            )}
           >
             <span>All Services</span>
             <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
           </button>
         </div>
 
-        {/* 6 Essential Quick Services in a 2-Column Mobile Grid (3 rows x 2 cols on mobile, 6 cols on desktop) */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3.5 lg:gap-4">
-          {/* 1. Dining */}
-          <button
-            data-tour="tour-quick-dining"
-            type="button"
-            onClick={() => onNavigate('services', 'dining')}
-            className="relative overflow-hidden guest-tile p-3 sm:p-3.5 lg:p-4 text-left flex flex-row items-center gap-2.5 sm:gap-3 hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_20px_rgba(34,211,238,0.12)] transition-all group min-w-0 w-full box-border min-h-[72px] sm:min-h-[78px] lg:min-h-[82px]"
-          >
-            {/* Subtle oversized faded background watermark icon in bottom-right corner */}
-            <div className="absolute -right-2 -bottom-2 opacity-[0.05] group-hover:opacity-[0.12] group-hover:scale-105 transition-all text-white pointer-events-none">
-              <UtensilsCrossed className="h-16 w-16 sm:h-18 sm:w-18 lg:h-20 lg:w-20 transform -rotate-12" />
-            </div>
+        {/* Outer Section Soft Tinted Panel */}
+        <div
+          className={cn(
+            'p-3.5 sm:p-5 border shadow-none transition-colors',
+            guestPalette === 'burgundy'
+              ? 'rounded-[8px] border-[#E0CBA9] bg-[#F7EEDF]/90 dark:bg-[#1B070F]/80 dark:border-[#3A1220]'
+              : 'rounded-[20px] border-[#DDD9CC] bg-[#EDE8DA]/70 dark:bg-[#0B1D16]/80 dark:border-[#174233]'
+          )}
+        >
+          {/* 6 Essential Quick Services in crisp white/ivory blocks */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+            {/* 1. Dining */}
+            <button
+              data-tour="tour-quick-dining"
+              type="button"
+              onClick={() => onNavigate('services', 'dining')}
+              className={cn(
+                'service-card p-3.5 sm:p-4 text-left flex flex-row items-center gap-3 transition-all duration-200 group min-w-0 w-full box-border shadow-none border',
+                guestPalette === 'burgundy'
+                  ? 'rounded-[5px] bg-[#FFFCF8] dark:bg-[#220B15] border-[#E0CBA9] dark:border-[#461628] hover:bg-[#F2E5D0] dark:hover:bg-[#2A0E1A] hover:border-[#C9A45C] hover:-translate-y-0.5'
+                  : 'rounded-[16px] bg-[#FFFCF6] dark:bg-[#0E241C] border-[#DDD9CC] dark:border-[#174233] hover:bg-[#F8F5EC] dark:hover:bg-[#122C21] hover:border-[#A9C8B9] hover:-translate-y-0.5'
+              )}
+            >
+              <span
+                className={cn(
+                  'grid h-[44px] w-[44px] sm:h-[46px] sm:w-[46px] place-items-center transition-transform group-hover:scale-105 shrink-0',
+                  guestPalette === 'burgundy'
+                    ? 'rounded-[4px] bg-[#F2E5D0] text-[#74172F] dark:bg-[#381222] dark:text-[#C9A45C]'
+                    : 'rounded-[12px] bg-[#F1EBDD] text-[#1A6650] dark:bg-[#15382B] dark:text-[#34D399]'
+                )}
+              >
+                <UtensilsCrossed className="h-5 w-5" />
+              </span>
+              <div className="flex flex-col justify-center min-w-0 flex-1">
+                <p
+                  className={cn(
+                    'text-[14px] font-semibold truncate leading-tight',
+                    guestPalette === 'burgundy'
+                      ? 'text-[#332D2A] dark:text-[#FFF8F0]'
+                      : 'text-[#173C32] dark:text-[#F8F5EC]'
+                  )}
+                >
+                  Dining
+                </p>
+                <p
+                  className={cn(
+                    'text-[12px] sm:text-[13px] truncate mt-0.5 font-normal leading-tight',
+                    guestPalette === 'burgundy'
+                      ? 'text-[#786B60] dark:text-[#E2BDC5]'
+                      : 'text-[#68736A] dark:text-[#858A80]'
+                  )}
+                >
+                  Menu &amp; Order
+                </p>
+              </div>
+            </button>
 
-            <span className="grid h-[42px] w-[42px] sm:h-12 sm:w-12 place-items-center rounded-xl sm:rounded-2xl shadow-sm bg-amber-400/15 text-amber-300 border border-amber-400/20 group-hover:scale-105 transition-transform p-2 sm:p-2.5 shrink-0 z-10">
-              <UtensilsCrossed className="h-5 w-5 sm:h-6 sm:w-6" />
-            </span>
+            {/* 2. Room Service */}
+            <button
+              data-tour="tour-quick-room-service"
+              type="button"
+              onClick={() => onNavigate('services', 'room_service')}
+              className={cn(
+                'service-card p-3.5 sm:p-4 text-left flex flex-row items-center gap-3 transition-all duration-200 group min-w-0 w-full box-border shadow-none border',
+                guestPalette === 'burgundy'
+                  ? 'rounded-[5px] bg-[#FFFCF8] dark:bg-[#220B15] border-[#E0CBA9] dark:border-[#461628] hover:bg-[#F2E5D0] dark:hover:bg-[#2A0E1A] hover:border-[#C9A45C] hover:-translate-y-0.5'
+                  : 'rounded-[16px] bg-[#FFFCF6] dark:bg-[#0E241C] border-[#DDD9CC] dark:border-[#174233] hover:bg-[#F8F5EC] dark:hover:bg-[#122C21] hover:border-[#A9C8B9] hover:-translate-y-0.5'
+              )}
+            >
+              <span
+                className={cn(
+                  'grid h-[44px] w-[44px] sm:h-[46px] sm:w-[46px] place-items-center transition-transform group-hover:scale-105 shrink-0',
+                  guestPalette === 'burgundy'
+                    ? 'rounded-[4px] bg-[#F2E5D0] text-[#74172F] dark:bg-[#381222] dark:text-[#C9A45C]'
+                    : 'rounded-[12px] bg-[#F1EBDD] text-[#1A6650] dark:bg-[#15382B] dark:text-[#34D399]'
+                )}
+              >
+                <Sparkles className="h-5 w-5" />
+              </span>
+              <div className="flex flex-col justify-center min-w-0 flex-1">
+                <p
+                  className={cn(
+                    'text-[14px] font-semibold truncate leading-tight',
+                    guestPalette === 'burgundy'
+                      ? 'text-[#332D2A] dark:text-[#FFF8F0]'
+                      : 'text-[#173C32] dark:text-[#F8F5EC]'
+                  )}
+                >
+                  Room Service
+                </p>
+                <p
+                  className={cn(
+                    'text-[12px] sm:text-[13px] truncate mt-0.5 font-normal leading-tight',
+                    guestPalette === 'burgundy'
+                      ? 'text-[#786B60] dark:text-[#E2BDC5]'
+                      : 'text-[#68736A] dark:text-[#858A80]'
+                  )}
+                >
+                  Amenities &amp; Care
+                </p>
+              </div>
+            </button>
 
-            <div className="flex flex-col justify-center min-w-0 flex-1 z-10">
-              <p className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 transition-colors truncate leading-tight">
-                Dining
-              </p>
-              <p className="text-[10px] sm:text-xs text-mist-400 group-hover:text-mist-200 truncate mt-0.5 font-medium leading-tight">
-                Menu &amp; Order
-              </p>
-            </div>
-          </button>
+            {/* 3. Maintenance */}
+            <button
+              data-tour="tour-quick-maintenance"
+              type="button"
+              onClick={() => onNavigate('services', 'maintenance')}
+              className={cn(
+                'service-card p-3.5 sm:p-4 text-left flex flex-row items-center gap-3 transition-all duration-200 group min-w-0 w-full box-border shadow-none border',
+                guestPalette === 'burgundy'
+                  ? 'rounded-[5px] bg-[#FFFCF8] dark:bg-[#220B15] border-[#E0CBA9] dark:border-[#461628] hover:bg-[#F2E5D0] dark:hover:bg-[#2A0E1A] hover:border-[#C9A45C] hover:-translate-y-0.5'
+                  : 'rounded-[16px] bg-[#FFFCF6] dark:bg-[#0E241C] border-[#DDD9CC] dark:border-[#174233] hover:bg-[#F8F5EC] dark:hover:bg-[#122C21] hover:border-[#A9C8B9] hover:-translate-y-0.5'
+              )}
+            >
+              <span
+                className={cn(
+                  'grid h-[44px] w-[44px] sm:h-[46px] sm:w-[46px] place-items-center transition-transform group-hover:scale-105 shrink-0',
+                  guestPalette === 'burgundy'
+                    ? 'rounded-[4px] bg-[#F2E5D0] text-[#74172F] dark:bg-[#381222] dark:text-[#C9A45C]'
+                    : 'rounded-[12px] bg-[#F1EBDD] text-[#1A6650] dark:bg-[#15382B] dark:text-[#34D399]'
+                )}
+              >
+                <Wrench className="h-5 w-5" />
+              </span>
+              <div className="flex flex-col justify-center min-w-0 flex-1">
+                <p
+                  className={cn(
+                    'text-[14px] font-semibold truncate leading-tight',
+                    guestPalette === 'burgundy'
+                      ? 'text-[#332D2A] dark:text-[#FFF8F0]'
+                      : 'text-[#173C32] dark:text-[#F8F5EC]'
+                  )}
+                >
+                  Maintenance
+                </p>
+                <p
+                  className={cn(
+                    'text-[12px] sm:text-[13px] truncate mt-0.5 font-normal leading-tight',
+                    guestPalette === 'burgundy'
+                      ? 'text-[#786B60] dark:text-[#E2BDC5]'
+                      : 'text-[#68736A] dark:text-[#858A80]'
+                  )}
+                >
+                  Room Repairs
+                </p>
+              </div>
+            </button>
 
-          {/* 2. Room Service */}
-          <button
-            data-tour="tour-quick-room-service"
-            type="button"
-            onClick={() => onNavigate('services', 'room_service')}
-            className="relative overflow-hidden guest-tile p-3 sm:p-3.5 lg:p-4 text-left flex flex-row items-center gap-2.5 sm:gap-3 hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_20px_rgba(34,211,238,0.12)] transition-all group min-w-0 w-full box-border min-h-[72px] sm:min-h-[78px] lg:min-h-[82px]"
-          >
-            <div className="absolute -right-2 -bottom-2 opacity-[0.05] group-hover:opacity-[0.12] group-hover:scale-105 transition-all text-white pointer-events-none">
-              <Sparkles className="h-16 w-16 sm:h-18 sm:w-18 lg:h-20 lg:w-20 transform -rotate-12" />
-            </div>
+            {/* 4. Front Desk */}
+            <button
+              data-tour="tour-front-desk"
+              type="button"
+              onClick={() => onNavigate('services', 'front_desk')}
+              className={cn(
+                'service-card p-3.5 sm:p-4 text-left flex flex-row items-center gap-3 transition-all duration-200 group min-w-0 w-full box-border shadow-none border',
+                guestPalette === 'burgundy'
+                  ? 'rounded-[5px] bg-[#FFFCF8] dark:bg-[#220B15] border-[#E0CBA9] dark:border-[#461628] hover:bg-[#F2E5D0] dark:hover:bg-[#2A0E1A] hover:border-[#C9A45C] hover:-translate-y-0.5'
+                  : 'rounded-[16px] bg-[#FFFCF6] dark:bg-[#0E241C] border-[#DDD9CC] dark:border-[#174233] hover:bg-[#F8F5EC] dark:hover:bg-[#122C21] hover:border-[#A9C8B9] hover:-translate-y-0.5'
+              )}
+            >
+              <span
+                className={cn(
+                  'grid h-[44px] w-[44px] sm:h-[46px] sm:w-[46px] place-items-center transition-transform group-hover:scale-105 shrink-0',
+                  guestPalette === 'burgundy'
+                    ? 'rounded-[4px] bg-[#F2E5D0] text-[#74172F] dark:bg-[#381222] dark:text-[#C9A45C]'
+                    : 'rounded-[12px] bg-[#F1EBDD] text-[#1A6650] dark:bg-[#15382B] dark:text-[#34D399]'
+                )}
+              >
+                <MessageSquare className="h-5 w-5" />
+              </span>
+              <div className="flex flex-col justify-center min-w-0 flex-1">
+                <p
+                  className={cn(
+                    'text-[14px] font-semibold truncate leading-tight',
+                    guestPalette === 'burgundy'
+                      ? 'text-[#332D2A] dark:text-[#FFF8F0]'
+                      : 'text-[#173C32] dark:text-[#F8F5EC]'
+                  )}
+                >
+                  Front Desk
+                </p>
+                <p
+                  className={cn(
+                    'text-[12px] sm:text-[13px] truncate mt-0.5 font-normal leading-tight',
+                    guestPalette === 'burgundy'
+                      ? 'text-[#786B60] dark:text-[#E2BDC5]'
+                      : 'text-[#68736A] dark:text-[#858A80]'
+                  )}
+                >
+                  24/7 Desk Support
+                </p>
+              </div>
+            </button>
 
-            <span className="grid h-[42px] w-[42px] sm:h-12 sm:w-12 place-items-center rounded-xl sm:rounded-2xl shadow-sm bg-cyan-400/15 text-cyan-300 border border-cyan-400/20 group-hover:scale-105 transition-transform p-2 sm:p-2.5 shrink-0 z-10">
-              <Sparkles className="h-5 w-5 sm:h-6 sm:w-6" />
-            </span>
+            {/* 5. Reminders */}
+            <button
+              type="button"
+              onClick={() => setReminderSheetOpen(true)}
+              className={cn(
+                'service-card p-3.5 sm:p-4 text-left flex flex-row items-center gap-3 transition-all duration-200 group min-w-0 w-full box-border shadow-none border',
+                guestPalette === 'burgundy'
+                  ? 'rounded-[5px] bg-[#FFFCF8] dark:bg-[#220B15] border-[#E0CBA9] dark:border-[#461628] hover:bg-[#F2E5D0] dark:hover:bg-[#2A0E1A] hover:border-[#C9A45C] hover:-translate-y-0.5'
+                  : 'rounded-[16px] bg-[#FFFCF6] dark:bg-[#0E241C] border-[#DDD9CC] dark:border-[#174233] hover:bg-[#F8F5EC] dark:hover:bg-[#122C21] hover:border-[#A9C8B9] hover:-translate-y-0.5'
+              )}
+            >
+              <span
+                className={cn(
+                  'grid h-[44px] w-[44px] sm:h-[46px] sm:w-[46px] place-items-center transition-transform group-hover:scale-105 shrink-0',
+                  guestPalette === 'burgundy'
+                    ? 'rounded-[4px] bg-[#F2E5D0] text-[#74172F] dark:bg-[#381222] dark:text-[#C9A45C]'
+                    : 'rounded-[12px] bg-[#F1EBDD] text-[#1A6650] dark:bg-[#15382B] dark:text-[#34D399]'
+                )}
+              >
+                <Bell className="h-5 w-5" />
+              </span>
+              <div className="flex flex-col justify-center min-w-0 flex-1">
+                <p
+                  className={cn(
+                    'text-[14px] font-semibold truncate leading-tight',
+                    guestPalette === 'burgundy'
+                      ? 'text-[#332D2A] dark:text-[#FFF8F0]'
+                      : 'text-[#173C32] dark:text-[#F8F5EC]'
+                  )}
+                >
+                  Reminders
+                </p>
+                <p
+                  className={cn(
+                    'text-[12px] sm:text-[13px] truncate mt-0.5 font-normal leading-tight',
+                    guestPalette === 'burgundy'
+                      ? 'text-[#786B60] dark:text-[#E2BDC5]'
+                      : 'text-[#68736A] dark:text-[#858A80]'
+                  )}
+                >
+                  Wake-up Calls
+                </p>
+              </div>
+            </button>
 
-            <div className="flex flex-col justify-center min-w-0 flex-1 z-10">
-              <p className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 transition-colors truncate leading-tight">
-                Room Service
-              </p>
-              <p className="text-[10px] sm:text-xs text-mist-400 group-hover:text-mist-200 truncate mt-0.5 font-medium leading-tight">
-                Amenities &amp; Care
-              </p>
-            </div>
-          </button>
-
-          {/* 3. Maintenance */}
-          <button
-            data-tour="tour-quick-maintenance"
-            type="button"
-            onClick={() => onNavigate('services', 'maintenance')}
-            className="relative overflow-hidden guest-tile p-3 sm:p-3.5 lg:p-4 text-left flex flex-row items-center gap-2.5 sm:gap-3 hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_20px_rgba(34,211,238,0.12)] transition-all group min-w-0 w-full box-border min-h-[72px] sm:min-h-[78px] lg:min-h-[82px]"
-          >
-            <div className="absolute -right-2 -bottom-2 opacity-[0.05] group-hover:opacity-[0.12] group-hover:scale-105 transition-all text-white pointer-events-none">
-              <Wrench className="h-16 w-16 sm:h-18 sm:w-18 lg:h-20 lg:w-20 transform -rotate-12" />
-            </div>
-
-            <span className="grid h-[42px] w-[42px] sm:h-12 sm:w-12 place-items-center rounded-xl sm:rounded-2xl shadow-sm bg-sky-400/15 text-sky-300 border border-sky-400/20 group-hover:scale-105 transition-transform p-2 sm:p-2.5 shrink-0 z-10">
-              <Wrench className="h-5 w-5 sm:h-6 sm:w-6" />
-            </span>
-
-            <div className="flex flex-col justify-center min-w-0 flex-1 z-10">
-              <p className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 transition-colors truncate leading-tight">
-                Maintenance
-              </p>
-              <p className="text-[10px] sm:text-xs text-mist-400 group-hover:text-mist-200 truncate mt-0.5 font-medium leading-tight">
-                Room Repairs
-              </p>
-            </div>
-          </button>
-
-          {/* 4. Front Desk */}
-          <button
-            data-tour="tour-front-desk"
-            type="button"
-            onClick={() => onNavigate('services', 'front_desk')}
-            className="relative overflow-hidden guest-tile p-3 sm:p-3.5 lg:p-4 text-left flex flex-row items-center gap-2.5 sm:gap-3 hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_20px_rgba(34,211,238,0.12)] transition-all group min-w-0 w-full box-border min-h-[72px] sm:min-h-[78px] lg:min-h-[82px]"
-          >
-            <div className="absolute -right-2 -bottom-2 opacity-[0.05] group-hover:opacity-[0.12] group-hover:scale-105 transition-all text-white pointer-events-none">
-              <MessageSquare className="h-16 w-16 sm:h-18 sm:w-18 lg:h-20 lg:w-20 transform -rotate-12" />
-            </div>
-
-            <span className="grid h-[42px] w-[42px] sm:h-12 sm:w-12 place-items-center rounded-xl sm:rounded-2xl shadow-sm bg-indigo-400/15 text-indigo-300 border border-indigo-400/20 group-hover:scale-105 transition-transform p-2 sm:p-2.5 shrink-0 z-10">
-              <MessageSquare className="h-5 w-5 sm:h-6 sm:w-6" />
-            </span>
-
-            <div className="flex flex-col justify-center min-w-0 flex-1 z-10">
-              <p className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 transition-colors truncate leading-tight">
-                Front Desk
-              </p>
-              <p className="text-[10px] sm:text-xs text-mist-400 group-hover:text-mist-200 truncate mt-0.5 font-medium leading-tight">
-                24/7 Desk Support
-              </p>
-            </div>
-          </button>
-
-          {/* 5. Reminders */}
-          <button
-            type="button"
-            onClick={() => setReminderSheetOpen(true)}
-            className="relative overflow-hidden guest-tile p-3 sm:p-3.5 lg:p-4 text-left flex flex-row items-center gap-2.5 sm:gap-3 hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_20px_rgba(34,211,238,0.12)] transition-all group min-w-0 w-full box-border min-h-[72px] sm:min-h-[78px] lg:min-h-[82px]"
-          >
-            <div className="absolute -right-2 -bottom-2 opacity-[0.05] group-hover:opacity-[0.12] group-hover:scale-105 transition-all text-white pointer-events-none">
-              <Bell className="h-16 w-16 sm:h-18 sm:w-18 lg:h-20 lg:w-20 transform -rotate-12" />
-            </div>
-
-            <span className="grid h-[42px] w-[42px] sm:h-12 sm:w-12 place-items-center rounded-xl sm:rounded-2xl shadow-sm bg-amber-400/15 text-amber-300 border border-amber-400/20 group-hover:scale-105 transition-transform p-2 sm:p-2.5 shrink-0 z-10">
-              <Bell className="h-5 w-5 sm:h-6 sm:w-6" />
-            </span>
-
-            <div className="flex flex-col justify-center min-w-0 flex-1 z-10">
-              <p className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 transition-colors truncate leading-tight">
-                Reminders
-              </p>
-              <p className="text-[10px] sm:text-xs text-mist-400 group-hover:text-mist-200 truncate mt-0.5 font-medium leading-tight">
-                Wake-up Calls
-              </p>
-            </div>
-          </button>
-
-          {/* 6. Lost & Found */}
-          <button
-            type="button"
-            onClick={() => onNavigate('lost_found')}
-            className="relative overflow-hidden guest-tile p-3 sm:p-3.5 lg:p-4 text-left flex flex-row items-center gap-2.5 sm:gap-3 hover:border-cyan-400/40 hover:bg-white/[0.04] hover:shadow-[0_6px_20px_rgba(34,211,238,0.12)] transition-all group min-w-0 w-full box-border min-h-[72px] sm:min-h-[78px] lg:min-h-[82px]"
-          >
-            <div className="absolute -right-2 -bottom-2 opacity-[0.05] group-hover:opacity-[0.12] group-hover:scale-105 transition-all text-white pointer-events-none">
-              <PackageSearch className="h-16 w-16 sm:h-18 sm:w-18 lg:h-20 lg:w-20 transform -rotate-12" />
-            </div>
-
-            <span className="grid h-[42px] w-[42px] sm:h-12 sm:w-12 place-items-center rounded-xl sm:rounded-2xl shadow-sm bg-teal-400/15 text-teal-300 border border-teal-400/20 group-hover:scale-105 transition-transform p-2 sm:p-2.5 shrink-0 z-10">
-              <PackageSearch className="h-5 w-5 sm:h-6 sm:w-6" />
-            </span>
-
-            <div className="flex flex-col justify-center min-w-0 flex-1 z-10">
-              <p className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 transition-colors truncate leading-tight">
-                Lost &amp; Found
-              </p>
-              <p className="text-[10px] sm:text-xs text-mist-400 group-hover:text-mist-200 truncate mt-0.5 font-medium leading-tight">
-                Item Inquiries
-              </p>
-            </div>
-          </button>
+            {/* 6. Lost & Found */}
+            <button
+              type="button"
+              onClick={() => onNavigate('lost_found')}
+              className={cn(
+                'service-card p-3.5 sm:p-4 text-left flex flex-row items-center gap-3 transition-all duration-200 group min-w-0 w-full box-border shadow-none border',
+                guestPalette === 'burgundy'
+                  ? 'rounded-[5px] bg-[#FFFCF8] dark:bg-[#220B15] border-[#E0CBA9] dark:border-[#461628] hover:bg-[#F2E5D0] dark:hover:bg-[#2A0E1A] hover:border-[#C9A45C] hover:-translate-y-0.5'
+                  : 'rounded-[16px] bg-[#FFFCF6] dark:bg-[#0E241C] border-[#DDD9CC] dark:border-[#174233] hover:bg-[#F8F5EC] dark:hover:bg-[#122C21] hover:border-[#A9C8B9] hover:-translate-y-0.5'
+              )}
+            >
+              <span
+                className={cn(
+                  'grid h-[44px] w-[44px] sm:h-[46px] sm:w-[46px] place-items-center transition-transform group-hover:scale-105 shrink-0',
+                  guestPalette === 'burgundy'
+                    ? 'rounded-[4px] bg-[#F2E5D0] text-[#74172F] dark:bg-[#381222] dark:text-[#C9A45C]'
+                    : 'rounded-[12px] bg-[#F1EBDD] text-[#1A6650] dark:bg-[#15382B] dark:text-[#34D399]'
+                )}
+              >
+                <PackageSearch className="h-5 w-5" />
+              </span>
+              <div className="flex flex-col justify-center min-w-0 flex-1">
+                <p
+                  className={cn(
+                    'text-[14px] font-semibold truncate leading-tight',
+                    guestPalette === 'burgundy'
+                      ? 'text-[#332D2A] dark:text-[#FFF8F0]'
+                      : 'text-[#173C32] dark:text-[#F8F5EC]'
+                  )}
+                >
+                  Lost &amp; Found
+                </p>
+                <p
+                  className={cn(
+                    'text-[12px] sm:text-[13px] truncate mt-0.5 font-normal leading-tight',
+                    guestPalette === 'burgundy'
+                      ? 'text-[#786B60] dark:text-[#E2BDC5]'
+                      : 'text-[#68736A] dark:text-[#858A80]'
+                  )}
+                >
+                  Item Inquiries
+                </p>
+              </div>
+            </button>
+          </div>
         </div>
       </section>
 
-      {/* 3. PENDING REQUESTS TIMELINE */}
+      {/* 3. PENDING REQUESTS SECTION */}
       <section
         data-tour="tour-pending-requests"
-        className="space-y-3 w-full max-w-full min-w-0 overflow-x-hidden box-border"
+        className="space-y-3.5 w-full max-w-full min-w-0 overflow-x-hidden box-border"
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2.5">
-              <ListChecks className="h-5 w-5 text-cyan-400" />
-              <span>Pending Requests</span>
+            <h2
+              className={cn(
+                'guest-serif text-[26px] sm:text-[28px] font-normal',
+                guestPalette === 'burgundy'
+                  ? 'text-[#332D2A] dark:text-[#FFF8F0]'
+                  : 'text-[#173C32] dark:text-[#F8F5EC]'
+              )}
+            >
+              Pending Requests
             </h2>
             {pendingItems.length > 0 && (
-              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-cyan-400 text-ink-950">
+              <span
+                className={cn(
+                  'grid h-6 w-6 place-items-center rounded-full text-xs font-bold text-[#F8F5EC] shadow-none',
+                  guestPalette === 'burgundy' ? 'bg-[#74172F]' : 'bg-[#175B49]'
+                )}
+              >
                 {pendingItems.length}
               </span>
             )}
@@ -604,90 +818,185 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
           <button
             type="button"
             onClick={() => onNavigate('activity')}
-            className="text-xs sm:text-sm font-semibold text-cyan-300 hover:text-cyan-200 flex items-center gap-1.5 transition-colors group"
+            className={cn(
+              'px-4 py-1.5 text-xs font-semibold shadow-none hover:shadow-sm transition-all flex items-center gap-1.5 group border',
+              guestPalette === 'burgundy'
+                ? 'rounded-[4px] bg-[#F7EEDF] hover:bg-[#F2E5D0] text-[#74172F] border-[#E0CBA9] dark:bg-[#220B15] dark:border-[#461628] dark:text-[#DCC69A]'
+                : 'rounded-[10px] bg-[#F1EBDD] hover:bg-[#EDE8DA] text-[#175B49] border-[#DDD9CC] dark:bg-[#0E241C] dark:border-[#174233] dark:text-[#A9C8B9]'
+            )}
           >
             <span>History</span>
             <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
           </button>
         </div>
 
-        {/* 4. REAL-WORLD TIMELINE LIST (ALIGNED STATUS TRACK) */}
-        {pendingItems.length === 0 ? (
-          <div className="guest-card p-8 text-center text-xs sm:text-sm text-mist-400 flex flex-col items-center justify-center gap-2.5 border border-white/5">
-            <span className="grid h-10 w-10 place-items-center rounded-2xl bg-white/5 text-emerald-400">
-              <CheckCircle2 className="h-5 w-5" />
-            </span>
-            <p className="font-semibold text-mist-200">You&apos;re all caught up!</p>
-            <p className="text-xs text-mist-400">No active pending requests for Room {room}.</p>
-          </div>
-        ) : (
-          <div className="space-y-3 sm:space-y-3.5 w-full max-w-full min-w-0 box-border">
-            {pendingItems.map((item, idx) => {
+        {/* Outer Section Soft Tinted Panel */}
+        <div
+          className={cn(
+            'p-3.5 sm:p-5 border shadow-none transition-colors space-y-3 sm:space-y-3.5',
+            guestPalette === 'burgundy'
+              ? 'rounded-[8px] border-[#E0CBA9] bg-[#F7EEDF]/90 dark:bg-[#1B070F]/80 dark:border-[#3A1220]'
+              : 'rounded-[20px] border-[#DDD9CC] bg-[#EDE8DA]/70 dark:bg-[#0B1D16]/80 dark:border-[#174233]'
+          )}
+        >
+          {/* Real Requests Cards */}
+          {pendingItems.length === 0 ? (
+            <div
+              className={cn(
+                'request-card p-8 text-center text-xs sm:text-sm flex flex-col items-center justify-center gap-2.5 border',
+                guestPalette === 'burgundy'
+                  ? 'rounded-[5px] border-[#E0CBA9] bg-[#FFFCF8] dark:bg-[#220B15] dark:border-[#461628]'
+                  : 'rounded-[16px] border-[#DDD9CC] bg-[#FFFCF6] dark:bg-[#0E241C] dark:border-[#174233]'
+              )}
+            >
+              <span
+                className={cn(
+                  'grid h-10 w-10 place-items-center',
+                  guestPalette === 'burgundy'
+                    ? 'rounded-[4px] bg-[#F2E5D0] text-[#74172F] dark:bg-[#381222] dark:text-[#C9A45C]'
+                    : 'rounded-[12px] bg-[#F1EBDD] text-[#1A6650] dark:bg-[#15382B] dark:text-[#34D399]'
+                )}
+              >
+                <CheckCircle2 className="h-5 w-5" />
+              </span>
+              <p
+                className={cn(
+                  'font-semibold',
+                  guestPalette === 'burgundy' ? 'text-[#332D2A] dark:text-[#FFF8F0]' : 'text-[#173C32] dark:text-[#F8F5EC]'
+                )}
+              >
+                You&apos;re all caught up!
+              </p>
+              <p
+                className={cn(
+                  'text-xs',
+                  guestPalette === 'burgundy' ? 'text-[#786B60] dark:text-[#E2BDC5]' : 'text-[#68736A] dark:text-[#858A80]'
+                )}
+              >
+                No active pending requests for Room {room}.
+              </p>
+            </div>
+          ) : (
+            pendingItems.map((item) => {
               const ItemIcon = getItemIcon(item.type, item.category);
-              const style = getStatusStyle(item.status);
-              const isLast = idx === pendingItems.length - 1;
 
               return (
-                <div key={item.id} className="relative flex items-stretch gap-2.5 sm:gap-4 group w-full max-w-full min-w-0 box-border">
-                  {/* Dedicated Aligned Timeline Track (Node + Connector) */}
-                  <div className="flex flex-col items-center shrink-0 w-6 sm:w-7 pt-4">
-                    {/* Glowing Aligned Status Dot */}
-                    <div className="relative flex items-center justify-center">
-                      <span
+                <div
+                  key={item.id}
+                  onClick={() => onNavigate('activity')}
+                  className={cn(
+                    'request-card p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 shadow-none hover:shadow-sm transition-all cursor-pointer border',
+                    guestPalette === 'burgundy'
+                      ? 'rounded-[5px] border-[#E0CBA9] bg-[#FFFCF8] dark:bg-[#220B15] dark:border-[#461628] hover:border-[#C9A45C]'
+                      : 'rounded-[16px] border-[#DDD9CC] bg-[#FFFCF6] dark:bg-[#0E241C] dark:border-[#174233] hover:border-[#A9C8B9]'
+                  )}
+                >
+                  <div className="flex items-start gap-3 sm:gap-3.5 min-w-0 flex-1">
+                    <span
+                      className={cn(
+                        'grid h-10 w-10 place-items-center shrink-0 mt-0.5 sm:mt-0',
+                        guestPalette === 'burgundy'
+                          ? 'rounded-[4px] bg-[#F2E5D0] text-[#74172F] dark:bg-[#381222] dark:text-[#C9A45C]'
+                          : 'rounded-[12px] bg-[#F1EBDD] text-[#1A6650] dark:bg-[#15382B] dark:text-[#34D399]'
+                      )}
+                    >
+                      <ItemIcon className="h-5 w-5" />
+                    </span>
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <p
                         className={cn(
-                          'h-3.5 w-3.5 sm:h-4 sm:w-4 rounded-full ring-4 transition-transform group-hover:scale-125 duration-200 shadow-md',
-                          style.dot
+                          'text-[14px] font-semibold truncate',
+                          guestPalette === 'burgundy'
+                            ? 'text-[#332D2A] dark:text-[#FFF8F0]'
+                            : 'text-[#173C32] dark:text-[#F8F5EC]'
                         )}
-                      />
-                    </div>
-                    {/* Continuous Vertical Connector */}
-                    {!isLast && (
-                      <div className="w-0.5 flex-1 bg-gradient-to-b from-white/20 via-white/10 to-transparent mt-2 min-h-[30px]" />
-                    )}
-                  </div>
-
-                  {/* Timeline Card */}
-                  <div
-                    onClick={() => onNavigate('activity')}
-                    className="guest-card flex-1 min-w-0 w-full max-w-full overflow-hidden box-border p-3.5 sm:p-4.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 hover:border-cyan-400/40 hover:bg-white/[0.03] transition-all cursor-pointer shadow-sm group-hover:shadow-[0_4px_24px_rgba(0,0,0,0.25)]"
-                  >
-                    <div className="min-w-0 flex-1 overflow-hidden space-y-1">
-                      <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 overflow-hidden">
-                        <span className="grid h-8 w-8 sm:h-9 sm:w-9 place-items-center rounded-xl bg-white/5 text-cyan-300 border border-white/5 shrink-0 group-hover:scale-105 transition-transform">
-                          <ItemIcon className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
-                        </span>
-                        <p className="text-sm sm:text-base font-bold text-white truncate group-hover:text-cyan-300 transition-colors min-w-0">
-                          {item.serviceName}
-                        </p>
-                      </div>
+                      >
+                        {item.serviceName}
+                      </p>
                       {item.description && (
-                        <p className="text-xs sm:text-sm text-mist-300 line-clamp-1 pl-10.5 sm:pl-12 min-w-0 break-words">
+                        <p
+                          className={cn(
+                            'text-[12px] sm:text-[13px] line-clamp-1',
+                            guestPalette === 'burgundy'
+                              ? 'text-[#786B60] dark:text-[#E2BDC5]'
+                              : 'text-[#68736A] dark:text-[#858A80]'
+                          )}
+                        >
                           {item.description}
                         </p>
                       )}
                     </div>
+                  </div>
 
-                    <div className="flex items-center justify-between sm:justify-end gap-2.5 sm:gap-4 shrink-0 pl-10.5 sm:pl-0 min-w-0 max-w-full flex-wrap sm:flex-nowrap">
-                      <span className="text-xs text-mist-400 font-mono flex items-center gap-1.5">
-                        <Clock className="h-3.5 w-3.5 text-mist-400" />
-                        <span>{item.timestamp}</span>
-                      </span>
-                      <span
-                        className={cn(
-                          'px-3 py-1 rounded-full text-xs font-bold border tracking-wide shadow-sm',
-                          style.badge
-                        )}
-                      >
-                        {item.status}
-                      </span>
-                    </div>
+                  <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 shrink-0 pl-12 sm:pl-0">
+                    <span
+                      className={cn(
+                        'text-xs font-normal',
+                        guestPalette === 'burgundy'
+                          ? 'text-[#928476]'
+                          : 'text-[#858A80]'
+                      )}
+                    >
+                      {item.timestamp}
+                    </span>
+                    <span
+                      className={cn(
+                        'px-4 py-1.5 text-xs font-semibold shadow-none border transition-colors',
+                        guestPalette === 'burgundy'
+                          ? 'rounded-[4px] bg-[#FFFCF8] dark:bg-[#1B070F] border-[#DEC9A4] dark:border-[#461628] text-[#74172F] dark:text-[#DCC69A]'
+                          : item.status === 'In Progress'
+                            ? 'rounded-full bg-[#175B49] border-[#175B49] text-[#F8F5EC]'
+                            : 'rounded-full bg-[#FFFCF6] dark:bg-[#0B1D16] border-[#DDD9CC] dark:border-[#174233] text-[#175B49] dark:text-[#A9C8B9]'
+                      )}
+                    >
+                      {item.status}
+                    </span>
                   </div>
                 </div>
               );
-            })}
-          </div>
-        )}
+            })
+          )}
+        </div>
       </section>
+
+      {/* Bottom Carousel / Slider Indicator */}
+      <div className="flex items-center justify-center gap-1.5 pt-6 pb-2 opacity-60">
+        <span
+          className={cn(
+            'h-0.5 w-6 rounded-full',
+            guestPalette === 'burgundy' ? 'bg-[#DEC9A4]' : 'bg-[#C6D8CB]'
+          )}
+        />
+        <span
+          className={cn(
+            'h-1.5 w-1.5 rounded-sm rotate-45',
+            guestPalette === 'burgundy' ? 'bg-[#74172F]' : 'bg-[#175B49]'
+          )}
+        />
+        <span
+          className={cn(
+            'h-0.5 w-6 rounded-full',
+            guestPalette === 'burgundy' ? 'bg-[#DEC9A4]' : 'bg-[#C6D8CB]'
+          )}
+        />
+      </div>
+
+      {/* Floating "Plan an Event" Action Button */}
+      <div className="fixed bottom-6 right-6 sm:bottom-8 sm:right-8 z-40">
+        <button
+          type="button"
+          onClick={() => onNavigate('services', 'events_celebrations')}
+          className={cn(
+            'flex items-center gap-2 px-5 py-3 text-xs sm:text-sm font-semibold transition-all transform hover:-translate-y-0.5 active:translate-y-0 text-[#F8F5EC] border',
+            guestPalette === 'burgundy'
+              ? 'rounded-[6px] bg-[#74172F] hover:bg-[#8A2443] border-[#DEC9A4] shadow-md'
+              : 'rounded-[16px] bg-[#175B49] hover:bg-[#206A55] border-[#C6D8CB] shadow-lg shadow-[#175B49]/20'
+          )}
+        >
+          <PartyPopper className="h-4 w-4" />
+          <span>Plan an Event</span>
+        </button>
+      </div>
 
       
       {/* EMERGENCY ADVISORY DETAIL & ACKNOWLEDGEMENT MODAL */}
@@ -710,7 +1019,12 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
                   acknowledge(emergencyAlert.id);
                   setAlertDetailModalOpen(false);
                 }}
-                className="flex-2 py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold shadow-md flex items-center justify-center gap-1.5 transition-all"
+                className={cn(
+                  'flex-2 py-2.5 px-4 text-xs font-bold shadow-md flex items-center justify-center gap-1.5 transition-all',
+                  guestPalette === 'burgundy'
+                    ? 'rounded-[4px] bg-[#74172F] hover:bg-[#8A2443] text-[#FFF8F0]'
+                    : 'rounded-[10px] bg-[#175B49] hover:bg-[#206A55] text-[#F8F5EC]'
+                )}
               >
                 <Check className="h-4 w-4" />
                 <span>✓ Acknowledge &amp; Dismiss</span>
@@ -753,9 +1067,14 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
                 acknowledge(emergencyAlert.id);
                 setAlertDetailModalOpen(false);
               }}
-              className="w-full p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 flex items-center justify-center gap-2 font-bold text-xs transition-all"
+              className={cn(
+                'w-full p-3 flex items-center justify-center gap-2 font-bold text-xs transition-all border',
+                guestPalette === 'burgundy'
+                  ? 'rounded-[4px] border-[#74172F]/30 bg-[#74172F]/10 hover:bg-[#74172F]/20 text-[#74172F] dark:text-[#DCC69A]'
+                  : 'rounded-[10px] border-[#175B49]/30 bg-[#175B49]/10 hover:bg-[#175B49]/20 text-[#175B49] dark:text-[#A9C8B9]'
+              )}
             >
-              <Check className="h-4 w-4 text-emerald-400" />
+              <Check className={cn('h-4 w-4', guestPalette === 'burgundy' ? 'text-[#74172F]' : 'text-[#175B49]')} />
               <span>Mark as Read &bull; Acknowledge Notice</span>
             </button>
           </div>

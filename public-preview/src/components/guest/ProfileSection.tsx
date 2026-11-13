@@ -2,12 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { User, CalendarCheck, Receipt } from 'lucide-react';
+import { useDemo } from '@/lib/store';
 import { GuestProfileSubtab } from './GuestProfileSubtab';
 import { MyBookingsSubtab } from './MyBookingsSubtab';
 import { MyFolioSubtab } from './MyFolioSubtab';
 import type { GuestTabProps, GuestProfileSubtab as ProfileSubtabType } from '@/components/guest/types';
 
 export function ProfileSection({ room, guestName, onNavigate, initialSubtab }: GuestTabProps) {
+  const { state } = useDemo();
+  const guestPalette = state.guestPalette ?? 'emerald';
+
   const [activeSubtab, setActiveSubtab] = useState<ProfileSubtabType>(
     initialSubtab === 'bookings'
       ? 'bookings'
@@ -22,35 +26,56 @@ export function ProfileSection({ room, guestName, onNavigate, initialSubtab }: G
     }
   }, [initialSubtab]);
 
-  const SUBTABS: Array<{ id: ProfileSubtabType; label: string; icon: React.ComponentType<{ className?: string }> }> = [
-    { id: 'profile_info', label: 'Guest Profile', icon: User },
-    { id: 'bookings', label: 'My Bookings', icon: CalendarCheck },
-    { id: 'folio', label: 'My Folio & Invoice', icon: Receipt },
-  ];
+  const isBurgundy = guestPalette === 'burgundy';
+
+  const containerClass = isBurgundy
+    ? 'bg-[#F2E5D0] border-[#E0CBA9]'
+    : 'bg-[#EDE8DA] border-[#DDD9CC]';
+
+  const activeBtnClass = isBurgundy
+    ? 'bg-[#74172F] text-[#FFF8F0] shadow-sm'
+    : 'bg-[#175B49] text-[#F8F5EC] shadow-sm';
+
+  const inactiveBtnClass = isBurgundy
+    ? 'text-[#786B60] hover:text-[#332D2A] hover:bg-[#74172F]/10'
+    : 'text-[#68736A] hover:text-[#173C32] hover:bg-[#175B49]/10';
 
   return (
     <div className="space-y-6 sm:space-y-8 pb-12 max-w-7xl mx-auto w-full">
       {/* Top 3-segment Navigation Pills */}
-      <div className="grid grid-cols-3 gap-1.5 p-1 rounded-2xl bg-black/30 border border-white/5">
-        {SUBTABS.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeSubtab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveSubtab(tab.id)}
-              className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs font-semibold transition-all ${
-                isActive
-                  ? 'bg-amber-400 text-ink-950 shadow-md font-bold'
-                  : 'text-mist-300 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <Icon className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{tab.label}</span>
-            </button>
-          );
-        })}
+      <div className={`grid grid-cols-3 gap-1.5 p-1.5 rounded-2xl border shadow-sm ${containerClass}`}>
+        <button
+          type="button"
+          onClick={() => setActiveSubtab('profile_info')}
+          className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs font-semibold transition-all ${
+            activeSubtab === 'profile_info' ? activeBtnClass : inactiveBtnClass
+          }`}
+        >
+          <User className="h-3.5 w-3.5 shrink-0" />
+          <span className="truncate">Guest Profile</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveSubtab('bookings')}
+          className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs font-semibold transition-all ${
+            activeSubtab === 'bookings' ? activeBtnClass : inactiveBtnClass
+          }`}
+        >
+          <CalendarCheck className="h-3.5 w-3.5 shrink-0" />
+          <span className="truncate">My Bookings</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveSubtab('folio')}
+          className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs font-semibold transition-all ${
+            activeSubtab === 'folio' ? activeBtnClass : inactiveBtnClass
+          }`}
+        >
+          <Receipt className="h-3.5 w-3.5 shrink-0" />
+          <span className="truncate">My Folio & Invoice</span>
+        </button>
       </div>
 
       {/* Render Active Subsection */}
@@ -66,4 +91,3 @@ export function ProfileSection({ room, guestName, onNavigate, initialSubtab }: G
     </div>
   );
 }
-
