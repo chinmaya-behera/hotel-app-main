@@ -203,7 +203,16 @@ export function TopBar({ active, showRail = true, hideGestureButton = false }: T
   return (
     <>
       <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-ink-950/80 backdrop-blur-xl">
-        <div className={cn("mx-auto flex max-w-7xl items-center gap-3", isFd ? "px-4 sm:px-5 py-1.5 h-[52px] min-h-[52px]" : "px-4 py-3 sm:px-6")}>
+        <div
+          className={cn(
+            "mx-auto flex items-center gap-3",
+            isFd
+              ? "max-w-[1720px] px-2 sm:px-4 lg:px-5 py-1.5 h-[52px] min-h-[52px]"
+              : isDispatcherSupervisor || roleId === 'financial_operator'
+              ? "max-w-[1720px] px-2 sm:px-4 lg:px-6 py-3"
+              : "max-w-7xl px-4 py-3 sm:px-6"
+          )}
+        >
           {/* Brand & Home Navigation */}
           <Link
             href="/"

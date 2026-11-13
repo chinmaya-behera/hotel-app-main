@@ -143,133 +143,149 @@ export function DispatcherSupervisorOverviewTab({
         {/* Metric 1: Inbound Tickets */}
         <div
           onClick={() => onNavigateTab('queue')}
-          className="rounded-3xl border border-white/10 bg-ink-900/90 p-4 backdrop-blur-xl shadow-lg hover:border-white/20 transition cursor-pointer group"
+          className="rounded-3xl border border-white/10 bg-ink-900/90 p-4 backdrop-blur-xl shadow-lg hover:border-white/20 transition cursor-pointer group flex flex-col justify-between min-h-[115px]"
         >
           <div className="flex items-center justify-between text-mist-400 mb-2">
             <span className="text-[11px] font-bold uppercase tracking-wider">Inbound Today</span>
             <ArrowUpRight className="h-4 w-4 group-hover:text-amber-300 transition" />
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-extrabold font-display text-white">{totalTasks}</span>
-            <span className="text-xs text-mist-400 font-mono">tickets</span>
+          <div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl sm:text-3xl font-extrabold font-display text-white">{totalTasks}</span>
+              <span className="text-xs text-mist-400 font-mono">tickets</span>
+            </div>
+            <p className="text-[10px] text-mist-400 mt-1 truncate">Guest portal & sensors</p>
           </div>
-          <p className="text-[10px] text-mist-400 mt-1">Guest portal & sensors</p>
         </div>
 
         {/* Metric 2: Unassigned Queue */}
         <div
           onClick={() => onNavigateTab('queue')}
-          className="rounded-3xl border border-amber-400/30 bg-amber-400/[0.04] p-4 backdrop-blur-xl shadow-lg hover:border-amber-400/50 transition cursor-pointer group"
+          className="rounded-3xl border border-amber-400/30 bg-amber-400/[0.04] p-4 backdrop-blur-xl shadow-lg hover:border-amber-400/50 transition cursor-pointer group flex flex-col justify-between min-h-[115px]"
         >
           <div className="flex items-center justify-between text-amber-300 mb-2">
             <span className="text-[11px] font-bold uppercase tracking-wider">Unassigned Queue</span>
             <AlertTriangle className="h-4 w-4 group-hover:scale-110 transition" />
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-extrabold font-display text-amber-300">{unassignedTasks.length}</span>
-            <span className="text-xs text-amber-200/70 font-mono">pending</span>
+          <div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl sm:text-3xl font-extrabold font-display text-amber-300">{unassignedTasks.length}</span>
+              <span className="text-xs text-amber-200/70 font-mono">pending</span>
+            </div>
+            <p className="text-[10px] text-amber-200/70 mt-1 truncate">Awaiting dispatch</p>
           </div>
-          <p className="text-[10px] text-amber-200/70 mt-1">Awaiting dispatch</p>
         </div>
 
         {/* Metric 3: Active in Field */}
         <div
           onClick={() => onNavigateTab('queue')}
-          className="rounded-3xl border border-white/10 bg-ink-900/90 p-4 backdrop-blur-xl shadow-lg hover:border-white/20 transition cursor-pointer group"
+          className="rounded-3xl border border-white/10 bg-ink-900/90 p-4 backdrop-blur-xl shadow-lg hover:border-white/20 transition cursor-pointer group flex flex-col justify-between min-h-[115px]"
         >
           <div className="flex items-center justify-between text-mist-400 mb-2">
             <span className="text-[11px] font-bold uppercase tracking-wider">Active in Field</span>
             <Clock className="h-4 w-4 group-hover:text-amber-300 transition" />
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-extrabold font-display text-white">{activeTasks.length}</span>
-            <span className="text-xs text-emerald-400 font-mono">in flight</span>
+          <div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl sm:text-3xl font-extrabold font-display text-white">{activeTasks.length}</span>
+              <span className="text-xs text-emerald-400 font-mono">in flight</span>
+            </div>
+            <p className="text-[10px] text-mist-400 mt-1 truncate">Accepted or in progress</p>
           </div>
-          <p className="text-[10px] text-mist-400 mt-1">Accepted or in progress</p>
         </div>
 
         {/* Metric 4: Awaiting Inspection */}
         <div
           onClick={() => onNavigateTab('inspections')}
-          className="rounded-3xl border border-amber-400/20 bg-gradient-to-br from-amber-500/[0.08] to-ink-900/90 p-4 backdrop-blur-xl shadow-lg hover:border-amber-400/40 transition cursor-pointer group"
+          className="rounded-3xl border border-amber-400/20 bg-gradient-to-br from-amber-500/[0.08] to-ink-900/90 p-4 backdrop-blur-xl shadow-lg hover:border-amber-400/40 transition cursor-pointer group flex flex-col justify-between min-h-[115px]"
         >
           <div className="flex items-center justify-between text-amber-300 mb-2">
             <span className="text-[11px] font-bold uppercase tracking-wider">Awaiting Inspection</span>
             <ClipboardCheck className="h-4 w-4 group-hover:scale-110 transition" />
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-extrabold font-display text-white">{pendingInspections.length}</span>
-            <span className="text-xs text-amber-300 font-mono">
-              {pendingInspections.filter((i) => i.priority === 'vip').length} VIP
-            </span>
+          <div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl sm:text-3xl font-extrabold font-display text-white">{pendingInspections.length}</span>
+              <span className="text-xs text-amber-300 font-mono">
+                {pendingInspections.filter((i) => i.priority === 'vip').length} VIP
+              </span>
+            </div>
+            <p className="text-[10px] text-mist-400 mt-1 truncate">Supervisor sign-off</p>
           </div>
-          <p className="text-[10px] text-mist-400 mt-1">Turnovers awaiting supervisor sign-off</p>
         </div>
 
         {/* Metric 5: First-Pass Quality Rate */}
         <div
           onClick={() => onNavigateTab('reports')}
-          className="rounded-3xl border border-emerald-400/20 bg-gradient-to-br from-emerald-500/[0.08] to-ink-900/90 p-4 backdrop-blur-xl shadow-lg hover:border-emerald-400/40 transition cursor-pointer group"
+          className="rounded-3xl border border-emerald-400/20 bg-gradient-to-br from-emerald-500/[0.08] to-ink-900/90 p-4 backdrop-blur-xl shadow-lg hover:border-emerald-400/40 transition cursor-pointer group flex flex-col justify-between min-h-[115px]"
         >
           <div className="flex items-center justify-between text-emerald-300 mb-2">
             <span className="text-[11px] font-bold uppercase tracking-wider">First-Pass Quality</span>
             <ShieldCheck className="h-4 w-4 group-hover:scale-110 transition" />
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-extrabold font-display text-white">{firstPassRate}%</span>
-            <span className="text-xs text-emerald-300 font-mono flex items-center gap-0.5">
-              <TrendingUp className="h-3 w-3" /> +2.4%
-            </span>
+          <div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl sm:text-3xl font-extrabold font-display text-white">{firstPassRate}%</span>
+              <span className="text-xs text-emerald-300 font-mono flex items-center gap-0.5">
+                <TrendingUp className="h-3 w-3" /> +2.4%
+              </span>
+            </div>
+            <p className="text-[10px] text-mist-400 mt-1 truncate">{passedInspections.length} certified of {totalFinished || 7}</p>
           </div>
-          <p className="text-[10px] text-mist-400 mt-1">{passedInspections.length} certified of {totalFinished || 7}</p>
         </div>
 
         {/* Metric 6: Overdue SLAs */}
         <div
           onClick={() => onNavigateTab('sla')}
-          className="rounded-3xl border border-rose-500/30 bg-rose-500/[0.05] p-4 backdrop-blur-xl shadow-lg hover:border-rose-500/50 transition cursor-pointer group"
+          className="rounded-3xl border border-rose-500/30 bg-rose-500/[0.05] p-4 backdrop-blur-xl shadow-lg hover:border-rose-500/50 transition cursor-pointer group flex flex-col justify-between min-h-[115px]"
         >
           <div className="flex items-center justify-between text-rose-300 mb-2">
             <span className="text-[11px] font-bold uppercase tracking-wider">Overdue SLAs</span>
             <Flame className="h-4 w-4 text-rose-400 group-hover:scale-110 transition" />
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-extrabold font-display text-rose-400">{overdueTasks.length}</span>
-            <span className="text-xs text-rose-300/70 font-mono">breached</span>
+          <div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl sm:text-3xl font-extrabold font-display text-rose-400">{overdueTasks.length}</span>
+              <span className="text-xs text-rose-300/70 font-mono">breached</span>
+            </div>
+            <p className="text-[10px] text-rose-300/70 mt-1 truncate">Requires immediate attention</p>
           </div>
-          <p className="text-[10px] text-rose-300/70 mt-1">Requires immediate attention</p>
         </div>
 
         {/* Metric 7: On-Duty Team */}
         <div
           onClick={() => onNavigateTab('workload')}
-          className="rounded-3xl border border-white/10 bg-ink-900/90 p-4 backdrop-blur-xl shadow-lg hover:border-white/20 transition cursor-pointer group"
+          className="rounded-3xl border border-white/10 bg-ink-900/90 p-4 backdrop-blur-xl shadow-lg hover:border-white/20 transition cursor-pointer group flex flex-col justify-between min-h-[115px]"
         >
           <div className="flex items-center justify-between text-mist-400 mb-2">
             <span className="text-[11px] font-bold uppercase tracking-wider">On-Duty Roster</span>
             <Users className="h-4 w-4 group-hover:text-amber-300 transition" />
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-extrabold font-display text-white">{onDutyCount}</span>
-            <span className="text-xs text-mist-400 font-mono">/ {fulfillers.length}</span>
+          <div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl sm:text-3xl font-extrabold font-display text-white">{onDutyCount}</span>
+              <span className="text-xs text-mist-400 font-mono">/ {fulfillers.length}</span>
+            </div>
+            <p className="text-[10px] text-mist-400 mt-1 truncate">{activeDept ? `${activeDept} Team` : 'Department Attendants'}</p>
           </div>
-          <p className="text-[10px] text-mist-400 mt-1">{activeDept ? `${activeDept} Team` : 'Department Attendants'}</p>
         </div>
 
         {/* Metric 8: Auto-Assign & Escalations */}
         <div
           onClick={() => onNavigateTab('queue')}
-          className="rounded-3xl border border-white/10 bg-ink-900/90 p-4 backdrop-blur-xl shadow-lg hover:border-white/20 transition cursor-pointer group"
+          className="rounded-3xl border border-white/10 bg-ink-900/90 p-4 backdrop-blur-xl shadow-lg hover:border-white/20 transition cursor-pointer group flex flex-col justify-between min-h-[115px]"
         >
           <div className="flex items-center justify-between text-mist-400 mb-2">
             <span className="text-[11px] font-bold uppercase tracking-wider">Auto-Assign Rate</span>
             <Sparkles className="h-4 w-4 text-amber-300 group-hover:scale-110 transition" />
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-extrabold font-display text-white">{autoAssignRate}%</span>
-            <span className="text-xs text-emerald-400 font-mono">optimal</span>
+          <div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl sm:text-3xl font-extrabold font-display text-white">{autoAssignRate}%</span>
+              <span className="text-xs text-emerald-400 font-mono">optimal</span>
+            </div>
+            <p className="text-[10px] text-mist-400 mt-1 truncate">{escalatedCount} escalated to Mgr</p>
           </div>
-          <p className="text-[10px] text-mist-400 mt-1">{escalatedCount} escalated to Mgr</p>
         </div>
       </div>
 
