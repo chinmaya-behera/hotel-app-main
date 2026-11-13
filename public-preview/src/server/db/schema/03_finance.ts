@@ -128,4 +128,79 @@ export const guestReminderTable = pgTable('guest_reminder', {
 export type GuestReminderEntity = typeof guestReminderTable.$inferSelect;
 export type InsertGuestReminderEntity = typeof guestReminderTable.$inferInsert;
 
+/**
+ * 6. Lost & Found Item Entity (Table 12 in BACKEND_TEAM_DIVISION_V2.md)
+ * Tracks items found across hotel premises, storage locations, claims, verification, and release.
+ */
+export const lostFoundItemTable = pgTable('lost_found_item', {
+  id: text('id').primaryKey(),
+  ref: text('ref').notNull().unique(), // e.g. 'LF-2026-001'
+  propertyId: text('property_id').notNull(),
+  itemName: text('item_name').notNull(),
+  category: text('category').notNull(),
+  description: text('description').notNull(),
+  foundLocation: text('found_location').notNull(),
+  foundDate: timestamp('found_date', { withTimezone: true }).notNull(),
+  roomNumber: text('room_number'),
+  stayId: text('stay_id'),
+  storageLocation: text('storage_location').notNull(),
+  sensitive: boolean('sensitive').default(false).notNull(),
+  photoStorageKey: text('photo_storage_key'),
+  registeredByStaffId: text('registered_by_staff_id').notNull(),
+  registeredByStaffName: text('registered_by_staff_name').notNull(),
+  status: text('status').notNull(), // 'FOUND' | 'STORED' | 'CLAIM_PENDING' | 'RELEASED' | 'DISPOSED'
+  claimantName: text('claimant_name'),
+  claimantContact: text('claimant_contact'),
+  claimantVerificationMethod: text('claimant_verification_method'),
+  claimedAt: timestamp('claimed_at', { withTimezone: true }),
+  releasedByStaffId: text('released_by_staff_id'),
+  releasedByStaffName: text('released_by_staff_name'),
+  releasedAt: timestamp('released_at', { withTimezone: true }),
+  disposalReason: text('disposal_reason'),
+  disposedAt: timestamp('disposed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type LostFoundItemEntity = typeof lostFoundItemTable.$inferSelect;
+export type InsertLostFoundItemEntity = typeof lostFoundItemTable.$inferInsert;
+
+/**
+ * 7. Emergency Broadcast Entity (Table 14 in BACKEND_TEAM_DIVISION_V2.md)
+ * Manages controlled emergency alert lifecycle: draft, activation, recipient tracking, and resolution.
+ */
+export const emergencyBroadcastTable = pgTable('emergency_broadcast', {
+  id: text('id').primaryKey(),
+  ref: text('ref').notNull().unique(), // e.g. 'EMG-2026-001'
+  propertyId: text('property_id').notNull(),
+  title: text('title').notNull(),
+  alertType: text('alert_type').notNull(), // 'fire' | 'medical' | 'security' | 'evacuation' | 'severe_weather' | 'life_safety' | 'other'
+  severity: text('severity').notNull(), // 'critical' | 'urgent' | 'warning' | 'info'
+  message: text('message').notNull(),
+  instructions: text('instructions').notNull(),
+  targetScope: text('target_scope').notNull(), // 'hotel_wide' | 'property' | 'building' | 'floor' | 'zone' | 'room' | 'staff_only' | 'security_only'
+  status: text('status').notNull(), // 'DRAFT' | 'ACTIVE' | 'RESOLVED' | 'CANCELLED'
+  incidentRef: text('incident_ref'),
+  targetRecipientCount: integer('target_recipient_count').default(0).notNull(),
+  broadcastDeliveryStatus: text('broadcast_delivery_status').default('simulated').notNull(),
+  createdByStaffId: text('created_by_staff_id').notNull(),
+  createdByStaffName: text('created_by_staff_name').notNull(),
+  activatedByStaffId: text('activated_by_staff_id'),
+  activatedByStaffName: text('activated_by_staff_name'),
+  activatedAt: timestamp('activated_at', { withTimezone: true }),
+  resolvedByStaffId: text('resolved_by_staff_id'),
+  resolvedByStaffName: text('resolved_by_staff_name'),
+  resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+  resolutionNotes: text('resolution_notes'),
+  cancelledByStaffId: text('cancelled_by_staff_id'),
+  cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
+  cancelledReason: text('cancelled_reason'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type EmergencyBroadcastEntity = typeof emergencyBroadcastTable.$inferSelect;
+export type InsertEmergencyBroadcastEntity = typeof emergencyBroadcastTable.$inferInsert;
+
+
 
