@@ -79,6 +79,8 @@ import type {
   DutyStatusRequest,
   TaskReassignRequest,
   ThemeMode,
+  FrontDeskPalette,
+  GuestPalette,
   Transition,
   WorkflowConfig,
   WorkItem,
@@ -136,6 +138,10 @@ function seedState(normalize = true): DemoState {
     folios: folioSeed,
     lostFound: lostFoundSeed,
     theme: 'dark',
+    frontDeskTheme: 'light',
+    frontDeskPalette: 'moobi',
+    guestTheme: 'light',
+    guestPalette: 'emerald',
     frontDesk: frontDeskSeed,
     bookings: [],
     staffAccounts: seedStaffAccounts,
@@ -217,6 +223,10 @@ interface DemoApi {
   reset: () => void;
   notify: (text: string) => void;
   setTheme: (theme: ThemeMode) => void;
+  setFrontDeskTheme: (theme: ThemeMode) => void;
+  setFrontDeskPalette: (palette: FrontDeskPalette) => void;
+  setGuestTheme: (theme: ThemeMode) => void;
+  setGuestPalette: (palette: GuestPalette) => void;
   setActiveDispatcherDept: (dept: DispatcherDepartment) => void;
   submitGuestRequest: (input: GuestRequestInput) => string;
   placeRoomServiceOrder: (room: string, lines: OrderLine[], note?: string, requestedServiceAt?: string) => string;
@@ -657,6 +667,10 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           auditTrail: saved.auditTrail ?? base.auditTrail,
           workflowConfig: saved.workflowConfig ?? base.workflowConfig,
           theme: saved.theme ?? (saved as unknown as { guestTheme?: ThemeMode }).guestTheme ?? base.theme,
+          frontDeskTheme: saved.frontDeskTheme ?? 'light',
+          frontDeskPalette: saved.frontDeskPalette ?? 'moobi',
+          guestTheme: saved.guestTheme ?? 'light',
+          guestPalette: saved.guestPalette ?? 'emerald',
           soundEnabled: saved.soundEnabled ?? base.soundEnabled,
           fulfillerAvailability: saved.fulfillerAvailability ?? base.fulfillerAvailability,
           notifications: (() => {
@@ -785,6 +799,22 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
   const setTheme = useCallback((theme: ThemeMode) => {
     setState((prev) => (prev.theme === theme ? prev : { ...prev, theme }));
+  }, []);
+
+  const setFrontDeskTheme = useCallback((theme: ThemeMode) => {
+    setState((prev) => (prev.frontDeskTheme === theme ? prev : { ...prev, frontDeskTheme: theme }));
+  }, []);
+
+  const setFrontDeskPalette = useCallback((palette: FrontDeskPalette) => {
+    setState((prev) => (prev.frontDeskPalette === palette ? prev : { ...prev, frontDeskPalette: palette }));
+  }, []);
+
+  const setGuestTheme = useCallback((theme: ThemeMode) => {
+    setState((prev) => (prev.guestTheme === theme ? prev : { ...prev, guestTheme: theme }));
+  }, []);
+
+  const setGuestPalette = useCallback((palette: GuestPalette) => {
+    setState((prev) => (prev.guestPalette === palette ? prev : { ...prev, guestPalette: palette }));
   }, []);
 
   const setActiveDispatcherDept = useCallback((dept: DispatcherDepartment) => {
@@ -7855,6 +7885,10 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       reset,
       notify,
       setTheme,
+      setFrontDeskTheme,
+      setFrontDeskPalette,
+      setGuestTheme,
+      setGuestPalette,
       setActiveDispatcherDept,
       submitGuestRequest,
       placeRoomServiceOrder,
@@ -8000,6 +8034,11 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       reset,
       notify,
       setTheme,
+      setFrontDeskTheme,
+      setFrontDeskPalette,
+      setGuestTheme,
+      setGuestPalette,
+      setActiveDispatcherDept,
       submitGuestRequest,
       placeRoomServiceOrder,
       placeDiningOrder,
