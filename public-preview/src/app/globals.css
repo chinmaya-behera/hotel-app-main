@@ -1014,3 +1014,74 @@ input:-webkit-autofill:focus {
 :root[data-theme='light'] .staff-profile-card .profile-dept-text {
   color: #1e40af !important;
 }
+
+/* ==========================================================================
+   GOOGLE TRANSLATE GLOBAL COMPATIBILITY & BANNER OBLITERATION FIXES
+   ========================================================================== */
+
+/* 1. Permanently remove and hide the Google Translate top banner iframe and any toolbars */
+.goog-te-banner-frame,
+.goog-te-banner-frame.skiptranslate,
+iframe.goog-te-banner-frame,
+iframe[class*="goog-te-banner-frame"],
+.VIpgJd-ZVi9od-ORHb-OEVmcd,
+.VIpgJd-ZVi9od-ORHb-OEVmcd.skiptranslate,
+.VIpgJd-ZVi9od-aZ2wEe-wOHMyf,
+.VIpgJd-ZVi9od-aZ2wEe-wOHMyf-ti6hGc,
+div[id*=":1.container"],
+div[id*=":2.container"],
+div[id*=":3.container"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  height: 0px !important;
+  width: 0px !important;
+  max-height: 0px !important;
+  line-height: 0 !important;
+  font-size: 0 !important;
+  overflow: hidden !important;
+  position: fixed !important;
+  top: -9999px !important;
+  left: -9999px !important;
+  pointer-events: none !important;
+  z-index: -99999 !important;
+}
+
+/* 2. Lock html and body to top: 0px so the page is NEVER pushed down */
+html,
+body {
+  top: 0px !important;
+  margin-top: 0px !important;
+  padding-top: 0px !important;
+  position: static !important;
+}
+
+/* 3. Hide hover tooltip balloons and highlight artifacts */
+#goog-gt-tt,
+.goog-te-balloon-frame {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.goog-text-highlight {
+  background: none !important;
+  box-shadow: none !important;
+}
+
+font {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* 4. Completely hide the default raw Google Translate gadget element */
+#google_translate_element {
+  display: none !important;
+  visibility: hidden !important;
+  position: fixed !important;
+  bottom: -9999px !important;
+  right: -9999px !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}

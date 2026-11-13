@@ -54,7 +54,9 @@ import {
 import { Button } from '@/components/ui/Button';
 import { ServiceAuthorityModal } from '@/components/shared/ServiceAuthorityModal';
 import { GestureGuideModal } from '@/components/shared/GestureGuideModal';
+import { LanguageSelector } from '@/components/shared/LanguageSelector';
 import { useDemo } from '@/lib/store';
+import { useI18n } from '@/lib/i18n';
 import { managerDepartment, managerNotifications } from '@/lib/manager-domain';
 import { HOME_ACCENT, quickLinks, roles, roleById } from '@/lib/roles';
 import { accentVars, cn } from '@/lib/utils';
@@ -68,6 +70,7 @@ interface TopBarProps {
 
 export function TopBar({ active, showRail = true, hideGestureButton = false }: TopBarProps) {
   const router = useRouter();
+  const { t } = useI18n();
   const { state, reset, setTheme, markNotificationRead, clearAllNotifications, departmentManagerCommand, gestureGuideOpen, setGestureGuideOpen } = useDemo();
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
   const [policiesModalOpen, setPoliciesModalOpen] = useState(false);
@@ -666,6 +669,9 @@ export function TopBar({ active, showRail = true, hideGestureButton = false }: T
                   )}
                 </div>
 
+                {/* Language Selector */}
+                <LanguageSelector isLight={isLight} variant={isFd ? 'compact' : 'pill'} />
+
                 {/* Theme Toggle Button */}
                 <button
                   type="button"
@@ -698,12 +704,13 @@ export function TopBar({ active, showRail = true, hideGestureButton = false }: T
                   title="Sign out of this staff account"
                 >
                   <LogOut className="h-3.5 w-3.5" aria-hidden />
-                  <span className="hidden sm:inline">Logout</span>
+                  <span className="hidden sm:inline">{t('nav.signOut')}</span>
                 </button>
               </div>
             ) : (
               /* Public / Portal Login View Controls */
               <div className="flex items-center gap-2">
+                <LanguageSelector isLight={isLight} variant="compact" />
                 <button
                   type="button"
                   onClick={() => setTheme(isLight ? 'dark' : 'light')}
@@ -714,8 +721,8 @@ export function TopBar({ active, showRail = true, hideGestureButton = false }: T
                   {isLight ? <Moon className="h-4 w-4" aria-hidden /> : <Sun className="h-4 w-4" aria-hidden />}
                 </button>
                 <Button size="sm" variant="subtle" iconLeft={RotateCcw} onClick={reset} title="Reset demo data to initial state">
-                  <span className="hidden md:inline">Reset demo</span>
-                  <span className="sr-only md:hidden">Reset demo</span>
+                  <span className="hidden md:inline">{t('common.clear')}</span>
+                  <span className="sr-only md:hidden">{t('common.clear')}</span>
                 </Button>
               </div>
             )}

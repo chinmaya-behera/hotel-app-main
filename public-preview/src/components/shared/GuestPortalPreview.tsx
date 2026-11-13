@@ -25,11 +25,14 @@ import { ActivitySection } from '@/components/guest/ActivitySection';
 import { NotificationsHubSection } from '@/components/guest/NotificationsHubSection';
 import { ProfileSection } from '@/components/guest/ProfileSection';
 import { GuestInteractiveTour } from '@/components/guest/GuestInteractiveTour';
+import { GuestSupportAssistant } from '@/components/guest/help/GuestSupportAssistant';
+import { LanguageSelector } from '@/components/shared/LanguageSelector';
 import { useEmergencyBroadcast } from '@/lib/emergencyBroadcast';
 import { GuestConfirm, GuestPill } from '@/components/guest/guestUi';
 import type { GuestTabId, GuestMainSection } from '@/components/guest/types';
 import { guests } from '@/lib/mockData';
 import { useDemo } from '@/lib/store';
+import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 /** The 5 navigation sections */
@@ -68,6 +71,24 @@ const NAV_MAP: Record<string, GuestMainSection> = {
 export function GuestPortalPreview({ room, token }: { room: string; token: string }) {
   const router = useRouter();
   const { state, setTheme } = useDemo();
+  const { t } = useI18n();
+
+  const getNavLabel = (id: GuestMainSection) => {
+    switch (id) {
+      case 'home':
+        return t('nav.home');
+      case 'services':
+        return t('guest.services');
+      case 'activity':
+        return t('guest.activity');
+      case 'notifications':
+        return t('nav.notifications');
+      case 'profile':
+        return t('guest.profile');
+      default:
+        return id;
+    }
+  };
   const [tab, setTab] = useState<GuestTabId>('home');
   const [subtab, setSubtab] = useState<string | undefined>(undefined);
   const [logoutOpen, setLogoutOpen] = useState(false);
@@ -243,7 +264,7 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
                       )}
                     >
                       <Icon className="h-4 w-4 sm:h-4.5 sm:w-4.5 shrink-0" />
-                      <span>{t.label}</span>
+                      <span>{getNavLabel(t.id)}</span>
                       {hasActivityBadge && (
                         <span
                           className={cn(
@@ -274,6 +295,8 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
 
               {/* Header Right Actions */}
               <div data-tour="tour-header-controls" className="flex shrink-0 items-center gap-2 sm:gap-2.5">
+                <LanguageSelector isLight={isLight} variant="compact" />
+
                 {/* Take Tour Button */}
                 <button
                   type="button"
@@ -282,7 +305,7 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
                   title="Interactive App Guide"
                 >
                   <Compass className="h-4 w-4 text-amber-400" />
-                  <span className="hidden sm:inline">App Guide</span>
+                  <span className="hidden sm:inline">{t('guest.appGuide')}</span>
                 </button>
 
                 <button
@@ -353,7 +376,7 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
                         )}
                       </div>
                       <span className={cn('text-[10px] font-semibold leading-none truncate max-w-full', active && 'text-amber-400 font-bold')}>
-                        {t.label}
+                        {getNavLabel(t.id)}
                       </span>
                     </button>
                   );
@@ -381,6 +404,16 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
             guestName={guest.name}
             isOpen={tourOpen}
             onClose={() => setTourOpen(false)}
+            onNavigate={handleNavigate}
+            isLight={isLight}
+          />
+        )}
+
+        {/* 24/7 GUIDED SUPPORT ASSISTANT (GUEST-HELP-01) */}
+        {valid && guest && (
+          <GuestSupportAssistant
+            room={room}
+            guestName={guest.name}
             onNavigate={handleNavigate}
             isLight={isLight}
           />
