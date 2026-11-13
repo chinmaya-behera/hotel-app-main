@@ -8,7 +8,11 @@
     "build": "npm --prefix public-preview run build",
     "start": "npm --prefix public-preview run start",
     "lint": "npm --prefix public-preview run lint",
-    "typecheck": "npm --prefix public-preview run typecheck"
+    "typecheck": "npm --prefix public-preview run typecheck",
+    "db:generate": "npm --prefix public-preview run db:generate",
+    "db:push": "npm --prefix public-preview run db:push",
+    "db:migrate": "npm --prefix public-preview run db:migrate",
+    "db:studio": "npm --prefix public-preview run db:studio"
   }
 }
 
