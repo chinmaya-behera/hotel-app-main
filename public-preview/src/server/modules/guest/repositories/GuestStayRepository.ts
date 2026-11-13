@@ -19,6 +19,7 @@ export interface StayWithRoomDetails {
 export interface IGuestStayRepository {
   getStayWithRoomById(stayId: string): Promise<StayWithRoomDetails | null>;
   getStayWithRoomByRoomNumber(roomNumber: string): Promise<StayWithRoomDetails | null>;
+  updateRoomDnd(stayId: string, dndActive: boolean): Promise<boolean>;
 }
 
 /**
@@ -149,6 +150,15 @@ export class InMemoryGuestStayRepository implements IGuestStayRepository {
     };
   }
 
+  public async updateRoomDnd(stayId: string, dndActive: boolean): Promise<boolean> {
+    const currentRoom = Array.from(this.rooms.values()).find(
+      (r) => r.stayId === stayId && r.isCurrent,
+    );
+    if (!currentRoom) return false;
+    currentRoom.dndActive = dndActive;
+    return true;
+  }
+
   // Test helpers
   public registerStay(stay: StayContext, room: RoomAssignment): void {
     this.stays.set(stay.id, stay);
@@ -221,6 +231,19 @@ export class DrizzleGuestStayRepository implements IGuestStayRepository {
     const stay = stayRows[0];
 
     return { stay, currentRoom };
+  }
+
+  public async updateRoomDnd(stayId: string, dndActive: boolean): Promise<boolean> {
+    await db
+      .update(roomAssignmentTable)
+      .set({ dndActive })
+      .where(
+        and(
+          eq(roomAssignmentTable.stayId, stayId),
+          eq(roomAssignmentTable.isCurrent, true),
+        ),
+      );
+    return true;
   }
 }
 
