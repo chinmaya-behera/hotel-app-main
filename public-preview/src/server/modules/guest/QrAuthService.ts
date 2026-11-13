@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { z } from 'zod';
 import type { StayContext, RoomAssignment, QrMapping, GuestSession } from '../../db/schema/03_finance.ts';
+import { getGuestStayRepository } from './repositories/GuestStayRepository.ts';
 
 /**
  * Zod validation schema for the Guest QR Verification Request.
@@ -244,8 +245,22 @@ export class QrAuthService {
     }
 
     // 3. Find Active Stay Context for Room
-    const stayFixture = QrAuthService.mockStays.get(input.roomNumber);
-    if (!stayFixture) {
+    let stay: StayContext | undefined;
+    let room: RoomAssignment | undefined;
+
+    const repoStay = await getGuestStayRepository().getStayWithRoomByRoomNumber(input.roomNumber);
+    if (repoStay) {
+      stay = repoStay.stay;
+      room = repoStay.currentRoom;
+    } else {
+      const stayFixture = QrAuthService.mockStays.get(input.roomNumber);
+      if (stayFixture) {
+        stay = stayFixture.stay;
+        room = stayFixture.room;
+      }
+    }
+
+    if (!stay || !room) {
       QrAuthService.recordFailedAttempt(rateLimitKey);
       return {
         success: false,
@@ -256,8 +271,6 @@ export class QrAuthService {
         },
       };
     }
-
-    const { stay, room } = stayFixture;
 
     // Check Stay Status
     if (stay.status !== 'checked_in') {
@@ -405,6 +418,8 @@ export class QrAuthService {
         count++;
       }
     }
+    // Also remove any in-memory mock fixture for this room upon move
+    this.mockStays.delete(roomNumber);
     return count;
   }
 
@@ -421,6 +436,59 @@ export class QrAuthService {
   public static clearTestData(): void {
     this.rateLimits.clear();
     this.inMemorySessions.clear();
+    for (const key of Array.from(this.mockStays.keys())) {
+      if (key !== '402') {
+        this.mockStays.delete(key);
+      }
+    }
+
+    if (!this.mockStays.has('402')) {
+      const now = new Date();
+      const checkIn = new Date(now.getTime() - 1000 * 60 * 60 * 24);
+      const checkOut = new Date(now.getTime() + 1000 * 60 * 60 * 48);
+      const room402Sig = QrAuthService.generateHmacSignature('402');
+      this.mockStays.set('402', {
+        stay: {
+          id: 'stay_seed_402',
+          propertyId: 'prop_grand_adp_01',
+          bookingReference: 'BK-7892-0402',
+          guestFirstName: 'Aarav',
+          guestLastName: 'Sharma',
+          guestEmail: 'aarav.sharma@example.com',
+          guestPhone: '+91 98765 43210',
+          welcomeTvPin: '4829',
+          status: 'checked_in',
+          checkInTime: checkIn,
+          checkOutTime: checkOut,
+          createdAt: checkIn,
+          updatedAt: now,
+        },
+        room: {
+          id: 'room_assign_402',
+          stayId: 'stay_seed_402',
+          roomId: 'room_id_402',
+          roomNumber: '402',
+          propertyId: 'prop_grand_adp_01',
+          floor: 4,
+          roomType: 'Deluxe Suite',
+          dndActive: false,
+          cleanlinessStatus: 'ready',
+          assignedAt: checkIn,
+          unassignedAt: null,
+          isCurrent: true,
+        },
+        qr: {
+          id: 'qr_map_402',
+          propertyId: 'prop_grand_adp_01',
+          roomNumber: '402',
+          hmacSignature: room402Sig,
+          qrVersion: 1,
+          createdAt: checkIn,
+          rotatedAt: null,
+          isActive: true,
+        },
+      });
+    }
   }
 }
 

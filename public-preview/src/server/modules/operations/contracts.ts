@@ -35,6 +35,7 @@ export interface CanonicalTaskResult {
   caseRef: string;
   taskId: string;
   department: string;
+  category?: string;
   status: TaskStatus;
   ackDueAt: Date;
   completionDueAt: Date;
