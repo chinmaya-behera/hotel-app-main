@@ -95,3 +95,37 @@ export type InsertQrMapping = typeof qrMappingTable.$inferInsert;
 export type GuestSession = typeof guestSessionTable.$inferSelect;
 export type InsertGuestSession = typeof guestSessionTable.$inferInsert;
 
+/**
+ * 5. Guest Reminder Entity (Table 13 in BACKEND_TEAM_DIVISION_V2.md)
+ * Tracks scheduled guest wake-up calls, service reminders, alarm ringing states, and snoozing.
+ */
+export const guestReminderTable = pgTable('guest_reminder', {
+  id: text('id').primaryKey(),
+  propertyId: text('property_id').notNull(),
+  stayId: text('stay_id'),
+  roomNumber: text('room_number').notNull(),
+  guestName: text('guest_name').notNull(),
+  title: text('title').notNull(),
+  instructions: text('instructions'),
+  reminderType: text('reminder_type').notNull(), // 'wake_up_call' | 'airport_transfer' | 'service_followup' | 'medication' | 'turndown' | 'general'
+  dueDateTime: timestamp('due_date_time', { withTimezone: true }).notNull(),
+  leadMinutes: integer('lead_minutes').default(15).notNull(),
+  alertAt: timestamp('alert_at', { withTimezone: true }).notNull(),
+  priority: text('priority').notNull(), // 'normal' | 'urgent' | 'vip'
+  status: text('status').notNull(), // 'pending' | 'acknowledged' | 'snoozed' | 'completed' | 'cancelled'
+  alarmState: text('alarm_state').default('scheduled').notNull(), // 'scheduled' | 'ringing' | 'snoozed' | 'acknowledged' | 'completed'
+  snoozeCount: integer('snooze_count').default(0).notNull(),
+  snoozedUntil: timestamp('snoozed_until', { withTimezone: true }),
+  assignedTo: text('assigned_to'),
+  caseRef: text('case_ref'),
+  notes: text('notes'),
+  createdBy: text('created_by').notNull(),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type GuestReminderEntity = typeof guestReminderTable.$inferSelect;
+export type InsertGuestReminderEntity = typeof guestReminderTable.$inferInsert;
+
+
