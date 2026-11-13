@@ -55,6 +55,7 @@ export class MockTaskEngineService implements ITaskEngineService {
       caseRef,
       taskId,
       department: input.department,
+      category: input.category,
       status,
       ackDueAt,
       completionDueAt,
