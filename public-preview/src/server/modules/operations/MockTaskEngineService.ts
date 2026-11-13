@@ -39,7 +39,9 @@ export class MockTaskEngineService implements ITaskEngineService {
     this.caseSequence++;
     const caseId = `case_${crypto.randomUUID()}`;
     const taskId = `task_${crypto.randomUUID()}`;
-    const caseRef = `REQ-2026-${this.caseSequence}`;
+    const cat = (input.category || '').toLowerCase();
+    const prefix = cat.includes('complaint') ? 'CMP' : cat.includes('dispute') ? 'DSP' : cat.includes('incident') ? 'INC' : 'REQ';
+    const caseRef = `${prefix}-2026-${this.caseSequence}`;
 
     const now = new Date();
     // Default SLAs based on priority
