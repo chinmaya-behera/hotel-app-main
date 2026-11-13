@@ -1,6 +1,6 @@
 import type { DemoState, WorkItem } from '../types/demo';
-import { departmentId, isOpen, managerInspections, managerTasks, taskDepartment, type ManagerDepartmentId } from './manager-domain';
-import { managerComplaints } from './manager-workflows';
+import { departmentId, isOpen, managerInspections, managerTasks, taskDepartment, type ManagerDepartmentId } from './manager-domain.ts';
+import { managerComplaints } from './manager-workflows.ts';
 
 export type SlaOutcome = 'met' | 'breached' | 'at_risk' | 'pending' | 'unknown' | 'disabled' | 'excluded';
 export interface SlaMeasurement { kind: string; reference: string; title: string; target?: number; deadline?: number; elapsed?: number; outcome: SlaOutcome; source: string }

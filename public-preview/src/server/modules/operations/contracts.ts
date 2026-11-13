@@ -10,6 +10,7 @@ export type TaskPriority = 'low' | 'normal' | 'urgent' | 'safety_critical';
 export type TaskStatus =
   | 'submitted'
   | 'assigned'
+  | 'accepted'
   | 'in_progress'
   | 'on_the_way'
   | 'completed'
@@ -44,7 +45,7 @@ export interface CanonicalTaskResult {
 export interface TaskTransitionInput {
   taskId: string;
   staffId: string;
-  action: 'accept' | 'start' | 'on_the_way' | 'complete';
+  action: 'accept' | 'start' | 'on_the_way' | 'complete' | 'resume';
   targetStatus: TaskStatus;
   note?: string;
   checklistResponses?: Record<string, boolean>;
@@ -73,12 +74,30 @@ export interface GuestTaskProjection {
   completedAt?: string;
 }
 
+export interface ChecklistItemRecord {
+  id: string;
+  label: string;
+  required: boolean;
+  completed?: boolean;
+  completedAt?: string;
+  completedByStaffId?: string;
+}
+
+export interface TaskEventRecord {
+  action: string;
+  at: string;
+  staffId: string;
+  staffName?: string;
+  note?: string;
+}
+
 /**
  * Full operational task projection for staff fulfillers on mobile devices.
  */
 export interface FulfillerTaskProjection {
   taskId: string;
   caseRef: string;
+  title: string;
   roomNumber: string;
   floor: number;
   category: string;
@@ -87,10 +106,19 @@ export interface FulfillerTaskProjection {
   status: TaskStatus;
   instructions: string;
   guestDndActive: boolean;
+  assignedToStaffId?: string;
+  assignedToStaffName?: string;
   assignedAt: string;
   ackDueAt: string;
   completionDueAt: string;
-  checklistItems: Array<{ id: string; label: string; required: boolean }>;
+  completedAt?: string;
+  completionNotes?: string;
+  evidencePhotoUrl?: string;
+  blockedAt?: string;
+  blockedReason?: string;
+  guestRequestSummary?: string;
+  checklistItems: ChecklistItemRecord[];
+  events: TaskEventRecord[];
 }
 
 export interface ITaskEngineService {
@@ -100,10 +128,15 @@ export interface ITaskEngineService {
 export interface ITaskLifecycleService {
   transitionTask(
     input: TaskTransitionInput,
-  ): Promise<{ taskId: string; status: TaskStatus; updatedAt: Date }>;
+  ): Promise<{ taskId: string; status: TaskStatus; updatedAt: Date; task?: FulfillerTaskProjection }>;
   blockTask(
     input: TaskBlockInput,
-  ): Promise<{ taskId: string; status: 'blocked'; blockedAt: Date; reason: string }>;
+  ): Promise<{ taskId: string; status: 'blocked'; blockedAt: Date; reason: string; task?: FulfillerTaskProjection }>;
+  updateChecklist?(
+    taskId: string,
+    staffId: string,
+    items: Array<{ itemId: string; completed: boolean }>,
+  ): Promise<{ taskId: string; checklistItems: ChecklistItemRecord[]; updatedAt: Date; task?: FulfillerTaskProjection }>;
 }
 
 /**

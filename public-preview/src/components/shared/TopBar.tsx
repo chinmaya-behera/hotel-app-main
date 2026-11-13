@@ -50,13 +50,13 @@ import {
   MapPin,
   Mail,
   CreditCard,
-  Palette,
-  Zap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { ServiceAuthorityModal } from '@/components/shared/ServiceAuthorityModal';
 import { GestureGuideModal } from '@/components/shared/GestureGuideModal';
+import { LanguageSelector } from '@/components/shared/LanguageSelector';
 import { useDemo } from '@/lib/store';
+import { useI18n } from '@/lib/i18n';
 import { managerDepartment, managerNotifications } from '@/lib/manager-domain';
 import { HOME_ACCENT, quickLinks, roles, roleById } from '@/lib/roles';
 import { accentVars, cn } from '@/lib/utils';
@@ -70,7 +70,8 @@ interface TopBarProps {
 
 export function TopBar({ active, showRail = true, hideGestureButton = false }: TopBarProps) {
   const router = useRouter();
-  const { state, reset, setTheme, setFrontDeskTheme, setFrontDeskPalette, markNotificationRead, clearAllNotifications, departmentManagerCommand, gestureGuideOpen, setGestureGuideOpen } = useDemo();
+  const { t } = useI18n();
+  const { state, reset, setTheme, markNotificationRead, clearAllNotifications, departmentManagerCommand, gestureGuideOpen, setGestureGuideOpen } = useDemo();
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
   const [policiesModalOpen, setPoliciesModalOpen] = useState(false);
   const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
@@ -201,28 +202,10 @@ export function TopBar({ active, showRail = true, hideGestureButton = false }: T
 
   const isLight = state.theme === 'light';
   const isFd = roleId === 'front_desk_coordinator';
-  const fdTheme = state.frontDeskTheme ?? 'light';
-  const fdPalette = state.frontDeskPalette ?? 'moobi';
-  const isFdLight = isFd ? fdTheme === 'light' : isLight;
 
   return (
     <>
-      <header
-        className={cn(
-          "sticky top-0 z-40 border-b backdrop-blur-xl transition-colors",
-          isFd
-            ? isFdLight
-              ? fdPalette === 'cosmic'
-                ? "border-purple-200/80 bg-[#FAF9FC]/95 shadow-xs"
-                : "border-slate-200 bg-white/95 shadow-xs"
-              : fdPalette === 'cosmic'
-                ? "border-purple-900/50 bg-[#131024]/95 shadow-md"
-                : "border-white/[0.06] bg-ink-950/80"
-            : isLight
-              ? "border-slate-200 bg-white/95 shadow-xs"
-              : "border-white/[0.06] bg-ink-950/80"
-        )}
-      >
+      <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-ink-950/80 backdrop-blur-xl">
         <div className={cn("mx-auto flex max-w-7xl items-center gap-3", isFd ? "px-4 sm:px-5 py-1.5 h-[52px] min-h-[52px]" : "px-4 py-3 sm:px-6")}>
           {/* Brand & Home Navigation */}
           <Link
@@ -231,35 +214,15 @@ export function TopBar({ active, showRail = true, hideGestureButton = false }: T
             title="The Grand ADP Resort · View Public Website"
           >
             <span
-              className={cn("icon-tile shrink-0 shadow-xs", isFd ? "h-8 w-8 rounded-lg" : "h-10 w-10 rounded-xl")}
-              style={
-                isFd
-                  ? fdPalette === 'cosmic'
-                    ? { backgroundColor: '#7C3AED', color: '#FFFFFF' }
-                    : { backgroundColor: '#1E40AF', color: '#FFFFFF' }
-                  : accentVars(role ?? HOME_ACCENT)
-              }
+              className={cn("icon-tile shrink-0", isFd ? "h-8 w-8 rounded-lg" : "h-10 w-10 rounded-xl")}
+              style={accentVars(role ?? HOME_ACCENT)}
             >
-              <Hotel className="h-5 w-5" aria-hidden style={{ color: '#FFFFFF' }} />
+              <Hotel className="h-5 w-5" aria-hidden />
             </span>
             <span className="leading-tight">
-              <span
-                className={cn("block font-display", isFd ? "text-sm sm:text-base leading-snug font-bold" : "text-lg text-white")}
-                style={{ color: isFd ? (isFdLight ? '#0F172A' : '#FFFFFF') : undefined }}
-              >
-                The Grand ADP
-              </span>
-              <span
-                className={cn("block uppercase font-black", isFd ? "text-[9px] tracking-[0.2em]" : "text-[10px] tracking-[0.22em] text-mist-400")}
-                style={
-                  isFd
-                    ? isFdLight
-                      ? { color: fdPalette === 'cosmic' ? '#7C3AED' : '#1E40AF' }
-                      : { color: fdPalette === 'cosmic' ? '#C084FC' : '#60A5FA' }
-                    : undefined
-                }
-              >
-                {isFd ? 'Front Desk Portal' : isRole ? `${role?.name} Portal` : 'Resort · Staff Portals'}
+              <span className={cn("block font-display text-white", isFd ? "text-sm sm:text-base leading-snug" : "text-lg")}>The Grand ADP</span>
+              <span className={cn("block uppercase text-mist-400", isFd ? "text-[9px] tracking-[0.2em]" : "text-[10px] tracking-[0.22em]")}>
+                {isRole ? `${role?.name} Portal` : 'Resort · Staff Portals'}
               </span>
             </span>
           </Link>
@@ -282,43 +245,24 @@ export function TopBar({ active, showRail = true, hideGestureButton = false }: T
                       setNotifDropdownOpen(false);
                     }}
                     className={cn(
-                      'flex items-center rounded-full border transition-all text-left focus:outline-none cursor-pointer active:scale-95 shadow-xs',
+                      'flex items-center rounded-full border shadow-inner transition-all text-left focus:outline-none focus:ring-2 focus:ring-amber-400/30 cursor-pointer',
                       isFd ? 'gap-2 py-0.5 pl-1 pr-2.5 text-xs' : 'gap-2.5 py-1 pl-1.5 pr-3',
-                      isFd
-                        ? isFdLight
-                          ? fdPalette === 'cosmic'
-                            ? 'border-purple-300 bg-white hover:bg-purple-50/70 hover:border-purple-400'
-                            : 'border-slate-300 bg-white hover:bg-slate-50 hover:border-slate-400'
-                          : fdPalette === 'cosmic'
-                            ? 'border-[#352952] bg-[#1A162B] hover:bg-[#251D3D] hover:border-purple-500/50'
-                            : 'border-slate-700 bg-[#1E293B] hover:bg-slate-800 hover:border-slate-600'
-                        : profileCardOpen
-                          ? isLight
-                            ? 'border-amber-400 bg-white shadow-md'
-                            : 'border-amber-400/50 bg-white/[0.1] shadow-lg shadow-amber-400/10'
-                          : isLight
-                            ? 'border-slate-300 bg-white hover:border-slate-400'
-                            : 'border-white/10 bg-white/[0.04] hover:border-white/20 hover:bg-white/[0.08]'
+                      profileCardOpen
+                        ? isLight
+                          ? 'border-amber-400 bg-white shadow-md'
+                          : 'border-amber-400/50 bg-white/[0.1] shadow-lg shadow-amber-400/10'
+                        : isLight
+                          ? 'border-slate-300 bg-white hover:border-slate-400'
+                          : 'border-white/10 bg-white/[0.04] hover:border-white/20 hover:bg-white/[0.08]'
                     )}
-                    style={
-                      isFd
-                        ? isFdLight
-                          ? { backgroundColor: '#FFFFFF', color: '#0F172A' }
-                          : { backgroundColor: fdPalette === 'cosmic' ? '#1A162B' : '#1E293B', color: '#FFFFFF' }
-                        : isLight ? { backgroundColor: '#ffffff' } : undefined
-                    }
+                    style={isLight ? { backgroundColor: '#ffffff' } : undefined}
                     title="Click to view logged-in profile & role authority policies"
                     aria-expanded={profileCardOpen}
                   >
                     <div
-                      className={cn("grid place-items-center rounded-full font-black text-white shadow-sm shrink-0", isFd ? "h-6 w-6 text-[10px]" : "h-7 w-7 text-xs")}
+                      className={cn("grid place-items-center rounded-full font-bold text-white shadow-sm shrink-0", isFd ? "h-6 w-6 text-[10px]" : "h-7 w-7 text-xs")}
                       style={{
-                        background: isFd
-                          ? fdPalette === 'cosmic'
-                            ? '#7C3AED'
-                            : '#1E40AF'
-                          : `linear-gradient(135deg, rgb(${role?.accent ?? '52 211 153'}), rgb(${role?.accent2 ?? '16 185 129'}))`,
-                        color: '#FFFFFF',
+                        background: `linear-gradient(135deg, rgb(${role?.accent ?? '52 211 153'}), rgb(${role?.accent2 ?? '16 185 129'}))`,
                       }}
                     >
                       {staff.name
@@ -329,38 +273,22 @@ export function TopBar({ active, showRail = true, hideGestureButton = false }: T
                     </div>
                     <div className="hidden text-left sm:block">
                       <p
-                        className="text-xs font-black leading-tight flex items-center gap-1"
-                        style={{
-                          color: isFd
-                            ? isFdLight
-                              ? '#0F172A'
-                              : '#FFFFFF'
-                            : isLight ? '#0F172A' : '#FFFFFF'
-                        }}
+                        className="text-xs font-bold leading-tight flex items-center gap-1"
+                        style={{ color: isLight ? '#0f172a' : '#ffffff' }}
                       >
                         <span>{staff.name}</span>
                         <ChevronDown
                           className={cn(
                             'h-3 w-3 transition-transform duration-200',
-                            isFd
-                              ? isFdLight
-                                ? fdPalette === 'cosmic' ? 'text-[#7C3AED]' : 'text-[#1E40AF]'
-                                : fdPalette === 'cosmic' ? 'text-[#C084FC]' : 'text-blue-300'
-                              : profileCardOpen
-                                ? isLight ? 'rotate-180 text-amber-600' : 'rotate-180 text-amber-300'
-                                : isLight ? 'text-slate-500' : 'text-mist-400'
+                            profileCardOpen
+                              ? isLight ? 'rotate-180 text-amber-600' : 'rotate-180 text-amber-300'
+                              : isLight ? 'text-slate-500' : 'text-mist-400'
                           )}
                         />
                       </p>
                       <p
-                        className="text-[10px] leading-tight font-bold"
-                        style={{
-                          color: isFd
-                            ? isFdLight
-                              ? '#475569'
-                              : fdPalette === 'cosmic' ? '#C084FC' : '#94A3B8'
-                            : isLight ? '#64748B' : '#94A3B8'
-                        }}
+                        className="text-[10px] leading-tight font-medium"
+                        style={{ color: isLight ? '#334155' : '#94a3b8' }}
                       >
                         {staff.department} · {staff.shift} Shift
                       </p>
@@ -644,35 +572,13 @@ export function TopBar({ active, showRail = true, hideGestureButton = false }: T
                       }
                       setNotifDropdownOpen(!notifDropdownOpen);
                     }}
-                    className={cn(
-                      "relative grid place-items-center border transition-all cursor-pointer shrink-0 active:scale-95 shadow-xs",
-                      isFd ? "h-8 w-8 rounded-xl" : "h-9 w-9 rounded-xl",
-                      isFd
-                        ? isFdLight
-                          ? fdPalette === 'cosmic'
-                            ? "border-purple-300 bg-white text-[#7C3AED] hover:bg-purple-50 hover:border-purple-400"
-                            : "border-slate-300 bg-white text-[#1E40AF] hover:bg-slate-100 hover:border-slate-400"
-                          : fdPalette === 'cosmic'
-                            ? "border-[#352952] bg-[#1A162B] text-[#C084FC] hover:bg-[#251D3D] hover:border-purple-500/50"
-                            : "border-slate-700 bg-[#1E293B] text-blue-300 hover:bg-slate-800 hover:border-slate-600"
-                        : "border-white/10 bg-white/[0.04] text-mist-300 hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
-                    )}
+                    className={cn("relative grid place-items-center border border-white/10 bg-white/[0.04] text-mist-300 transition-colors hover:border-white/20 hover:bg-white/[0.08] hover:text-white", isFd ? "h-8 w-8 rounded-lg" : "h-9 w-9 rounded-xl")}
                     title="In-app role notifications"
                     aria-label={`Notifications, ${unreadCount} unread`}
                   >
-                    <Bell
-                      className={cn(
-                        "h-4 w-4",
-                        isFd
-                          ? isFdLight
-                            ? fdPalette === 'cosmic' ? "text-[#7C3AED]" : "text-[#1E40AF]"
-                            : fdPalette === 'cosmic' ? "text-[#C084FC]" : "text-blue-300"
-                          : undefined
-                      )}
-                      aria-hidden
-                    />
+                    <Bell className="h-4 w-4" aria-hidden />
                     {unreadCount > 0 && (
-                      <span className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-black text-white shadow-sm ring-1 ring-white">
+                      <span className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white shadow-sm animate-pulse">
                         {unreadCount}
                       </span>
                     )}
@@ -740,7 +646,7 @@ export function TopBar({ active, showRail = true, hideGestureButton = false }: T
                             >
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center justify-between gap-2">
-                                   <p className="text-xs font-semibold truncate">{notif.title}</p>
+                                  <p className="text-xs font-semibold truncate">{notif.title}</p>
                                   <span className="text-[10px] text-mist-400 shrink-0">{notif.timestamp}</span>
                                 </div>
                                 <p className="mt-0.5 text-xs text-mist-300 leading-relaxed">{notif.message}</p>
@@ -763,83 +669,18 @@ export function TopBar({ active, showRail = true, hideGestureButton = false }: T
                   )}
                 </div>
 
-                {/* 1. Palette Switcher Button (Front Desk Only) */}
-                {isFd && (
-                  <button
-                    type="button"
-                    onClick={() => setFrontDeskPalette(fdPalette === 'moobi' ? 'cosmic' : 'moobi')}
-                    className={cn(
-                      "inline-flex items-center gap-1.5 px-3 h-8 text-xs font-black rounded-xl border transition-all cursor-pointer shadow-xs active:scale-95 shrink-0",
-                      fdPalette === 'cosmic'
-                        ? isFdLight
-                          ? "border-purple-300 bg-purple-100 text-[#6D28D9] hover:bg-purple-200 hover:border-purple-400"
-                          : "border-purple-500/60 bg-[#2A1B4E] text-[#E9D5FF] hover:bg-[#382366] hover:text-white hover:border-purple-400"
-                        : isFdLight
-                          ? "border-blue-300 bg-blue-100 text-[#1E40AF] hover:bg-blue-200 hover:border-blue-400"
-                          : "border-blue-500/60 bg-[#172554] text-[#BFDBFE] hover:bg-[#1E3A8A] hover:text-white hover:border-blue-400"
-                    )}
-                    title={`Current Palette: ${fdPalette === 'moobi' ? 'Moobi Hotel' : 'Cosmic Forge'} (Click to switch to ${fdPalette === 'moobi' ? 'Cosmic Forge' : 'Moobi Hotel'})`}
-                    aria-label="Switch Front Desk color palette"
-                  >
-                    <Palette
-                      className={cn(
-                        "h-3.5 w-3.5 shrink-0",
-                        fdPalette === 'cosmic'
-                          ? isFdLight ? "text-[#7C3AED]" : "text-[#C084FC]"
-                          : isFdLight ? "text-[#1E40AF]" : "text-[#60A5FA]"
-                      )}
-                    />
-                    <span className="font-extrabold">
-                      {fdPalette === 'moobi' ? 'Moobi' : 'Cosmic Forge'}
-                    </span>
-                  </button>
-                )}
+                {/* Language Selector */}
+                <LanguageSelector isLight={isLight} variant={isFd ? 'compact' : 'pill'} />
 
-                {/* 2. Theme Toggle Button (Front Desk scoped switcher or Global switcher) */}
+                {/* Theme Toggle Button */}
                 <button
                   type="button"
-                  onClick={() => {
-                    if (isFd) {
-                      setFrontDeskTheme(isFdLight ? 'dark' : 'light');
-                    } else {
-                      setTheme(isLight ? 'dark' : 'light');
-                    }
-                  }}
-                  className={cn(
-                    "grid place-items-center border transition-all cursor-pointer shrink-0 active:scale-95 shadow-xs",
-                    isFd ? "h-8 w-8 rounded-xl" : "h-9 w-9 rounded-xl",
-                    isFd
-                      ? isFdLight
-                        ? fdPalette === 'cosmic'
-                          ? "border-purple-300 bg-white text-[#7C3AED] hover:bg-purple-50 hover:border-purple-400"
-                          : "border-slate-300 bg-white text-[#1E40AF] hover:bg-slate-100 hover:border-slate-400"
-                        : fdPalette === 'cosmic'
-                          ? "border-[#352952] bg-[#1A162B] text-amber-300 hover:bg-[#251D3D] hover:border-purple-500/50"
-                          : "border-slate-700 bg-[#1E293B] text-amber-400 hover:bg-slate-800 hover:border-slate-600"
-                      : isLight
-                        ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
-                        : "border-white/10 bg-white/[0.04] text-mist-300 hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
-                  )}
-                  title={
-                    isFd
-                      ? `Front Desk Theme: ${isFdLight ? 'Light Mode (Click to switch to Dark)' : 'Dark Mode (Click to switch to Light)'}`
-                      : isLight ? 'Switch to dark mode' : 'Switch to light mode'
-                  }
+                  onClick={() => setTheme(isLight ? 'dark' : 'light')}
+                  className={cn("grid place-items-center border border-white/10 bg-white/[0.04] text-mist-300 transition-colors hover:border-white/20 hover:bg-white/[0.08] hover:text-white", isFd ? "h-8 w-8 rounded-lg" : "h-9 w-9 rounded-xl")}
+                  title={isLight ? 'Switch to dark mode' : 'Switch to light mode'}
                   aria-label="Toggle theme"
                 >
-                  {(isFd ? isFdLight : isLight) ? (
-                    <Moon
-                      className={cn(
-                        "h-4 w-4",
-                        isFd
-                          ? fdPalette === 'cosmic' ? "text-[#7C3AED]" : "text-[#1E40AF]"
-                          : "text-slate-700"
-                      )}
-                      aria-hidden
-                    />
-                  ) : (
-                    <Sun className="h-4 w-4 text-amber-400" aria-hidden />
-                  )}
+                  {isLight ? <Moon className="h-4 w-4" aria-hidden /> : <Sun className="h-4 w-4" aria-hidden />}
                 </button>
 
                 {/* Gesture Guide Emoji Button (Only emoji, no text) - hidden in Department Dispatcher / Supervisor portal */}
@@ -847,19 +688,7 @@ export function TopBar({ active, showRail = true, hideGestureButton = false }: T
                   <button
                     type="button"
                     onClick={() => setGestureGuideOpen(true)}
-                    className={cn(
-                      "grid place-items-center border text-base transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-xs",
-                      isFd ? "h-8 w-8 rounded-xl" : "h-9 w-9 rounded-xl",
-                      isFd
-                        ? isFdLight
-                          ? fdPalette === 'cosmic'
-                            ? "border-purple-300 bg-white hover:bg-purple-50 hover:border-purple-400"
-                            : "border-slate-300 bg-white hover:bg-slate-100 hover:border-slate-400"
-                          : fdPalette === 'cosmic'
-                            ? "border-[#352952] bg-[#1A162B] hover:bg-[#251D3D] hover:border-purple-500/50"
-                            : "border-slate-700 bg-[#1E293B] hover:bg-slate-800 hover:border-slate-600"
-                        : "border-white/10 bg-white/[0.04] hover:border-amber-400/40 hover:bg-amber-400/10"
-                    )}
+                    className="grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-base transition-all hover:border-amber-400/40 hover:bg-amber-400/10 hover:scale-105 active:scale-95 cursor-pointer"
                     title="Gesture & Keyboard Shortcuts"
                     aria-label="Gesture and keyboard shortcut instructions"
                   >
@@ -871,43 +700,17 @@ export function TopBar({ active, showRail = true, hideGestureButton = false }: T
                 <button
                   type="button"
                   onClick={() => setLogoutModalOpen(true)}
-                  className={cn(
-                    "flex items-center border font-bold transition-all cursor-pointer active:scale-95 shadow-xs",
-                    isFd ? "gap-1.5 px-3 py-1 text-xs rounded-xl" : "gap-1.5 px-3 py-1.5 text-xs rounded-xl",
-                    isFd
-                      ? isFdLight
-                        ? "border-rose-300 bg-rose-50 text-[#BE123C] hover:bg-rose-100 hover:border-rose-400"
-                        : fdPalette === 'cosmic'
-                          ? "border-rose-500/50 bg-[#2A1322] text-[#FECDD3] hover:bg-[#3B172E] hover:border-rose-400"
-                          : "border-rose-500/50 bg-[#29131C] text-[#FECDD3] hover:bg-[#3B1925] hover:border-rose-400"
-                      : "border-rose-400/30 bg-rose-500/10 text-rose-300 hover:border-rose-400/50 hover:bg-rose-500/20 hover:text-rose-200"
-                  )}
+                  className={cn("flex items-center border border-rose-400/30 bg-rose-500/10 font-semibold text-rose-300 transition-colors hover:border-rose-400/50 hover:bg-rose-500/20 hover:text-rose-200", isFd ? "gap-1.5 px-2.5 py-1 text-xs rounded-lg" : "gap-1.5 px-3 py-1.5 text-xs rounded-xl")}
                   title="Sign out of this staff account"
                 >
-                  <LogOut
-                    className={cn(
-                      "h-3.5 w-3.5",
-                      isFd
-                        ? isFdLight ? "text-[#BE123C]" : "text-[#FB7185]"
-                        : undefined
-                    )}
-                    aria-hidden
-                  />
-                  <span
-                    className="hidden sm:inline font-bold"
-                    style={
-                      isFd
-                        ? isFdLight ? { color: '#BE123C' } : { color: '#FECDD3' }
-                        : undefined
-                    }
-                  >
-                    Logout
-                  </span>
+                  <LogOut className="h-3.5 w-3.5" aria-hidden />
+                  <span className="hidden sm:inline">{t('nav.signOut')}</span>
                 </button>
               </div>
             ) : (
               /* Public / Portal Login View Controls */
               <div className="flex items-center gap-2">
+                <LanguageSelector isLight={isLight} variant="compact" />
                 <button
                   type="button"
                   onClick={() => setTheme(isLight ? 'dark' : 'light')}
@@ -918,8 +721,8 @@ export function TopBar({ active, showRail = true, hideGestureButton = false }: T
                   {isLight ? <Moon className="h-4 w-4" aria-hidden /> : <Sun className="h-4 w-4" aria-hidden />}
                 </button>
                 <Button size="sm" variant="subtle" iconLeft={RotateCcw} onClick={reset} title="Reset demo data to initial state">
-                  <span className="hidden md:inline">Reset demo</span>
-                  <span className="sr-only md:hidden">Reset demo</span>
+                  <span className="hidden md:inline">{t('common.clear')}</span>
+                  <span className="sr-only md:hidden">{t('common.clear')}</span>
                 </Button>
               </div>
             )}

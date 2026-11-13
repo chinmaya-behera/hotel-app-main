@@ -1,7 +1,6 @@
 'use client';
 
 import './frontdesk.css';
-import type { FrontDeskPalette } from '@/types/demo';
 import { useLayoutEffect, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import {
   Activity,
@@ -87,17 +86,8 @@ const TABS: Array<{ id: TabId; label: string; icon: LucideIcon; group: 'operatio
   { id: 'incidents', label: 'Incidents', icon: ShieldAlert, group: 'services' },
 ];
 
-export function FrontDeskConsole({
-  isLight: propIsLight,
-  palette: propPalette,
-}: {
-  isLight?: boolean;
-  palette?: FrontDeskPalette;
-} = {}) {
+export function FrontDeskConsole() {
   const { state } = useDemo();
-  const isLight = propIsLight ?? ((state.frontDeskTheme ?? 'light') === 'light');
-  const palette = propPalette ?? (state.frontDeskPalette ?? 'moobi');
-  const isCosmic = palette === 'cosmic';
   const [tab, setTab] = useState<TabId>('stays');
   const [staysFilter, setStaysFilter] = useState<StaysFilterType>('all');
   const [reqCategory, setReqCategory] = useState<RequestCategory>('all');
@@ -335,62 +325,27 @@ export function FrontDeskConsole({
   const activeCount = counts[tab];
 
   return (
-    <div
-      data-fd-theme={isLight ? 'light' : 'dark'}
-      data-fd-palette={palette}
-      className={cn(
-        "flex-1 min-h-0 flex flex-col overflow-visible lg:overflow-hidden w-full",
-        isLight ? "fd-light" : "fd-dark",
-        isCosmic ? "fd-cosmic" : "fd-moobi"
-      )}
-    >
+    <div className="flex-1 min-h-0 flex flex-col overflow-visible lg:overflow-hidden w-full">
       {/* 1. Mobile Front Desk App Header with Hamburger Menu (< lg) */}
-      <header className={cn(
-        "lg:hidden shrink-0 mb-2.5 flex items-center justify-between gap-2.5 px-3 py-2 rounded-2xl border shadow-md backdrop-blur-md transition-colors",
-        isLight
-          ? isCosmic
-            ? "border-purple-200/80 bg-[#FFFFFF] text-slate-900 shadow-xs"
-            : "border-slate-200 bg-[#FFFFFF] text-slate-900 shadow-xs"
-          : isCosmic
-            ? "border-[#352952] bg-[#1A162B] text-white shadow-md"
-            : "border-slate-700 bg-[#1E293B] text-white shadow-md"
-      )}>
+      <header className="lg:hidden shrink-0 mb-2.5 flex items-center justify-between gap-2.5 px-3 py-2 rounded-2xl border border-white/10 bg-ink-900/90 shadow-md backdrop-blur-md">
         <div className="flex items-center gap-2.5 min-w-0">
           {/* Hamburger Menu Toggle Button */}
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
-            className={cn(
-              "h-9 w-9 rounded-xl flex items-center justify-center active:scale-95 transition shrink-0 border shadow-xs cursor-pointer",
-              isLight
-                ? isCosmic
-                  ? "bg-purple-50 border-purple-200 text-[#7C3AED] hover:bg-purple-100"
-                  : "bg-slate-100 border-slate-300 text-[#1E40AF] hover:bg-slate-200"
-                : isCosmic
-                  ? "bg-[#251D3D] border-[#3D2D63] text-purple-200 hover:bg-[#322652]"
-                  : "bg-[#0F172A] border-slate-700 text-blue-200 hover:bg-slate-800"
-            )}
+            className="h-9 w-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-cyan-300 hover:text-white hover:bg-white/10 active:scale-95 transition shrink-0"
             aria-label="Open Front Desk navigation drawer"
           >
             <Menu className="h-5 w-5" />
           </button>
 
           <div className="flex items-center gap-2 min-w-0">
-            <span className={cn(
-              "grid h-7 w-7 place-items-center rounded-lg shrink-0 border",
-              isCosmic
-                ? isLight
-                  ? "bg-purple-100 border-purple-200 text-[#7C3AED]"
-                  : "bg-[#251D3D] border-[#3D2D63] text-[#C084FC]"
-                : isLight
-                  ? "bg-blue-100 border-blue-200 text-[#1E40AF]"
-                  : "bg-[#0F172A] border-slate-700 text-[#60A5FA]"
-            )}>
-              <ActiveIcon className="h-3.5 w-3.5" />
+            <span className="accent-soft grid h-7 w-7 place-items-center rounded-lg shrink-0">
+              <ActiveIcon className="h-3.5 w-3.5 text-cyan-300" />
             </span>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <h1 className={cn("text-xs font-black truncate", isLight ? "text-slate-950" : "text-white")}>
+                <h1 className="text-xs font-bold text-white truncate">
                   {tab === 'dashboard'
                     ? 'Dashboard'
                     : tab === 'stays' && staysFilter === 'arrivals'
@@ -402,12 +357,7 @@ export function FrontDeskConsole({
                           : activeTabObj.label}
                 </h1>
                 {activeCount && activeCount.n > 0 && tab !== 'dashboard' && (
-                  <span className={cn(
-                    "px-1.5 py-0.2 rounded-full text-[10px] font-bold",
-                    isCosmic
-                      ? isLight ? "bg-purple-200 text-purple-900" : "bg-[#7C3AED] text-white"
-                      : isLight ? "bg-blue-200 text-blue-900" : "bg-[#1E40AF] text-white"
-                  )}>
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-cyan-400 text-ink-950">
                     {activeCount.n}
                   </span>
                 )}
@@ -415,7 +365,7 @@ export function FrontDeskConsole({
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
                 )}
               </div>
-              <p className={cn("text-[10px] font-medium truncate", isLight ? "text-slate-500" : isCosmic ? "text-purple-300/80" : "text-slate-400")}>Station FD-02 · Sunita P.</p>
+              <p className="text-[10px] text-mist-400 font-medium truncate">Station FD-02 · Sunita P.</p>
             </div>
           </div>
         </div>
@@ -426,19 +376,10 @@ export function FrontDeskConsole({
             <button
               type="button"
               onClick={() => handleNavigate('dashboard')}
-              className={cn(
-                "px-2.5 py-1.5 rounded-xl border text-[11px] font-bold flex items-center gap-1 active:scale-95 transition shadow-xs cursor-pointer",
-                isLight
-                  ? isCosmic
-                    ? "bg-purple-50 border-purple-200 text-[#7C3AED] hover:bg-purple-100"
-                    : "bg-slate-100 border-slate-300 text-[#1E40AF] hover:bg-slate-200"
-                  : isCosmic
-                    ? "bg-[#251D3D] border-[#3D2D63] text-purple-200 hover:bg-[#322652]"
-                    : "bg-[#0F172A] border-slate-700 text-blue-200 hover:bg-slate-800"
-              )}
+              className="px-2.5 py-1.5 rounded-xl bg-white/5 border border-white/10 text-[11px] font-bold text-cyan-200 hover:text-white hover:bg-white/10 flex items-center gap-1 active:scale-95 transition shadow-xs"
               title="Return to Dashboard Overview"
             >
-              <ArrowLeft className="h-3.5 w-3.5" />
+              <ArrowLeft className="h-3.5 w-3.5 text-cyan-300" />
               <span>Dashboard</span>
             </button>
           )}
@@ -447,23 +388,17 @@ export function FrontDeskConsole({
             type="button"
             onClick={() => setNotificationsDrawerOpen(true)}
             className={cn(
-              'h-8 w-8 rounded-lg border flex items-center justify-center transition relative shrink-0 cursor-pointer shadow-xs',
+              'h-8 w-8 rounded-lg border flex items-center justify-center transition relative shrink-0',
               notificationsDrawerOpen
                 ? 'bg-amber-400/20 border-amber-400/50 text-white'
-                : isLight
-                  ? isCosmic
-                    ? 'bg-purple-50 border-purple-200 text-[#7C3AED] hover:bg-purple-100'
-                    : 'bg-slate-100 border-slate-300 text-[#1E40AF] hover:bg-slate-200'
-                  : isCosmic
-                    ? 'bg-[#251D3D] border-[#3D2D63] text-purple-200 hover:bg-[#322652]'
-                    : 'bg-[#0F172A] border-slate-700 text-blue-200 hover:bg-slate-800'
+                : 'bg-white/5 border border-white/10 text-mist-300 hover:text-white'
             )}
             title="Open Department Operations Notifications"
             aria-label="Open notifications"
           >
-            <BellRing className="h-4 w-4 text-amber-500" />
+            <BellRing className="h-4 w-4 text-amber-300" />
             {counts.notifications && counts.notifications.n > 0 && (
-              <span className="absolute -top-1 -right-1 h-3.5 min-w-[14px] px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 h-3.5 min-w-[14px] px-1 rounded-full bg-amber-400 text-ink-950 text-[9px] font-bold flex items-center justify-center">
                 {counts.notifications.n}
               </span>
             )}
@@ -473,38 +408,31 @@ export function FrontDeskConsole({
             type="button"
             onClick={() => setProfileDrawerOpen(true)}
             className={cn(
-              'h-8 w-8 rounded-lg border flex items-center justify-center transition shrink-0 cursor-pointer shadow-xs',
+              'h-8 w-8 rounded-lg border flex items-center justify-center transition shrink-0',
               profileDrawerOpen
-                ? 'bg-rose-100 border-rose-300 text-rose-800'
-                : isLight
-                  ? 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100'
-                  : 'bg-[#29131C] border-rose-500/40 text-rose-200 hover:bg-[#3B1925]'
+                ? 'bg-amber-400/20 border-amber-400/50 text-amber-200'
+                : 'bg-white/5 border border-white/10 text-mist-300 hover:text-white'
             )}
             title="Open Staff Profile & Policies"
             aria-label="Open staff profile"
           >
-            <span className="text-[10px] font-extrabold text-rose-600 dark:text-rose-400">SP</span>
+            <span className="text-[10px] font-extrabold text-amber-300">SP</span>
           </button>
 
           <button
             type="button"
             onClick={() => setMobileActivityOpen(true)}
-            className={cn(
-              "h-8 w-8 rounded-lg border flex items-center justify-center transition relative shrink-0 cursor-pointer shadow-xs",
-              isLight
-                ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
-                : "bg-emerald-950/40 border-emerald-500/40 text-emerald-300 hover:bg-emerald-900/50"
-            )}
+            className="h-8 w-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-emerald-400 hover:text-white transition relative shrink-0"
             title="Property Live Feed"
             aria-label="Open property live activity"
           >
-            <Activity className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            <Activity className="h-4 w-4" />
             <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
           </button>
         </div>
       </header>
 
-      {/* 2. Numeric Overview KPI Row - Preserved 100% on Desktop (Hidden on mobile) */}
+      {/* 2. Numeric Overview KPI Row - Preserved 100% on Desktop (Hidden on mobile, as mobile has dedicated Dashboard overview) */}
       <div className="hidden lg:block shrink-0 mb-2 sm:mb-2.5">
         <div className="fd-stagger grid grid-cols-2 gap-2 sm:gap-2.5 sm:grid-cols-4 xl:grid-cols-8">
           {kpis.map((k, i) => {
@@ -514,66 +442,20 @@ export function FrontDeskConsole({
                 key={k.label}
                 type="button"
                 onClick={() => handleNavigate(k.tab, k.options)}
-                style={{
-                  '--i': i,
-                  backgroundColor: isLight ? '#FFFFFF' : isCosmic ? '#191528' : undefined,
-                  borderColor: isLight
-                    ? isCosmic ? '#E9D5FF' : '#E2E8F0'
-                    : isCosmic ? '#352952' : undefined,
-                } as CSSProperties}
-                className={cn(
-                  "p-2.5 sm:px-3 sm:py-2.5 text-left cursor-pointer transition-all group rounded-2xl border",
-                  isLight
-                    ? isCosmic
-                      ? "bg-[#FFFFFF] border-purple-200 hover:border-purple-300 hover:shadow-md shadow-xs text-slate-900"
-                      : "bg-[#FFFFFF] border-slate-200 hover:border-slate-300 hover:shadow-md shadow-xs text-slate-900"
-                    : isCosmic
-                      ? "bg-[#191528] border-[#352952] hover:border-purple-500/50 hover:bg-[#201a35] text-white shadow-sm"
-                      : "panel fd-spot hover:border-cyan-400/40 hover:bg-white/[0.06]"
-                )}
-                {...(!isLight ? spotlight : {})}
+                style={{ '--i': i } as CSSProperties}
+                className="panel fd-spot p-2 sm:px-3 sm:py-2 text-left cursor-pointer hover:border-amber-400/40 hover:bg-white/[0.06] transition-all group"
+                {...spotlight}
               >
                 <div className="flex items-center justify-between">
-                  <p
-                    className={cn(
-                      "text-[11px] font-bold truncate mr-1.5 transition-colors",
-                      isLight
-                        ? isCosmic ? "text-purple-900 group-hover:text-purple-950" : "text-slate-600 group-hover:text-slate-950"
-                        : isCosmic ? "text-purple-200/90 group-hover:text-white" : "text-mist-300 group-hover:text-cyan-200"
-                    )}
-                  >
-                    {k.label}
-                  </p>
-                  <span
-                    className={cn(
-                      "grid h-6 w-6 place-items-center rounded-lg shrink-0 group-hover:scale-105 transition-transform",
-                      isLight
-                        ? isCosmic ? "bg-purple-100/70 border border-purple-200 text-purple-700" : "bg-cyan-50 border border-cyan-200 text-cyan-600"
-                        : isCosmic ? "bg-purple-950/70 border border-purple-800/60 text-purple-300" : "accent-soft text-cyan-300"
-                    )}
-                  >
-                    <Icon className="h-3.5 w-3.5" aria-hidden />
+                  <p className="text-[11px] font-medium text-mist-300 truncate mr-1.5 group-hover:text-amber-200 transition-colors">{k.label}</p>
+                  <span className="accent-soft grid h-6 w-6 place-items-center rounded-md shrink-0 group-hover:scale-105 transition-transform">
+                    <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-cyan-300" aria-hidden />
                   </span>
                 </div>
-                <p
-                  className={cn(
-                    "mt-1 text-lg sm:text-xl font-black tabular-nums leading-tight",
-                    isLight ? "text-slate-950" : "text-white"
-                  )}
-                  style={{ color: isLight ? '#0F172A' : '#FFFFFF' }}
-                >
+                <p className="mt-1 text-lg sm:text-xl font-bold tabular-nums text-white leading-tight">
                   <CountUp value={k.value} />
                 </p>
-                <p
-                  className={cn(
-                    "mt-0.5 text-[10px] truncate font-medium",
-                    isLight
-                      ? isCosmic ? "text-purple-600/80" : "text-slate-500"
-                      : isCosmic ? "text-purple-300/70" : "text-mist-400"
-                  )}
-                >
-                  {k.note}
-                </p>
+                <p className="mt-0.5 text-[10px] text-mist-400 truncate">{k.note}</p>
               </button>
             );
           })}
@@ -587,30 +469,18 @@ export function FrontDeskConsole({
           {/* Horizontal Section Navigation Bar (Preserved 100% on Desktop, Hidden on Mobile only) */}
           <div className="hidden lg:flex shrink-0 mb-2 sm:mb-2.5 items-center w-full">
             <div
-              className={cn(
-                "flex-1 min-w-0 overflow-x-auto scroll-smooth flex items-center gap-1.5 p-1 rounded-2xl border transition-colors",
-                isLight
-                  ? isCosmic ? "bg-[#FFFFFF] border-purple-200/70 shadow-xs" : "bg-[#FFFFFF] border-slate-200 shadow-xs"
-                  : isCosmic ? "bg-[#141022] border-[#2A2044] shadow-md" : "fd-tabs"
-              )}
-              style={{
-                backgroundColor: isLight ? '#FFFFFF' : isCosmic ? '#141022' : undefined,
-                borderColor: isLight
-                  ? isCosmic ? '#E9D5FF' : '#E2E8F0'
-                  : isCosmic ? '#2A2044' : undefined,
-              }}
+              className="fd-tabs flex-1 min-w-0 overflow-x-auto scroll-smooth"
               role="tablist"
               aria-label="Front Desk sections"
               onKeyDown={onKeyDown}
               onWheel={(e) => {
+                // Support mouse-wheel, Shift + mouse-wheel, and trackpads for horizontal navigation
                 if (e.deltaY !== 0 && !e.shiftKey) {
                   e.currentTarget.scrollLeft += e.deltaY * 0.85;
                 }
               }}
             >
-              {!isLight && !isCosmic && (
-                <span className="fd-tab-pill hidden lg:block" style={{ transform: `translateX(${pill.left}px)`, width: pill.width }} aria-hidden />
-              )}
+              <span className="fd-tab-pill hidden lg:block" style={{ transform: `translateX(${pill.left}px)`, width: pill.width }} aria-hidden />
               {TABS.map((t) => {
                 const Icon = t.icon;
                 const c = counts[t.id];
@@ -629,56 +499,14 @@ export function FrontDeskConsole({
                     tabIndex={selected ? 0 : -1}
                     onClick={() => handleNavigate(t.id)}
                     className={cn(
-                      'shrink-0 transition-all inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold cursor-pointer',
-                      isLight
-                        ? selected
-                          ? isCosmic
-                            ? 'bg-[#EDE9FE] text-[#5B21B6] border border-[#C4B5FD] shadow-xs'
-                            : 'bg-rose-100 text-rose-950 border border-rose-300 shadow-xs'
-                          : isCosmic
-                            ? 'text-slate-700 hover:text-purple-950 hover:bg-purple-50/60'
-                            : 'text-slate-700 hover:text-slate-950 hover:bg-slate-100'
-                        : selected
-                          ? isCosmic
-                            ? 'bg-[#4C1D95]/60 text-[#E9D5FF] border border-[#7C3AED]/60 shadow-xs'
-                            : 'fd-tab text-white bg-white/10 lg:bg-transparent'
-                          : isCosmic
-                            ? 'text-purple-200/80 hover:text-white hover:bg-purple-950/40'
-                            : 'fd-tab text-mist-300'
+                      'fd-tab shrink-0 transition-colors',
+                      selected ? 'text-white bg-white/10 lg:bg-transparent' : 'text-mist-300'
                     )}
-                    style={
-                      selected
-                        ? isLight
-                          ? isCosmic
-                            ? { backgroundColor: '#EDE9FE', borderColor: '#C4B5FD', color: '#5B21B6' }
-                            : { backgroundColor: '#FFE4E6', borderColor: '#FDA4AF', color: '#881337' }
-                          : isCosmic
-                            ? { backgroundColor: 'rgba(76, 29, 149, 0.6)', borderColor: 'rgba(124, 58, 237, 0.6)', color: '#E9D5FF' }
-                            : undefined
-                        : undefined
-                    }
                   >
-                    <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    <Icon className="h-4 w-4 shrink-0" aria-hidden />
                     <span>{t.label}</span>
                     {c && c.n > 0 && (
-                      <span
-                        className={cn(
-                          "rounded-full px-1.5 py-0.2 text-[10px] font-black tabular-nums",
-                          isLight
-                            ? selected
-                              ? isCosmic ? "bg-purple-200 text-purple-900" : "bg-rose-200 text-rose-950"
-                              : c.alert
-                                ? "bg-amber-100 text-amber-900 border border-amber-300"
-                                : isCosmic ? "bg-purple-100 text-purple-800" : "bg-slate-200 text-slate-800"
-                            : isCosmic
-                              ? selected
-                                ? "bg-purple-800 text-purple-100 border border-purple-600/50"
-                                : "bg-purple-950/80 text-purple-300 border border-purple-800/40"
-                              : "fd-tab-count"
-                        )}
-                        data-alert={c.alert}
-                        aria-label={`${c.n} pending`}
-                      >
+                      <span className="fd-tab-count" data-alert={c.alert} aria-label={`${c.n} pending`}>
                         {c.n}
                       </span>
                     )}
@@ -711,7 +539,7 @@ export function FrontDeskConsole({
               {/* Stays Section - on desktop, default/dashboard falls back to Stays */}
               {(tab === 'stays' || tab === 'dashboard') && (
                 <div className={tab === 'dashboard' ? 'hidden lg:block' : 'block'}>
-                  <StaysPanel initialFilter={staysFilter} isLight={isLight} palette={palette} />
+                  <StaysPanel initialFilter={staysFilter} />
                 </div>
               )}
               {tab === 'vip' && <VipPreviewPanel onSwitchTab={(t) => handleNavigate(t as TabId)} />}
@@ -733,76 +561,21 @@ export function FrontDeskConsole({
 
         {/* Right Column: Sticky Recent Activity Sidebar (Unchanged on Desktop, hidden on mobile) */}
         <div className="hidden lg:flex w-full lg:w-72 xl:w-[285px] shrink-0 h-full min-h-0 flex-col overflow-hidden">
-          <div
-            className={cn(
-              "h-full flex flex-col min-h-0 overflow-hidden rounded-3xl border shadow-sm transition-colors",
-              isLight
-                ? isCosmic
-                  ? "bg-[#FFFFFF] border-purple-200/70 shadow-xs"
-                  : "bg-[#FFFFFF] border-slate-200 shadow-xs"
-                : isCosmic
-                  ? "bg-[#191528] border-[#32274E] shadow-lg"
-                  : "border-white/10 bg-ink-900 shadow-lg"
-            )}
-            style={{
-              backgroundColor: isLight ? '#FFFFFF' : isCosmic ? '#191528' : undefined,
-              borderColor: isLight
-                ? isCosmic ? '#E9D5FF' : '#E2E8F0'
-                : isCosmic ? '#32274E' : undefined,
-            }}
-          >
-            {/* Header */}
-            <div
-              className={cn(
-                "p-3.5 border-b flex items-center justify-between shrink-0",
-                isLight
-                  ? isCosmic ? "border-purple-100 bg-purple-50/40" : "border-slate-100 bg-slate-50/50"
-                  : isCosmic ? "border-[#2A2044] bg-[#141022]" : "border-white/10 bg-white/[0.02]"
-              )}
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <span
-                  className={cn(
-                    "grid h-8 w-8 place-items-center rounded-xl shrink-0",
-                    isLight
-                      ? isCosmic ? "bg-purple-100 text-purple-700 border border-purple-200" : "bg-rose-50 text-rose-600 border border-rose-200"
-                      : isCosmic ? "bg-purple-950 text-purple-300 border border-purple-800/40" : "bg-white/5 text-cyan-300 border border-white/10"
-                  )}
-                >
-                  <Activity className="h-4 w-4" />
-                </span>
-                <div className="min-w-0">
-                  <h3
-                    className={cn("text-xs font-black truncate", isLight ? "text-slate-950" : "text-white")}
-                    style={{ color: isLight ? '#0F172A' : '#FFFFFF' }}
-                  >
-                    Recent activity
-                  </h3>
-                  <p
-                    className={cn("text-[10px] font-medium truncate", isLight ? "text-slate-500" : "text-mist-400")}
-                  >
-                    Property activity log
-                  </p>
-                </div>
-              </div>
-              <span
-                className={cn(
-                  "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold border shadow-xs shrink-0",
-                  isLight
-                    ? "bg-emerald-50 text-emerald-700 border-emerald-300"
-                    : "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-                )}
-              >
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <Panel
+            title="Recent activity"
+            hint="Property activity log"
+            icon={Activity}
+            action={
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shadow-xs">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 <span>Live</span>
               </span>
-            </div>
-
-            {/* Feed List */}
-            <div className="flex-1 min-h-0 overflow-y-auto p-2 sm:p-3">
-              <FeedList limit={25} isLight={isLight} />
-            </div>
-          </div>
+            }
+            className="h-full flex flex-col min-h-0 overflow-hidden shadow-lg"
+            bodyClassName="flex-1 min-h-0 overflow-y-auto p-2 sm:p-3"
+          >
+            <FeedList limit={25} />
+          </Panel>
         </div>
       </div>
 

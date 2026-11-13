@@ -34,6 +34,8 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
+import { useI18n } from '@/lib/i18n';
+import { LanguageSelector } from '@/components/shared/LanguageSelector';
 import {
   MANAGER_DEPARTMENTS,
   MANAGER_DEMO_PASSWORD,
@@ -257,6 +259,7 @@ const DEMO_ACCOUNTS: PresetRole[] = [
 export function PortalLoginView() {
   const router = useRouter();
   const { state, setTheme, setPersona, setActiveDispatcherDept, setManagerDepartment } = useDemo();
+  const { t } = useI18n();
 
   const [dispatcherDropdownOpen, setDispatcherDropdownOpen] = useState(false);
   const [fulfillerDropdownOpen, setFulfillerDropdownOpen] = useState(false);
@@ -585,8 +588,10 @@ export function PortalLoginView() {
             }`}
           >
             <Globe className="w-4 h-4" />
-            <span>Public site</span>
+            <span>{t('nav.publicSite')}</span>
           </Link>
+
+          <LanguageSelector isLight={isLight} />
 
           <button
             type="button"
@@ -600,7 +605,7 @@ export function PortalLoginView() {
             }`}
           >
             <RotateCcw className="w-4 h-4" />
-            <span>Reset</span>
+            <span>{t('common.clear')}</span>
           </button>
 
           <button

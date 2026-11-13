@@ -25,12 +25,14 @@ import { ActivitySection } from '@/components/guest/ActivitySection';
 import { NotificationsHubSection } from '@/components/guest/NotificationsHubSection';
 import { ProfileSection } from '@/components/guest/ProfileSection';
 import { GuestInteractiveTour } from '@/components/guest/GuestInteractiveTour';
-import { GuestBackgroundWatermark } from '@/components/guest/GuestBackgroundWatermark';
+import { GuestSupportAssistant } from '@/components/guest/help/GuestSupportAssistant';
+import { LanguageSelector } from '@/components/shared/LanguageSelector';
 import { useEmergencyBroadcast } from '@/lib/emergencyBroadcast';
 import { GuestConfirm, GuestPill } from '@/components/guest/guestUi';
 import type { GuestTabId, GuestMainSection } from '@/components/guest/types';
 import { guests } from '@/lib/mockData';
 import { useDemo } from '@/lib/store';
+import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 /** The 5 navigation sections */
@@ -68,17 +70,30 @@ const NAV_MAP: Record<string, GuestMainSection> = {
 
 export function GuestPortalPreview({ room, token }: { room: string; token: string }) {
   const router = useRouter();
-  const { state, setGuestTheme, setGuestPalette } = useDemo();
+  const { state, setTheme } = useDemo();
+  const { t } = useI18n();
+
+  const getNavLabel = (id: GuestMainSection) => {
+    switch (id) {
+      case 'home':
+        return t('nav.home');
+      case 'services':
+        return t('guest.services');
+      case 'activity':
+        return t('guest.activity');
+      case 'notifications':
+        return t('nav.notifications');
+      case 'profile':
+        return t('guest.profile');
+      default:
+        return id;
+    }
+  };
   const [tab, setTab] = useState<GuestTabId>('home');
   const [subtab, setSubtab] = useState<string | undefined>(undefined);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-
-  const guestPalette = state.guestPalette ?? 'emerald';
-  const guestTheme = state.guestTheme ?? 'light';
-  const isDark = guestTheme === 'dark';
-  const isLight = !isDark;
 
   const stay = (state.frontDesk?.stays ?? []).find((st) => st.room === room && st.status === 'in_house');
   const guest =
@@ -86,6 +101,7 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
     (stay ? { room: stay.room, name: stay.guest, checkout: stay.departure } : undefined);
   const revoked = (state.revokedRooms ?? []).includes(room);
   const valid = Boolean(guest) && token === 'demo-token' && !revoked;
+  const isLight = state.theme === 'light';
 
   // Listen for custom open-guest-tour event
   useEffect(() => {
@@ -171,9 +187,8 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
   const activeNav = NAV_MAP[tab] ?? 'home';
 
   return (
-    <div className="guest-stage" data-guest-palette={guestPalette} data-guest-theme={guestTheme}>
-      <GuestBackgroundWatermark palette={guestPalette} isDark={isDark} />
-      <div className="guest-frame guest-shell relative z-10 w-full max-w-full overflow-x-hidden box-border bg-transparent">
+    <div className="guest-stage">
+      <div className="guest-frame guest-shell w-full max-w-full overflow-x-hidden box-border">
         {!valid || !guest || !tabProps ? (
           <div className="flex flex-1 flex-col items-center justify-center px-8 text-center min-h-[500px]">
             <span className="grid h-14 w-14 place-items-center rounded-2xl border border-rose-400/30 bg-rose-500/10 text-rose-500">
@@ -196,23 +211,14 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
           <>
             {/* RESPONSIVE LUXURY HEADER */}
             <header
-              className="guest-header flex shrink-0 items-center justify-between gap-3 px-4 sm:px-6 lg:px-8 xl:px-12 py-3 sm:py-3.5 border-b shadow-md transition-colors min-h-[78px] sm:min-h-[84px]"
-              style={{
-                backgroundColor: 'var(--guest-nav-bg)',
-                borderColor: 'var(--guest-nav-border)',
-                color: 'var(--guest-nav-text)',
-                paddingTop: 'calc(0.75rem + env(safe-area-inset-top, 0px))',
-              }}
+              className="guest-surface guest-header flex shrink-0 items-center justify-between gap-3 px-4 sm:px-6 lg:px-8 xl:px-12 py-3.5 sm:py-4 border-b border-white/10"
+              style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top, 0px))' }}
             >
               {/* Brand & Room Info */}
               <div className="flex min-w-0 items-center gap-3 sm:gap-3.5">
                 <span
-                  className={cn(
-                    'grid h-10 w-10 sm:h-11 sm:w-11 shrink-0 place-items-center shadow-md cursor-pointer transition-transform hover:scale-105',
-                    guestPalette === 'burgundy'
-                      ? 'rounded-xl bg-gradient-to-br from-[#8A2443] to-[#641329] text-[#C9A45C] border border-[#DEC9A4]/40'
-                      : 'rounded-[12px] bg-gradient-to-br from-[#175B49] to-[#0F3D32] text-[#A9C8B9] border border-[#C6D8CB]/40'
-                  )}
+                  className="grid h-10 w-10 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-xl shadow-md cursor-pointer"
+                  style={{ background: 'linear-gradient(135deg, rgb(var(--a)), rgb(var(--b)))', color: 'var(--on-a)' }}
                   onClick={() => handleNavigate('home')}
                 >
                   <Hotel className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden />
@@ -223,33 +229,21 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
                   title="View Profile & Stay"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="block truncate text-xs sm:text-sm lg:text-base font-black tracking-tight text-[#FFF8F0] hover:opacity-90 transition-opacity">
+                    <span className="block truncate text-xs sm:text-sm lg:text-base font-black tracking-tight text-white hover:text-amber-300 transition-colors">
                       The Grand ADP
                     </span>
-                    <span
-                      className={cn(
-                        'hidden sm:inline-block text-[10px] sm:text-xs font-mono font-bold uppercase tracking-wider',
-                        guestPalette === 'burgundy' ? 'text-[#DCC69A]' : 'text-[#A9C8B9]'
-                      )}
-                    >
+                    <span className="hidden sm:inline-block text-[10px] sm:text-xs text-amber-400 font-mono font-semibold uppercase tracking-wider">
                       Resort &amp; Suites
                     </span>
                   </div>
-                  <span className="flex items-center gap-1.5 text-[10px] sm:text-xs text-[#FFF8F0]/80">
-                    <BedDouble
-                      className={cn(
-                        'h-3 w-3 sm:h-3.5 sm:w-3.5',
-                        guestPalette === 'burgundy' ? 'text-[#C9A45C]' : 'text-[#A9C8B9]'
-                      )}
-                      aria-hidden
-                    />
-                    <span>Room {room} · {guest.name}</span>
+                  <span className="guest-muted flex items-center gap-1.5 text-[10px] sm:text-xs">
+                    <BedDouble className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-400" aria-hidden /> Room {room} · {guest.name}
                   </span>
                 </div>
               </div>
 
               {/* DESKTOP TOP NAVIGATION BAR (Visible on md/lg screens) */}
-              <nav className="hidden md:flex items-center gap-1.5 p-1 rounded-xl bg-black/25 border border-white/10">
+              <nav className="hidden md:flex items-center gap-1.5 p-1 rounded-xl bg-black/20 border border-white/5">
                 {NAV.map((t) => {
                   const Icon = t.icon;
                   const active = activeNav === t.id;
@@ -263,30 +257,19 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
                       type="button"
                       onClick={() => handleNavigate(t.id)}
                       className={cn(
-                        'flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-semibold transition-all relative',
+                        'flex items-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all relative',
                         active
-                          ? guestPalette === 'burgundy'
-                            ? 'rounded-[8px] bg-[#C9A45C] text-[#641329] font-bold shadow-md'
-                            : 'rounded-[10px] bg-[#175B49] text-[#F8F5EC] font-bold shadow-md'
-                          : 'rounded-[8px] text-[#F8F5EC]/90 hover:text-[#F8F5EC] hover:bg-white/10'
+                          ? 'bg-amber-400 text-ink-950 font-bold shadow-sm'
+                          : 'text-mist-300 hover:text-white hover:bg-white/5'
                       )}
                     >
-                      <Icon
-                        className={cn(
-                          'h-4 w-4 sm:h-4.5 sm:w-4.5 shrink-0',
-                          active
-                            ? guestPalette === 'burgundy' ? 'text-[#641329]' : 'text-[#F8F5EC]'
-                            : guestPalette === 'burgundy' ? 'text-[#DCC69A]' : 'text-[#F8F5EC]/85'
-                        )}
-                      />
-                      <span>{t.label}</span>
+                      <Icon className="h-4 w-4 sm:h-4.5 sm:w-4.5 shrink-0" />
+                      <span>{getNavLabel(t.id)}</span>
                       {hasActivityBadge && (
                         <span
                           className={cn(
                             'px-1.5 py-0.2 rounded-full text-[10px] font-bold',
-                            active
-                              ? guestPalette === 'burgundy' ? 'bg-[#641329] text-[#FFF8F0]' : 'bg-[#0F3D32] text-[#F8F5EC]'
-                              : guestPalette === 'burgundy' ? 'bg-[#C9A45C] text-[#641329]' : 'bg-[#1C6B53] text-[#F8F5EC]'
+                            active ? 'bg-black/20 text-ink-950' : 'bg-amber-400 text-ink-950'
                           )}
                         >
                           {activeActivityCount}
@@ -296,9 +279,7 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
                         <span
                           className={cn(
                             'px-1.5 py-0.2 rounded-full text-[9px] font-bold',
-                            active
-                              ? guestPalette === 'burgundy' ? 'bg-[#641329] text-[#FFF8F0]' : 'bg-[#0F3D32] text-[#F8F5EC]'
-                              : guestPalette === 'burgundy' ? 'bg-[#C9A45C] text-[#641329]' : 'bg-[#1C6B53] text-[#F8F5EC]'
+                            active ? 'bg-black/20 text-ink-950' : 'bg-amber-400 text-ink-950'
                           )}
                         >
                           {unreadNotifCount}
@@ -313,55 +294,38 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
               </nav>
 
               {/* Header Right Actions */}
-              <div data-tour="tour-header-controls" className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-                {/* Palette Switcher Button */}
-                <button
-                  type="button"
-                  onClick={() => setGuestPalette(guestPalette === 'emerald' ? 'burgundy' : 'emerald')}
-                  aria-label={`Switch palette (current: ${guestPalette})`}
-                  className={cn(
-                    'flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl border text-xs sm:text-sm font-semibold transition-all shadow-sm',
-                    guestPalette === 'burgundy'
-                      ? 'border-[#C9A45C]/40 bg-[#C9A45C]/15 text-[#FFF8F0] hover:bg-[#C9A45C]/25'
-                      : 'border-[#A9C8B9]/40 bg-[#175B49]/30 text-[#F8F5EC] hover:bg-[#175B49]/50'
-                  )}
-                  title={`Switch to ${guestPalette === 'emerald' ? 'Royal Burgundy' : 'Botanical Emerald'} palette`}
-                >
-                  <span className="text-sm">{guestPalette === 'emerald' ? '🍃' : '🍷'}</span>
-                  <span className="hidden sm:inline">{guestPalette === 'emerald' ? 'Emerald' : 'Burgundy'}</span>
-                </button>
+              <div data-tour="tour-header-controls" className="flex shrink-0 items-center gap-2 sm:gap-2.5">
+                <LanguageSelector isLight={isLight} variant="compact" />
 
-                {/* Dark / Light Theme Toggle */}
-                <button
-                  type="button"
-                  onClick={() => setGuestTheme(isDark ? 'light' : 'dark')}
-                  aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-                  className="grid h-8 w-8 sm:h-9 sm:w-9 place-items-center rounded-xl border border-white/15 bg-black/20 text-[#FFF8F0] hover:border-white/30 hover:bg-black/35 transition-all"
-                  title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-                >
-                  {isDark ? <Sun className="h-4 w-4" aria-hidden /> : <Moon className="h-4 w-4" aria-hidden />}
-                </button>
-
-                {/* App Guide Button */}
+                {/* Take Tour Button */}
                 <button
                   type="button"
                   onClick={() => setTourOpen(true)}
-                  className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl border border-white/15 hover:border-white/30 text-[#FFF8F0] text-xs sm:text-sm font-semibold transition-all bg-black/20 hover:bg-black/35"
+                  className="flex items-center gap-1.5 px-3 py-1.5 sm:py-2 rounded-xl border border-white/10 hover:border-amber-400/40 text-mist-300 hover:text-amber-300 text-xs sm:text-sm font-semibold transition-all"
                   title="Interactive App Guide"
                 >
-                  <Compass className={cn('h-4 w-4', guestPalette === 'burgundy' ? 'text-[#C9A45C]' : 'text-[#A9C8B9]')} />
-                  <span className="hidden sm:inline">App Guide</span>
+                  <Compass className="h-4 w-4 text-amber-400" />
+                  <span className="hidden sm:inline">{t('guest.appGuide')}</span>
                 </button>
 
-                {/* Logout Button */}
+                <button
+                  type="button"
+                  onClick={() => setTheme(isLight ? 'dark' : 'light')}
+                  aria-label={isLight ? 'Switch to dark theme' : 'Switch to light theme'}
+                  className="guest-chip-btn grid h-8 w-8 sm:h-9 sm:w-9 place-items-center rounded-full hover:border-amber-400/40"
+                  title={isLight ? 'Switch to dark theme' : 'Switch to light theme'}
+                >
+                  {isLight ? <Moon className="h-4 w-4" aria-hidden /> : <Sun className="h-4 w-4" aria-hidden />}
+                </button>
+
                 <button
                   type="button"
                   onClick={() => setLogoutOpen(true)}
                   aria-label="Log out"
-                  className="grid h-8 w-8 sm:h-9 sm:w-9 place-items-center rounded-xl border border-white/15 bg-black/20 text-[#FFF8F0]/80 hover:text-rose-300 hover:border-rose-400/40 hover:bg-rose-500/20 transition-all"
+                  className="guest-chip-btn grid h-8 w-8 sm:h-9 sm:w-9 place-items-center rounded-full hover:border-rose-400/40"
                   title="Logout"
                 >
-                  <LogOut className="h-4 w-4" aria-hidden />
+                  <LogOut className="h-4 w-4 text-mist-400 hover:text-rose-400" aria-hidden />
                 </button>
               </div>
             </header>
@@ -377,11 +341,7 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
             <nav
               aria-label="Guest Navigation"
               className="guest-tabbar shrink-0 md:hidden"
-              style={{
-                backgroundColor: 'var(--guest-surface)',
-                borderColor: 'var(--guest-border)',
-                paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-              }}
+              style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
             >
               <div className="grid grid-cols-5 gap-0.5 px-1 py-1.5">
                 {NAV.map((t) => {
@@ -390,8 +350,6 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
                   const hasActivityBadge = t.id === 'activity' && activeActivityCount > 0;
                   const hasNotifBadge = t.id === 'notifications' && unreadNotifCount > 0;
                   const hasCriticalAlert = t.id === 'notifications' && criticalAlertsCount > 0;
-                  const activeColorClass = guestPalette === 'burgundy' ? 'text-[#C9A45C]' : 'text-[#175B49] dark:text-[#A9C8B9]';
-                  const badgeBgClass = guestPalette === 'burgundy' ? 'bg-[#C9A45C] text-[#641329]' : 'bg-[#175B49] dark:bg-[#175B49] text-[#F8F5EC]';
 
                   return (
                     <button
@@ -402,23 +360,23 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
                       className="guest-tab-btn flex flex-col items-center gap-1 rounded-xl px-1 py-1.5 relative transition-all"
                     >
                       <div className="relative">
-                        <Icon className={cn('h-5 w-5 transition-transform', active && `scale-110 ${activeColorClass}`)} aria-hidden />
+                        <Icon className={cn('h-5 w-5 transition-transform', active && 'scale-110 text-amber-400')} aria-hidden />
                         {hasActivityBadge && (
-                          <span className={cn('absolute -top-1 -right-1.5 px-1 min-w-[14px] h-3.5 rounded-full font-bold text-[9px] flex items-center justify-center ring-2 ring-white/20', badgeBgClass)}>
+                          <span className="absolute -top-1 -right-1.5 px-1 min-w-[14px] h-3.5 rounded-full bg-amber-400 text-ink-950 font-bold text-[9px] flex items-center justify-center ring-2 ring-ink-950">
                             {activeActivityCount}
                           </span>
                         )}
                         {hasNotifBadge && (
-                          <span className={cn('absolute -top-1 -right-1.5 px-1 min-w-[14px] h-3.5 rounded-full font-bold text-[9px] flex items-center justify-center ring-2 ring-white/20', badgeBgClass)}>
+                          <span className="absolute -top-1 -right-1.5 px-1 min-w-[14px] h-3.5 rounded-full bg-amber-400 text-ink-950 font-bold text-[9px] flex items-center justify-center ring-2 ring-ink-950">
                             {unreadNotifCount}
                           </span>
                         )}
                         {hasCriticalAlert && !hasNotifBadge && (
-                          <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-rose-500 ring-2 ring-white/20 animate-pulse" />
+                          <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-rose-500 ring-2 ring-ink-950 animate-pulse" />
                         )}
                       </div>
-                      <span className={cn('text-[10px] font-semibold leading-none truncate max-w-full', active ? `${activeColorClass} font-bold` : 'text-stone-500 dark:text-stone-400')}>
-                        {t.label}
+                      <span className={cn('text-[10px] font-semibold leading-none truncate max-w-full', active && 'text-amber-400 font-bold')}>
+                        {getNavLabel(t.id)}
                       </span>
                     </button>
                   );
@@ -446,6 +404,16 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
             guestName={guest.name}
             isOpen={tourOpen}
             onClose={() => setTourOpen(false)}
+            onNavigate={handleNavigate}
+            isLight={isLight}
+          />
+        )}
+
+        {/* 24/7 GUIDED SUPPORT ASSISTANT (GUEST-HELP-01) */}
+        {valid && guest && (
+          <GuestSupportAssistant
+            room={room}
+            guestName={guest.name}
             onNavigate={handleNavigate}
             isLight={isLight}
           />

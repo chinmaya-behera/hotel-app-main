@@ -9,7 +9,6 @@ import type { GuestTabProps, GuestNotificationsSubtab } from '@/components/guest
 
 export function NotificationsHubSection({ room, guestName, onNavigate, initialSubtab }: GuestTabProps) {
   const { state } = useDemo();
-  const guestPalette = state.guestPalette ?? 'burgundy';
 
   const [activeSubtab, setActiveSubtab] = useState<GuestNotificationsSubtab>(
     initialSubtab === 'alerts' ? 'alerts' : 'personal',
@@ -35,20 +34,17 @@ export function NotificationsHubSection({ room, guestName, onNavigate, initialSu
     return safety.length + hotel.length;
   }, [state.safetyAlerts, state.hotelAlerts]);
 
-  const activeBtnClass = guestPalette === 'burgundy' ? 'bg-[#74172F] text-[#FFF8F0] font-bold shadow-md' : 'bg-[#175B49] text-white font-bold shadow-md';
-  const badgeClass = guestPalette === 'burgundy' ? 'bg-[#C9A45C] text-[#641329]' : 'bg-[#1C6B53] text-[#F8F5EC]';
-
   return (
     <div data-tour="tour-notifications-tab" className="space-y-6 sm:space-y-8 pb-12 max-w-7xl mx-auto w-full">
       {/* 2-Segment Switcher keeping Personal Notifications and Hotel Alerts Strictly Separate */}
-      <div className="grid grid-cols-2 gap-2 p-1.5 rounded-2xl bg-black/25 border border-white/10 shadow-sm">
+      <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-black/30 border border-white/5">
         <button
           type="button"
           onClick={() => setActiveSubtab('personal')}
           className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-semibold transition-all ${
             activeSubtab === 'personal'
-              ? activeBtnClass
-              : 'text-stone-600 dark:text-stone-300 hover:text-stone-900 dark:hover:text-white hover:bg-white/5'
+              ? 'bg-amber-400 text-ink-950 font-bold shadow-md'
+              : 'text-mist-300 hover:text-white hover:bg-white/5'
           }`}
         >
           <Bell className="h-4 w-4 shrink-0" />
@@ -56,7 +52,7 @@ export function NotificationsHubSection({ room, guestName, onNavigate, initialSu
           {unreadPersonalCount > 0 && (
             <span
               className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                activeSubtab === 'personal' ? 'bg-black/25 text-white' : badgeClass
+                activeSubtab === 'personal' ? 'bg-black/20 text-ink-950' : 'bg-amber-400 text-ink-950'
               }`}
             >
               {unreadPersonalCount}
@@ -69,8 +65,8 @@ export function NotificationsHubSection({ room, guestName, onNavigate, initialSu
           onClick={() => setActiveSubtab('alerts')}
           className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-semibold transition-all ${
             activeSubtab === 'alerts'
-              ? activeBtnClass
-              : 'text-stone-600 dark:text-stone-300 hover:text-stone-900 dark:hover:text-white hover:bg-white/5'
+              ? 'bg-amber-400 text-ink-950 font-bold shadow-md'
+              : 'text-mist-300 hover:text-white hover:bg-white/5'
           }`}
         >
           <ShieldAlert className="h-4 w-4 shrink-0" />
