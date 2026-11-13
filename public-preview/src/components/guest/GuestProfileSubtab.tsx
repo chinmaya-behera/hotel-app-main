@@ -21,11 +21,13 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
+import { cn } from '@/lib/utils';
 import { GuestSectionHeader, GuestSheet } from '@/components/guest/guestUi';
 import type { GuestTabProps } from '@/components/guest/types';
 
 export function GuestProfileSubtab({ room, guestName }: GuestTabProps) {
   const { state, updateGuestProfile } = useDemo();
+  const guestPalette = state.guestPalette ?? 'burgundy';
 
   // Find stay and preferences
   const stay = (state.frontDesk?.stays ?? []).find((s) => s.room === room);
@@ -96,7 +98,14 @@ export function GuestProfileSubtab({ room, guestName }: GuestTabProps) {
       )}
 
       {/* Profile Header Hero Card */}
-      <div className="guest-card p-5 space-y-4">
+      <div
+        className={cn(
+          'p-5 space-y-4 rounded-2xl shadow-sm border transition-colors',
+          guestPalette === 'burgundy'
+            ? 'bg-white dark:bg-[#270D18] border-[#EADBCC] dark:border-[#461628]'
+            : 'bg-white dark:bg-[#122C21] border-[#E5DFD3] dark:border-[#1E4F39]'
+        )}
+      >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             {/* Avatar */}
@@ -116,24 +125,24 @@ export function GuestProfileSubtab({ room, guestName }: GuestTabProps) {
             {/* Basic Info */}
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold text-white">{stay?.guest || guestName}</h2>
+                <h2 className="text-base font-bold text-stone-900 dark:text-stone-100">{stay?.guest || guestName}</h2>
                 {stay?.vip && (
-                  <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 text-[10px] font-bold">
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-600 dark:text-amber-300 border border-amber-400/30 text-[10px] font-bold">
                     <Crown className="h-3 w-3" />
                     <span>VIP Member</span>
                   </span>
                 )}
               </div>
-              <p className="text-xs text-mist-400 flex items-center gap-1.5">
+              <p className="text-xs text-stone-500 dark:text-stone-400 flex items-center gap-1.5">
                 <span>Room {room}</span>
                 <span>·</span>
                 <span>{stay?.roomType || 'Deluxe King Suite'}</span>
               </p>
               <div className="flex items-center gap-2 pt-0.5">
-                <span className="px-2 py-0.5 rounded-md bg-white/10 text-[10px] text-mist-300 font-mono">
+                <span className="px-2 py-0.5 rounded-md bg-stone-100 dark:bg-white/10 text-[10px] text-stone-700 dark:text-stone-300 font-mono">
                   Club Tier: Emerald Elite
                 </span>
-                <span className="text-[10px] text-amber-300 font-mono">ID: GC-9823410</span>
+                <span className="text-[10px] text-amber-600 dark:text-amber-300 font-mono font-bold">ID: GC-9823410</span>
               </div>
             </div>
           </div>
@@ -151,7 +160,12 @@ export function GuestProfileSubtab({ room, guestName }: GuestTabProps) {
               setFormInstructions(prefs.personalInstructions ?? '');
               setIsEditOpen(true);
             }}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 hover:bg-amber-400 hover:text-ink-950 text-xs font-bold text-white transition-all border border-white/10 self-start sm:self-center"
+            className={cn(
+              'flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white transition-all shadow-sm self-start sm:self-center',
+              guestPalette === 'burgundy'
+                ? 'bg-[#74172F] hover:bg-[#8A2443]'
+                : 'bg-[#175B49] hover:bg-[#206A55]'
+            )}
           >
             <Edit3 className="h-3.5 w-3.5" />
             <span>Edit Profile</span>
@@ -159,20 +173,20 @@ export function GuestProfileSubtab({ room, guestName }: GuestTabProps) {
         </div>
 
         {/* Contact Info Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-white/10 text-xs">
-          <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-white/5">
-            <Mail className="h-4 w-4 text-amber-400 shrink-0" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-stone-200 dark:border-white/10 text-xs">
+          <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-stone-50 dark:bg-white/5 border border-stone-200 dark:border-white/10">
+            <Mail className="h-4 w-4 text-amber-500 shrink-0" />
             <div className="min-w-0">
-              <p className="text-[10px] text-mist-400 uppercase font-semibold">Email Address</p>
-              <p className="text-white truncate font-medium">{email}</p>
+              <p className="text-[10px] text-stone-500 dark:text-stone-400 uppercase font-semibold">Email Address</p>
+              <p className="text-stone-900 dark:text-stone-100 truncate font-medium">{email}</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-white/5">
-            <Phone className="h-4 w-4 text-amber-400 shrink-0" />
+          <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-stone-50 dark:bg-white/5 border border-stone-200 dark:border-white/10">
+            <Phone className="h-4 w-4 text-amber-500 shrink-0" />
             <div className="min-w-0">
-              <p className="text-[10px] text-mist-400 uppercase font-semibold">Mobile Number</p>
-              <p className="text-white truncate font-medium">{phone}</p>
+              <p className="text-[10px] text-stone-500 dark:text-stone-400 uppercase font-semibold">Mobile Number</p>
+              <p className="text-stone-900 dark:text-stone-100 truncate font-medium">{phone}</p>
             </div>
           </div>
         </div>

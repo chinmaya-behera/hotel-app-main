@@ -23,7 +23,7 @@ import {
   Scale,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
-import { money } from '@/lib/utils';
+import { cn, money } from '@/lib/utils';
 import { GuestSectionHeader } from '@/components/guest/guestUi';
 import type { GuestTabProps, GuestTabId, GuestServicesSubtab } from '@/components/guest/types';
 import { DEFAULT_EVENTS_CARD_IMAGE } from './eventsData';
@@ -48,6 +48,10 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
   const prefs = state.guestPreferences?.[room];
   const folioLines = state.folios?.[room] ?? [];
   const currentBalance = folioLines.reduce((sum, l) => sum + l.amount, 0);
+
+  const guestPalette = state.guestPalette ?? 'burgundy';
+  const guestTheme = state.guestTheme ?? 'light';
+  const isDark = guestTheme === 'dark';
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<'all' | 'room' | 'dining' | 'desk' | 'finance'>('all');
@@ -275,31 +279,39 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
   return (
     <div data-tour="tour-services-tab" className="space-y-6 sm:space-y-8 pb-12 max-w-7xl mx-auto w-full">
       {/* Header & Search */}
-      <div className="guest-card p-4 space-y-3">
+      <div className={cn(
+        'p-4 sm:p-5 rounded-2xl space-y-3.5 shadow-sm border transition-colors',
+        guestPalette === 'burgundy'
+          ? 'bg-[#FFFCF8] dark:bg-[#220B15] border-[#E0CBA9] dark:border-[#461628]'
+          : 'bg-white dark:bg-[#122C21] border-[#E5DFD3] dark:border-[#1E4F39]'
+      )}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <h2 className="text-sm font-bold text-white flex items-center gap-2">
-              <Layers className="h-4 w-4 text-amber-400" />
+            <h2 className="text-sm sm:text-base font-bold text-stone-900 dark:text-stone-100 flex items-center gap-2">
+              <Layers className={cn('h-4 w-4', guestPalette === 'burgundy' ? 'text-[#C9A45C]' : 'text-emerald-500')} />
               <span>All Hotel Services &amp; Amenities</span>
             </h2>
+            <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
+              Explore dining, housekeeping, wellness, room maintenance, and concierge
+            </p>
           </div>
         </div>
 
         {/* Search Bar */}
         <div className="relative">
-          <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-mist-400" />
+          <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-stone-400" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search towels, dining, AC repair, wake-up call, taxi, folio..."
-            className="guest-field w-full pl-10 pr-4 py-2 text-xs text-white"
+            className="w-full rounded-xl bg-stone-50 dark:bg-black/30 border border-stone-200 dark:border-white/10 pl-10 pr-4 py-2 text-xs text-stone-900 dark:text-stone-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-400/30"
           />
           {searchQuery && (
             <button
               type="button"
               onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-2 text-xs text-mist-400 hover:text-white"
+              className="absolute right-3 top-2 text-xs text-stone-400 hover:text-stone-700 dark:hover:text-white"
             >
               Clear
             </button>
@@ -311,55 +323,70 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
           <button
             type="button"
             onClick={() => setActiveCategory('all')}
-            className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-all ${
+            className={cn(
+              'px-3.5 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all shadow-sm text-xs border',
               activeCategory === 'all'
-                ? 'bg-amber-400 text-ink-950 font-bold shadow-sm'
-                : 'bg-white/5 text-mist-300 hover:text-white hover:bg-white/10'
-            }`}
+                ? guestPalette === 'burgundy'
+                  ? 'bg-[#74172F] text-[#FFF8F0] border-[#74172F]'
+                  : 'bg-[#175B49] text-white border-[#175B49]'
+                : 'bg-white dark:bg-black/20 text-stone-700 dark:text-stone-300 hover:text-stone-900 dark:hover:text-white border-stone-200 dark:border-white/10'
+            )}
           >
             All Services ({SERVICES.length})
           </button>
           <button
             type="button"
             onClick={() => setActiveCategory('room')}
-            className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-all ${
+            className={cn(
+              'px-3.5 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all shadow-sm text-xs border',
               activeCategory === 'room'
-                ? 'bg-amber-400 text-ink-950 font-bold shadow-sm'
-                : 'bg-white/5 text-mist-300 hover:text-white hover:bg-white/10'
-            }`}
+                ? guestPalette === 'burgundy'
+                  ? 'bg-[#74172F] text-[#FFF8F0] border-[#74172F]'
+                  : 'bg-[#175B49] text-white border-[#175B49]'
+                : 'bg-white dark:bg-black/20 text-stone-700 dark:text-stone-300 hover:text-stone-900 dark:hover:text-white border-stone-200 dark:border-white/10'
+            )}
           >
             Room Comfort ({SERVICES.filter((s) => s.category === 'room').length})
           </button>
           <button
             type="button"
             onClick={() => setActiveCategory('dining')}
-            className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-all ${
+            className={cn(
+              'px-3.5 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all shadow-sm text-xs border',
               activeCategory === 'dining'
-                ? 'bg-amber-400 text-ink-950 font-bold shadow-sm'
-                : 'bg-white/5 text-mist-300 hover:text-white hover:bg-white/10'
-            }`}
+                ? guestPalette === 'burgundy'
+                  ? 'bg-[#74172F] text-[#FFF8F0] border-[#74172F]'
+                  : 'bg-[#175B49] text-white border-[#175B49]'
+                : 'bg-white dark:bg-black/20 text-stone-700 dark:text-stone-300 hover:text-stone-900 dark:hover:text-white border-stone-200 dark:border-white/10'
+            )}
           >
             Dining &amp; Celebrations ({SERVICES.filter((s) => s.category === 'dining').length})
           </button>
           <button
             type="button"
             onClick={() => setActiveCategory('desk')}
-            className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-all ${
+            className={cn(
+              'px-3.5 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all shadow-sm text-xs border',
               activeCategory === 'desk'
-                ? 'bg-amber-400 text-ink-950 font-bold shadow-sm'
-                : 'bg-white/5 text-mist-300 hover:text-white hover:bg-white/10'
-            }`}
+                ? guestPalette === 'burgundy'
+                  ? 'bg-[#74172F] text-[#FFF8F0] border-[#74172F]'
+                  : 'bg-[#175B49] text-white border-[#175B49]'
+                : 'bg-white dark:bg-black/20 text-stone-700 dark:text-stone-300 hover:text-stone-900 dark:hover:text-white border-stone-200 dark:border-white/10'
+            )}
           >
             Front Desk &amp; Care ({SERVICES.filter((s) => s.category === 'desk').length})
           </button>
           <button
             type="button"
             onClick={() => setActiveCategory('finance')}
-            className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-all ${
+            className={cn(
+              'px-3.5 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all shadow-sm text-xs border',
               activeCategory === 'finance'
-                ? 'bg-amber-400 text-ink-950 font-bold shadow-sm'
-                : 'bg-white/5 text-mist-300 hover:text-white hover:bg-white/10'
-            }`}
+                ? guestPalette === 'burgundy'
+                  ? 'bg-[#74172F] text-[#FFF8F0] border-[#74172F]'
+                  : 'bg-[#175B49] text-white border-[#175B49]'
+                : 'bg-white dark:bg-black/20 text-stone-700 dark:text-stone-300 hover:text-stone-900 dark:hover:text-white border-stone-200 dark:border-white/10'
+            )}
           >
             Billing &amp; Folio ({SERVICES.filter((s) => s.category === 'finance').length})
           </button>
@@ -374,7 +401,7 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
         />
 
         {filteredServices.length === 0 ? (
-          <div className="guest-card p-6 text-center text-xs text-mist-400">
+          <div className="p-8 text-center text-xs text-stone-500 rounded-2xl border border-stone-200 dark:border-white/10 bg-white dark:bg-stone-900">
             No services match &quot;{searchQuery}&quot;. Please try a different search keyword.
           </div>
         ) : (
@@ -385,10 +412,15 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
               return (
                 <div
                   key={svc.id}
-                  className="guest-card overflow-hidden flex flex-col justify-between hover:border-cyan-400/50 hover:shadow-[0_12px_36px_rgba(0,0,0,0.35)] transition-all duration-300 border border-white/10 group"
+                  className={cn(
+                    'overflow-hidden flex flex-col justify-between rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 border group',
+                    guestPalette === 'burgundy'
+                      ? 'bg-[#FFFCF8] dark:bg-[#220B15] border-[#E0CBA9] dark:border-[#461628]'
+                      : 'bg-white dark:bg-[#122C21] border-[#E5DFD3] dark:border-[#1E4F39]'
+                  )}
                 >
                   {/* Card Banner Image with subtle gradient and Category Badge */}
-                  <div className="relative h-44 sm:h-48 w-full overflow-hidden bg-ink-900">
+                  <div className="relative h-44 sm:h-48 w-full overflow-hidden bg-stone-900">
                     <img
                       src={svc.bannerImage}
                       alt={svc.name}
@@ -396,7 +428,7 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
                       loading="lazy"
                     />
                     {/* Subtle gradient overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-ink-950 via-ink-950/40 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
 
                     {/* Category badge pinned to top-left */}
                     <div className="absolute top-3 left-3">
@@ -407,7 +439,12 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
 
                     {/* Department icon floating on bottom-left */}
                     <div className="absolute bottom-3 left-3 flex items-center gap-2">
-                      <span className={`grid h-10 w-10 place-items-center rounded-xl shadow-lg border backdrop-blur-md bg-ink-950/80 ${svc.color}`}>
+                      <span className={cn(
+                        'grid h-10 w-10 place-items-center rounded-xl shadow-lg border backdrop-blur-md',
+                        guestPalette === 'burgundy'
+                          ? 'bg-[#74172F]/90 text-[#FFF8F0] border-[#DEC9A4]/40'
+                          : 'bg-[#175B49]/90 text-white border-[#C6D8CB]/40'
+                      )}>
                         <Icon className="h-5 w-5" />
                       </span>
                     </div>
@@ -417,10 +454,13 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
                   <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-4">
                     <div className="space-y-2">
                       <div>
-                        <h3 className="text-sm sm:text-base font-bold text-white group-hover:text-cyan-300 transition-colors">
+                        <h3 className={cn(
+                          'text-sm sm:text-base font-bold transition-colors text-stone-900 dark:text-stone-100',
+                          guestPalette === 'burgundy' ? 'group-hover:text-[#74172F] dark:group-hover:text-[#C9A45C]' : 'group-hover:text-[#175B49] dark:group-hover:text-[#34D399]'
+                        )}>
                           {svc.name}
                         </h3>
-                        <p className="text-xs text-mist-300 mt-0.5 line-clamp-2">
+                        <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5 line-clamp-2">
                           {svc.tagline}
                         </p>
                       </div>
@@ -430,7 +470,7 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
                         {svc.highlights.map((h, i) => (
                           <span
                             key={i}
-                            className="px-2.5 py-0.5 rounded-md bg-white/5 border border-white/5 text-[10px] text-mist-300 font-medium"
+                            className="px-2.5 py-0.5 rounded-md bg-stone-100 dark:bg-white/10 border border-stone-200 dark:border-white/10 text-[10px] text-stone-700 dark:text-stone-300 font-medium"
                           >
                             {h}
                           </span>
@@ -439,16 +479,16 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
                     </div>
 
                     {/* Card Footer with CTA */}
-                    <div className="pt-3 border-t border-white/5 flex items-center justify-between gap-3">
+                    <div className="pt-3 border-t border-stone-200 dark:border-white/10 flex items-center justify-between gap-3">
                       {svc.id === 'dnd' && prefs?.dnd && (
-                        <span className="text-xs font-bold text-rose-300 flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
                           <MoonStar className="h-3.5 w-3.5 animate-pulse" />
                           <span>Active</span>
                         </span>
                       )}
 
                       {svc.id === 'folio' && (
-                        <span className="text-xs font-mono font-bold text-amber-300">
+                        <span className="text-xs font-mono font-bold text-amber-600 dark:text-amber-400">
                           Due: {money(currentBalance)}
                         </span>
                       )}
@@ -459,7 +499,12 @@ export function AllServicesSection({ room, guestName, onNavigate, initialSubtab 
                           setActiveSubView(svc.id);
                           onNavigate('services', svc.id);
                         }}
-                        className="ml-auto inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-amber-400 text-ink-950 text-xs font-black hover:bg-amber-300 transition-all shadow-md group-hover:shadow-[0_0_16px_rgba(251,191,36,0.4)] group-hover:translate-x-0.5"
+                        className={cn(
+                          'ml-auto inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white transition-all shadow-md hover:translate-x-0.5',
+                          guestPalette === 'burgundy'
+                            ? 'bg-[#74172F] hover:bg-[#8A2443]'
+                            : 'bg-[#175B49] hover:bg-[#206A55]'
+                        )}
                       >
                         <span>{svc.actionText}</span>
                         <ArrowRight className="h-3.5 w-3.5" />

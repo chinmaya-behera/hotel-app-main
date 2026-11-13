@@ -371,6 +371,131 @@
   color: #005b96;
 }
 
+/* ===================================================================== */
+/* FRONT DESK LIGHT THEME OVERRIDES (Scoped to [data-fd-theme="light"] / .fd-light) */
+/* ===================================================================== */
+
+[data-fd-theme='light'],
+.fd-light {
+  --page-bg: #F8F9FD;
+  color: #0F172A;
+}
+
+.fd-light .panel {
+  background-color: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+  color: #0F172A !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05) !important;
+}
+
+.fd-light .text-white:not([style*="color"]):not(.keep-white) {
+  color: #0F172A !important;
+}
+
+.fd-light .text-mist-200 {
+  color: #1E293B !important;
+}
+
+.fd-light .text-mist-300 {
+  color: #334155 !important;
+}
+
+.fd-light .text-mist-400 {
+  color: #64748B !important;
+}
+
+.fd-light .text-mist-500 {
+  color: #94A3B8 !important;
+}
+
+.fd-light .border-white\/5,
+.fd-light .border-white\/10,
+.fd-light .border-white\/15,
+.fd-light .border-white\/20,
+.fd-light .border-white\/30 {
+  border-color: #E2E8F0 !important;
+}
+
+.fd-light .bg-white\/\[0\.02\],
+.fd-light .bg-white\/\[0\.03\],
+.fd-light .bg-white\/\[0\.04\],
+.fd-light .bg-white\/\[0\.05\],
+.fd-light .bg-white\/\[0\.06\],
+.fd-light .bg-white\/5,
+.fd-light .bg-white\/10 {
+  background-color: #F8FAFC !important;
+}
+
+.fd-light .bg-black\/20,
+.fd-light .bg-black\/30,
+.fd-light .bg-black\/40 {
+  background-color: #F1F5F9 !important;
+}
+
+.fd-light .field,
+.fd-light input:not([type="checkbox"]):not([type="radio"]):not([style*="background"]),
+.fd-light select:not([style*="background"]),
+.fd-light textarea:not([style*="background"]) {
+  background-color: #FFFFFF !important;
+  border-color: #CBD5E1 !important;
+  color: #0F172A !important;
+}
+
+.fd-light .field:focus,
+.fd-light input:focus,
+.fd-light select:focus,
+.fd-light textarea:focus {
+  border-color: #2563EB !important;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2) !important;
+}
+
+.fd-light .chip-accent {
+  background-color: #FFE4E6 !important;
+  border-color: #FDA4AF !important;
+  color: #881337 !important;
+}
+
+/* Cosmic Forge Focus & Inputs */
+.fd-cosmic.fd-light .field:focus,
+.fd-cosmic.fd-light input:focus,
+.fd-cosmic.fd-light select:focus,
+.fd-cosmic.fd-light textarea:focus {
+  border-color: #7C3AED !important;
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2) !important;
+}
+
+.fd-cosmic.fd-dark .field:focus,
+.fd-cosmic.fd-dark input:focus,
+.fd-cosmic.fd-dark select:focus,
+.fd-cosmic.fd-dark textarea:focus {
+  border-color: #A855F7 !important;
+  box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.3) !important;
+}
+
+.fd-cosmic.fd-light .chip-accent {
+  background-color: #EDE9FE !important;
+  border-color: #C4B5FD !important;
+  color: #5B21B6 !important;
+}
+
+.fd-cosmic.fd-dark .chip-accent {
+  background-color: rgba(76, 29, 149, 0.5) !important;
+  border-color: rgba(124, 58, 237, 0.6) !important;
+  color: #E9D5FF !important;
+}
+
+/* Front Desk Dark Mode Contrast Protections */
+.fd-dark {
+  color: #FFFFFF;
+}
+
+.fd-dark h1,
+.fd-dark h2,
+.fd-dark h3,
+.fd-dark h4 {
+  color: #FFFFFF;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .fd-stagger > *,
   .fd-enter,

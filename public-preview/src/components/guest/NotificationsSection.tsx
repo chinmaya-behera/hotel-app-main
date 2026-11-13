@@ -16,6 +16,7 @@ import {
   Filter,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
+import { cn } from '@/lib/utils';
 import { GuestEmptyState, GuestSectionHeader } from '@/components/guest/guestUi';
 import type { GuestTabProps } from '@/components/guest/types';
 import type { GuestNotificationCategory, GuestNotification } from '@/types/demo';
@@ -67,6 +68,7 @@ const CATEGORY_MAP: Record<
 
 export function NotificationsSection({ room, onNavigate }: GuestTabProps) {
   const { state, markGuestNotificationRead, markAllGuestNotificationsRead } = useDemo();
+  const guestPalette = state.guestPalette ?? 'burgundy';
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [filterUnreadOnly, setFilterUnreadOnly] = useState<boolean>(false);
 
@@ -109,22 +111,41 @@ export function NotificationsSection({ room, onNavigate }: GuestTabProps) {
   return (
     <div className="space-y-5 pb-8">
       {/* Top Header Card with Actions */}
-      <div className="guest-card p-4 space-y-3">
+      <div
+        className={cn(
+          'p-4 sm:p-5 rounded-2xl space-y-3.5 shadow-sm border transition-colors',
+          guestPalette === 'burgundy'
+            ? 'bg-[#FFFCF8] dark:bg-[#220B15] border-[#E0CBA9] dark:border-[#461628]'
+            : 'bg-white dark:bg-[#122C21] border-[#E5DFD3] dark:border-[#1E4F39]'
+        )}
+      >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-amber-400/15 text-amber-300">
+            <span
+              className={cn(
+                'grid h-9 w-9 place-items-center rounded-xl',
+                guestPalette === 'burgundy'
+                  ? 'bg-[#F2E4CE] text-[#74172F] dark:bg-[#381222] dark:text-[#C9A45C]'
+                  : 'bg-[#F1EBDD] text-[#1A6650] dark:bg-[#193E2F] dark:text-[#34D399]'
+              )}
+            >
               <Bell className="h-5 w-5" />
             </span>
             <div>
-              <h2 className="text-sm font-bold text-white flex items-center gap-2">
+              <h2 className="text-sm font-bold text-stone-900 dark:text-stone-100 flex items-center gap-2">
                 <span>Personal Notifications</span>
                 {unreadCount > 0 && (
-                  <span className="px-2 py-0.5 rounded-full bg-amber-400 text-ink-950 text-[10px] font-bold">
+                  <span
+                    className={cn(
+                      'px-2 py-0.5 rounded-full text-[10px] font-bold text-white',
+                      guestPalette === 'burgundy' ? 'bg-[#74172F]' : 'bg-[#1C6B53]'
+                    )}
+                  >
                     {unreadCount} unread
                   </span>
                 )}
               </h2>
-              <p className="text-[11px] text-mist-400">
+              <p className="text-[11px] text-stone-500 dark:text-stone-400">
                 Chronological updates from your requests, billing, and Front Desk messages
               </p>
             </div>
@@ -134,9 +155,9 @@ export function NotificationsSection({ room, onNavigate }: GuestTabProps) {
             <button
               type="button"
               onClick={() => markAllGuestNotificationsRead(room)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/10 hover:border-amber-400/40 bg-white/5 hover:bg-white/10 text-xs text-mist-200 hover:text-white transition-all font-semibold"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-stone-200 dark:border-white/10 hover:bg-stone-50 dark:hover:bg-white/10 text-xs text-stone-700 dark:text-stone-300 transition-all font-semibold shadow-sm"
             >
-              <CheckCheck className="h-3.5 w-3.5 text-amber-400" />
+              <CheckCheck className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Mark all as read</span>
               <span className="sm:hidden">Read all</span>
             </button>
@@ -144,15 +165,18 @@ export function NotificationsSection({ room, onNavigate }: GuestTabProps) {
         </div>
 
         {/* Category Pills & Filters */}
-        <div className="flex items-center gap-2 pt-2 border-t border-white/5 overflow-x-auto pb-1 scrollbar-none">
+        <div className="flex items-center gap-2 pt-2 border-t border-stone-200 dark:border-white/10 overflow-x-auto pb-1 scrollbar-none">
           <button
             type="button"
             onClick={() => setSelectedCategory('all')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+            className={cn(
+              'px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all shadow-sm border',
               selectedCategory === 'all'
-                ? 'bg-amber-400 text-ink-950 font-bold'
-                : 'bg-white/5 text-mist-300 hover:text-white hover:bg-white/10'
-            }`}
+                ? guestPalette === 'burgundy'
+                  ? 'bg-[#74172F] text-[#FFF8F0] border-[#74172F]'
+                  : 'bg-[#175B49] text-white border-[#175B49]'
+                : 'bg-white dark:bg-black/20 text-stone-700 dark:text-stone-300 hover:text-stone-900 dark:hover:text-white border-stone-200 dark:border-white/10'
+            )}
           >
             All Updates ({allNotifications.length})
           </button>

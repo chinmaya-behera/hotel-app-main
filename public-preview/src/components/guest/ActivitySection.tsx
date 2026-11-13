@@ -1116,6 +1116,9 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
     }
   }
 
+  const guestPalette = state.guestPalette ?? 'burgundy';
+  const activeTabClass = guestPalette === 'burgundy' ? 'bg-[#74172F] text-[#FFF8F0] font-bold shadow-sm' : 'bg-[#175B49] text-white font-bold shadow-sm';
+
   const totalSubmittedTasksCount =
     myWorkItems.length +
     myCustomDining.length +
@@ -1137,35 +1140,43 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
       )}
 
       {/* Header & Filter Pills */}
-      <div className="guest-card p-4 sm:p-5 space-y-3.5">
+      <div
+        className={cn(
+          'p-4 sm:p-5 rounded-2xl space-y-3.5 shadow-sm border transition-colors',
+          guestPalette === 'burgundy'
+            ? 'bg-[#FFFCF8] dark:bg-[#220B15] border-[#E0CBA9] dark:border-[#461628]'
+            : 'bg-[#FFFCF6] dark:bg-[#0E241C] border-[#DDD9CC] dark:border-[#174233]'
+        )}
+      >
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-sm font-bold text-white flex items-center gap-2">
-              <ListChecks className="h-4 w-4 text-amber-400" />
+            <h2 className="text-sm font-bold text-stone-900 dark:text-white flex items-center gap-2">
+              <ListChecks className={cn('h-4 w-4', guestPalette === 'burgundy' ? 'text-[#C9A45C]' : 'text-[#175B49]')} />
               <span>My Activity &amp; Live Tracking</span>
             </h2>
-            <p className="text-[11px] text-mist-400">
+            <p className="text-[11px] text-stone-500 dark:text-stone-400">
               Interactive timeline, real-time tracking, quotes &amp; experience feedback for Room {room}
             </p>
           </div>
 
           {totalActiveCount > 0 && (
-            <span className="px-2.5 py-1 rounded-full bg-amber-400 text-ink-950 font-bold text-[10px] shrink-0">
+            <span className={cn('px-2.5 py-1 rounded-full font-bold text-[10px] shrink-0 text-white', guestPalette === 'burgundy' ? 'bg-[#74172F]' : 'bg-[#175B49]')}>
               {totalActiveCount} active now
             </span>
           )}
         </div>
 
         {/* Filter pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none text-xs border-t border-white/5 pt-2">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none text-xs border-t border-stone-200 dark:border-stone-800 pt-2">
           <button
             type="button"
             onClick={() => setActiveFilter('all')}
-            className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-all ${
+            className={cn(
+              'px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-all',
               activeFilter === 'all'
-                ? 'bg-amber-400 text-ink-950 font-bold'
-                : 'bg-white/5 text-mist-300 hover:text-white'
-            }`}
+                ? activeTabClass
+                : 'bg-white/5 text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white'
+            )}
           >
             All Activity ({totalSubmittedTasksCount})
           </button>
@@ -1173,11 +1184,12 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
           <button
             type="button"
             onClick={() => setActiveFilter('active')}
-            className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+            className={cn(
+              'px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-all flex items-center gap-1.5',
               activeFilter === 'active'
-                ? 'bg-amber-400 text-ink-950 font-bold'
-                : 'bg-white/5 text-mist-300 hover:text-white'
-            }`}
+                ? activeTabClass
+                : 'bg-white/5 text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white'
+            )}
           >
             <Clock className="h-3 w-3" />
             <span>Active Now</span>
@@ -1187,16 +1199,17 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
           <button
             type="button"
             onClick={() => setActiveFilter('dining')}
-            className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+            className={cn(
+              'px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-all flex items-center gap-1.5',
               activeFilter === 'dining'
-                ? 'bg-amber-400 text-ink-950 font-bold'
-                : 'bg-white/5 text-mist-300 hover:text-white'
-            }`}
+                ? activeTabClass
+                : 'bg-white/5 text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white'
+            )}
           >
             <UtensilsCrossed className="h-3 w-3" />
             <span>Dining &amp; Custom Dishes</span>
             {myCustomDining.length > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-amber-400/20 text-amber-300">
+              <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-stone-200 dark:bg-stone-800">
                 {myCustomDining.length}
               </span>
             )}
@@ -1205,11 +1218,12 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
           <button
             type="button"
             onClick={() => setActiveFilter('services')}
-            className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-all ${
+            className={cn(
+              'px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-all',
               activeFilter === 'services'
-                ? 'bg-amber-400 text-ink-950 font-bold'
-                : 'bg-white/5 text-mist-300 hover:text-white'
-            }`}
+                ? activeTabClass
+                : 'bg-white/5 text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white'
+            )}
           >
             Services &amp; Maintenance ({myWorkItems.filter(i => i.category !== 'room_service').length})
           </button>
@@ -1217,11 +1231,12 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
           <button
             type="button"
             onClick={() => setActiveFilter('refunds')}
-            className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+            className={cn(
+              'px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-all flex items-center gap-1.5',
               activeFilter === 'refunds'
-                ? 'bg-amber-400 text-ink-950 font-bold'
-                : 'bg-white/5 text-mist-300 hover:text-white'
-            }`}
+                ? activeTabClass
+                : 'bg-white/5 text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white'
+            )}
           >
             <Receipt className="h-3 w-3" />
             <span>Refunds &amp; Disputes ({myCompensationRefunds.length})</span>
@@ -1230,11 +1245,12 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
           <button
             type="button"
             onClick={() => setActiveFilter('complaints')}
-            className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-all ${
+            className={cn(
+              'px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-all',
               activeFilter === 'complaints'
-                ? 'bg-amber-400 text-ink-950 font-bold'
-                : 'bg-white/5 text-mist-300 hover:text-white'
-            }`}
+                ? activeTabClass
+                : 'bg-white/5 text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white'
+            )}
           >
             Complaints ({myComplaints.length})
           </button>
@@ -1242,11 +1258,12 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
           <button
             type="button"
             onClick={() => setActiveFilter('incidents')}
-            className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+            className={cn(
+              'px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-all flex items-center gap-1.5',
               activeFilter === 'incidents'
-                ? 'bg-amber-400 text-ink-950 font-bold'
-                : 'bg-white/5 text-mist-300 hover:text-white'
-            }`}
+                ? activeTabClass
+                : 'bg-white/5 text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white'
+            )}
           >
             <ShieldAlert className="h-3 w-3" />
             <span>Incidents ({myIncidents.length})</span>
@@ -1255,11 +1272,12 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
           <button
             type="button"
             onClick={() => setActiveFilter('messages')}
-            className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-all ${
+            className={cn(
+              'px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-all',
               activeFilter === 'messages'
-                ? 'bg-amber-400 text-ink-950 font-bold'
-                : 'bg-white/5 text-mist-300 hover:text-white'
-            }`}
+                ? activeTabClass
+                : 'bg-white/5 text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white'
+            )}
           >
             Front Desk ({myMessages.length})
           </button>
@@ -1267,11 +1285,12 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
           <button
             type="button"
             onClick={() => setActiveFilter('lost_found')}
-            className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-all ${
+            className={cn(
+              'px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-all',
               activeFilter === 'lost_found'
-                ? 'bg-amber-400 text-ink-950 font-bold'
-                : 'bg-white/5 text-mist-300 hover:text-white'
-            }`}
+                ? activeTabClass
+                : 'bg-white/5 text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white'
+            )}
           >
             Lost &amp; Found ({myLostReports.length})
           </button>
@@ -1279,11 +1298,12 @@ export function ActivitySection({ room, guestName, onNavigate }: GuestTabProps) 
           <button
             type="button"
             onClick={() => setActiveFilter('reminders')}
-            className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-all ${
+            className={cn(
+              'px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-all',
               activeFilter === 'reminders'
-                ? 'bg-amber-400 text-ink-950 font-bold'
-                : 'bg-white/5 text-mist-300 hover:text-white'
-            }`}
+                ? activeTabClass
+                : 'bg-white/5 text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white'
+            )}
           >
             Reminders ({myReminders.length})
           </button>
