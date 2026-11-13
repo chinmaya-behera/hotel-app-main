@@ -29,10 +29,17 @@ export function sanitizeConnectionString(url?: string): string {
 }
 
 /**
+ * Vercel injects the production override only into the Production environment.
+ */
+export function getConfiguredDatabaseUrl(): string | undefined {
+  return process.env.PRODUCTION_DATABASE_URL?.trim() || process.env.DATABASE_URL?.trim();
+}
+
+/**
  * Retrieves the validated PostgreSQL connection URL.
  */
 export function getConnectionString(): string {
-  const url = process.env.DATABASE_URL;
+  const url = getConfiguredDatabaseUrl();
   if (!url) {
     // Fallback connection string for local development, CI, and build time
     return 'postgresql://postgres:postgres@localhost:5432/grand_hotel_db';

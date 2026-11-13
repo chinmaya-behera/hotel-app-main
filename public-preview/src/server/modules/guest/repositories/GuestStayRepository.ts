@@ -1,5 +1,5 @@
 import { eq, and } from 'drizzle-orm';
-import { db } from '../../../db/index.ts';
+import { db, getConfiguredDatabaseUrl } from '../../../db/index.ts';
 import {
   stayContextTable,
   roomAssignmentTable,
@@ -756,8 +756,7 @@ export function getGuestStayRepository(): IGuestStayRepository {
   // If production with configured PostgreSQL, use Drizzle
   if (
     process.env.NODE_ENV === 'production' &&
-    process.env.DATABASE_URL &&
-    process.env.DATABASE_URL.startsWith('postgresql://')
+    getConfiguredDatabaseUrl()?.startsWith('postgresql://')
   ) {
     return new DrizzleGuestStayRepository();
   }
