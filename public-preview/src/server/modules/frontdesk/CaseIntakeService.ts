@@ -10,8 +10,13 @@ import {
 import {
   type ITaskEngineService,
   type TaskPriority,
+  type CanonicalTaskResult,
 } from '../operations/contracts.ts';
-import { MockTaskEngineService } from '../operations/MockTaskEngineService.ts';
+import {
+  getTaskEngineService,
+  TaskEngineDomainError,
+} from '../operations/TaskEngineService.ts';
+
 import {
   FrontDeskStayService,
   type StaffAuthUser,
@@ -22,51 +27,80 @@ import {
   getCaseIntakeRepository,
 } from './repositories/CaseIntakeRepository.ts';
 
-export const CaseIntakeSchema = z.object({
-  category: z.enum(['request', 'complaint', 'incident', 'dispute'], {
-    errorMap: () => ({ message: 'Category must be one of: request, complaint, incident, dispute' }),
-  }),
-  department: z.string().min(2, 'Department is required').trim(),
-  title: z.string().min(3, 'Title/summary must be at least 3 characters').max(200).trim(),
-  description: z.string().min(5, 'Description/instructions must be at least 5 characters').max(2000).trim(),
-  priority: z.enum(['low', 'normal', 'urgent', 'safety_critical'], {
-    errorMap: () => ({ message: 'Invalid priority level' }),
-  }).default('normal'),
-  channel: z.enum(['walk_in', 'phone', 'in_person', 'front_desk', 'intercom']).default('in_person'),
-  roomNumber: z.string().trim().optional(),
-  stayId: z.string().trim().optional(),
-  guestName: z.string().trim().optional(),
-  propertyId: z.string().trim().default('prop_grand_adp_01'),
-  idempotencyKey: z.string().trim().optional(),
-  // Financial dispute specific fields
-  disputedAmount: z.number().positive('Disputed amount must be greater than 0').optional(),
-  currency: z.string().trim().default('USD').optional(),
-  relatedCharge: z.string().trim().optional(),
-  preferredResolution: z.enum(['folio_credit', 'card_refund', 'charge_removal', 'voucher']).optional(),
-  // Complaint specific fields
-  proposedCompensation: z.number().min(0, 'Proposed compensation must be 0 or more').optional(),
-  severity: z.enum(['normal', 'vip', 'critical']).optional(),
-  // Attachments / Evidence metadata
-  attachments: z.array(
-    z.object({
-      name: z.string(),
-      url: z.string(),
-      size: z.number().optional(),
-      mimeType: z.string().optional(),
+export const CaseIntakeSchema = z
+  .object({
+    category: z.enum(['request', 'complaint', 'incident', 'dispute'], {
+      error:
+        'Category must be one of: request, complaint, incident, dispute',
     }),
-  ).optional(),
-}).refine(
-  (data) => {
-    if (data.category === 'dispute') {
-      return data.disputedAmount !== undefined && data.disputedAmount > 0;
-    }
-    return true;
-  },
-  {
-    message: 'Disputed amount is required and must be greater than 0 for financial disputes.',
-    path: ['disputedAmount'],
-  },
-);
+    department: z.string().trim().min(2, 'Department is required'),
+    title: z
+      .string()
+      .trim()
+      .min(3, 'Title/summary must be at least 3 characters')
+      .max(200),
+    description: z
+      .string()
+      .trim()
+      .min(5, 'Description/instructions must be at least 5 characters')
+      .max(2000),
+    priority: z
+      .enum(['low', 'normal', 'urgent', 'safety_critical'], {
+        error: 'Invalid priority level',
+      })
+      .default('normal'),
+    channel: z
+      .enum(['walk_in', 'phone', 'in_person', 'front_desk', 'intercom'])
+      .default('in_person'),
+    roomNumber: z.string().trim().optional(),
+    stayId: z.string().trim().optional(),
+    guestName: z.string().trim().optional(),
+    propertyId: z.string().trim().default('prop_grand_adp_01'),
+    idempotencyKey: z.string().trim().optional(),
+
+    // Financial dispute specific fields
+    disputedAmount: z
+      .number()
+      .positive('Disputed amount must be greater than 0')
+      .optional(),
+    currency: z.string().trim().default('USD').optional(),
+    relatedCharge: z.string().trim().optional(),
+    preferredResolution: z
+      .enum(['folio_credit', 'card_refund', 'charge_removal', 'voucher'])
+      .optional(),
+
+    // Complaint specific fields
+    proposedCompensation: z
+      .number()
+      .min(0, 'Proposed compensation must be 0 or more')
+      .optional(),
+    severity: z.enum(['normal', 'vip', 'critical']).optional(),
+
+    // Attachments / evidence metadata
+    attachments: z
+      .array(
+        z.object({
+          name: z.string(),
+          url: z.string(),
+          size: z.number().optional(),
+          mimeType: z.string().optional(),
+        }),
+      )
+      .optional(),
+  })
+  .refine(
+    (data) => {
+      if (data.category === 'dispute') {
+        return data.disputedAmount !== undefined && data.disputedAmount > 0;
+      }
+      return true;
+    },
+    {
+      message:
+        'Disputed amount is required and must be greater than 0 for financial disputes.',
+      path: ['disputedAmount'],
+    },
+  );
 
 export type CaseIntakeInput = z.infer<typeof CaseIntakeSchema>;
 
@@ -117,7 +151,7 @@ export class CaseIntakeService {
   ) {
     this.stayRepo = stayRepo || getGuestStayRepository();
     this.catalogRepo = catalogRepo || getRoomCatalogRepository();
-    this.taskEngine = taskEngine || MockTaskEngineService.getInstance();
+    this.taskEngine = taskEngine || getTaskEngineService();
     this.intakeRepo = intakeRepo || getCaseIntakeRepository();
   }
 
@@ -126,23 +160,31 @@ export class CaseIntakeService {
     input: CaseIntakeInput,
     idempotencyKeyHeader?: string,
   ): Promise<CaseIntakeResult> {
-    // 1. Staff Authorization Guard (F41: Front Desk, Supervisor, Duty Manager, GM, Admin)
+    // 1. Staff authorization guard
     const auth = FrontDeskStayService.validateStaffRole(staffUser);
+
     if (!auth.authorized) {
       return {
         success: false,
         statusCode: 403,
         error: {
           code: 'FORBIDDEN',
-          message: auth.reason || 'Staff role unauthorized for Front Desk case intake.',
+          message:
+            auth.reason ||
+            'Staff role unauthorized for Front Desk case intake.',
         },
       };
     }
 
-    // 2. Idempotency Check
-    const effectiveIdempotencyKey = idempotencyKeyHeader || input.idempotencyKey;
+    // 2. Idempotency check
+    const effectiveIdempotencyKey =
+      idempotencyKeyHeader || input.idempotencyKey;
+
     if (effectiveIdempotencyKey) {
-      const existing = await this.intakeRepo.getIdempotencyRecord(effectiveIdempotencyKey);
+      const existing = await this.intakeRepo.getIdempotencyRecord(
+        effectiveIdempotencyKey,
+      );
+
       if (existing) {
         return {
           success: true,
@@ -168,7 +210,7 @@ export class CaseIntakeService {
       }
     }
 
-    // 3. Validate Context (Stay, Room, Guest)
+    // 3. Validate context (stay, room, guest)
     let roomNumber = input.roomNumber;
     let stayId = input.stayId;
     let guestName = input.guestName;
@@ -176,6 +218,7 @@ export class CaseIntakeService {
 
     if (roomNumber) {
       const catalogRoom = await this.catalogRepo.getRoomByNumber(roomNumber);
+
       if (!catalogRoom) {
         return {
           success: false,
@@ -186,16 +229,23 @@ export class CaseIntakeService {
           },
         };
       }
+
       roomId = catalogRoom.roomId;
 
-      // Check for active in-house stay to enrich context
-      const stayWithRoom = await this.stayRepo.getStayWithRoomByRoomNumber(roomNumber);
+      // Enrich context from an active in-house stay, if available
+      const stayWithRoom =
+        await this.stayRepo.getStayWithRoomByRoomNumber(roomNumber);
+
       if (stayWithRoom) {
         stayId = stayId || stayWithRoom.stay.id;
-        guestName = guestName || `${stayWithRoom.stay.guestFirstName} ${stayWithRoom.stay.guestLastName}`;
+        guestName =
+          guestName ||
+          `${stayWithRoom.stay.guestFirstName} ${stayWithRoom.stay.guestLastName}`;
       }
     } else if (stayId) {
-      const stayWithRoom = await this.stayRepo.getStayWithRoomById(stayId);
+      const stayWithRoom =
+        await this.stayRepo.getStayWithRoomById(stayId);
+
       if (!stayWithRoom) {
         return {
           success: false,
@@ -206,23 +256,28 @@ export class CaseIntakeService {
           },
         };
       }
+
       roomNumber = stayWithRoom.currentRoom.roomNumber;
       roomId = stayWithRoom.currentRoom.roomId;
-      guestName = guestName || `${stayWithRoom.stay.guestFirstName} ${stayWithRoom.stay.guestLastName}`;
+      guestName =
+        guestName ||
+        `${stayWithRoom.stay.guestFirstName} ${stayWithRoom.stay.guestLastName}`;
     }
 
-    // 4. Evaluate Financial Dispute Escalation Boundary (F31 rule)
+    // 4. Evaluate the financial dispute escalation boundary (F31 rule)
     let escalationRequired = false;
-    if (input.category === 'dispute' && input.disputedAmount !== undefined) {
-      if (input.disputedAmount > FD_DISPUTE_LIMIT) {
-        escalationRequired = true;
-      }
+
+    if (
+      input.category === 'dispute' &&
+      input.disputedAmount !== undefined &&
+      input.disputedAmount > FD_DISPUTE_LIMIT
+    ) {
+      escalationRequired = true;
     }
 
-    // 5. Invoke Developer 2's Canonical Task/Case Engine Contract
-    // Note: Developer 2 owns the canonical case/task engine (DEV2-TASK-02).
-    // Developer 3 calls this interface contract and does not duplicate task state machines.
-    let canonicalResult;
+    // 5. Call the canonical task/case engine contract
+    let canonicalResult: CanonicalTaskResult;
+
     try {
       canonicalResult = await this.taskEngine.createCaseAndTask({
         propertyId: input.propertyId || 'prop_grand_adp_01',
@@ -237,7 +292,22 @@ export class CaseIntakeService {
         attachments: input.attachments,
       });
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Task engine submission failed';
+      if (err instanceof TaskEngineDomainError) {
+        return {
+          success: false,
+          statusCode: err.statusCode,
+          error: {
+            code: err.code,
+            message: err.message,
+          },
+        };
+      }
+
+      const message =
+        err instanceof Error
+          ? err.message
+          : 'Task engine submission failed';
+
       return {
         success: false,
         statusCode: 503,
@@ -248,8 +318,9 @@ export class CaseIntakeService {
       };
     }
 
-    // 6. Record Intake in Front Desk Intake Repository (Audit History)
+    // 6. Record the intake in the Front Desk repository
     const nowIso = new Date().toISOString();
+
     const intakeRecord: CaseIntakeRecord = {
       id: `intake_${canonicalResult.caseId}`,
       caseId: canonicalResult.caseId,
@@ -283,10 +354,13 @@ export class CaseIntakeService {
     await this.intakeRepo.saveCaseIntake(intakeRecord);
 
     if (effectiveIdempotencyKey) {
-      await this.intakeRepo.setIdempotencyRecord(effectiveIdempotencyKey, intakeRecord);
+      await this.intakeRepo.setIdempotencyRecord(
+        effectiveIdempotencyKey,
+        intakeRecord,
+      );
     }
 
-    // 7. Return Permitted Front Desk Response
+    // 7. Return the Front Desk response
     return {
       success: true,
       statusCode: 201,
@@ -306,16 +380,24 @@ export class CaseIntakeService {
         escalationRequired,
         createdAt: nowIso,
         ackDueAt: canonicalResult.ackDueAt?.toISOString(),
-        message: `Case ${canonicalResult.caseRef} successfully created and dispatched to ${input.department}.${
-          escalationRequired ? ' (Above ₹2,500 threshold - escalated to Duty Manager/GM)' : ''
-        }`,
+        message: `Case ${canonicalResult.caseRef} successfully created and dispatched to ${input.department}.${escalationRequired
+            ? ' (Above ₹2,500 threshold - escalated to Duty Manager/GM)'
+            : ''
+          }`,
       },
     };
   }
 
-  public async getCaseByRef(staffUser: StaffAuthUser, caseRef: string): Promise<CaseIntakeRecord | null> {
+  public async getCaseByRef(
+    staffUser: StaffAuthUser,
+    caseRef: string,
+  ): Promise<CaseIntakeRecord | null> {
     const auth = FrontDeskStayService.validateStaffRole(staffUser);
-    if (!auth.authorized) return null;
+
+    if (!auth.authorized) {
+      return null;
+    }
+
     return this.intakeRepo.getCaseByRef(caseRef);
   }
 
@@ -324,7 +406,11 @@ export class CaseIntakeService {
     filter?: { category?: string; roomNumber?: string },
   ): Promise<CaseIntakeRecord[]> {
     const auth = FrontDeskStayService.validateStaffRole(staffUser);
-    if (!auth.authorized) return [];
+
+    if (!auth.authorized) {
+      return [];
+    }
+
     return this.intakeRepo.getAllCases(filter);
   }
 }

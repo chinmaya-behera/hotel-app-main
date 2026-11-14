@@ -5,7 +5,11 @@ import {
   getGuestStayRepository,
 } from './repositories/GuestStayRepository.ts';
 import type { ITaskEngineService } from '../operations/contracts.ts';
-import { MockTaskEngineService } from '../operations/MockTaskEngineService.ts';
+import {
+  getTaskEngineService,
+  TaskEngineDomainError,
+} from '../operations/TaskEngineService.ts';
+
 
 export const CreateGuestRequestSchema = z.object({
   department: z.string().min(1, 'Department is required').trim(),
@@ -74,7 +78,7 @@ export class GuestRequestService {
     taskEngineService?: ITaskEngineService,
   ) {
     this.repository = repository || getGuestStayRepository();
-    this.taskEngineService = taskEngineService || MockTaskEngineService.getInstance();
+    this.taskEngineService = taskEngineService || getTaskEngineService();
   }
 
   /**
@@ -187,6 +191,16 @@ export class GuestRequestService {
         attachments: rawInput.attachments,
       });
     } catch (err: unknown) {
+      if (err instanceof TaskEngineDomainError) {
+        return {
+          success: false,
+          statusCode: err.statusCode,
+          error: {
+            code: err.code,
+            message: err.message,
+          },
+        };
+      }
       const errorMsg = err instanceof Error ? err.message : 'Unknown task engine error';
       return {
         success: false,
