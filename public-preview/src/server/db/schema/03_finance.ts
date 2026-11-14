@@ -291,6 +291,107 @@ export const pmsReconciliationTable = pgTable('pms_reconciliation', {
 export type PmsReconciliationEntity = typeof pmsReconciliationTable.$inferSelect;
 export type InsertPmsReconciliationEntity = typeof pmsReconciliationTable.$inferInsert;
 
+/**
+ * 11. Refund Request Entity (DEV3-TASK-19 / F32, F33)
+ * Tracks financial officer refund requests, General Manager approvals, and gateway execution lifecycle.
+ */
+export const refundRequestTable = pgTable('refund_request', {
+  id: text('id').primaryKey(), // e.g. 'ref_cm5...'
+  refundRef: text('refund_ref').notNull().unique(), // e.g. 'REF-2026-0001'
+  disputeId: text('dispute_id'), // Optional FK / link to financial_dispute.id
+  disputeRef: text('dispute_ref'), // Optional link to dispute_ref e.g. 'DSP-2026-402-01'
+  stayId: text('stay_id').notNull(),
+  folioId: text('folio_id').notNull(),
+  chargeRef: text('charge_ref'),
+  originalPaymentRef: text('original_payment_ref').notNull(), // e.g. 'PAY-2026-402-01'
+  requestedAmount: numeric('requested_amount', { precision: 10, scale: 2 }).notNull(),
+  approvedAmount: numeric('approved_amount', { precision: 10, scale: 2 }),
+  currency: text('currency').default('INR').notNull(),
+  reason: text('reason').notNull(),
+  requestedByStaffId: text('requested_by_staff_id').notNull(),
+  requestedByStaffName: text('requested_by_staff_name').notNull(),
+  requestedAt: timestamp('requested_at', { withTimezone: true }).defaultNow().notNull(),
+  approvalStatus: text('approval_status').notNull(), // 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
+  approvedByStaffId: text('approved_by_staff_id'),
+  approvedByStaffName: text('approved_by_staff_name'),
+  approvedAt: timestamp('approved_at', { withTimezone: true }),
+  rejectionReason: text('rejection_reason'),
+  executionStatus: text('execution_status').notNull(), // 'PENDING_EXECUTION' | 'EXECUTING' | 'SUCCEEDED' | 'FAILED'
+  providerRef: text('provider_ref'), // Gateway transaction id e.g. 'rfnd_01J...'
+  providerErrorCode: text('provider_error_code'),
+  providerErrorMessage: text('provider_error_message'),
+  idempotencyKey: text('idempotency_key'),
+  auditHistory: jsonb('audit_history').$type<Array<{ timestamp: string; action: string; actor: string; details: string; fromStatus?: string; toStatus?: string }>>(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type RefundRequestEntity = typeof refundRequestTable.$inferSelect;
+export type InsertRefundRequestEntity = typeof refundRequestTable.$inferInsert;
+
+/**
+ * 12. Guest Folio Entity (DEV3-TASK-20 / F34)
+ * Authoritative billing ledger for an active or historic guest stay.
+ */
+export const guestFolioTable = pgTable('guest_folio', {
+  id: text('id').primaryKey(), // e.g. 'fol_cm5...'
+  stayId: text('stay_id').notNull().unique(), // One authoritative folio per stay
+  bookingReference: text('booking_reference').notNull(),
+  roomNumber: text('room_number').notNull(),
+  guestName: text('guest_name').notNull(),
+  currency: text('currency').default('INR').notNull(),
+  status: text('status').notNull(), // 'OPEN' | 'SETTLING' | 'SETTLED' | 'CLOSED'
+  totalCharges: numeric('total_charges', { precision: 10, scale: 2 }).notNull(),
+  totalPayments: numeric('total_payments', { precision: 10, scale: 2 }).notNull(),
+  totalAdjustments: numeric('total_adjustments', { precision: 10, scale: 2 }).default('0.00').notNull(),
+  outstandingBalance: numeric('outstanding_balance', { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type GuestFolioEntity = typeof guestFolioTable.$inferSelect;
+export type InsertGuestFolioEntity = typeof guestFolioTable.$inferInsert;
+
+/**
+ * 13. Folio Line Item Entity (DEV3-TASK-20 / F34)
+ * Individual itemized room, dining, tax, or service charges posted to a guest folio.
+ */
+export const folioLineItemTable = pgTable('folio_line_item', {
+  id: text('id').primaryKey(), // e.g. 'fli_cm5...'
+  folioId: text('folio_id').notNull(),
+  category: text('category').notNull(), // 'room' | 'dining' | 'spa' | 'service' | 'tax' | 'adjustment'
+  description: text('description').notNull(),
+  amount: numeric('amount', { precision: 10, scale: 2 }).notNull(),
+  isDisputed: boolean('is_disputed').default(false).notNull(),
+  disputeId: text('dispute_id'),
+  postedAt: timestamp('posted_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type FolioLineItemEntity = typeof folioLineItemTable.$inferSelect;
+export type InsertFolioLineItemEntity = typeof folioLineItemTable.$inferInsert;
+
+/**
+ * 14. Folio Payment Entity (DEV3-TASK-20 / F34, F35)
+ * Captures advance deposits, settled credit/UPI payments, and records against the guest folio.
+ */
+export const folioPaymentTable = pgTable('folio_payment', {
+  id: text('id').primaryKey(), // e.g. 'pay_cm5...'
+  folioId: text('folio_id').notNull(),
+  paymentRef: text('payment_ref').notNull().unique(), // e.g. 'PAY-2026-402-01'
+  amount: numeric('amount', { precision: 10, scale: 2 }).notNull(),
+  currency: text('currency').default('INR').notNull(),
+  method: text('method').notNull(), // 'card' | 'upi' | 'netbanking' | 'cash'
+  status: text('status').notNull(), // 'pending' | 'captured' | 'failed' | 'refunded' | 'partially_refunded'
+  providerRef: text('provider_ref'), // Gateway payment id e.g. 'pay_01J...'
+  idempotencyKey: text('idempotency_key'),
+  capturedAt: timestamp('captured_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type FolioPaymentEntity = typeof folioPaymentTable.$inferSelect;
+export type InsertFolioPaymentEntity = typeof folioPaymentTable.$inferInsert;
+
+
 
 
 
