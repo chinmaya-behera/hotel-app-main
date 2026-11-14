@@ -1,33 +1,23 @@
 'use client';
 
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   BarChart3,
   Bell,
-  Boxes,
   Building2,
-  Calendar,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  Clock,
   Crown,
   FileSpreadsheet,
-  FileText,
   Gauge,
-  History,
-  Layers,
   Lock,
   MessageSquareWarning,
-  PieChart,
   ShieldAlert,
   ShieldCheck,
   Siren,
   Stamp,
   User,
-  Users,
   Wallet,
-  Wrench,
   X,
 } from 'lucide-react';
 import { ExecutiveOverviewTab } from '@/components/executive/ExecutiveOverviewTab';
@@ -63,14 +53,22 @@ export type ExecutiveTabId =
   | 'reports'
   | 'audit'
   | 'notifications'
-  | 'profile'
+  | 'profile';
+
+type NavGroup =
+  | 'Overview'
+  | 'Approvals'
+  | 'Operations'
+  | 'Finance & Resources'
+  | 'Insights'
+  | 'Account';
 
 interface NavItem {
   id: ExecutiveTabId;
   label: string;
   shortLabel: string;
-  icon: any;
-  group: 'Overview' | 'Approvals' | 'Operations' | 'Finance & Resources' | 'Insights' | 'Account';
+  icon: React.ComponentType<{ className?: string }>;
+  group: NavGroup;
   badgeCount?: number;
   badgeTone?: 'warning' | 'danger' | 'info';
 }
@@ -110,96 +108,137 @@ export function ExecutiveConsole() {
   const [activeTab, setActiveTab] = useState<ExecutiveTabId>('overview');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // Navbar Notifications Popover & Category State
   const [notifPopoverOpen, setNotifPopoverOpen] = useState(false);
   const [notifCategory, setNotifCategory] = useState<'all' | 'safety'>('all');
   const notifPopoverRef = useRef<HTMLDivElement>(null);
 
-  // Categorized Notifications for GM
-  const gmNotifications = useMemo(() => {
-    return (state.notifications ?? []).filter(
-      (n) => !n.roleId || n.roleId === 'general_manager' || n.roleId === 'executive_viewer',
-    );
-  }, [state.notifications]);
+  const gmNotifications = useMemo(
+    () =>
+      (state.notifications ?? []).filter(
+        (n) =>
+          !n.roleId ||
+          n.roleId === 'general_manager' ||
+          n.roleId === 'executive_viewer',
+      ),
+    [state.notifications],
+  );
+
   const unreadNotificationsCount = gmNotifications.filter((n) => !n.read).length;
 
-  const safetyNotifications = useMemo(() => {
-    return gmNotifications.filter(isSafetyAlertNotification);
-  }, [gmNotifications]);
+  const safetyNotifications = useMemo(
+    () => gmNotifications.filter(isSafetyAlertNotification),
+    [gmNotifications],
+  );
 
-  const categorizedNotifications = useMemo(() => {
-    if (notifCategory === 'safety') return safetyNotifications;
-    return gmNotifications;
-  }, [notifCategory, safetyNotifications, gmNotifications]);
+  const categorizedNotifications = useMemo(
+    () => (notifCategory === 'safety' ? safetyNotifications : gmNotifications),
+    [notifCategory, safetyNotifications, gmNotifications],
+  );
 
-  // Close notifications popover on click outside or escape
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (notifPopoverRef.current && !notifPopoverRef.current.contains(event.target as Node)) {
+      if (
+        notifPopoverRef.current &&
+        !notifPopoverRef.current.contains(event.target as Node)
+      ) {
         setNotifPopoverOpen(false);
       }
     }
+
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         setNotifPopoverOpen(false);
       }
     }
+
     if (notifPopoverOpen) {
       document.addEventListener('mousedown', handleClickOutside);
       window.addEventListener('keydown', handleKeyDown);
     }
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [notifPopoverOpen]);
 
-  // Permission mode: 'approver' (full decision authority) vs 'viewer' (read-only audit)
-  const [permissionMode, setPermissionMode] = useState<'viewer' | 'approver'>('approver');
+  const [permissionMode, setPermissionMode] = useState<'viewer' | 'approver'>(
+    'approver',
+  );
 
-  // Selected items passed into tabs
-  const [selectedApprovalItem, setSelectedApprovalItem] = useState<WorkItem | null>(null);
-  const [selectedSafetyAlertId, setSelectedSafetyAlertId] = useState<string | null>(null);
-  const [selectedCompensationId, setSelectedCompensationId] = useState<string | null>(null);
-  const [selectedIncident, setSelectedIncident] = useState<IncidentRecord | null>(null);
-  const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(null);
+  const [selectedApprovalItem, setSelectedApprovalItem] =
+    useState<WorkItem | null>(null);
+  const [selectedSafetyAlertId, setSelectedSafetyAlertId] = useState<
+    string | null
+  >(null);
+  const [selectedCompensationId, setSelectedCompensationId] = useState<
+    string | null
+  >(null);
+  const [selectedIncident, setSelectedIncident] =
+    useState<IncidentRecord | null>(null);
+  const [selectedInspectionId, setSelectedInspectionId] = useState<
+    string | null
+  >(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  const [approvalInitialFilter, setApprovalInitialFilter] = useState<string>('all');
+  const [approvalInitialFilter, setApprovalInitialFilter] = useState('all');
 
-  // Counts for sidebar badges
   const pendingApprovalsCount = [
     ...(state.items.general_manager ?? []),
     ...(state.items.executive_viewer ?? []),
-  ].filter((i, idx, arr) => arr.findIndex((x) => x.id === i.id) === idx && i.status === 'Needs approval').length;
-  const activeIncidentsCount = (state.incidents ?? []).filter((i) => i.status !== 'resolved').length;
-  const unresolvedComplaintsCount = (state.frontDesk?.complaints ?? []).filter(
-    (c) => !c.compApplied,
+  ].filter(
+    (item, index, allItems) =>
+      allItems.findIndex((candidate) => candidate.id === item.id) === index &&
+      item.status === 'Needs approval',
   ).length;
+
+  const activeIncidentsCount = (state.incidents ?? []).filter(
+    (incident) => incident.status !== 'resolved',
+  ).length;
+
+  const unresolvedComplaintsCount = (
+    state.frontDesk?.complaints ?? []
+  ).filter((complaint) => !complaint.compApplied).length;
+
   const escalatedTasksCount = useMemo(() => {
-    const roles = ['department_manager', 'department_dispatcher_supervisor', 'department_dispatcher', 'task_fulfiller'] as const;
+    const roles = [
+      'department_manager',
+      'department_dispatcher_supervisor',
+      'department_dispatcher',
+      'task_fulfiller',
+    ] as const;
     const seen = new Set<string>();
     let count = 0;
-    roles.forEach((r) => {
-      (state.items[r] ?? []).forEach((item) => {
-        if (item.status === 'Escalated' || item.priority === 'critical' || item.priority === 'vip') {
+
+    roles.forEach((role) => {
+      (state.items[role] ?? []).forEach((item) => {
+        if (
+          item.status === 'Escalated' ||
+          item.priority === 'critical' ||
+          item.priority === 'vip'
+        ) {
           const key = item.ref || item.id;
           if (!seen.has(key)) {
             seen.add(key);
-            count++;
+            count += 1;
           }
         }
       });
     });
+
     return count;
   }, [state.items]);
-  const pendingResourcesCount = (state.resourceRequests ?? []).filter(
-    (r) => r.status === 'pending',
-  ).length;
-  const dueInspectionsCount = (state.inspections ?? []).filter(
-    (i) => i.status !== 'passed',
-  ).length;
-  const vipCount = (state.frontDesk?.stays ?? []).filter((s) => s.vip).length;
 
+  const pendingResourcesCount = (state.resourceRequests ?? []).filter(
+    (request) => request.status === 'pending',
+  ).length;
+
+  const dueInspectionsCount = (state.inspections ?? []).filter(
+    (inspection) => inspection.status !== 'passed',
+  ).length;
+
+  const vipCount = (state.frontDesk?.stays ?? []).filter(
+    (stay) => stay.vip,
+  ).length;
 
   const navItems: NavItem[] = [
     {
@@ -210,7 +249,6 @@ export function ExecutiveConsole() {
       group: 'Operations',
       badgeCount: dueInspectionsCount,
     },
-    // Group 1: Overview
     {
       id: 'overview',
       label: 'Executive Dashboard',
@@ -218,8 +256,6 @@ export function ExecutiveConsole() {
       icon: Gauge,
       group: 'Overview',
     },
-
-    // Group 2: Approvals
     {
       id: 'approvals',
       label: 'Approval Center',
@@ -229,8 +265,6 @@ export function ExecutiveConsole() {
       badgeCount: pendingApprovalsCount,
       badgeTone: 'warning',
     },
-
-    // Group 3: Operations
     {
       id: 'performance',
       label: 'Department Performance',
@@ -281,8 +315,6 @@ export function ExecutiveConsole() {
       icon: Building2,
       group: 'Operations',
     },
-
-    // Group 4: Finance & Resources
     {
       id: 'finance-requests',
       label: 'Finance Request',
@@ -292,8 +324,6 @@ export function ExecutiveConsole() {
       badgeCount: pendingResourcesCount,
       badgeTone: 'info',
     },
-
-    // Group 5: Insights
     {
       id: 'reports',
       label: 'Reports & Analytics',
@@ -301,8 +331,6 @@ export function ExecutiveConsole() {
       icon: FileSpreadsheet,
       group: 'Insights',
     },
-
-    // Group 6: Account
     {
       id: 'profile',
       label: 'My Profile',
@@ -312,28 +340,35 @@ export function ExecutiveConsole() {
     },
   ];
 
-  // Group items by group
-  const groupedNav = navItems.reduce((acc, item) => {
-    if (!acc[item.group]) acc[item.group] = [];
-    acc[item.group].push(item);
-    return acc;
-  }, {} as Record<NavItem['group'], NavItem[]>);
+  const groupedNav = navItems.reduce(
+    (groups, item) => {
+      (groups[item.group] ??= []).push(item);
+      return groups;
+    },
+    {} as Partial<Record<NavGroup, NavItem[]>>,
+  );
 
-  const handleNavigateTab = (tabId: string, filter?: Record<string, string>) => {
+  const handleNavigateTab = (
+    tabId: string,
+    filter?: Record<string, string>,
+  ) => {
     if (tabId === 'approvals-pending') {
-      setActiveTab('approvals');
       setApprovalInitialFilter('pending');
-      return;
-    }
-    if (tabId === 'approvals-history') {
       setActiveTab('approvals');
-      setApprovalInitialFilter('approved');
       return;
     }
+
+    if (tabId === 'approvals-history') {
+      setApprovalInitialFilter('approved');
+      setActiveTab('approvals');
+      return;
+    }
+
     if (tabId === 'finance-requests' || tabId === 'finance') {
       setActiveTab('finance-requests');
       return;
     }
+
     if (tabId === 'approvals') {
       if (filter?.status) {
         setApprovalInitialFilter(filter.status);
@@ -341,6 +376,7 @@ export function ExecutiveConsole() {
       setActiveTab('approvals');
       return;
     }
+
     setActiveTab(tabId as ExecutiveTabId);
   };
 
@@ -349,7 +385,9 @@ export function ExecutiveConsole() {
     setActiveTab('approvals');
   };
 
-  const handleNavigateToNotificationItem = (notification: InAppNotification) => {
+  const handleNavigateToNotificationItem = (
+    notification: InAppNotification,
+  ) => {
     markNotificationRead(notification.id);
     const { itemId } = notification;
 
@@ -358,12 +396,14 @@ export function ExecutiveConsole() {
       return;
     }
 
-    // 1. Approvals check
     const allApprovals = [
       ...(state.items.general_manager ?? []),
       ...(state.items.executive_viewer ?? []),
     ];
-    const approvalMatch = allApprovals.find((i) => i.id === itemId || i.ref === itemId);
+    const approvalMatch = allApprovals.find(
+      (item) => item.id === itemId || item.ref === itemId,
+    );
+
     if (approvalMatch) {
       setSelectedApprovalItem(approvalMatch);
       setSelectedSafetyAlertId(null);
@@ -372,8 +412,10 @@ export function ExecutiveConsole() {
       return;
     }
 
-    // 2. Safety Alert check
-    const safetyMatch = (state.safetyAlerts ?? []).find((a) => a.id === itemId || a.ref === itemId);
+    const safetyMatch = (state.safetyAlerts ?? []).find(
+      (alert) => alert.id === itemId || alert.ref === itemId,
+    );
+
     if (safetyMatch) {
       setSelectedSafetyAlertId(safetyMatch.id);
       setSelectedApprovalItem(null);
@@ -382,52 +424,79 @@ export function ExecutiveConsole() {
       return;
     }
 
-    // 3. Compensation check
-    const compMatch = (state.compensationRequests ?? []).find((c) => c.id === itemId || c.ref === itemId);
-    if (compMatch) {
-      setSelectedCompensationId(compMatch.id);
+    const compensationMatch = (state.compensationRequests ?? []).find(
+      (request) => request.id === itemId || request.ref === itemId,
+    );
+
+    if (compensationMatch) {
+      setSelectedCompensationId(compensationMatch.id);
       setSelectedApprovalItem(null);
       setSelectedSafetyAlertId(null);
       setActiveTab('approvals');
       return;
     }
 
-    // 4. Incident check
-    const incidentMatch = (state.incidents ?? []).find((i) => i.id === itemId || i.ref === itemId);
+    const incidentMatch = (state.incidents ?? []).find(
+      (incident) => incident.id === itemId || incident.ref === itemId,
+    );
+
     if (incidentMatch) {
       setSelectedIncident(incidentMatch);
       setActiveTab('incidents');
       return;
     }
 
-    // 5. Inspection check
-    const inspectionMatch = (state.inspections ?? []).find((i) => i.id === itemId);
+    const inspectionMatch = (state.inspections ?? []).find(
+      (inspection) => inspection.id === itemId,
+    );
+
     if (inspectionMatch) {
       setSelectedInspectionId(inspectionMatch.id);
       setActiveTab('inspections');
       return;
     }
 
-    // 6. Escalated tasks check
+    const taskRoles = [
+      'department_manager',
+      'department_dispatcher_supervisor',
+      'department_dispatcher',
+      'task_fulfiller',
+    ] as const;
+
     const allTasks: WorkItem[] = [];
-    (['department_manager', 'department_dispatcher_supervisor', 'department_dispatcher', 'task_fulfiller'] as const).forEach((r) => {
-      (state.items[r] ?? []).forEach((item) => allTasks.push(item));
+    taskRoles.forEach((role) => {
+      allTasks.push(...(state.items[role] ?? []));
     });
-    const taskMatch = allTasks.find((t) => t.id === itemId || t.ref === itemId);
+
+    const taskMatch = allTasks.find(
+      (task) => task.id === itemId || task.ref === itemId,
+    );
+
     if (taskMatch) {
       setSelectedTaskId(taskMatch.id);
       setActiveTab('escalations');
       return;
     }
 
-    // 7. General Fallbacks
-    const lowerTitle = notification.title.toLowerCase();
-    const lowerMsg = (notification.message ?? '').toLowerCase();
-    if (lowerTitle.includes('incident') || lowerMsg.includes('incident') || notification.link?.includes('incident')) {
+    const lowerTitle = (notification.title ?? '').toLowerCase();
+    const lowerMessage = (notification.message ?? '').toLowerCase();
+    const lowerLink = (notification.link ?? '').toLowerCase();
+
+    if (
+      lowerTitle.includes('incident') ||
+      lowerMessage.includes('incident') ||
+      lowerLink.includes('incident')
+    ) {
       setActiveTab('incidents');
-    } else if (lowerTitle.includes('inspection') || lowerMsg.includes('inspection')) {
+    } else if (
+      lowerTitle.includes('inspection') ||
+      lowerMessage.includes('inspection')
+    ) {
       setActiveTab('inspections');
-    } else if (lowerTitle.includes('escalat') || lowerMsg.includes('escalat')) {
+    } else if (
+      lowerTitle.includes('escalat') ||
+      lowerMessage.includes('escalat')
+    ) {
       setActiveTab('escalations');
     } else {
       setActiveTab('approvals');
@@ -437,11 +506,12 @@ export function ExecutiveConsole() {
   return (
     <div className="w-full pb-16">
       {/* Top Command Pill: Persona Context & Mode Switcher */}
-      <div className="mb-6 p-4 rounded-3xl border border-white/10 bg-white/70 dark:bg-ink-900/80 backdrop-blur-xl shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="mb-6 flex flex-col justify-between gap-4 rounded-3xl border border-white/10 bg-white/70 p-4 shadow-lg backdrop-blur-xl sm:flex-row sm:items-center dark:bg-ink-900/80">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-2xl bg-amber-500/20 text-amber-500 dark:text-amber-300 grid place-items-center font-bold font-mono border border-amber-500/30">
+          <div className="grid h-10 w-10 place-items-center rounded-2xl border border-amber-500/30 bg-amber-500/20 font-mono font-bold text-amber-500 dark:text-amber-300">
             <Crown className="h-5 w-5" />
           </div>
+
           <div>
             <div className="flex items-center gap-2">
               <span className="text-sm font-black text-navy-950 dark:text-white">
@@ -450,12 +520,13 @@ export function ExecutiveConsole() {
               <span className="text-xs text-slate-400 dark:text-mist-500">
                 · General Manager (EMP-0109)
               </span>
-              <span className="text-[10px] font-mono font-bold px-2 py-0.2 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+              <span className="rounded-full border border-amber-500/20 bg-amber-500/15 px-2 py-0.5 font-mono text-[10px] font-bold text-amber-600 dark:text-amber-400">
                 Cap: ₹2,00,000
               </span>
             </div>
             <div className="text-xs text-slate-500 dark:text-mist-400">
-              Grand Azure Executive Suite · Property Health & Beyond-Manager Authority
+              Grand Azure Executive Suite · Property Health &amp; Beyond-Manager
+              Authority
             </div>
           </div>
         </div>
@@ -467,40 +538,44 @@ export function ExecutiveConsole() {
             <button
               type="button"
               id="gm-navbar-notifications-btn"
-              onClick={() => setNotifPopoverOpen(!notifPopoverOpen)}
-              className="relative p-2 rounded-2xl border border-slate-200 dark:border-white/10 bg-black/5 dark:bg-ink-950/80 hover:bg-black/10 dark:hover:bg-white/10 text-slate-700 dark:text-mist-300 hover:text-navy-950 dark:hover:text-white transition flex items-center gap-2 cursor-pointer"
+              onClick={() => setNotifPopoverOpen((open) => !open)}
+              className="relative flex cursor-pointer items-center gap-2 rounded-2xl border border-slate-200 bg-black/5 p-2 text-slate-700 transition hover:bg-black/10 hover:text-navy-950 dark:border-white/10 dark:bg-ink-950/80 dark:text-mist-300 dark:hover:bg-white/10 dark:hover:text-white"
               title="Incoming Notifications & Safety Alerts"
               aria-label="Notifications"
+              aria-expanded={notifPopoverOpen}
             >
               <Bell className="h-4 w-4 text-amber-500" />
-              <span className="text-xs font-bold hidden sm:inline">Notifications</span>
+              <span className="hidden text-xs font-bold sm:inline">
+                Notifications
+              </span>
               {unreadNotificationsCount > 0 && (
-                <span className="h-5 min-w-[20px] px-1.5 rounded-full bg-rose-500 text-white font-mono text-[10px] font-bold grid place-items-center animate-pulse">
+                <span className="grid h-5 min-w-5 animate-pulse place-items-center rounded-full bg-rose-500 px-1.5 font-mono text-[10px] font-bold text-white">
                   {unreadNotificationsCount}
                 </span>
               )}
             </button>
 
-            {/* Notifications Popover with Two Sections: All notifications & Safety Alerts */}
             {notifPopoverOpen && (
-              <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 rounded-3xl border border-white/10 bg-white/95 dark:bg-ink-900/95 shadow-2xl backdrop-blur-2xl p-4 z-50 text-navy-950 dark:text-white space-y-3">
-                {/* Header */}
-                <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-2.5">
+              <div className="absolute right-0 top-full z-50 mt-2 w-80 space-y-3 rounded-3xl border border-white/10 bg-white/95 p-4 text-navy-950 shadow-2xl backdrop-blur-2xl sm:w-96 dark:bg-ink-900/95 dark:text-white">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2.5 dark:border-white/10">
                   <div className="flex items-center gap-2">
                     <Bell className="h-4 w-4 text-amber-500" />
-                    <h3 className="text-sm font-bold text-navy-950 dark:text-white">Notifications</h3>
+                    <h3 className="text-sm font-bold">Notifications</h3>
                     {unreadNotificationsCount > 0 && (
-                      <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-300">
+                      <span className="rounded-full bg-rose-500/15 px-1.5 py-0.5 font-mono text-[10px] font-bold text-rose-600 dark:text-rose-300">
                         {unreadNotificationsCount} unread
                       </span>
                     )}
                   </div>
+
                   <div className="flex items-center gap-2">
                     {gmNotifications.length > 0 && (
                       <button
                         type="button"
-                        onClick={() => clearAllNotifications('general_manager')}
-                        className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
+                        onClick={() =>
+                          clearAllNotifications('general_manager')
+                        }
+                        className="cursor-pointer text-[11px] font-semibold text-amber-600 hover:underline dark:text-amber-400"
                       >
                         Mark all read
                       </button>
@@ -508,27 +583,26 @@ export function ExecutiveConsole() {
                     <button
                       type="button"
                       onClick={() => setNotifPopoverOpen(false)}
-                      className="text-slate-400 hover:text-navy-950 dark:hover:text-white cursor-pointer"
+                      className="cursor-pointer text-slate-400 hover:text-navy-950 dark:hover:text-white"
+                      aria-label="Close notifications"
                     >
                       <X className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
 
-                {/* Two Category Sections: All notifications & Safety Alerts */}
-                <div className="grid grid-cols-2 p-1 rounded-2xl border border-slate-200 dark:border-white/10 bg-black/5 dark:bg-ink-950/80 text-xs font-bold">
+                <div className="grid grid-cols-2 rounded-2xl border border-slate-200 bg-black/5 p-1 text-xs font-bold dark:border-white/10 dark:bg-ink-950/80">
                   <button
                     type="button"
                     id="tab-all-notifications"
                     onClick={() => setNotifCategory('all')}
-                    className={`py-1.5 px-2 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                      notifCategory === 'all'
+                    className={`flex cursor-pointer items-center justify-center gap-1.5 rounded-xl px-2 py-1.5 transition ${notifCategory === 'all'
                         ? 'bg-amber-500 text-white shadow-sm'
-                        : 'text-slate-500 dark:text-mist-400 hover:text-navy-950 dark:hover:text-white'
-                    }`}
+                        : 'text-slate-500 hover:text-navy-950 dark:text-mist-400 dark:hover:text-white'
+                      }`}
                   >
                     <span>All notifications</span>
-                    <span className="text-[10px] font-mono px-1.5 rounded-full bg-black/10 dark:bg-white/20">
+                    <span className="rounded-full bg-black/10 px-1.5 font-mono text-[10px] dark:bg-white/20">
                       {gmNotifications.length}
                     </span>
                   </button>
@@ -537,27 +611,25 @@ export function ExecutiveConsole() {
                     type="button"
                     id="tab-safety-alerts"
                     onClick={() => setNotifCategory('safety')}
-                    className={`py-1.5 px-2 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                      notifCategory === 'safety'
+                    className={`flex cursor-pointer items-center justify-center gap-1.5 rounded-xl px-2 py-1.5 transition ${notifCategory === 'safety'
                         ? 'bg-rose-500 text-white shadow-sm'
-                        : 'text-slate-500 dark:text-mist-400 hover:text-navy-950 dark:hover:text-white'
-                    }`}
+                        : 'text-slate-500 hover:text-navy-950 dark:text-mist-400 dark:hover:text-white'
+                      }`}
                   >
                     <ShieldAlert className="h-3.5 w-3.5" />
                     <span>Safety Alerts</span>
-                    <span className="text-[10px] font-mono px-1.5 rounded-full bg-black/10 dark:bg-white/20">
+                    <span className="rounded-full bg-black/10 px-1.5 font-mono text-[10px] dark:bg-white/20">
                       {safetyNotifications.length}
                     </span>
                   </button>
                 </div>
 
-                {/* Categorized Notifications List */}
-                <div className="max-h-72 overflow-y-auto space-y-2 no-scrollbar pr-0.5">
+                <div className="max-h-72 space-y-2 overflow-y-auto pr-0.5 no-scrollbar">
                   {categorizedNotifications.length === 0 ? (
                     <div className="py-8 text-center text-xs text-slate-400 dark:text-mist-500">
                       {notifCategory === 'safety' ? (
                         <div className="space-y-1">
-                          <ShieldCheck className="h-6 w-6 mx-auto text-emerald-500" />
+                          <ShieldCheck className="mx-auto h-6 w-6 text-emerald-500" />
                           <p>Zero active safety alerts. All systems secure.</p>
                         </div>
                       ) : (
@@ -572,28 +644,29 @@ export function ExecutiveConsole() {
                           handleNavigateToNotificationItem(notif);
                           setNotifPopoverOpen(false);
                         }}
-                        className={`p-3 rounded-2xl border transition text-left cursor-pointer group ${
-                          notif.read
-                            ? 'border-slate-100 dark:border-white/5 bg-black/[0.02] dark:bg-white/[0.02] text-slate-500 dark:text-mist-400'
-                            : 'border-amber-500/30 dark:border-amber-500/20 bg-amber-500/[0.05] dark:bg-amber-500/[0.08] text-navy-950 dark:text-white shadow-sm'
-                        }`}
+                        className={`group cursor-pointer rounded-2xl border p-3 text-left transition ${notif.read
+                            ? 'border-slate-100 bg-black/[0.02] text-slate-500 dark:border-white/5 dark:bg-white/[0.02] dark:text-mist-400'
+                            : 'border-amber-500/30 bg-amber-500/[0.05] text-navy-950 shadow-sm dark:border-amber-500/20 dark:bg-amber-500/[0.08] dark:text-white'
+                          }`}
                       >
                         <div className="flex items-start justify-between gap-2">
-                          <div className="font-bold text-xs group-hover:text-amber-600 dark:group-hover:text-amber-400 transition flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 text-xs font-bold transition group-hover:text-amber-600 dark:group-hover:text-amber-400">
                             {isSafetyAlertNotification(notif) && (
-                              <ShieldAlert className="h-3.5 w-3.5 text-rose-500 shrink-0" />
+                              <ShieldAlert className="h-3.5 w-3.5 shrink-0 text-rose-500" />
                             )}
                             <span className="line-clamp-1">{notif.title}</span>
                           </div>
-                          <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                          <span className="shrink-0 font-mono text-[10px] text-slate-400">
                             {notif.timestamp}
                           </span>
                         </div>
+
                         {notif.message && (
-                          <p className="text-[11px] text-slate-500 dark:text-mist-300 mt-1 line-clamp-2">
+                          <p className="mt-1 line-clamp-2 text-[11px] text-slate-500 dark:text-mist-300">
                             {notif.message}
                           </p>
                         )}
+
                         <div className="mt-2 flex items-center justify-between text-[10px]">
                           <span className="font-semibold text-slate-400">
                             {notif.department || 'Property-Wide'}
@@ -601,11 +674,11 @@ export function ExecutiveConsole() {
                           {!notif.read && (
                             <button
                               type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
+                              onClick={(event) => {
+                                event.stopPropagation();
                                 markNotificationRead(notif.id);
                               }}
-                              className="text-amber-600 dark:text-amber-400 hover:underline font-bold"
+                              className="font-bold text-amber-600 hover:underline dark:text-amber-400"
                             >
                               Mark read
                             </button>
@@ -621,67 +694,69 @@ export function ExecutiveConsole() {
 
           {/* Permission Mode Toggle */}
           <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-slate-500 dark:text-mist-400 hidden md:inline">
-            Mode:
-          </span>
-          <div className="flex items-center p-1 rounded-2xl border border-slate-200 dark:border-white/10 bg-black/5 dark:bg-ink-950/80">
-            <button
-              type="button"
-              onClick={() => setPermissionMode('viewer')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-                permissionMode === 'viewer'
-                  ? 'bg-sky-500 text-white shadow-sm'
-                  : 'text-slate-500 dark:text-mist-400 hover:text-navy-950 dark:hover:text-white'
-              }`}
-            >
-              <Lock className="h-3.5 w-3.5" />
-              <span>Viewer (Read-Only)</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setPermissionMode('approver')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-                permissionMode === 'approver'
-                  ? 'bg-emerald-500 text-white shadow-sm'
-                  : 'text-slate-500 dark:text-mist-400 hover:text-navy-950 dark:hover:text-white'
-              }`}
-            >
-              <ShieldCheck className="h-3.5 w-3.5" />
-              <span>Approver (Full Access)</span>
-            </button>
+            <span className="hidden text-xs font-bold text-slate-500 dark:text-mist-400 md:inline">
+              Mode:
+            </span>
+            <div className="flex items-center rounded-2xl border border-slate-200 bg-black/5 p-1 dark:border-white/10 dark:bg-ink-950/80">
+              <button
+                type="button"
+                onClick={() => setPermissionMode('viewer')}
+                className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${permissionMode === 'viewer'
+                    ? 'bg-sky-500 text-white shadow-sm'
+                    : 'text-slate-500 hover:text-navy-950 dark:text-mist-400 dark:hover:text-white'
+                  }`}
+              >
+                <Lock className="h-3.5 w-3.5" />
+                <span>Viewer (Read-Only)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPermissionMode('approver')}
+                className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${permissionMode === 'approver'
+                    ? 'bg-emerald-500 text-white shadow-sm'
+                    : 'text-slate-500 hover:text-navy-950 dark:text-mist-400 dark:hover:text-white'
+                  }`}
+              >
+                <ShieldCheck className="h-3.5 w-3.5" />
+                <span>Approver (Full Access)</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Main Console Layout: Collapsible Sidebar + Content View */}
-      <div className="flex flex-col lg:flex-row items-start gap-6">
-        {/* Collapsible Sidebar */}
+      <div className="flex flex-col items-start gap-6 lg:flex-row">
         <aside
-          className={`shrink-0 transition-all duration-300 ease-in-out lg:sticky lg:top-20 z-20 self-start ${
-            sidebarCollapsed ? 'w-full lg:w-20' : 'w-full lg:w-64'
-          }`}
+          className={`z-20 shrink-0 self-start transition-all duration-300 ease-in-out lg:sticky lg:top-20 ${sidebarCollapsed ? 'w-full lg:w-20' : 'w-full lg:w-64'
+            }`}
         >
-          <div className="rounded-3xl border border-white/10 bg-white/70 dark:bg-ink-900/90 p-3 backdrop-blur-xl shadow-2xl space-y-3 max-h-[calc(100vh-6rem)] overflow-y-auto no-scrollbar">
-            {/* Collapse Toggle */}
-            <div className="flex items-center justify-between px-2 py-1 text-xs text-slate-400 dark:text-mist-400 border-b border-slate-100 dark:border-white/[0.06] pb-2">
+          <div className="max-h-[calc(100vh-6rem)] space-y-3 overflow-y-auto rounded-3xl border border-white/10 bg-white/70 p-3 shadow-2xl backdrop-blur-xl no-scrollbar dark:bg-ink-900/90">
+            <div className="flex items-center justify-between border-b border-slate-100 px-2 py-1 pb-2 text-xs text-slate-400 dark:border-white/[0.06] dark:text-mist-400">
               {!sidebarCollapsed && (
-                <span className="font-bold uppercase text-[10px] tracking-wider text-slate-400 dark:text-mist-400">
+                <span className="text-[10px] font-bold uppercase tracking-wider">
                   Navigation
                 </span>
               )}
               <button
                 type="button"
-                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                className="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/[0.08] text-slate-400 hover:text-navy-950 dark:hover:text-white transition ml-auto"
+                onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
+                className="ml-auto rounded-lg p-1 text-slate-400 transition hover:bg-black/5 hover:text-navy-950 dark:hover:bg-white/[0.08] dark:hover:text-white"
                 title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                aria-label={
+                  sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'
+                }
               >
-                {sidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+                {sidebarCollapsed ? (
+                  <ChevronRight className="h-4 w-4" />
+                ) : (
+                  <ChevronLeft className="h-4 w-4" />
+                )}
               </button>
             </div>
 
-            {/* Grouped Navigation */}
-            <div className="space-y-4 max-h-[calc(100vh-220px)] overflow-y-auto pr-0.5">
-              {(Object.keys(groupedNav) as Array<NavItem['group']>).map((groupName) => (
+            <div className="max-h-[calc(100vh-220px)] space-y-4 overflow-y-auto pr-0.5">
+              {(Object.keys(groupedNav) as NavGroup[]).map((groupName) => (
                 <div key={groupName} className="space-y-1">
                   {!sidebarCollapsed && (
                     <div className="px-2 pt-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-mist-500">
@@ -689,7 +764,7 @@ export function ExecutiveConsole() {
                     </div>
                   )}
 
-                  {groupedNav[groupName].map((item) => {
+                  {(groupedNav[groupName] ?? []).map((item) => {
                     const Icon = item.icon;
                     const isActive = activeTab === item.id;
 
@@ -699,36 +774,39 @@ export function ExecutiveConsole() {
                         type="button"
                         onClick={() => setActiveTab(item.id)}
                         title={item.label}
-                        className={`w-full flex items-center justify-between rounded-2xl px-3 py-2 text-xs font-semibold transition ${
-                          isActive
+                        className={`flex w-full items-center justify-between rounded-2xl px-3 py-2 text-xs font-semibold transition ${isActive
                             ? 'bg-amber-500 text-white shadow-md'
-                            : 'text-slate-600 dark:text-mist-300 hover:bg-black/5 dark:hover:bg-white/[0.04] hover:text-navy-950 dark:hover:text-white'
-                        }`}
+                            : 'text-slate-600 hover:bg-black/5 hover:text-navy-950 dark:text-mist-300 dark:hover:bg-white/[0.04] dark:hover:text-white'
+                          }`}
                       >
-                        <div className="flex items-center gap-2.5 truncate">
+                        <span className="flex items-center gap-2.5 truncate">
                           <Icon
-                            className={`h-4 w-4 shrink-0 ${
-                              isActive ? 'text-white' : 'text-slate-400 dark:text-mist-400'
-                            }`}
+                            className={`h-4 w-4 shrink-0 ${isActive
+                                ? 'text-white'
+                                : 'text-slate-400 dark:text-mist-400'
+                              }`}
                           />
-                          {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
-                        </div>
+                          {!sidebarCollapsed && (
+                            <span className="truncate">{item.label}</span>
+                          )}
+                        </span>
 
-                        {!sidebarCollapsed && item.badgeCount !== undefined && item.badgeCount > 0 && (
-                          <span
-                            className={`rounded-full px-2 py-0.2 font-mono text-[10px] font-bold ${
-                              isActive
-                                ? 'bg-white/30 text-white'
-                                : item.badgeTone === 'danger'
-                                ? 'bg-rose-500/20 text-rose-600 dark:text-rose-300 border border-rose-500/30'
-                                : item.badgeTone === 'warning'
-                                ? 'bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/30'
-                                : 'bg-sky-500/20 text-sky-600 dark:text-sky-300'
-                            }`}
-                          >
-                            {item.badgeCount}
-                          </span>
-                        )}
+                        {!sidebarCollapsed &&
+                          item.badgeCount !== undefined &&
+                          item.badgeCount > 0 && (
+                            <span
+                              className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-bold ${isActive
+                                  ? 'bg-white/30 text-white'
+                                  : item.badgeTone === 'danger'
+                                    ? 'border border-rose-500/30 bg-rose-500/20 text-rose-600 dark:text-rose-300'
+                                    : item.badgeTone === 'warning'
+                                      ? 'border border-amber-500/30 bg-amber-500/20 text-amber-600 dark:text-amber-300'
+                                      : 'bg-sky-500/20 text-sky-600 dark:text-sky-300'
+                                }`}
+                            >
+                              {item.badgeCount}
+                            </span>
+                          )}
                       </button>
                     );
                   })}
@@ -739,13 +817,14 @@ export function ExecutiveConsole() {
         </aside>
 
         {/* Dynamic Tab Content Area */}
-        <main className="flex-1 min-w-0 w-full">
+        <main className="min-w-0 w-full flex-1">
           {activeTab === 'inspections' && (
             <GeneralManagerInspectionsTab
               selectedInspectionId={selectedInspectionId}
               onClearSelectedInspection={() => setSelectedInspectionId(null)}
             />
           )}
+
           {activeTab === 'overview' && (
             <ExecutiveOverviewTab
               permissionMode={permissionMode}
@@ -754,78 +833,50 @@ export function ExecutiveConsole() {
             />
           )}
 
-          {activeTab === 'approvals' && (
-            <ExecutiveApprovalsTab
-              permissionMode={permissionMode}
-              initialStatusFilter={approvalInitialFilter}
-              selectedItemFromParent={selectedApprovalItem}
-              onClearSelectedItem={() => setSelectedApprovalItem(null)}
-              selectedSafetyAlertId={selectedSafetyAlertId}
-              onClearSelectedSafetyAlert={() => setSelectedSafetyAlertId(null)}
-              selectedCompensationId={selectedCompensationId}
-              onClearSelectedCompensation={() => setSelectedCompensationId(null)}
-            />
-          )}
-
-          {activeTab === 'approvals-pending' && (
-            <ExecutiveApprovalsTab
-              permissionMode={permissionMode}
-              initialStatusFilter="pending"
-              selectedItemFromParent={selectedApprovalItem}
-              onClearSelectedItem={() => setSelectedApprovalItem(null)}
-              selectedSafetyAlertId={selectedSafetyAlertId}
-              onClearSelectedSafetyAlert={() => setSelectedSafetyAlertId(null)}
-              selectedCompensationId={selectedCompensationId}
-              onClearSelectedCompensation={() => setSelectedCompensationId(null)}
-            />
-          )}
-
-          {activeTab === 'approvals-history' && (
-            <ExecutiveApprovalsTab
-              permissionMode={permissionMode}
-              initialStatusFilter="approved"
-              selectedItemFromParent={selectedApprovalItem}
-              onClearSelectedItem={() => setSelectedApprovalItem(null)}
-              selectedSafetyAlertId={selectedSafetyAlertId}
-              onClearSelectedSafetyAlert={() => setSelectedSafetyAlertId(null)}
-              selectedCompensationId={selectedCompensationId}
-              onClearSelectedCompensation={() => setSelectedCompensationId(null)}
-            />
-          )}
+          {(activeTab === 'approvals' ||
+            activeTab === 'approvals-pending' ||
+            activeTab === 'approvals-history') && (
+              <ExecutiveApprovalsTab
+                permissionMode={permissionMode}
+                initialStatusFilter={
+                  activeTab === 'approvals-pending'
+                    ? 'pending'
+                    : activeTab === 'approvals-history'
+                      ? 'approved'
+                      : approvalInitialFilter
+                }
+                selectedItemFromParent={selectedApprovalItem}
+                onClearSelectedItem={() => setSelectedApprovalItem(null)}
+                selectedSafetyAlertId={selectedSafetyAlertId}
+                onClearSelectedSafetyAlert={() => setSelectedSafetyAlertId(null)}
+                selectedCompensationId={selectedCompensationId}
+                onClearSelectedCompensation={() => setSelectedCompensationId(null)}
+              />
+            )}
 
           {activeTab === 'performance' && <ExecutivePerformanceTab />}
 
-          {activeTab === 'escalations' && (
-            <ExecutiveIncidentsTab
-              permissionMode={permissionMode}
-              initialView="escalations"
-              selectedIncidentFromParent={selectedIncident}
-              onClearSelectedIncident={() => setSelectedIncident(null)}
-              selectedTaskIdFromParent={selectedTaskId}
-            />
-          )}
+          {(activeTab === 'escalations' ||
+            activeTab === 'incidents' ||
+            activeTab === 'complaints') && (
+              <ExecutiveIncidentsTab
+                permissionMode={permissionMode}
+                initialView={
+                  activeTab === 'escalations'
+                    ? 'escalations'
+                    : activeTab === 'complaints'
+                      ? 'complaints'
+                      : 'incidents'
+                }
+                selectedIncidentFromParent={selectedIncident}
+                onClearSelectedIncident={() => setSelectedIncident(null)}
+                selectedTaskIdFromParent={selectedTaskId}
+              />
+            )}
 
-          {activeTab === 'incidents' && (
-            <ExecutiveIncidentsTab
-              permissionMode={permissionMode}
-              initialView="incidents"
-              selectedIncidentFromParent={selectedIncident}
-              onClearSelectedIncident={() => setSelectedIncident(null)}
-              selectedTaskIdFromParent={selectedTaskId}
-            />
+          {activeTab === 'vip' && (
+            <GeneralManagerVipTab onNavigateTab={handleNavigateTab} />
           )}
-
-          {activeTab === 'complaints' && (
-            <ExecutiveIncidentsTab
-              permissionMode={permissionMode}
-              initialView="complaints"
-              selectedIncidentFromParent={selectedIncident}
-              onClearSelectedIncident={() => setSelectedIncident(null)}
-              selectedTaskIdFromParent={selectedTaskId}
-            />
-          )}
-
-          {activeTab === 'vip' && <GeneralManagerVipTab onNavigateTab={handleNavigateTab} />}
 
           {activeTab === 'rooms' && <GeneralManagerRoomsTab />}
 
@@ -834,43 +885,34 @@ export function ExecutiveConsole() {
             activeTab === 'finance-purchases' ||
             activeTab === 'finance-equipment' ||
             activeTab === 'finance-resources') && (
-            <ExecutiveFinanceTab
-              permissionMode={permissionMode}
-              initialCategory={
-                activeTab === 'finance-purchases'
-                  ? 'purchases'
-                  : activeTab === 'finance-equipment'
-                  ? 'equipment'
-                  : activeTab === 'finance-resources'
-                  ? 'resources'
-                  : 'all'
-              }
-              onReviewItem={handleOpenApprovalDetail}
-            />
-          )}
+              <ExecutiveFinanceTab
+                permissionMode={permissionMode}
+                initialCategory={
+                  activeTab === 'finance-purchases'
+                    ? 'purchases'
+                    : activeTab === 'finance-equipment'
+                      ? 'equipment'
+                      : activeTab === 'finance-resources'
+                        ? 'resources'
+                        : 'all'
+                }
+                onReviewItem={handleOpenApprovalDetail}
+              />
+            )}
 
           {activeTab === 'reports' && <ExecutiveReportsTab />}
 
-          {activeTab === 'notifications' && (
+          {(activeTab === 'notifications' || activeTab === 'profile') && (
             <ExecutiveProfileTab
               permissionMode={permissionMode}
-              initialSubTab="notifications"
+              initialSubTab={
+                activeTab === 'notifications' ? 'notifications' : 'profile'
+              }
               onTogglePermissionMode={setPermissionMode}
               onNavigateTab={handleNavigateTab}
               onNavigateToItem={handleNavigateToNotificationItem}
             />
           )}
-
-          {activeTab === 'profile' && (
-            <ExecutiveProfileTab
-              permissionMode={permissionMode}
-              initialSubTab="profile"
-              onTogglePermissionMode={setPermissionMode}
-              onNavigateTab={handleNavigateTab}
-              onNavigateToItem={handleNavigateToNotificationItem}
-            />
-          )}
-
         </main>
       </div>
     </div>
