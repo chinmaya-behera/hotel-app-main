@@ -26,7 +26,7 @@ export const propertyTable = pgTable('property', {
 
 export const departmentTable = pgTable('department', {
   id: text('id').default(sql`gen_random_uuid()::text`).primaryKey(),
-  propertyId: text('property_id').notNull().references(() => propertyTable.id, { onDelete: 'cascade' }),
+  propertyId: text('property_id').notNull().references(() => propertyTable.id),
   name: text('name').notNull(),
   code: text('code'),
   description: text('description'),
@@ -39,8 +39,8 @@ export const departmentTable = pgTable('department', {
 
 export const outletTable = pgTable('outlet', {
   id: text('id').default(sql`gen_random_uuid()::text`).primaryKey(),
-  propertyId: text('property_id').notNull().references(() => propertyTable.id, { onDelete: 'cascade' }),
-  departmentId: text('department_id').notNull().references(() => departmentTable.id, { onDelete: 'cascade' }),
+  propertyId: text('property_id').notNull().references(() => propertyTable.id),
+  departmentId: text('department_id').notNull(),
   name: text('name').notNull(),
   code: text('code'),
   outletType: text('outlet_type').notNull().default('restaurant'),
@@ -50,11 +50,16 @@ export const outletTable = pgTable('outlet', {
   unique('outlet_prop_id_uk').on(t.propertyId, t.id),
   unique('outlet_prop_dept_id_uk').on(t.propertyId, t.departmentId, t.id),
   unique('outlet_prop_dept_name_uk').on(t.propertyId, t.departmentId, t.name),
+  foreignKey({
+    name: 'outlet_department_property_fk',
+    columns: [t.propertyId, t.departmentId],
+    foreignColumns: [departmentTable.propertyId, departmentTable.id],
+  }),
 ]);
 
 export const floorTable = pgTable('floor', {
   id: text('id').default(sql`gen_random_uuid()::text`).primaryKey(),
-  propertyId: text('property_id').notNull().references(() => propertyTable.id, { onDelete: 'cascade' }),
+  propertyId: text('property_id').notNull().references(() => propertyTable.id),
   floorNumber: integer('floor_number').notNull().default(1),
   label: text('label').notNull(),
   buildingWing: text('building_wing').default('Main'),
@@ -66,8 +71,8 @@ export const floorTable = pgTable('floor', {
 
 export const roomTable = pgTable('room', {
   id: text('id').default(sql`gen_random_uuid()::text`).primaryKey(),
-  propertyId: text('property_id').notNull().references(() => propertyTable.id, { onDelete: 'cascade' }),
-  floorId: text('floor_id').notNull().references(() => floorTable.id, { onDelete: 'cascade' }),
+  propertyId: text('property_id').notNull().references(() => propertyTable.id),
+  floorId: text('floor_id').notNull(),
   roomNumber: text('room_number').notNull(),
   roomType: text('room_type').notNull(),
   cleanlinessStatus: text('cleanliness_status').notNull().default('ready'),
@@ -80,11 +85,16 @@ export const roomTable = pgTable('room', {
 }, (t) => [
   unique('room_prop_id_uk').on(t.propertyId, t.id),
   unique('room_prop_number_uk').on(t.propertyId, t.roomNumber),
+  foreignKey({
+    name: 'room_floor_property_fk',
+    columns: [t.propertyId, t.floorId],
+    foreignColumns: [floorTable.propertyId, floorTable.id],
+  }),
 ]);
 
 export const shiftTable = pgTable('shift', {
   id: text('id').default(sql`gen_random_uuid()::text`).primaryKey(),
-  propertyId: text('property_id').notNull().references(() => propertyTable.id, { onDelete: 'cascade' }),
+  propertyId: text('property_id').notNull().references(() => propertyTable.id),
   name: text('name').notNull().default('Morning Shift'),
   shiftCode: text('shift_code').default('MORN'),
   startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
@@ -109,14 +119,15 @@ export const staffAccountTable = pgTable('staff_account', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
+  unique().on(t.oidcIssuer, t.oidcSubject),
   unique('staff_account_emp_uk').on(t.employeeIdentifier),
 ]);
 
 export const staffMembershipTable = pgTable('staff_membership', {
   id: text('id').default(sql`gen_random_uuid()::text`).primaryKey(),
-  propertyId: text('property_id').notNull().references(() => propertyTable.id, { onDelete: 'cascade' }),
-  staffAccountId: text('staff_account_id').notNull().references(() => staffAccountTable.id, { onDelete: 'cascade' }),
-  departmentId: text('department_id').references(() => departmentTable.id, { onDelete: 'set null' }),
+  propertyId: text('property_id').notNull().references(() => propertyTable.id),
+  staffAccountId: text('staff_account_id').notNull().references(() => staffAccountTable.id),
+  departmentId: text('department_id'),
   managerMembershipId: text('manager_membership_id'),
   jobTitle: text('job_title'),
   status: text('status').notNull().default('active'),
@@ -126,9 +137,14 @@ export const staffMembershipTable = pgTable('staff_membership', {
   unique('staff_membership_prop_id_uk').on(t.propertyId, t.id),
   unique('staff_membership_account_prop_uk').on(t.staffAccountId, t.propertyId),
   foreignKey({
-    name: 'staff_membership_manager_fk',
-    columns: [t.managerMembershipId],
-    foreignColumns: [t.id],
+    name: 'staff_membership_manager_property_fk',
+    columns: [t.propertyId, t.managerMembershipId],
+    foreignColumns: [t.propertyId, t.id],
+  }),
+  foreignKey({
+    name: 'staff_membership_department_property_fk',
+    columns: [t.propertyId, t.departmentId],
+    foreignColumns: [departmentTable.propertyId, departmentTable.id],
   }),
   check('staff_membership_manager_not_self', sql`${t.managerMembershipId} <> ${t.id}`),
 ]);
@@ -147,59 +163,110 @@ export const permissionTable = pgTable('permission', {
 });
 
 export const profilePermissionTable = pgTable('profile_permission', {
-  profileId: text('profile_id').notNull().references(() => profileTable.id, { onDelete: 'cascade' }),
-  permissionCode: text('permission_code').notNull().references(() => permissionTable.code, { onDelete: 'cascade' }),
+  profileId: text('profile_id').notNull().references(() => profileTable.id),
+  permissionCode: text('permission_code').notNull().references(() => permissionTable.code),
 }, (t) => [
   primaryKey({ columns: [t.profileId, t.permissionCode] }),
 ]);
 
 export const profileGrantTable = pgTable('profile_grant', {
   id: text('id').default(sql`gen_random_uuid()::text`).primaryKey(),
-  propertyId: text('property_id').notNull().references(() => propertyTable.id, { onDelete: 'cascade' }),
-  membershipId: text('membership_id').notNull().references(() => staffMembershipTable.id, { onDelete: 'cascade' }),
-  profileId: text('profile_id').notNull().references(() => profileTable.id, { onDelete: 'cascade' }),
-  approvedByMembershipId: text('approved_by_membership_id').references(() => staffMembershipTable.id, { onDelete: 'set null' }),
+  propertyId: text('property_id').notNull().references(() => propertyTable.id),
+  membershipId: text('membership_id').notNull(),
+  profileId: text('profile_id').notNull().references(() => profileTable.id),
+  approvedByMembershipId: text('approved_by_membership_id').notNull(),
   validFrom: timestamp('valid_from', { withTimezone: true }).notNull().defaultNow(),
   expiresAt: timestamp('expires_at', { withTimezone: true }),
   revokedAt: timestamp('revoked_at', { withTimezone: true }),
 }, (t) => [
   unique('profile_grant_prop_id_uk').on(t.propertyId, t.id),
-  unique('profile_grant_prop_mem_profile_uk').on(t.propertyId, t.membershipId, t.profileId),
+  unique().on(t.propertyId, t.id, t.profileId),
+  foreignKey({
+    name: 'profile_grant_membership_property_fk',
+    columns: [t.propertyId, t.membershipId],
+    foreignColumns: [staffMembershipTable.propertyId, staffMembershipTable.id],
+  }),
+  foreignKey({
+    name: 'profile_grant_approver_property_fk',
+    columns: [t.propertyId, t.approvedByMembershipId],
+    foreignColumns: [staffMembershipTable.propertyId, staffMembershipTable.id],
+  }),
   check('profile_grant_expiry_order', sql`${t.expiresAt} is null or ${t.expiresAt} > ${t.validFrom}`),
   index('profile_grant_active_idx')
     .on(t.propertyId, t.membershipId, t.validFrom).where(sql`${t.revokedAt} is null`),
 ]);
 
+// Provision a grant and its scope in the same transaction.
 export const grantScopeTable = pgTable('grant_scope', {
-  profileGrantId: text('profile_grant_id').primaryKey().references(() => profileGrantTable.id, { onDelete: 'cascade' }),
-  propertyId: text('property_id').notNull().references(() => propertyTable.id, { onDelete: 'cascade' }),
-  departmentId: text('department_id').references(() => departmentTable.id, { onDelete: 'set null' }),
-  outletId: text('outlet_id').references(() => outletTable.id, { onDelete: 'set null' }),
-  floorId: text('floor_id').references(() => floorTable.id, { onDelete: 'set null' }),
-  shiftId: text('shift_id').references(() => shiftTable.id, { onDelete: 'set null' }),
+  profileGrantId: text('profile_grant_id').primaryKey(),
+  propertyId: text('property_id').notNull(),
+  departmentId: text('department_id'),
+  outletId: text('outlet_id'),
+  floorId: text('floor_id'),
+  shiftId: text('shift_id'),
 }, (t) => [
   unique('grant_scope_prop_grant_uk').on(t.propertyId, t.profileGrantId),
+  foreignKey({
+    name: 'grant_scope_grant_property_fk',
+    columns: [t.propertyId, t.profileGrantId],
+    foreignColumns: [profileGrantTable.propertyId, profileGrantTable.id],
+  }),
+  foreignKey({
+    name: 'grant_scope_department_property_fk',
+    columns: [t.propertyId, t.departmentId],
+    foreignColumns: [departmentTable.propertyId, departmentTable.id],
+  }),
+  foreignKey({
+    name: 'grant_scope_outlet_department_fk',
+    columns: [t.propertyId, t.departmentId, t.outletId],
+    foreignColumns: [outletTable.propertyId, outletTable.departmentId, outletTable.id],
+  }),
+  foreignKey({
+    name: 'grant_scope_floor_property_fk',
+    columns: [t.propertyId, t.floorId],
+    foreignColumns: [floorTable.propertyId, floorTable.id],
+  }),
+  foreignKey({
+    name: 'grant_scope_shift_property_fk',
+    columns: [t.propertyId, t.shiftId],
+    foreignColumns: [shiftTable.propertyId, shiftTable.id],
+  }),
+  check('grant_scope_outlet_requires_department', sql`${t.outletId} is null or ${t.departmentId} is not null`),
 ]);
 
 export const financialLimitTable = pgTable('financial_limit', {
   id: text('id').default(sql`gen_random_uuid()::text`).primaryKey(),
-  propertyId: text('property_id').notNull().references(() => propertyTable.id, { onDelete: 'cascade' }),
-  profileGrantId: text('profile_grant_id').references(() => profileGrantTable.id, { onDelete: 'cascade' }),
-  profileId: text('profile_id').references(() => profileTable.id, { onDelete: 'cascade' }),
+  propertyId: text('property_id').notNull(),
+  profileGrantId: text('profile_grant_id').notNull(),
+  profileId: text('profile_id').notNull(),
   roleCode: text('role_code').notNull().default('front_desk'),
   actionCode: text('action_code').notNull(),
   currency: text('currency').notNull().default('INR'),
   transactionType: text('transaction_type').notNull().default('refund'),
-  maximumAmount: numeric('maximum_amount', { precision: 18, scale: 2 }).notNull(),
+  maximumAmount: numeric('maximum_amount', { precision: 18, scale: 4 }).notNull(),
 }, (t) => [
   unique('financial_limit_prop_id_uk').on(t.propertyId, t.id),
+  unique('financial_limit_grant_action_currency_type_uk').on(
+    t.propertyId, t.profileGrantId, t.actionCode, t.currency, t.transactionType,
+  ),
+  foreignKey({
+    name: 'financial_limit_grant_profile_fk',
+    columns: [t.propertyId, t.profileGrantId, t.profileId],
+    foreignColumns: [profileGrantTable.propertyId, profileGrantTable.id, profileGrantTable.profileId],
+  }),
+  foreignKey({
+    name: 'financial_limit_profile_permission_fk',
+    columns: [t.profileId, t.actionCode],
+    foreignColumns: [profilePermissionTable.profileId, profilePermissionTable.permissionCode],
+  }),
   check('financial_limit_positive_amount', sql`${t.maximumAmount} > 0 and ${t.maximumAmount} <> 'NaN'::numeric`),
+  check('financial_limit_currency_format', sql`${t.currency} ~ '^[A-Z]{3}$'`),
 ]);
 
 export const auditEventTable = pgTable('audit_event', {
   id: text('id').default(sql`gen_random_uuid()::text`).primaryKey(),
-  propertyId: text('property_id').notNull().references(() => propertyTable.id, { onDelete: 'cascade' }),
-  actorMembershipId: text('actor_membership_id').references(() => staffMembershipTable.id, { onDelete: 'set null' }),
+  propertyId: text('property_id').notNull().references(() => propertyTable.id),
+  actorMembershipId: text('actor_membership_id'),
   action: text('action').notNull(),
   resourceType: text('resource_type').notNull(),
   resourceId: text('resource_id').notNull(),
@@ -209,12 +276,17 @@ export const auditEventTable = pgTable('audit_event', {
   occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   unique('audit_event_prop_id_uk').on(t.propertyId, t.id),
+  foreignKey({
+    name: 'audit_event_actor_property_fk',
+    columns: [t.propertyId, t.actorMembershipId],
+    foreignColumns: [staffMembershipTable.propertyId, staffMembershipTable.id],
+  }),
   index('audit_event_property_timeline_idx').on(t.propertyId, t.occurredAt),
 ]);
 
 export const connectorOutboxTable = pgTable('connector_outbox', {
   id: text('id').default(sql`gen_random_uuid()::text`).primaryKey(),
-  propertyId: text('property_id').notNull().references(() => propertyTable.id, { onDelete: 'cascade' }),
+  propertyId: text('property_id').notNull().references(() => propertyTable.id),
   eventType: text('event_type').notNull(),
   aggregateId: text('aggregate_id').notNull(),
   payload: jsonb('payload').$type<Record<string, unknown>>().notNull(),

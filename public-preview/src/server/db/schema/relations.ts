@@ -109,8 +109,8 @@ export const outletRelations = relations(outletTable, ({ one, many }) => ({
     references: [propertyTable.id],
   }),
   department: one(departmentTable, {
-    fields: [outletTable.departmentId],
-    references: [departmentTable.id],
+    fields: [outletTable.propertyId, outletTable.departmentId],
+    references: [departmentTable.propertyId, departmentTable.id],
   }),
   menuItems: many(diningMenuItemTable),
   diningOrders: many(diningOrderTable),
@@ -132,8 +132,8 @@ export const roomRelations = relations(roomTable, ({ one, many }) => ({
     references: [propertyTable.id],
   }),
   floor: one(floorTable, {
-    fields: [roomTable.floorId],
-    references: [floorTable.id],
+    fields: [roomTable.propertyId, roomTable.floorId],
+    references: [floorTable.propertyId, floorTable.id],
   }),
   assignments: many(roomAssignmentTable),
   tasks: many(departmentTaskTable),
@@ -169,17 +169,17 @@ export const staffMembershipRelations = relations(staffMembershipTable, ({ one, 
     references: [staffAccountTable.id],
   }),
   department: one(departmentTable, {
-    fields: [staffMembershipTable.departmentId],
-    references: [departmentTable.id],
+    fields: [staffMembershipTable.propertyId, staffMembershipTable.departmentId],
+    references: [departmentTable.propertyId, departmentTable.id],
   }),
   manager: one(staffMembershipTable, {
-    fields: [staffMembershipTable.managerMembershipId],
-    references: [staffMembershipTable.id],
+    fields: [staffMembershipTable.propertyId, staffMembershipTable.managerMembershipId],
+    references: [staffMembershipTable.propertyId, staffMembershipTable.id],
     relationName: 'manager',
   }),
   subordinates: many(staffMembershipTable, { relationName: 'manager' }),
   assignedTasks: many(departmentTaskTable),
-  profileGrants: many(profileGrantTable),
+  profileGrants: many(profileGrantTable, { relationName: 'grantMembership' }),
   conductedInspections: many(supervisorInspectionTable),
   reportedActions: many(incidentActionTable),
 }));
@@ -211,16 +211,18 @@ export const profileGrantRelations = relations(profileGrantTable, ({ one, many }
     references: [propertyTable.id],
   }),
   membership: one(staffMembershipTable, {
-    fields: [profileGrantTable.membershipId],
-    references: [staffMembershipTable.id],
+    fields: [profileGrantTable.propertyId, profileGrantTable.membershipId],
+    references: [staffMembershipTable.propertyId, staffMembershipTable.id],
+    relationName: 'grantMembership',
   }),
   profile: one(profileTable, {
     fields: [profileGrantTable.profileId],
     references: [profileTable.id],
   }),
   approver: one(staffMembershipTable, {
-    fields: [profileGrantTable.approvedByMembershipId],
-    references: [staffMembershipTable.id],
+    fields: [profileGrantTable.propertyId, profileGrantTable.approvedByMembershipId],
+    references: [staffMembershipTable.propertyId, staffMembershipTable.id],
+    relationName: 'grantApprover',
   }),
   scope: one(grantScopeTable),
   financialLimits: many(financialLimitTable),
@@ -228,24 +230,31 @@ export const profileGrantRelations = relations(profileGrantTable, ({ one, many }
 
 export const grantScopeRelations = relations(grantScopeTable, ({ one }) => ({
   grant: one(profileGrantTable, {
-    fields: [grantScopeTable.profileGrantId],
-    references: [profileGrantTable.id],
+    fields: [grantScopeTable.propertyId, grantScopeTable.profileGrantId],
+    references: [profileGrantTable.propertyId, profileGrantTable.id],
   }),
   department: one(departmentTable, {
-    fields: [grantScopeTable.departmentId],
-    references: [departmentTable.id],
+    fields: [grantScopeTable.propertyId, grantScopeTable.departmentId],
+    references: [departmentTable.propertyId, departmentTable.id],
   }),
   outlet: one(outletTable, {
-    fields: [grantScopeTable.outletId],
-    references: [outletTable.id],
+    fields: [grantScopeTable.propertyId, grantScopeTable.departmentId, grantScopeTable.outletId],
+    references: [outletTable.propertyId, outletTable.departmentId, outletTable.id],
   }),
   floor: one(floorTable, {
-    fields: [grantScopeTable.floorId],
-    references: [floorTable.id],
+    fields: [grantScopeTable.propertyId, grantScopeTable.floorId],
+    references: [floorTable.propertyId, floorTable.id],
   }),
   shift: one(shiftTable, {
-    fields: [grantScopeTable.shiftId],
-    references: [shiftTable.id],
+    fields: [grantScopeTable.propertyId, grantScopeTable.shiftId],
+    references: [shiftTable.propertyId, shiftTable.id],
+  }),
+}));
+
+export const financialLimitRelations = relations(financialLimitTable, ({ one }) => ({
+  grant: one(profileGrantTable, {
+    fields: [financialLimitTable.propertyId, financialLimitTable.profileGrantId, financialLimitTable.profileId],
+    references: [profileGrantTable.propertyId, profileGrantTable.id, profileGrantTable.profileId],
   }),
 }));
 
