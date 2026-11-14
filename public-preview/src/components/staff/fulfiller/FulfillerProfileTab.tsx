@@ -93,14 +93,14 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
   }
 
   return (
-    <div className={cn('flex flex-col gap-4 pb-6 sm:pb-8 text-xs', isLight ? 'text-[#353229]' : 'text-white')}>
+    <div className={cn('flex flex-col gap-4 pb-6 sm:pb-8 text-xs', isLight ? 'text-[#353229]' : 'text-[#eee8dc]')}>
       {/* Profile Card */}
       <div
         className={cn(
           'rounded-3xl border p-5 transition-colors',
           isLight
             ? 'border-[#e7e2d7] bg-[#ffffff] shadow-[0_4px_18px_rgba(53,50,41,0.04)]'
-            : 'border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] shadow-lg',
+            : 'border-[#3d3a32] bg-[#1e1e1b] shadow-[0_4px_18px_rgba(0,0,0,0.14)]',
         )}
       >
         <div className="flex items-center gap-4">
@@ -109,20 +109,20 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className={cn('text-base font-bold', isLight ? 'text-[#353229]' : 'text-white')}>{activeProfile.employeeName}</h2>
+              <h2 className={cn('text-base font-bold', isLight ? 'text-[#353229]' : 'text-[#eee8dc]')}>{activeProfile.employeeName}</h2>
               <span
                 className={cn(
                   'rounded-md px-2 py-0.5 text-[10px] font-bold font-mono border',
                   isLight
                     ? 'border-[#e7e2d7] bg-[#f6f3ec] text-[#353229]'
-                    : 'bg-white/15 text-white border-transparent',
+                    : 'border-[#3d3a32] bg-[#282720] text-[#ded6c1]',
                 )}
               >
                 {activeProfile.employeeId}
               </span>
             </div>
-            <p className={cn('text-xs mt-0.5 font-medium', isLight ? 'text-[#686252]' : 'text-mist-200')}>{activeProfile.roleTitle}</p>
-            <p className={cn('text-[11px]', isLight ? 'text-[#8c8472]' : 'text-mist-400')}>{activeProfile.zone}</p>
+            <p className={cn('text-xs mt-0.5 font-medium', isLight ? 'text-[#686252]' : 'text-[#b7b0a1]')}>{activeProfile.roleTitle}</p>
+            <p className={cn('text-[11px]', isLight ? 'text-[#8c8472]' : 'text-[#b7b0a1]')}>{activeProfile.zone}</p>
           </div>
         </div>
 
@@ -132,21 +132,21 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
             'mt-3.5 rounded-2xl border p-3 text-xs space-y-1.5 transition-colors',
             isLight
               ? 'border-[#e7e2d7] bg-[#fbfaf7]'
-              : 'border-emerald-400/20 bg-emerald-400/[0.04]',
+              : 'border-[#3d3a32] bg-[#282720]/60',
           )}
         >
           <div className="flex items-center justify-between">
             <span
               className={cn(
                 'text-[10px] font-bold uppercase tracking-wider',
-                isLight ? 'text-[#353229]' : 'text-emerald-300',
+                isLight ? 'text-[#353229]' : 'text-[#ded6c1]',
               )}
             >
               Documented Assigned Work
             </span>
-            <span className={cn('text-[10px]', isLight ? 'text-[#8c8472]' : 'text-mist-400')}>{activeProfile.departmentName}</span>
+            <span className={cn('text-[10px]', isLight ? 'text-[#8c8472]' : 'text-[#b7b0a1]')}>{activeProfile.departmentName}</span>
           </div>
-          <p className={cn('text-xs font-semibold', isLight ? 'text-[#353229]' : 'text-white')}>{activeProfile.assignedWork}</p>
+          <p className={cn('text-xs font-semibold', isLight ? 'text-[#353229]' : 'text-[#eee8dc]')}>{activeProfile.assignedWork}</p>
           <div className="flex flex-wrap gap-1.5 pt-1">
             {activeProfile.assignedWorkTags.map((tag) => (
               <span
@@ -155,7 +155,7 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
                   'rounded-md px-2 py-0.5 text-[10px] border',
                   isLight
                     ? 'border-[#e7e2d7] bg-[#f6f3ec] text-[#353229]'
-                    : 'bg-white/10 text-mist-200 border-transparent',
+                    : 'border-[#3d3a32] bg-[#1e1e1b] text-[#b7b0a1]',
                 )}
               >
                 {tag}
@@ -168,33 +168,33 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
         <div
           className={cn(
             'mt-3 grid grid-cols-2 gap-2 border-t pt-3 text-xs',
-            isLight ? 'border-[#e7e2d7]' : 'border-white/10',
+            isLight ? 'border-[#e7e2d7]' : 'border-[#3d3a32]',
           )}
         >
           <div
             className={cn(
               'rounded-xl border p-2.5 transition-colors',
-              isLight ? 'border-[#e7e2d7] bg-[#fbfaf7]' : 'border-white/5 bg-white/[0.02]',
+              isLight ? 'border-[#e7e2d7] bg-[#fbfaf7]' : 'border-[#3d3a32] bg-[#282720]/40',
             )}
           >
-            <span className={cn('text-[10px] flex items-center gap-1', isLight ? 'text-[#8c8472]' : 'text-mist-400')}>
-              <UserCheck className={cn('h-3 w-3', isLight ? 'text-[#353229]' : 'text-emerald-400')} /> Department Supervisor
+            <span className={cn('text-[10px] flex items-center gap-1', isLight ? 'text-[#8c8472]' : 'text-[#b7b0a1]')}>
+              <UserCheck className={cn('h-3 w-3', isLight ? 'text-[#353229]' : 'text-[#ded6c1]')} /> Department Supervisor
             </span>
-            <p className={cn('mt-1 font-semibold', isLight ? 'text-[#353229]' : 'text-white')}>{activeProfile.supervisorName}</p>
-            <p className={cn('text-[10px]', isLight ? 'text-[#8c8472]' : 'text-mist-400')}>{activeProfile.supervisorCode} · {activeProfile.departmentName}</p>
+            <p className={cn('mt-1 font-semibold', isLight ? 'text-[#353229]' : 'text-[#eee8dc]')}>{activeProfile.supervisorName}</p>
+            <p className={cn('text-[10px]', isLight ? 'text-[#8c8472]' : 'text-[#b7b0a1]')}>{activeProfile.supervisorCode} · {activeProfile.departmentName}</p>
           </div>
 
           <div
             className={cn(
               'rounded-xl border p-2.5 transition-colors',
-              isLight ? 'border-[#e7e2d7] bg-[#fbfaf7]' : 'border-white/5 bg-white/[0.02]',
+              isLight ? 'border-[#e7e2d7] bg-[#fbfaf7]' : 'border-[#3d3a32] bg-[#282720]/40',
             )}
           >
-            <span className={cn('text-[10px] flex items-center gap-1', isLight ? 'text-[#8c8472]' : 'text-mist-400')}>
-              <Clock className={cn('h-3 w-3', isLight ? 'text-[#353229]' : 'text-sky-400')} /> Current Shift
+            <span className={cn('text-[10px] flex items-center gap-1', isLight ? 'text-[#8c8472]' : 'text-[#b7b0a1]')}>
+              <Clock className={cn('h-3 w-3', isLight ? 'text-[#353229]' : 'text-[#ded6c1]')} /> Current Shift
             </span>
-            <p className={cn('mt-1 font-semibold', isLight ? 'text-[#353229]' : 'text-white')}>Day Shift (08:00–16:30)</p>
-            <p className={cn('text-[10px]', isLight ? 'text-[#8c8472]' : 'text-mist-400')}>Active Duty Window</p>
+            <p className={cn('mt-1 font-semibold', isLight ? 'text-[#353229]' : 'text-[#eee8dc]')}>Day Shift (08:00–16:30)</p>
+            <p className={cn('text-[10px]', isLight ? 'text-[#8c8472]' : 'text-[#b7b0a1]')}>Active Duty Window</p>
           </div>
         </div>
       </div>
@@ -205,13 +205,13 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
           'rounded-3xl border p-4 sm:p-5 transition-colors space-y-3.5',
           isLight
             ? 'border-[#e7e2d7] bg-[#ffffff] shadow-[0_4px_18px_rgba(53,50,41,0.04)]'
-            : 'border-[rgba(165,130,95,0.25)] bg-[#1a1918]',
+            : 'border-[#3d3a32] bg-[#1e1e1b]',
         )}
       >
         <div className="flex items-center justify-between">
           <div>
-            <h3 className={cn('text-xs font-semibold', isLight ? 'text-[#353229]' : 'text-[#f7f4ed]')}>Duty Availability Status</h3>
-            <p className={cn('text-[10px] mt-0.5', isLight ? 'text-[#8c8472]' : 'text-mist-400')}>
+            <h3 className={cn('text-xs font-semibold', isLight ? 'text-[#353229]' : 'text-[#eee8dc]')}>Duty Availability Status</h3>
+            <p className={cn('text-[10px] mt-0.5', isLight ? 'text-[#8c8472]' : 'text-[#b7b0a1]')}>
               Managed by Department Supervisor <strong>{activeProfile.supervisorName}</strong>
             </p>
           </div>
@@ -225,11 +225,11 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
                 : currentAvail === 'on_duty'
                   ? isLight
                     ? 'bg-[#ebe2cc] text-[#353229] border-[#ded6c1]'
-                    : 'bg-[#c8a96e]/20 text-[#dfc187] border-[rgba(165,130,95,0.3)]'
+                    : 'bg-[#343127] text-[#ded6c1] border-[#867e6c]'
                   : currentAvail === 'break'
                     ? isLight
                       ? 'bg-[#f6f3ec] text-[#686252] border-[#e7e2d7]'
-                      : 'bg-[#dfc187]/15 text-[#e2d2bd] border-[rgba(165,130,95,0.3)]'
+                      : 'bg-[#282720] text-[#b7b0a1] border-[#3d3a32]'
                     : 'bg-rose-500/20 text-rose-500 border-rose-300',
             )}
           >
@@ -263,14 +263,14 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
               currentAvail === 'on_duty' && breakRequest?.status !== 'pending'
                 ? isLight
                   ? 'border-[#353229] bg-[#f6f3ec] text-[#353229] shadow-xs'
-                  : 'border-[#dfc187] bg-[rgba(200,169,110,0.12)] text-white shadow-sm'
+                  : 'border-[#867e6c] bg-[#343127] text-[#ded6c1] shadow-sm'
                 : breakRequest?.status === 'pending' && breakRequest.requestType === 'on_duty'
                   ? isLight
                     ? 'border-amber-400 bg-amber-50 text-amber-900 shadow-xs'
                     : 'border-amber-400/40 bg-amber-400/10 text-amber-200'
                   : isLight
                     ? 'border-[#e7e2d7] bg-[#ffffff] text-[#686252] hover:bg-[#fbfaf7]'
-                    : 'border-white/10 bg-white/[0.03] text-mist-300 hover:bg-white/[0.05]',
+                    : 'border-[#3d3a32] bg-[#1e1e1b] text-[#b7b0a1] hover:bg-[#282720] hover:text-[#eee8dc]',
             )}
           >
             <div className="flex items-center justify-between w-full">
@@ -284,18 +284,18 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
                   currentAvail === 'on_duty'
                     ? isLight
                       ? 'bg-[#353229] text-white border-transparent'
-                      : 'bg-[#c8a96e] text-[#14120e] border-transparent'
+                      : 'bg-[#ded6c1] text-[#28261f] border-transparent'
                     : breakRequest?.status === 'pending' && breakRequest.requestType === 'on_duty'
                       ? 'bg-amber-100 text-amber-900 border-amber-300'
                       : isLight
                         ? 'border-[#e7e2d7] bg-[#f6f3ec] text-[#8c8472]'
-                        : 'border-white/10 bg-black/30 text-mist-400',
+                        : 'border-[#3d3a32] bg-[#282720] text-[#b7b0a1]',
                 )}
               >
                 {currentAvail === 'on_duty' ? 'Active' : breakRequest?.status === 'pending' && breakRequest.requestType === 'on_duty' ? 'Waiting' : 'Send Req'}
               </span>
             </div>
-            <p className={cn('text-[10px] mt-1', isLight ? 'text-[#8c8472]' : 'text-mist-400')}>
+            <p className={cn('text-[10px] mt-1', isLight ? 'text-[#8c8472]' : 'text-[#b7b0a1]')}>
               {currentAvail === 'on_duty'
                 ? 'Active shift on duty'
                 : 'Request On Duty from supervisor'}
@@ -320,14 +320,14 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
               currentAvail === 'off_duty'
                 ? isLight
                   ? 'border-rose-400 bg-rose-50 text-rose-900 shadow-xs'
-                  : 'border-rose-500/40 bg-rose-500/10 text-white shadow-sm'
+                  : 'border-rose-500/50 bg-[#241215] text-[#eee8dc] shadow-sm'
                 : breakRequest?.status === 'pending' && breakRequest.requestType === 'off_duty'
                   ? isLight
                     ? 'border-amber-400 bg-amber-50 text-amber-900 shadow-xs'
                     : 'border-amber-400/40 bg-amber-400/10 text-amber-200'
                   : isLight
                     ? 'border-[#e7e2d7] bg-[#ffffff] text-[#686252] hover:bg-[#fbfaf7]'
-                    : 'border-white/10 bg-white/[0.03] text-mist-300 hover:bg-white/[0.05]',
+                    : 'border-[#3d3a32] bg-[#1e1e1b] text-[#b7b0a1] hover:bg-[#282720] hover:text-[#eee8dc]',
             )}
           >
             <div className="flex items-center justify-between w-full">
@@ -344,13 +344,13 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
                       ? 'bg-amber-100 text-amber-900 border-amber-300'
                       : isLight
                         ? 'border-[#e7e2d7] bg-[#f6f3ec] text-[#8c8472]'
-                        : 'border-white/10 bg-black/30 text-mist-400',
+                        : 'border-[#3d3a32] bg-[#282720] text-[#b7b0a1]',
                 )}
               >
                 {currentAvail === 'off_duty' ? 'Active' : breakRequest?.status === 'pending' && breakRequest.requestType === 'off_duty' ? 'Waiting' : 'Send Req'}
               </span>
             </div>
-            <p className={cn('text-[10px] mt-1', isLight ? 'text-[#8c8472]' : 'text-mist-400')}>
+            <p className={cn('text-[10px] mt-1', isLight ? 'text-[#8c8472]' : 'text-[#b7b0a1]')}>
               {currentAvail === 'off_duty'
                 ? 'Shift signed off'
                 : 'Request Off Duty from supervisor'}
@@ -369,14 +369,14 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
               currentAvail === 'break'
                 ? isLight
                   ? 'border-[#353229] bg-[#f6f3ec] text-[#353229] shadow-xs'
-                  : 'border-[#dfc187] bg-[rgba(200,169,110,0.12)] text-white shadow-sm'
+                  : 'border-[#867e6c] bg-[#343127] text-[#ded6c1] shadow-sm'
                 : breakRequest?.status === 'pending' && breakRequest.requestType === 'break'
                   ? isLight
                     ? 'border-amber-400 bg-amber-50 text-amber-900 shadow-xs'
                     : 'border-amber-400/40 bg-amber-400/10 text-amber-200'
                   : isLight
                     ? 'border-[#e7e2d7] bg-[#ffffff] text-[#353229] hover:bg-[#fbfaf7]'
-                    : 'border-white/10 bg-white/[0.03] text-white hover:bg-white/[0.05]',
+                    : 'border-[#3d3a32] bg-[#1e1e1b] text-[#b7b0a1] hover:bg-[#282720] hover:text-[#eee8dc]',
             )}
           >
             <div className="flex items-center justify-between w-full">
@@ -396,12 +396,12 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
                   currentAvail === 'break'
                     ? isLight
                       ? 'bg-[#353229] text-white border-transparent'
-                      : 'bg-[#c8a96e] text-[#14120e] border-transparent'
+                      : 'bg-[#ded6c1] text-[#28261f] border-transparent'
                     : breakRequest?.status === 'pending' && breakRequest.requestType === 'break'
                       ? 'bg-amber-100 text-amber-900 border-amber-300'
                       : isLight
                         ? 'border-[#b7b09e] bg-[#ffffff] text-[#353229]'
-                        : 'border-[rgba(165,130,95,0.4)] text-[#dfc187]',
+                        : 'border-[#867e6c] bg-[#282720] text-[#ded6c1]',
                 )}
               >
                 {currentAvail === 'break'
@@ -411,7 +411,7 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
                     : 'Send Req'}
               </span>
             </div>
-            <p className={cn('text-[10px] mt-1', isLight ? 'text-[#8c8472]' : 'text-mist-400')}>
+            <p className={cn('text-[10px] mt-1', isLight ? 'text-[#8c8472]' : 'text-[#b7b0a1]')}>
               {currentAvail === 'break'
                 ? 'Click to end break & resume'
                 : 'Request break window'}
@@ -426,14 +426,14 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
               'rounded-2xl border p-3 text-xs flex items-start justify-between gap-3 animate-in fade-in duration-150',
               isLight
                 ? 'border-[#b7b09e] bg-[#fbfaf7] text-[#353229]'
-                : 'border-[rgba(165,130,95,0.4)] bg-[rgba(200,169,110,0.08)] text-[#f7f4ed]',
+                : 'border-[#867e6c] bg-[#282720] text-[#eee8dc]',
             )}
           >
             <div className="flex items-start gap-2">
-              <ShieldCheck className={cn('h-4 w-4 shrink-0 mt-0.5', isLight ? 'text-[#353229]' : 'text-[#dfc187]')} />
+              <ShieldCheck className={cn('h-4 w-4 shrink-0 mt-0.5', isLight ? 'text-[#353229]' : 'text-[#ded6c1]')} />
               <div>
                 <p className="font-bold text-xs">Supervisor Roster Authority</p>
-                <p className={cn('text-[11px] mt-0.5 leading-relaxed', isLight ? 'text-[#686252]' : 'text-mist-300')}>
+                <p className={cn('text-[11px] mt-0.5 leading-relaxed', isLight ? 'text-[#686252]' : 'text-[#b7b0a1]')}>
                   {supervisorNotice}
                 </p>
               </div>
@@ -443,7 +443,7 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
               onClick={() => setSupervisorNotice(null)}
               className={cn(
                 'grid h-6 w-6 place-items-center rounded-full shrink-0 cursor-pointer',
-                isLight ? 'bg-[#f6f3ec] text-[#686252] hover:text-[#353229]' : 'bg-white/10 text-mist-300 hover:text-white',
+                isLight ? 'bg-[#f6f3ec] text-[#686252] hover:text-[#353229]' : 'bg-[#1e1e1b] text-[#b7b0a1] hover:text-[#eee8dc]',
               )}
             >
               <X className="h-3 w-3" />
@@ -456,12 +456,12 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
           <div
             className={cn(
               'rounded-2xl border p-3 flex items-center justify-between gap-3',
-              isLight ? 'border-[#ded6c1] bg-[#ebe2cc]/40' : 'border-amber-400/30 bg-amber-400/10',
+              isLight ? 'border-[#ded6c1] bg-[#ebe2cc]/40' : 'border-[#867e6c] bg-[#343127]',
             )}
           >
             <div className="flex items-center gap-2 min-w-0">
-              <Coffee className={cn('h-4 w-4 shrink-0', isLight ? 'text-[#353229]' : 'text-[#dfc187]')} />
-              <span className={cn('text-xs truncate', isLight ? 'text-[#353229]' : 'text-white')}>
+              <Coffee className={cn('h-4 w-4 shrink-0', isLight ? 'text-[#353229]' : 'text-[#ded6c1]')} />
+              <span className={cn('text-xs truncate', isLight ? 'text-[#353229]' : 'text-[#eee8dc]')}>
                 You are currently <strong>On Break</strong>. Guest requests paused.
               </span>
             </div>
@@ -473,7 +473,7 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
               }}
               className={cn(
                 'shrink-0 rounded-xl px-3 py-1 text-xs font-bold transition-all shadow-xs cursor-pointer',
-                isLight ? 'bg-[#353229] text-white hover:bg-[#484438]' : 'bg-[#c8a96e] text-[#14120e] hover:bg-[#dfc187]',
+                isLight ? 'bg-[#353229] text-white hover:bg-[#484438]' : 'bg-[#ded6c1] text-[#28261f] hover:bg-[#e5dfcb]',
               )}
             >
               End Break & Resume Duty
@@ -530,22 +530,22 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
           'rounded-3xl border p-4 sm:p-5 space-y-3 transition-colors',
           isLight
             ? 'border-[#e7e2d7] bg-[#ffffff] shadow-[0_4px_18px_rgba(53,50,41,0.04)]'
-            : 'border-white/10 bg-white/[0.03]',
+            : 'border-[#3d3a32] bg-[#1e1e1b]',
         )}
       >
-        <h3 className={cn('text-xs font-semibold', isLight ? 'text-[#353229]' : 'text-white')}>App & Sound Settings</h3>
+        <h3 className={cn('text-xs font-semibold', isLight ? 'text-[#353229]' : 'text-[#eee8dc]')}>App & Sound Settings</h3>
 
         {/* Chime Audio Toggle */}
         <div className="flex items-center justify-between pt-1">
           <div className="flex items-center gap-2.5">
             {isSoundOn ? (
-              <Volume2 className={cn('h-4 w-4', isLight ? 'text-[#353229]' : 'text-emerald-400')} />
+              <Volume2 className={cn('h-4 w-4', isLight ? 'text-[#353229]' : 'text-[#ded6c1]')} />
             ) : (
-              <VolumeX className={cn('h-4 w-4', isLight ? 'text-[#8c8472]' : 'text-mist-400')} />
+              <VolumeX className={cn('h-4 w-4', isLight ? 'text-[#8c8472]' : 'text-[#b7b0a1]')} />
             )}
             <div>
-              <p className={cn('text-xs font-semibold', isLight ? 'text-[#353229]' : 'text-white')}>Task Chime Sound</p>
-              <p className={cn('text-[10px]', isLight ? 'text-[#8c8472]' : 'text-mist-400')}>Play chime when new task is assigned</p>
+              <p className={cn('text-xs font-semibold', isLight ? 'text-[#353229]' : 'text-[#eee8dc]')}>Task Chime Sound</p>
+              <p className={cn('text-[10px]', isLight ? 'text-[#8c8472]' : 'text-[#b7b0a1]')}>Play chime when new task is assigned</p>
             </div>
           </div>
           <button
@@ -556,10 +556,10 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
               isSoundOn
                 ? isLight
                   ? 'bg-[#353229]'
-                  : 'bg-emerald-500'
+                  : 'bg-[#ded6c1]'
                 : isLight
                   ? 'bg-[#ded6c1]'
-                  : 'bg-white/20',
+                  : 'bg-[#3d3a32]',
             )}
             title={isSoundOn ? 'Mute chime' : 'Enable chime'}
           >
@@ -576,14 +576,14 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
         <div
           className={cn(
             'flex items-center justify-between border-t pt-3',
-            isLight ? 'border-[#e7e2d7]' : 'border-white/[0.06]',
+            isLight ? 'border-[#e7e2d7]' : 'border-[#3d3a32]',
           )}
         >
           <div className="flex items-center gap-2.5">
-            {isLight ? <Sun className="h-4 w-4 text-amber-600" /> : <Moon className="h-4 w-4 text-sky-400" />}
+            {isLight ? <Sun className="h-4 w-4 text-amber-600" /> : <Moon className="h-4 w-4 text-[#ded6c1]" />}
             <div>
-              <p className={cn('text-xs font-semibold', isLight ? 'text-[#353229]' : 'text-white')}>Color Theme</p>
-              <p className={cn('text-[10px]', isLight ? 'text-[#8c8472]' : 'text-mist-400')}>Currently in {isLight ? 'Light' : 'Dark'} mode</p>
+              <p className={cn('text-xs font-semibold', isLight ? 'text-[#353229]' : 'text-[#eee8dc]')}>Color Theme</p>
+              <p className={cn('text-[10px]', isLight ? 'text-[#8c8472]' : 'text-[#b7b0a1]')}>Currently in {isLight ? 'Light' : 'Dark'} mode</p>
             </div>
           </div>
           <button
@@ -593,7 +593,7 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
               'rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer',
               isLight
                 ? 'border-[#e7e2d7] bg-[#f6f3ec] text-[#353229] hover:bg-[#ebe2cc]'
-                : 'border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
+                : 'border-[#867e6c] bg-[#282720] text-[#eee8dc] hover:bg-[#343127]',
             )}
           >
             Switch to {isLight ? 'Dark' : 'Light'}
@@ -607,14 +607,14 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
           'rounded-3xl border p-4 sm:p-5 transition-colors',
           isLight
             ? 'border-[#e7e2d7] bg-[#ffffff] shadow-[0_4px_18px_rgba(53,50,41,0.04)]'
-            : 'border-amber-400/20 bg-amber-400/[0.04]',
+            : 'border-[#3d3a32] bg-[#1e1e1b]',
         )}
       >
         <div className="flex items-center gap-2">
-          <HeartPulse className={cn('h-4 w-4', isLight ? 'text-[#353229]' : 'text-amber-400')} />
-          <h3 className={cn('text-xs font-bold', isLight ? 'text-[#353229]' : 'text-white')}>Emergency Shift Relief</h3>
+          <HeartPulse className={cn('h-4 w-4', isLight ? 'text-[#353229]' : 'text-[#ded6c1]')} />
+          <h3 className={cn('text-xs font-bold', isLight ? 'text-[#353229]' : 'text-[#eee8dc]')}>Emergency Shift Relief</h3>
         </div>
-        <p className={cn('mt-1 text-[11px] leading-relaxed', isLight ? 'text-[#686252]' : 'text-mist-300')}>
+        <p className={cn('mt-1 text-[11px] leading-relaxed', isLight ? 'text-[#686252]' : 'text-[#b7b0a1]')}>
           Need urgent coverage due to illness, fatigue, or personal emergency? Request immediate relief from Duty Manager.
         </p>
 
@@ -624,24 +624,24 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
               'mt-3 rounded-xl border p-3 text-xs',
               isLight
                 ? 'border-[#e7e2d7] bg-[#fbfaf7]'
-                : 'border-amber-400/30 bg-amber-400/10',
+                : 'border-[#867e6c] bg-[#282720]/60',
             )}
           >
             <div className="flex items-center justify-between">
-              <span className={cn('font-semibold', isLight ? 'text-[#353229]' : 'text-amber-200')}>Relief Request Logged</span>
+              <span className={cn('font-semibold', isLight ? 'text-[#353229]' : 'text-[#ded6c1]')}>Relief Request Logged</span>
               <span
                 className={cn(
                   'rounded-full px-2 py-0.5 text-[10px] font-bold uppercase border',
                   isLight
                     ? 'border-[#e7e2d7] bg-[#f6f3ec] text-[#353229]'
-                    : 'bg-amber-400/20 text-amber-300 border-amber-400/30',
+                    : 'bg-[#343127] text-[#ded6c1] border-[#867e6c]',
                 )}
               >
                 {shiftRequest.status}
               </span>
             </div>
-            <p className={cn('mt-1 text-[11px]', isLight ? 'text-[#686252]' : 'text-mist-300')}>Reason: {shiftRequest.reason}</p>
-            <p className={cn('text-[10px] mt-0.5', isLight ? 'text-[#8c8472]' : 'text-mist-400')}>Submitted at {shiftRequest.requestedAt}</p>
+            <p className={cn('mt-1 text-[11px]', isLight ? 'text-[#686252]' : 'text-[#b7b0a1]')}>Reason: {shiftRequest.reason}</p>
+            <p className={cn('text-[10px] mt-0.5', isLight ? 'text-[#8c8472]' : 'text-[#b7b0a1]')}>Submitted at {shiftRequest.requestedAt}</p>
           </div>
         ) : (
           <button
@@ -651,7 +651,7 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
               'mt-3 w-full rounded-xl border py-2 px-3 text-xs font-semibold transition-colors cursor-pointer',
               isLight
                 ? 'border-[#b7b09e] bg-[#ffffff] text-[#353229] hover:bg-[#f6f3ec]'
-                : 'border-amber-400/40 bg-amber-400/10 text-amber-200 hover:bg-amber-400/20',
+                : 'border-[#867e6c] bg-[#282720] text-[#ded6c1] hover:bg-[#343127]',
             )}
           >
             Request Emergency Handover
@@ -668,13 +668,13 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
             'flex w-full items-center justify-center gap-2 rounded-2xl border py-3 px-4 text-xs font-bold transition-colors cursor-pointer',
             isLight
               ? 'border-rose-300 bg-rose-50 text-rose-800 hover:bg-rose-100 shadow-2xs'
-              : 'border-rose-400/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20',
+              : 'border-rose-500/40 bg-[#241215] text-rose-300 hover:bg-rose-500/20',
           )}
         >
           <LogOut className="h-4 w-4" />
           Sign Out of Employee Session
         </button>
-        <p className={cn('mt-2 text-center text-[10px]', isLight ? 'text-[#8c8472]' : 'text-mist-500')}>
+        <p className={cn('mt-2 text-center text-[10px]', isLight ? 'text-[#8c8472]' : 'text-[#b7b0a1]')}>
           Returns to staff portal selection screen. Session inputs are preserved locally.
         </p>
       </div>
@@ -688,19 +688,19 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
               'w-full max-w-md rounded-3xl border p-5 shadow-2xl',
               isLight
                 ? 'border-[#e7e2d7] bg-[#ffffff] text-[#353229]'
-                : 'border-amber-400/30 bg-ink-900 text-white',
+                : 'border-[#867e6c] bg-[#1e1e1b] text-[#eee8dc]',
             )}
           >
             <div className="flex items-center gap-2">
-              <AlertTriangle className={cn('h-5 w-5', isLight ? 'text-[#353229]' : 'text-amber-400')} />
-              <h3 className={cn('font-bold text-base', isLight ? 'text-[#353229]' : 'text-white')}>Emergency Shift Relief Request</h3>
+              <AlertTriangle className={cn('h-5 w-5', isLight ? 'text-[#353229]' : 'text-[#ded6c1]')} />
+              <h3 className={cn('font-bold text-base', isLight ? 'text-[#353229]' : 'text-[#eee8dc]')}>Emergency Shift Relief Request</h3>
             </div>
-            <p className={cn('mt-1 text-xs', isLight ? 'text-[#686252]' : 'text-mist-300')}>
+            <p className={cn('mt-1 text-xs', isLight ? 'text-[#686252]' : 'text-[#b7b0a1]')}>
               This notice will alert Duty Manager <strong>Marcus Vance</strong> for priority shift relief dispatch.
             </p>
 
             <div className="mt-3 space-y-2">
-              <p className={cn('text-[11px] font-semibold', isLight ? 'text-[#353229]' : 'text-mist-300')}>Reason:</p>
+              <p className={cn('text-[11px] font-semibold', isLight ? 'text-[#353229]' : 'text-[#b7b0a1]')}>Reason:</p>
               {EMERGENCY_REASONS.map((r) => (
                 <label
                   key={r}
@@ -709,10 +709,10 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
                     emergencyReason === r
                       ? isLight
                         ? 'border-[#353229] bg-[#f6f3ec] text-[#353229] font-bold'
-                        : 'border-amber-400/50 bg-amber-400/10 text-white'
+                        : 'border-[#867e6c] bg-[#343127] text-[#ded6c1] font-bold'
                       : isLight
                         ? 'border-[#e7e2d7] bg-[#ffffff] text-[#686252] hover:bg-[#f6f3ec]'
-                        : 'border-white/10 bg-white/[0.03] text-mist-300 hover:text-white',
+                        : 'border-[#3d3a32] bg-[#1e1e1b] text-[#b7b0a1] hover:bg-[#282720] hover:text-[#eee8dc]',
                   )}
                 >
                   <input
@@ -720,13 +720,13 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
                     name="emerg"
                     checked={emergencyReason === r}
                     onChange={() => setEmergencyReason(r)}
-                    className={isLight ? 'accent-[#353229]' : 'accent-amber-400'}
+                    className={isLight ? 'accent-[#353229]' : 'accent-[#ded6c1]'}
                   />
                   <span>{r}</span>
                 </label>
               ))}
 
-              <p className={cn('text-[11px] font-semibold mt-2', isLight ? 'text-[#353229]' : 'text-mist-300')}>Additional notes (optional):</p>
+              <p className={cn('text-[11px] font-semibold mt-2', isLight ? 'text-[#353229]' : 'text-[#b7b0a1]')}>Additional notes (optional):</p>
               <textarea
                 value={emergencyNotes}
                 onChange={(e) => setEmergencyNotes(e.target.value)}
@@ -736,7 +736,7 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
                   'w-full rounded-xl border p-2.5 text-xs focus:outline-none',
                   isLight
                     ? 'border-[#e7e2d7] bg-[#fbfaf7] text-[#353229] placeholder-[#8c8472] focus:border-[#353229]'
-                    : 'border-white/10 bg-white/[0.04] text-white placeholder-mist-500 focus:border-amber-400',
+                    : 'border-[#3d3a32] bg-[#282720]/60 text-[#eee8dc] placeholder-[#b7b0a1] focus:border-[#867e6c]',
                 )}
               />
             </div>
@@ -744,7 +744,7 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
             <div
               className={cn(
                 'mt-5 flex items-center justify-end gap-2 border-t pt-3',
-                isLight ? 'border-[#e7e2d7]' : 'border-white/10',
+                isLight ? 'border-[#e7e2d7]' : 'border-[#3d3a32]',
               )}
             >
               <button
@@ -754,7 +754,7 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
                   'rounded-xl border px-3 py-1.5 text-xs cursor-pointer',
                   isLight
                     ? 'border-[#e7e2d7] text-[#686252] hover:bg-[#f6f3ec]'
-                    : 'border-white/10 text-mist-300 hover:text-white',
+                    : 'border-[#3d3a32] text-[#b7b0a1] hover:text-[#eee8dc] hover:bg-[#282720]',
                 )}
               >
                 Cancel
@@ -766,7 +766,7 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
                   'rounded-xl px-4 py-1.5 text-xs font-bold transition-all shadow-md cursor-pointer',
                   isLight
                     ? 'bg-[#353229] text-[#ffffff] hover:bg-[#484438]'
-                    : 'bg-amber-400 text-ink-950 shadow-amber-400/30 hover:bg-amber-300',
+                    : 'bg-[#ded6c1] text-[#28261f] shadow-sm hover:bg-[#e5dfcb]',
                 )}
               >
                 Submit Relief Request
@@ -786,20 +786,20 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
               'w-full max-w-sm rounded-3xl border p-5 shadow-2xl',
               isLight
                 ? 'border-[#e7e2d7] bg-[#ffffff] text-[#353229]'
-                : 'border-rose-500/30 bg-ink-900 text-white',
+                : 'border-[#867e6c] bg-[#1e1e1b] text-[#eee8dc]',
             )}
           >
             <div className="flex items-center gap-3 text-rose-500">
               <LogOut className="h-5 w-5" />
-              <h3 className={cn('font-bold text-base', isLight ? 'text-[#353229]' : 'text-white')}>Sign out of session?</h3>
+              <h3 className={cn('font-bold text-base', isLight ? 'text-[#353229]' : 'text-[#eee8dc]')}>Sign out of session?</h3>
             </div>
-            <p className={cn('mt-2 text-xs', isLight ? 'text-[#686252]' : 'text-mist-300')}>
+            <p className={cn('mt-2 text-xs', isLight ? 'text-[#686252]' : 'text-[#b7b0a1]')}>
               You are signed in as <strong>{activeProfile.employeeName}</strong> ({activeProfile.departmentName}). You will return to the Portal login screen.
             </p>
             <div
               className={cn(
                 'mt-4 flex items-center justify-end gap-2 border-t pt-3',
-                isLight ? 'border-[#e7e2d7]' : 'border-white/10',
+                isLight ? 'border-[#e7e2d7]' : 'border-[#3d3a32]',
               )}
             >
               <button
@@ -809,7 +809,7 @@ export function FulfillerProfileTab({ profile }: FulfillerProfileTabProps) {
                   'rounded-xl border px-3 py-1.5 text-xs cursor-pointer',
                   isLight
                     ? 'border-[#e7e2d7] text-[#686252] hover:bg-[#f6f3ec]'
-                    : 'border-white/10 text-mist-300 hover:text-white',
+                    : 'border-[#3d3a32] text-[#b7b0a1] hover:text-[#eee8dc] hover:bg-[#282720]',
                 )}
               >
                 Cancel

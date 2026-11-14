@@ -8,12 +8,27 @@ const __dirname = path.dirname(__filename);
 const nextConfig = {
   reactStrictMode: true,
   outputFileTracingRoot: __dirname,
-  transpilePackages: ['lucide-react'],
   typescript: {
     ignoreBuildErrors: true,
   },
   eslint: {
     ignoreDuringBuilds: true,
+  },
+  async rewrites() {
+    return [
+      {
+        source: '/department',
+        destination: '/staff/department-manager',
+      },
+      {
+        source: '/department-manager',
+        destination: '/staff/department-manager',
+      },
+      {
+        source: '/fulfiller',
+        destination: '/staff/fulfiller',
+      },
+    ];
   },
 };
 

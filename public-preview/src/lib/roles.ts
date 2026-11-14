@@ -143,17 +143,42 @@ export const roleById: Record<RoleId, RoleMeta> = {
 };
 
 export function roleBySlug(slug: string): RoleMeta | undefined {
-  const direct = roles.find((r) => r.slug === slug);
+  const direct = roles.find((r) => r.slug === slug || r.id === slug);
   if (direct) return direct;
   // Aliases for backwards compatibility with previous routes
-  if (slug === 'dispatcher' || slug === 'supervisor') {
+  if (
+    slug === 'dispatcher' ||
+    slug === 'supervisor' ||
+    slug === 'dispatcher_supervisor' ||
+    slug === 'department_dispatcher_supervisor'
+  ) {
     return roleById['department_dispatcher_supervisor'];
   }
-  if (slug === 'executive') {
+  if (slug === 'executive' || slug === 'general_manager' || slug === 'gm') {
     return roleById['general_manager'];
   }
-  if (slug === 'duty-manager') {
+  if (
+    slug === 'duty-manager' ||
+    slug === 'department' ||
+    slug === 'department_manager' ||
+    slug === 'manager'
+  ) {
     return roleById['department_manager'];
+  }
+  if (slug === 'task_fulfiller' || slug === 'tasks' || slug === 'attendant') {
+    return roleById['task_fulfiller'];
+  }
+  if (slug === 'front_desk' || slug === 'front_desk_coordinator') {
+    return roleById['front_desk_coordinator'];
+  }
+  if (slug === 'financial_operator') {
+    return roleById['financial_operator'];
+  }
+  if (slug === 'security_responder') {
+    return roleById['security_responder'];
+  }
+  if (slug === 'platform_admin') {
+    return roleById['platform_admin'];
   }
   return undefined;
 }

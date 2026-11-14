@@ -179,14 +179,14 @@ export function BreakRequestModal({
           'w-full max-w-lg rounded-3xl border p-4 sm:p-6 shadow-2xl transition-all max-h-[92vh] overflow-y-auto no-scrollbar flex flex-col',
           isLight
             ? 'border-[#e7e2d7] bg-[#ffffff] text-[#353229]'
-            : 'border-[rgba(165,130,95,0.3)] bg-[#18181c] text-[#f7f4ed]',
+            : 'border-[#867e6c] bg-[#1e1e1b] text-[#eee8dc]',
         )}
       >
         {/* Modal Header */}
         <div
           className={cn(
             'flex items-start justify-between gap-3 border-b pb-3 shrink-0',
-            isLight ? 'border-[#e7e2d7]' : 'border-white/10',
+            isLight ? 'border-[#e7e2d7]' : 'border-[#3d3a32]',
           )}
         >
           <div className="flex items-center gap-2.5">
@@ -195,20 +195,20 @@ export function BreakRequestModal({
                 'grid h-9 w-9 place-items-center rounded-xl border shrink-0',
                 isLight
                   ? 'border-[#e7e2d7] bg-[#f6f3ec] text-[#353229]'
-                  : 'border-[rgba(165,130,95,0.35)] bg-[rgba(200,169,110,0.12)] text-[#dfc187]',
+                  : 'border-[#867e6c] bg-[#282720] text-[#ded6c1]',
               )}
             >
               <ShieldCheck className="h-5 w-5" />
             </div>
             <div>
-              <h3 className={cn('text-sm sm:text-base font-bold', isLight ? 'text-[#353229]' : 'text-white')}>
+              <h3 className={cn('text-sm sm:text-base font-bold', isLight ? 'text-[#353229]' : 'text-[#eee8dc]')}>
                 {isPending
                   ? 'Duty Request Pending Approval'
                   : isOnBreak
                     ? 'Active Shift Break'
                     : 'Supervisor Duty & Shift Request'}
               </h3>
-              <p className={cn('text-[11px]', isLight ? 'text-[#686252]' : 'text-[#ded6c9]')}>
+              <p className={cn('text-[11px]', isLight ? 'text-[#686252]' : 'text-[#b7b0a1]')}>
                 Supervisor: <strong>{profile.supervisorName}</strong> ({profile.departmentName})
               </p>
             </div>
@@ -220,7 +220,7 @@ export function BreakRequestModal({
               'grid h-7 w-7 place-items-center rounded-lg transition-colors cursor-pointer shrink-0',
               isLight
                 ? 'bg-[#f6f3ec] text-[#686252] hover:text-[#353229]'
-                : 'bg-white/10 text-mist-300 hover:text-white',
+                : 'bg-[#282720] text-[#b7b0a1] hover:text-[#eee8dc]',
             )}
             title="Close dialog"
           >
@@ -236,7 +236,7 @@ export function BreakRequestModal({
                 'rounded-2xl border p-4 text-center space-y-2',
                 isLight
                   ? 'border-[#ded6c1] bg-[#ebe2cc]/30'
-                  : 'border-[rgba(165,130,95,0.35)] bg-[rgba(200,169,110,0.08)]',
+                  : 'border-[#867e6c] bg-[#343127]',
               )}
             >
               <div
@@ -244,16 +244,16 @@ export function BreakRequestModal({
                   'mx-auto grid h-11 w-11 place-items-center rounded-full border',
                   isLight
                     ? 'border-[#b7b09e] bg-white text-[#353229]'
-                    : 'border-[rgba(165,130,95,0.4)] bg-[#1a1918] text-[#dfc187]',
+                    : 'border-[#867e6c] bg-[#1e1e1b] text-[#ded6c1]',
                 )}
               >
                 <Coffee className="h-5 w-5 animate-pulse" />
               </div>
-              <h4 className={cn('text-sm font-bold', isLight ? 'text-[#353229]' : 'text-white')}>
+              <h4 className={cn('text-sm font-bold', isLight ? 'text-[#353229]' : 'text-[#eee8dc]')}>
                 You are currently On Break
               </h4>
-              <p className={cn('text-xs max-w-sm mx-auto leading-relaxed', isLight ? 'text-[#686252]' : 'text-[#ded6c9]')}>
-                Your break is logged in the department roster. Click below to return to On Duty when ready.
+              <p className={cn('text-xs max-w-sm mx-auto leading-relaxed', isLight ? 'text-[#686252]' : 'text-[#b7b0a1]')}>
+                Click below when you are ready to return to duty.
               </p>
             </div>
 
@@ -264,11 +264,11 @@ export function BreakRequestModal({
                 'w-full flex items-center justify-center gap-2 rounded-xl py-2.5 px-4 text-xs font-bold transition-all shadow-xs cursor-pointer',
                 isLight
                   ? 'bg-[#353229] text-white hover:bg-[#484438]'
-                  : 'bg-[#dfc187] text-[#14120e] hover:bg-[#e8cf9a]',
+                  : 'bg-[#ded6c1] text-[#28261f] hover:bg-[#e5dfcb]',
               )}
             >
               <RotateCcw className="h-4 w-4" />
-              <span>End Break & Resume On Duty</span>
+              <span>End Break & Back to Work</span>
             </button>
           </div>
         )}
@@ -287,7 +287,7 @@ export function BreakRequestModal({
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
                   <Clock className="h-4 w-4 animate-spin text-amber-700 shrink-0" />
-                  Awaiting Supervisor Approval
+                  Waiting for Supervisor
                 </span>
                 <span
                   className={cn(
@@ -304,33 +304,33 @@ export function BreakRequestModal({
               <div
                 className={cn(
                   'rounded-xl border p-3 text-xs space-y-1.5',
-                  isLight ? 'border-[#e7e2d7] bg-white' : 'border-white/10 bg-black/40',
+                  isLight ? 'border-[#e7e2d7] bg-white' : 'border-[#3d3a32] bg-[#282720]/60',
                 )}
               >
                 <div className="flex items-center justify-between">
-                  <span className={cn('font-bold', isLight ? 'text-[#353229]' : 'text-white')}>
+                  <span className={cn('font-bold', isLight ? 'text-[#353229]' : 'text-[#eee8dc]')}>
                     {breakRequest?.title || 'Duty Request'}
                   </span>
-                  <span className={cn('text-[10px] font-mono', isLight ? 'text-[#8c8472]' : 'text-mist-400')}>
+                  <span className={cn('text-[10px] font-mono', isLight ? 'text-[#8c8472]' : 'text-[#b7b0a1]')}>
                     {breakRequest?.requestedAt}
                   </span>
                 </div>
-                <p className={cn('text-[11px]', isLight ? 'text-[#686252]' : 'text-mist-300')}>
+                <p className={cn('text-[11px]', isLight ? 'text-[#686252]' : 'text-[#b7b0a1]')}>
                   Reason: <strong>{breakRequest?.reason}</strong>
                 </p>
                 {breakRequest?.durationMinutes && (
-                  <p className={cn('text-[11px]', isLight ? 'text-[#686252]' : 'text-mist-300')}>
+                  <p className={cn('text-[11px]', isLight ? 'text-[#686252]' : 'text-[#b7b0a1]')}>
                     Requested Duration: <strong>{breakRequest.durationMinutes} minutes</strong>
                   </p>
                 )}
                 {breakRequest?.customReason && (
-                  <p className={cn('text-[11px] italic pt-1 border-t', isLight ? 'border-[#e7e2d7] text-[#686252]' : 'border-white/10 text-mist-300')}>
+                  <p className={cn('text-[11px] italic pt-1 border-t', isLight ? 'border-[#e7e2d7] text-[#686252]' : 'border-[#3d3a32] text-[#b7b0a1]')}>
                     &ldquo;{breakRequest.customReason}&rdquo;
                   </p>
                 )}
               </div>
 
-              <p className={cn('text-[11px] leading-relaxed', isLight ? 'text-[#686252]' : 'text-mist-300')}>
+              <p className={cn('text-[11px] leading-relaxed', isLight ? 'text-[#686252]' : 'text-[#b7b0a1]')}>
                 Supervisor <strong>{profile.supervisorName}</strong> has been notified on the department roster. Status remains unchanged until approved.
               </p>
             </div>
@@ -343,7 +343,7 @@ export function BreakRequestModal({
                   'w-full sm:flex-1 rounded-xl border py-2 px-3 text-xs font-semibold transition-colors cursor-pointer text-center',
                   isLight
                     ? 'border-[#e7e2d7] bg-white text-[#686252] hover:bg-[#f6f3ec]'
-                    : 'border-white/10 bg-white/[0.04] text-mist-300 hover:text-white',
+                    : 'border-[#3d3a32] bg-[#1e1e1b] text-[#b7b0a1] hover:text-[#eee8dc] hover:bg-[#282720]',
                 )}
               >
                 Cancel Request
@@ -356,24 +356,29 @@ export function BreakRequestModal({
                   'w-full sm:flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2 px-3 text-xs font-bold transition-all shadow-xs cursor-pointer',
                   isLight
                     ? 'bg-[#353229] text-white hover:bg-[#484438]'
-                    : 'bg-[#dfc187] text-[#14120e] hover:bg-[#e8cf9a]',
+                    : 'bg-[#ded6c1] text-[#28261f] hover:bg-[#e5dfcb]',
                 )}
                 title="Simulate supervisor approval to transition duty status"
               >
                 <Sparkles className="h-3.5 w-3.5" />
-                <span>Simulate Approval (Demo)</span>
+                <span>Approve (Demo)</span>
               </button>
             </div>
           </div>
         ) : !isOnBreak && (
           /* State 3: Duty & Shift Request Form */
           <div className="mt-3.5 flex-1 flex flex-col space-y-3.5 overflow-y-auto no-scrollbar">
-            {/* Request Type Selector: 4 Tabs */}
+            {/* Request Type Selector: 3 Tabs */}
             <div>
-              <label className={cn('block text-[11px] font-semibold uppercase tracking-wider mb-1.5', isLight ? 'text-[#686252]' : 'text-mist-400')}>
+              <label className={cn('block text-[11px] font-semibold uppercase tracking-wider mb-1.5', isLight ? 'text-[#686252]' : 'text-[#b7b0a1]')}>
                 Select Request Type:
               </label>
-              <div className="grid grid-cols-3 gap-1.5 p-1 rounded-2xl border border-inherit bg-white/[0.02]">
+              <div
+                className={cn(
+                  'grid grid-cols-3 gap-1.5 p-1 rounded-2xl border transition-colors',
+                  isLight ? 'border-[#e7e2d7] bg-[#f6f3ec]' : 'border-[#3d3a32] bg-[#282720]',
+                )}
+              >
                 {/* On Duty */}
                 <button
                   type="button"
@@ -383,10 +388,10 @@ export function BreakRequestModal({
                     activeType === 'on_duty'
                       ? isLight
                         ? 'bg-[#353229] text-white shadow-xs'
-                        : 'bg-[#dfc187] text-[#14120e] shadow-xs'
+                        : 'bg-[#ded6c1] text-[#28261f] shadow-xs'
                       : isLight
-                        ? 'border border-transparent text-[#686252] hover:text-[#353229] hover:bg-[#f6f3ec]'
-                        : 'border border-transparent text-[#d9cebe] hover:text-white hover:bg-white/[0.04]',
+                        ? 'border border-transparent text-[#686252] hover:text-[#353229] hover:bg-[#ebe2cc]/40'
+                        : 'border border-transparent text-[#b7b0a1] hover:text-[#eee8dc] hover:bg-[#1e1e1b]',
                   )}
                 >
                   <Shield className="h-3.5 w-3.5" />
@@ -402,10 +407,10 @@ export function BreakRequestModal({
                     activeType === 'off_duty'
                       ? isLight
                         ? 'bg-[#353229] text-white shadow-xs'
-                        : 'bg-[#dfc187] text-[#14120e] shadow-xs'
+                        : 'bg-[#ded6c1] text-[#28261f] shadow-xs'
                       : isLight
-                        ? 'border border-transparent text-[#686252] hover:text-[#353229] hover:bg-[#f6f3ec]'
-                        : 'border border-transparent text-[#d9cebe] hover:text-white hover:bg-white/[0.04]',
+                        ? 'border border-transparent text-[#686252] hover:text-[#353229] hover:bg-[#ebe2cc]/40'
+                        : 'border border-transparent text-[#b7b0a1] hover:text-[#eee8dc] hover:bg-[#1e1e1b]',
                   )}
                 >
                   <Power className="h-3.5 w-3.5" />
@@ -421,10 +426,10 @@ export function BreakRequestModal({
                     activeType === 'break'
                       ? isLight
                         ? 'bg-[#353229] text-white shadow-xs'
-                        : 'bg-[#dfc187] text-[#14120e] shadow-xs'
+                        : 'bg-[#ded6c1] text-[#28261f] shadow-xs'
                       : isLight
-                        ? 'border border-transparent text-[#686252] hover:text-[#353229] hover:bg-[#f6f3ec]'
-                        : 'border border-transparent text-[#d9cebe] hover:text-white hover:bg-white/[0.04]',
+                        ? 'border border-transparent text-[#686252] hover:text-[#353229] hover:bg-[#ebe2cc]/40'
+                        : 'border border-transparent text-[#b7b0a1] hover:text-[#eee8dc] hover:bg-[#1e1e1b]',
                   )}
                 >
                   <Coffee className="h-3.5 w-3.5" />
@@ -436,7 +441,7 @@ export function BreakRequestModal({
             {/* TAB 1: ON DUTY REASONS */}
             {activeType === 'on_duty' && (
               <div className="space-y-2">
-                <label className={cn('block text-xs font-semibold', isLight ? 'text-[#353229]' : 'text-white')}>
+                <label className={cn('block text-xs font-semibold', isLight ? 'text-[#353229]' : 'text-[#eee8dc]')}>
                   Select On Duty Reason:
                 </label>
                 <div className="space-y-1.5 max-h-[38vh] overflow-y-auto no-scrollbar pr-0.5">
@@ -451,10 +456,10 @@ export function BreakRequestModal({
                           isSelected
                             ? isLight
                               ? 'border-[#353229] bg-[#f6f3ec] shadow-2xs font-medium'
-                              : 'border-[#dfc187] bg-[#dfc187]/10 text-white font-medium'
+                              : 'border-[#867e6c] bg-[#343127] text-[#ded6c1] font-medium'
                             : isLight
                               ? 'border-[#e7e2d7] bg-white text-[#686252] hover:bg-[#fbfaf7]'
-                              : 'border-white/10 bg-white/[0.03] text-mist-300 hover:bg-white/[0.05]',
+                              : 'border-[#3d3a32] bg-[#1e1e1b] text-[#b7b0a1] hover:bg-[#282720] hover:text-[#eee8dc]',
                         )}
                       >
                         <input
@@ -462,13 +467,13 @@ export function BreakRequestModal({
                           name="on_duty_reason"
                           checked={isSelected}
                           onChange={() => setOnDutyReasonId(opt.id)}
-                          className={cn('mt-0.5', isLight ? 'accent-[#353229]' : 'accent-[#dfc187]')}
+                          className={cn('mt-0.5', isLight ? 'accent-[#353229]' : 'accent-[#ded6c1]')}
                         />
                         <div className="min-w-0 flex-1">
-                          <span className={cn('text-xs font-semibold block', isLight ? 'text-[#353229]' : 'text-white')}>
+                          <span className={cn('text-xs font-semibold block', isLight ? 'text-[#353229]' : 'text-[#eee8dc]')}>
                             {opt.label}
                           </span>
-                          <span className={cn('text-[11px] block mt-0.5', isLight ? 'text-[#686252]' : 'text-mist-400')}>
+                          <span className={cn('text-[11px] block mt-0.5', isLight ? 'text-[#686252]' : 'text-[#b7b0a1]')}>
                             {opt.desc}
                           </span>
                         </div>
@@ -487,7 +492,7 @@ export function BreakRequestModal({
                           'w-full rounded-xl border p-2 text-xs focus:outline-none resize-none',
                           isLight
                             ? 'border-[#b7b09e] bg-white text-[#353229] placeholder-[#8c8472] focus:border-[#353229]'
-                            : 'border-white/20 bg-white/[0.04] text-white placeholder:text-mist-400 focus:border-[#dfc187]',
+                            : 'border-[#3d3a32] bg-[#282720]/60 text-[#eee8dc] placeholder-[#b7b0a1] focus:border-[#867e6c]',
                         )}
                         autoFocus
                       />
@@ -500,7 +505,7 @@ export function BreakRequestModal({
             {/* TAB 2: OFF DUTY REASONS */}
             {activeType === 'off_duty' && (
               <div className="space-y-2">
-                <label className={cn('block text-xs font-semibold', isLight ? 'text-[#353229]' : 'text-white')}>
+                <label className={cn('block text-xs font-semibold', isLight ? 'text-[#353229]' : 'text-[#eee8dc]')}>
                   Select Off Duty Reason:
                 </label>
                 <div className="space-y-1.5 max-h-[38vh] overflow-y-auto no-scrollbar pr-0.5">
@@ -515,10 +520,10 @@ export function BreakRequestModal({
                           isSelected
                             ? isLight
                               ? 'border-[#353229] bg-[#f6f3ec] shadow-2xs font-medium'
-                              : 'border-[#dfc187] bg-[#dfc187]/10 text-white font-medium'
+                              : 'border-[#867e6c] bg-[#343127] text-[#ded6c1] font-medium'
                             : isLight
                               ? 'border-[#e7e2d7] bg-white text-[#686252] hover:bg-[#fbfaf7]'
-                              : 'border-white/10 bg-white/[0.03] text-mist-300 hover:bg-white/[0.05]',
+                              : 'border-[#3d3a32] bg-[#1e1e1b] text-[#b7b0a1] hover:bg-[#282720] hover:text-[#eee8dc]',
                         )}
                       >
                         <input
@@ -526,13 +531,13 @@ export function BreakRequestModal({
                           name="off_duty_reason"
                           checked={isSelected}
                           onChange={() => setOffDutyReasonId(opt.id)}
-                          className={cn('mt-0.5', isLight ? 'accent-[#353229]' : 'accent-[#dfc187]')}
+                          className={cn('mt-0.5', isLight ? 'accent-[#353229]' : 'accent-[#ded6c1]')}
                         />
                         <div className="min-w-0 flex-1">
-                          <span className={cn('text-xs font-semibold block', isLight ? 'text-[#353229]' : 'text-white')}>
+                          <span className={cn('text-xs font-semibold block', isLight ? 'text-[#353229]' : 'text-[#eee8dc]')}>
                             {opt.label}
                           </span>
-                          <span className={cn('text-[11px] block mt-0.5', isLight ? 'text-[#686252]' : 'text-mist-400')}>
+                          <span className={cn('text-[11px] block mt-0.5', isLight ? 'text-[#686252]' : 'text-[#b7b0a1]')}>
                             {opt.desc}
                           </span>
                         </div>
@@ -551,7 +556,7 @@ export function BreakRequestModal({
                           'w-full rounded-xl border p-2 text-xs focus:outline-none resize-none',
                           isLight
                             ? 'border-[#b7b09e] bg-white text-[#353229] placeholder-[#8c8472] focus:border-[#353229]'
-                            : 'border-white/20 bg-white/[0.04] text-white placeholder:text-mist-400 focus:border-[#dfc187]',
+                            : 'border-[#3d3a32] bg-[#282720]/60 text-[#eee8dc] placeholder-[#b7b0a1] focus:border-[#867e6c]',
                         )}
                         autoFocus
                       />
@@ -564,7 +569,7 @@ export function BreakRequestModal({
             {/* TAB 3: BREAK OPTIONS */}
             {activeType === 'break' && (
               <div className="space-y-2">
-                <label className={cn('block text-xs font-semibold', isLight ? 'text-[#353229]' : 'text-white')}>
+                <label className={cn('block text-xs font-semibold', isLight ? 'text-[#353229]' : 'text-[#eee8dc]')}>
                   Select Break Window:
                 </label>
                 <div className="space-y-1.5 max-h-[38vh] overflow-y-auto no-scrollbar pr-0.5">
@@ -579,10 +584,10 @@ export function BreakRequestModal({
                           isSelected
                             ? isLight
                               ? 'border-[#353229] bg-[#f6f3ec] shadow-2xs font-medium'
-                              : 'border-[#dfc187] bg-[#dfc187]/10 text-white font-medium'
+                              : 'border-[#867e6c] bg-[#343127] text-[#ded6c1] font-medium'
                             : isLight
                               ? 'border-[#e7e2d7] bg-white text-[#686252] hover:bg-[#fbfaf7]'
-                              : 'border-white/10 bg-white/[0.03] text-mist-300 hover:bg-white/[0.05]',
+                              : 'border-[#3d3a32] bg-[#1e1e1b] text-[#b7b0a1] hover:bg-[#282720] hover:text-[#eee8dc]',
                         )}
                       >
                         <input
@@ -590,23 +595,23 @@ export function BreakRequestModal({
                           name="break_reason"
                           checked={isSelected}
                           onChange={() => setBreakOptionId(opt.id)}
-                          className={cn('mt-0.5', isLight ? 'accent-[#353229]' : 'accent-[#dfc187]')}
+                          className={cn('mt-0.5', isLight ? 'accent-[#353229]' : 'accent-[#ded6c1]')}
                         />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-1">
-                            <span className={cn('text-xs font-semibold', isLight ? 'text-[#353229]' : 'text-white')}>
+                            <span className={cn('text-xs font-semibold', isLight ? 'text-[#353229]' : 'text-[#eee8dc]')}>
                               {opt.label}
                             </span>
                             <span
                               className={cn(
                                 'text-[10px] font-mono px-1.5 py-0.2 rounded border font-semibold',
-                                isLight ? 'border-[#e7e2d7] bg-white' : 'border-white/10 bg-black/30 text-[#dfc187]',
+                                isLight ? 'border-[#e7e2d7] bg-white' : 'border-[#3d3a32] bg-[#282720] text-[#ded6c1]',
                               )}
                             >
                               {opt.durationMinutes}m
                             </span>
                           </div>
-                          <span className={cn('text-[11px] block mt-0.5', isLight ? 'text-[#686252]' : 'text-mist-400')}>
+                          <span className={cn('text-[11px] block mt-0.5', isLight ? 'text-[#686252]' : 'text-[#b7b0a1]')}>
                             {opt.desc}
                           </span>
                         </div>
@@ -617,7 +622,7 @@ export function BreakRequestModal({
                   {breakOptionId === 'other' && (
                     <div className="pt-1 space-y-1.5">
                       <div className="flex items-center gap-2">
-                        <span className={cn('text-[11px] font-semibold', isLight ? 'text-[#353229]' : 'text-white')}>
+                        <span className={cn('text-[11px] font-semibold', isLight ? 'text-[#353229]' : 'text-[#eee8dc]')}>
                           Break Duration:
                         </span>
                         <input
@@ -629,7 +634,7 @@ export function BreakRequestModal({
                           onChange={(e) => setCustomBreakMinutes(Math.max(5, Math.min(60, Number(e.target.value) || 20)))}
                           className={cn(
                             'w-20 rounded-lg border p-1 text-xs text-center focus:outline-none',
-                            isLight ? 'border-[#b7b09e] bg-white text-[#353229]' : 'border-white/20 bg-black/40 text-white',
+                            isLight ? 'border-[#b7b09e] bg-white text-[#353229]' : 'border-[#3d3a32] bg-[#282720] text-[#eee8dc]',
                           )}
                         />
                         <span className="text-[11px]">minutes</span>
@@ -643,7 +648,7 @@ export function BreakRequestModal({
                           'w-full rounded-xl border p-2 text-xs focus:outline-none resize-none',
                           isLight
                             ? 'border-[#b7b09e] bg-white text-[#353229] placeholder-[#8c8472] focus:border-[#353229]'
-                            : 'border-white/20 bg-white/[0.04] text-white placeholder:text-mist-400 focus:border-[#dfc187]',
+                            : 'border-[#3d3a32] bg-[#282720]/60 text-[#eee8dc] placeholder-[#b7b0a1] focus:border-[#867e6c]',
                         )}
                         autoFocus
                       />
@@ -655,10 +660,7 @@ export function BreakRequestModal({
 
             {/* Modal Actions */}
             <div
-              className={cn(
-                'flex items-center justify-end gap-2 border-t pt-3 mt-auto shrink-0',
-                isLight ? 'border-[#e7e2d7]' : 'border-white/10',
-              )}
+              className="flex items-center justify-end gap-2 pt-3 mt-auto shrink-0"
             >
               <button
                 type="button"
@@ -667,7 +669,7 @@ export function BreakRequestModal({
                   'rounded-xl border px-3.5 py-1.5 text-xs font-medium transition-colors cursor-pointer',
                   isLight
                     ? 'border-[#e7e2d7] bg-white text-[#686252] hover:bg-[#f6f3ec]'
-                    : 'border-white/10 text-mist-300 hover:text-white',
+                    : 'border-[#3d3a32] text-[#b7b0a1] hover:text-[#eee8dc] hover:bg-[#282720]',
                 )}
               >
                 Cancel
@@ -679,19 +681,11 @@ export function BreakRequestModal({
                   'flex items-center gap-1.5 rounded-xl px-4 py-1.5 text-xs font-bold transition-all shadow-xs cursor-pointer',
                   isLight
                     ? 'bg-[#353229] text-white hover:bg-[#484438]'
-                    : 'bg-[#dfc187] text-[#14120e] hover:bg-[#e8cf9a]',
+                    : 'bg-[#ded6c1] text-[#28261f] hover:bg-[#e5dfcb]',
                 )}
               >
                 <Send className="h-3.5 w-3.5" />
-                <span>
-                  {activeType === 'on_duty'
-                    ? 'Send On Duty Request'
-                    : activeType === 'off_duty'
-                      ? 'Send Off Duty Request'
-                      : activeType === 'break'
-                        ? 'Send Break Request'
-                        : 'Send Other Request'}
-                </span>
+                <span>Send Request</span>
               </button>
             </div>
           </div>

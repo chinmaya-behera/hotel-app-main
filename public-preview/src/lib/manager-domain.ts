@@ -1,10 +1,8 @@
 import type { DemoState, WorkItem, SupervisorInspection } from '../types/demo';
-import { applyManagerWorkflow, type WorkflowCommand } from './manager-workflows.ts';
-import { applyScheduleCommand, type ScheduleCommand } from './manager-scheduling.ts';
 
 export const MANAGER_DEPARTMENTS = [
   { id: 'housekeeping', name: 'Housekeeping', person: 'Ananya Rao', email: 'housekeeping.manager@thegrandadp.com', focus: 'Room readiness, spotless spaces and thoughtful guest care.', standard: 'Verify linen, amenities, sanitation and room presentation.' },
-  { id: 'wellness', name: 'Spa & Wellness', person: 'Leena Kapoor', email: 'wellness.manager@thegrandadp.com', focus: 'Guest care, medical case follow-up and wellness service quality.', standard: 'Verify wellness-area hygiene, guest-care readiness and follow-up ownership.' },
+  { id: 'wellness', name: 'Spa & Wellness', person: 'Leena Kapoor', email: 'wellness.manager@thegrandadp.com', focus: 'Calm treatment spaces, safe therapies and seamless appointments.', standard: 'Verify treatment-room hygiene, therapist readiness and appointment setup.' },
   { id: 'engineering', name: 'Maintenance & Engineering', person: 'Arjun Mehta', email: 'engineering.manager@thegrandadp.com', focus: 'Reliable systems, preventive maintenance and safe facilities.', standard: 'Verify equipment operation, repair evidence and safety clearance.' },
   { id: 'food-beverages', name: 'Food & Beverages', person: 'Vikram Joshi', email: 'dining.manager@thegrandadp.com', focus: 'Timely service, food safety and memorable dining experiences.', standard: 'Verify food temperatures, allergen checks, presentation and delivery.' },
 ] as const;
@@ -27,7 +25,7 @@ export function departmentId(value?: string): ManagerDepartmentId | undefined {
 export function taskDepartment(item: WorkItem): ManagerDepartmentId | undefined {
   return departmentId(item.department) ?? departmentId(item.category) ?? departmentId(item.routedTo) ?? departmentId(`${item.title} ${item.meta}`);
 }
-export function isOpen(status: string) { return !['completed', 'delivered', 'resolved', 'cancelled', 'canceled', 'closed', 'rejected', 'passed'].includes(status.toLowerCase()); }
+export function isOpen(status: string) { return !['completed', 'resolved', 'cancelled', 'closed', 'rejected', 'passed'].includes(status.toLowerCase()); }
 export function managerTasks(s: DemoState, id: ManagerDepartmentId) {
   const unique = new Map<string, WorkItem>();
   // The departmental queue is authoritative for shared request references.
@@ -38,47 +36,107 @@ export function managerTasks(s: DemoState, id: ManagerDepartmentId) {
 export function managerInspections(s: DemoState, id: ManagerDepartmentId) {
   return (s.inspections ?? []).filter(i => (departmentId(i.department) ?? (i.type === 'maintenance_check' ? 'engineering' : 'housekeeping')) === id);
 }
+export const SAMPLE_PROOF_PHOTOS: Record<string, string> = {
+  'food-beverages': "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='400' height='300' fill='%23141417'/><rect x='16' y='16' width='368' height='268' rx='16' fill='%231c1c20' stroke='%23c8a96e' stroke-width='2'/><circle cx='200' cy='95' r='36' fill='%23c8a96e' fill-opacity='0.2'/><path d='M188 95l8 8 16-16' stroke='%23dfc187' stroke-width='4' stroke-linecap='round' stroke-linejoin='round' fill='none'/><text x='200' y='165' fill='%23f7f4ed' font-size='18' font-family='sans-serif' text-anchor='middle' font-weight='bold'>Dining Service Delivered</text><text x='200' y='192' fill='%23d9cebe' font-size='12' font-family='sans-serif' text-anchor='middle'>Tray Staged · Temperature Verified · Flutes Placed</text><rect x='110' y='218' width='180' height='30' rx='8' fill='%23c8a96e'/><text x='200' y='238' fill='%23141417' font-size='11' font-family='sans-serif' text-anchor='middle' font-weight='bold'>PHOTO EVIDENCE VERIFIED</text></svg>",
+  fnb: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='400' height='300' fill='%23141417'/><rect x='16' y='16' width='368' height='268' rx='16' fill='%231c1c20' stroke='%23c8a96e' stroke-width='2'/><circle cx='200' cy='95' r='36' fill='%23c8a96e' fill-opacity='0.2'/><path d='M188 95l8 8 16-16' stroke='%23dfc187' stroke-width='4' stroke-linecap='round' stroke-linejoin='round' fill='none'/><text x='200' y='165' fill='%23f7f4ed' font-size='18' font-family='sans-serif' text-anchor='middle' font-weight='bold'>Dining Service Delivered</text><text x='200' y='192' fill='%23d9cebe' font-size='12' font-family='sans-serif' text-anchor='middle'>Tray Staged · Temperature Verified · Flutes Placed</text><rect x='110' y='218' width='180' height='30' rx='8' fill='%23c8a96e'/><text x='200' y='238' fill='%23141417' font-size='11' font-family='sans-serif' text-anchor='middle' font-weight='bold'>PHOTO EVIDENCE VERIFIED</text></svg>",
+  housekeeping: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='400' height='300' fill='%23141417'/><rect x='16' y='16' width='368' height='268' rx='16' fill='%231c1c20' stroke='%23c8a96e' stroke-width='2'/><circle cx='200' cy='95' r='36' fill='%23c8a96e' fill-opacity='0.2'/><path d='M188 95l8 8 16-16' stroke='%23dfc187' stroke-width='4' stroke-linecap='round' stroke-linejoin='round' fill='none'/><text x='200' y='165' fill='%23f7f4ed' font-size='18' font-family='sans-serif' text-anchor='middle' font-weight='bold'>Room Turnover Completed</text><text x='200' y='192' fill='%23d9cebe' font-size='12' font-family='sans-serif' text-anchor='middle'>Fresh Linens · Sanitized · Turndown Standard</text><rect x='110' y='218' width='180' height='30' rx='8' fill='%23c8a96e'/><text x='200' y='238' fill='%23141417' font-size='11' font-family='sans-serif' text-anchor='middle' font-weight='bold'>PHOTO EVIDENCE VERIFIED</text></svg>",
+  wellness: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='400' height='300' fill='%23141417'/><rect x='16' y='16' width='368' height='268' rx='16' fill='%231c1c20' stroke='%23c8a96e' stroke-width='2'/><circle cx='200' cy='95' r='36' fill='%23c8a96e' fill-opacity='0.2'/><path d='M188 95l8 8 16-16' stroke='%23dfc187' stroke-width='4' stroke-linecap='round' stroke-linejoin='round' fill='none'/><text x='200' y='165' fill='%23f7f4ed' font-size='18' font-family='sans-serif' text-anchor='middle' font-weight='bold'>Spa Suite Prepared</text><text x='200' y='192' fill='%23d9cebe' font-size='12' font-family='sans-serif' text-anchor='middle'>Aromatherapy Setup · Fresh Towels · Ambiance Ready</text><rect x='110' y='218' width='180' height='30' rx='8' fill='%23c8a96e'/><text x='200' y='238' fill='%23141417' font-size='11' font-family='sans-serif' text-anchor='middle' font-weight='bold'>PHOTO EVIDENCE VERIFIED</text></svg>",
+  engineering: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='400' height='300' fill='%23141417'/><rect x='16' y='16' width='368' height='268' rx='16' fill='%231c1c20' stroke='%23c8a96e' stroke-width='2'/><circle cx='200' cy='95' r='36' fill='%23c8a96e' fill-opacity='0.2'/><path d='M188 95l8 8 16-16' stroke='%23dfc187' stroke-width='4' stroke-linecap='round' stroke-linejoin='round' fill='none'/><text x='200' y='165' fill='%23f7f4ed' font-size='18' font-family='sans-serif' text-anchor='middle' font-weight='bold'>Engineering Repair Tested</text><text x='200' y='192' fill='%23d9cebe' font-size='12' font-family='sans-serif' text-anchor='middle'>Thermostat Calibrated · Leak Free · Functional</text><rect x='110' y='218' width='180' height='30' rx='8' fill='%23c8a96e'/><text x='200' y='238' fill='%23141417' font-size='11' font-family='sans-serif' text-anchor='middle' font-weight='bold'>PHOTO EVIDENCE VERIFIED</text></svg>",
+  maintenance: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='400' height='300' fill='%23141417'/><rect x='16' y='16' width='368' height='268' rx='16' fill='%231c1c20' stroke='%23c8a96e' stroke-width='2'/><circle cx='200' cy='95' r='36' fill='%23c8a96e' fill-opacity='0.2'/><path d='M188 95l8 8 16-16' stroke='%23dfc187' stroke-width='4' stroke-linecap='round' stroke-linejoin='round' fill='none'/><text x='200' y='165' fill='%23f7f4ed' font-size='18' font-family='sans-serif' text-anchor='middle' font-weight='bold'>Engineering Repair Tested</text><text x='200' y='192' fill='%23d9cebe' font-size='12' font-family='sans-serif' text-anchor='middle'>Thermostat Calibrated · Leak Free · Functional</text><rect x='110' y='218' width='180' height='30' rx='8' fill='%23c8a96e'/><text x='200' y='238' fill='%23141417' font-size='11' font-family='sans-serif' text-anchor='middle' font-weight='bold'>PHOTO EVIDENCE VERIFIED</text></svg>",
+};
+
 export function managerNotifications(s: DemoState, id: ManagerDepartmentId) {
   const tasks = new Set(managerTasks(s, id).flatMap(t => [t.id, t.ref].filter(Boolean)));
   const inspections = new Set(managerInspections(s, id).map(i => i.id));
   return (s.notifications ?? []).filter(n =>
-    n.roleId === 'department_manager'
-    // Broadcasts come from the safety alert record so acknowledgments and resolution stay current.
-    && !/^(?:🚨\s*)?SAFETY ALERT BROADCAST:/i.test(n.title)
-    && (departmentId(n.department) === id || !n.department && !!n.itemId && (tasks.has(n.itemId) || inspections.has(n.itemId)))
+    (n.roleId === 'department_manager' || (n as unknown as Record<string, unknown>).targetRole === 'department_manager' || departmentId(n.department) === id) &&
+    (departmentId(n.department) === id || (!n.department && !!n.itemId && (tasks.has(n.itemId) || inspections.has(n.itemId))))
   );
 }
-
-export function managerSafetyAlerts(s: DemoState) {
-  const priorityOrder = { critical: 0, urgent: 1, warning: 2 };
-  return (s.safetyAlerts ?? [])
-    .filter(alert =>
-      (alert.broadcastScope === 'all_staff' || alert.broadcastScope === 'hotel_wide')
-      && (alert.status === 'broadcast_active' || (alert.status === 'resolved' && !!alert.broadcastAt))
-    )
-    .sort((a, b) => {
-      if (a.status !== b.status) return a.status === 'broadcast_active' ? -1 : 1;
-      return a.status === 'broadcast_active' ? priorityOrder[a.priority] - priorityOrder[b.priority] : 0;
-    });
-}
 export function ensureManagerState(s: DemoState): DemoState {
-  const next = { ...s, managerOperations: { ...(s.managerOperations ?? seedManagerOperations()), medicalCases: s.managerOperations?.medicalCases ?? [] }, managerDepartment: s.managerDepartment ?? 'housekeeping' as const, staffAccounts: [...s.staffAccounts], items: { ...s.items }, inspections: [...(s.inspections ?? [])] };
+  const next = {
+    ...s,
+    managerOperations: s.managerOperations ?? seedManagerOperations(),
+    managerDepartment: s.managerDepartment ?? ('housekeeping' as const),
+    staffAccounts: [...(s.staffAccounts ?? [])],
+    items: {
+      ...s.items,
+      department_manager: [...(s.items?.department_manager ?? [])],
+      task_fulfiller: [...(s.items?.task_fulfiller ?? [])],
+    },
+    inspections: [...(s.inspections ?? [])],
+    notifications: [...(s.notifications ?? [])],
+  };
   for (const d of MANAGER_DEPARTMENTS) {
     if (d.id === 'wellness' && !next.staffAccounts.some(st => st.id === 'dept-therapist-wellness')) next.staffAccounts.push({ id: 'dept-therapist-wellness', employeeId: 'SPA-0201', name: 'Maya Sen', email: 'maya.sen@thegrandadp.com', roleId: 'task_fulfiller', department: d.name, floorZone: 'Spa treatment rooms', shift: 'Day', status: 'active', financialLimit: 0, createdAt: '2026-11-04', availability: 'on_duty', skills: ['Wellness treatments'], maxWorkload: 4 });
     if (!next.staffAccounts.some(st => st.id === `dept-manager-${d.id}`)) next.staffAccounts.push({ id: `dept-manager-${d.id}`, employeeId: `MGR-${d.id.toUpperCase()}`, name: d.person, email: d.email, roleId: 'department_manager', department: d.name, floorZone: 'All floors', shift: 'Day', status: 'active', financialLimit: 16000, createdAt: '2026-11-04', availability: 'on_duty' });
     if (!next.staffAccounts.some(st => departmentId(st.department) === d.id && ['department_supervisor', 'department_dispatcher_supervisor'].includes(st.roleId))) next.staffAccounts.push({ id: `dept-supervisor-${d.id}`, employeeId: `SUP-${d.id.toUpperCase()}`, name: `${d.name} Supervisor`, email: '', roleId: 'department_dispatcher_supervisor', department: d.name, floorZone: 'All floors', shift: 'Day', status: 'active', financialLimit: 0, createdAt: '2026-11-04', availability: 'on_duty' });
     const caseId = `dept-case-${d.id}`;
-    if (!next.items.department_manager.some(t => t.id === caseId)) next.items.department_manager = [...next.items.department_manager, { id: caseId, ref: `REC-${d.id.toUpperCase()}`, title: `${d.name}: supervisor requests service recovery`, meta: 'Department supervisor · guest follow-up required', department: d.name, status: 'Escalated', priority: 'urgent', room: '402', createdAt: '2026-11-04T08:00:00+05:30' }];
+    if (!next.items.department_manager?.some(t => t.id === caseId)) {
+      next.items.department_manager = [...(next.items.department_manager ?? []), { id: caseId, ref: `REC-${d.id.toUpperCase()}`, title: `${d.name}: supervisor requests service recovery`, meta: 'Department supervisor · guest follow-up required', department: d.name, status: 'Escalated', priority: 'urgent', room: '402', photoUrl: SAMPLE_PROOF_PHOTOS[d.id] || SAMPLE_PROOF_PHOTOS.housekeeping, photoAttached: true, createdAt: '2026-11-04T08:00:00+05:30' }];
+    }
     const inspectionId = `dept-gm-inspection-${d.id}`;
-    if (!next.inspections.some(i => i.id === inspectionId)) next.inspections.push({ id: inspectionId, department: d.name, roomNumber: d.id === 'wellness' ? 'Spa 1' : d.id === 'food-beverages' ? 'Main restaurant' : '402', roomType: d.name, floor: 4, attendantId: '', attendantName: 'Awaiting assignment', type: d.id === 'engineering' ? 'maintenance_check' : 'periodic', status: 'pending', priority: 'normal', completedAt: '', createdAt: '2026-11-04T08:00:00+05:30', initiatedBy: 'General Manager', initiatedRole: 'general_manager', instructions: d.standard, items: [] });
+    if (!next.inspections.some(i => i.id === inspectionId)) {
+      next.inspections.push({ id: inspectionId, department: d.name, roomNumber: d.id === 'wellness' ? 'Spa 1' : d.id === 'food-beverages' ? 'Main restaurant' : '402', roomType: d.name, floor: 4, attendantId: '', attendantName: 'Awaiting assignment', type: d.id === 'engineering' ? 'maintenance_check' : 'periodic', status: 'pending', priority: 'normal', completedAt: '', photoUrl: SAMPLE_PROOF_PHOTOS[d.id] || SAMPLE_PROOF_PHOTOS.housekeeping, createdAt: '2026-11-04T08:00:00+05:30', initiatedBy: 'General Manager', initiatedRole: 'general_manager', instructions: d.standard, items: [] });
+    }
+
+    // Ensure sample notifications for each department manager (when store notifications are present)
+    if (s.notifications && s.notifications.length > 0) {
+      const mgrNotifs = [
+        {
+          id: `mgr-notif-${d.id}-1`,
+          roleId: 'department_manager' as const,
+          department: d.name,
+          title: `GM Quality Directive · ${d.name}`,
+          message: `General Manager Priya Nair issued a quality audit directive for today's high-tier suites.`,
+          timestamp: 'Today, 09:15',
+          read: false,
+          type: 'alert' as const,
+          itemId: inspectionId,
+        },
+        {
+          id: `mgr-notif-${d.id}-2`,
+          roleId: 'department_manager' as const,
+          department: d.name,
+          title: `Supervisor Escalation Logged`,
+          message: `Department supervisor logged a service recovery case for ${d.name}. Manager review required.`,
+          timestamp: 'Today, 08:45',
+          read: false,
+          type: 'task' as const,
+          itemId: caseId,
+        },
+        {
+          id: `mgr-notif-${d.id}-3`,
+          roleId: 'department_manager' as const,
+          department: d.name,
+          title: `Shift Attendance Verified`,
+          message: `All primary fulfillers and shift supervisors in ${d.name} have confirmed active on-duty status.`,
+          timestamp: 'Today, 08:00',
+          read: true,
+          type: 'system' as const,
+        },
+      ];
+      for (const mn of mgrNotifs) {
+        if (!next.notifications.some(n => n.id === mn.id)) {
+          next.notifications.push(mn);
+        }
+      }
+    }
   }
+
+  // Ensure Room 305 turndown has sample photo proof attached
+  if (Array.isArray(next.items?.task_fulfiller)) {
+    const t305 = next.items.task_fulfiller.find(t => t.room === '305' || t.ref === 'HK-305-002');
+    if (t305 && !t305.photoUrl) {
+      t305.photoUrl = SAMPLE_PROOF_PHOTOS.housekeeping;
+      t305.photoAttached = true;
+    }
+  }
+
   return next;
 }
 
 export type ManagerCommand =
-  | ScheduleCommand
-  | { type: 'service-targets'; inspectionMinutes: number; complaintMinutes: number }
-  | WorkflowCommand
   | { type: 'stock-count'; stockId: string; quantity: number }
   | { type: 'replenish'; stockId: string }
   | { type: 'room-cleaning'; room: string }
@@ -104,15 +162,7 @@ export function applyManagerCommand(state: DemoState, command: ManagerCommand, u
   const pushNotification = (roleId: 'department_manager' | 'department_dispatcher_supervisor' | 'general_manager', title: string, message: string, itemId: string) => {
     s.notifications = [{ id: `${uid}-${roleId}`, roleId, title, message, itemId, department: d.name, timestamp: now, read: false, type: 'alert' }, ...(s.notifications ?? [])];
   };
-  if (command.type === 'schedule-shift') {
-    applyScheduleCommand(s, command, uid, now);
-  } else if (command.type === 'service-targets') {
-    if (![command.inspectionMinutes, command.complaintMinutes].every(value => Number.isInteger(value) && value >= 1 && value <= 10080)) throw Error('Service targets must be whole minutes between 1 and 10,080.');
-    s.departmentServiceTargets = { ...s.departmentServiceTargets, [d.id]: { inspectionMinutes: command.inspectionMinutes, complaintMinutes: command.complaintMinutes } };
-  } else if (['medical-create', 'medical-update', 'complaint-create', 'complaint-update', 'repair-create', 'repair-update', 'repair-category', 'menu-save', 'menu-delete', 'inspection-launch'].includes(command.type)) {
-    s.managerOperations ??= seedManagerOperations();
-    applyManagerWorkflow(s, command as WorkflowCommand, uid, now);
-  } else if (['stock-count', 'replenish', 'room-cleaning', 'appointment', 'appointment-status', 'asset-work-order', 'asset-service', 'menu-availability'].includes(command.type)) {
+  if (['stock-count', 'replenish', 'room-cleaning', 'appointment', 'appointment-status', 'asset-work-order', 'asset-service', 'menu-availability'].includes(command.type)) {
     applyDepartmentOperation(s, command, uid, now);
   } else if (command.type === 'inspection') {
     const supervisor = scopedStaff(command.supervisorId);
@@ -149,7 +199,6 @@ export function applyManagerCommand(state: DemoState, command: ManagerCommand, u
     if (!handover || handover.outgoingManager === person || handover.incomingManager !== person) throw Error('Only the named incoming manager can acknowledge this handover.');
     handover.status = 'acknowledged'; handover.acknowledgedAt = now;
   } else if (command.type === 'policy') {
-    if (d.id === 'wellness') throw Error('Policies are not available in the Wellness manager workspace.');
     s.departmentPolicies = [{ id: uid, department: d.name, title: required(command.title), category: 'Service Standard', summary: required(command.content), content: command.content.trim(), scope: d.name, policyOwner: person, escalationTarget: 'General Manager', effectiveDate: now.slice(0, 10), lastUpdated: now, isManagerLevel: true }, ...(s.departmentPolicies ?? [])];
   } else if (command.type === 'read') {
     if (!managerNotifications(s, d.id).some(n => n.id === command.notificationId)) throw Error('Notification unavailable in your department.');

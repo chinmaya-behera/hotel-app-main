@@ -69,7 +69,7 @@ export interface WorkItem {
   /** reference number shown to the guest, e.g. "HK-402-003" */
   ref?: string;
   /** guest-portal originating module, when this item came from the Guest Portal */
-  category?: 'housekeeping' | 'maintenance' | 'spa' | 'concierge' | 'recreation' | 'room_service' | 'folio' | 'lost_found' | 'safety' | 'laundry' | 'front_desk' | 'medical' | 'therapy';
+  category?: 'housekeeping' | 'maintenance' | 'spa' | 'concierge' | 'recreation' | 'room_service' | 'folio' | 'lost_found' | 'safety' | 'laundry' | 'front_desk';
   notes?: string;
   note?: string;
   description?: string;
@@ -77,21 +77,7 @@ export interface WorkItem {
   history?: GuestHistoryEntry[];
   dnd?: boolean;
   photoAttached?: boolean;
-  feedback?: {
-    rating: number;
-    comment?: string;
-    guestName?: string;
-    reviewedAt?: string;
-    tags?: string[];
-    submittedAt?: string;
-  };
-  dishFeedback?: Record<string, { rating: number; comment?: string; submittedAt: string }>;
-  orderedAt?: string;
-  requestedServiceAt?: string;
-  demoSource?: 'dining-showcase';
-  repairCategory?: string;
-  customDiningId?: string;
-  compensationRefundId?: string;
+  feedback?: { rating: number; comment?: string };
   orderLines?: OrderLine[];
   /** accountable owner of a guest case (Front Desk owns cases; departments own routed tasks) */
   owner?: string;
@@ -123,32 +109,6 @@ export interface WorkItem {
   assigneeId?: string;
   /** Timestamp when assigned */
   assignedAt?: string;
-  /** Escalation properties (Front Desk Fulfillers workflow) */
-  escalationId?: string;
-  originalTaskId?: string;
-  fulfillerName?: string;
-  escalationReason?: string;
-  requestedAction?: string;
-  internalNotes?: string;
-  /** Complaint properties (Front Desk Complaints workflow) */
-  complaintId?: string;
-  guestName?: string;
-  complaintCategory?: string;
-  severity?: 'normal' | 'vip' | 'critical';
-  resolutionNotes?: string;
-  /** Routing properties */
-  suggestedDept?: string;
-  routingReason?: string;
-  routingInstructions?: string;
-  /** Event request properties */
-  isEventRequest?: boolean;
-  eventType?: string;
-  preferredDate?: string;
-  attendees?: number;
-  venue?: string;
-  eventRequirements?: string;
-  budget?: number;
-  coordinatorNotes?: string;
   /** Whether this task was linked as a duplicate of an existing task */
   isLinkedDuplicate?: boolean;
   /** Reference of the primary task this duplicate is linked to */
@@ -157,6 +117,8 @@ export interface WorkItem {
   escalatedTo?: string;
   /** Escalation timestamp */
   escalatedAt?: string;
+  /** Escalation justification / note */
+  escalationReason?: string;
   /** Whether the task was assigned via automated routing */
   autoAssigned?: boolean;
   /** Reason why auto-assignment could not match a staff member */
@@ -165,15 +127,6 @@ export interface WorkItem {
   ackSlaDue?: string;
   /** Acknowledgment SLA status */
   ackStatus?: 'pending' | 'acknowledged' | 'overdue';
-  serviceTiming?: {
-    createdAt?: string;
-    acknowledgedAt?: string;
-    completedAt?: string;
-    ackTargetMinutes?: number;
-    resolutionTargetMinutes?: number;
-    ackEnabled: boolean;
-    policySource: string;
-  };
   /** Department name for direct filtering */
   department?: string;
   /** Floor number for spatial assignment */
@@ -200,78 +153,6 @@ export interface WorkItem {
   arrivedAt?: string;
   /** Security officer acknowledgment timestamp */
   acknowledgedAt?: string;
-  /** Front Desk case record (frontend mock). Future Guest Portal submissions can use the same shape. */
-  caseKind?: 'request' | 'complaint' | 'incident' | 'event';
-  attachments?: CaseAttachment[];
-  guestPhone?: string;
-  guestEmail?: string;
-  bookingRef?: string;
-  /** guest's preferred service time (display text) and the same moment as epoch ms (used for reminders) */
-  preferredTime?: string;
-  requestedForMs?: number;
-  expectedResolution?: string;
-  /** epoch ms the guest submitted it, and the response target in minutes (drives the Overdue flag) */
-  createdAtMs?: number;
-  slaMinutes?: number;
-  /** Front Desk internal notes (never shown to the guest) */
-  caseNotes?: Array<{ at: string; author: string; text: string }>;
-  /** department the case was forwarded to; Front Desk keeps ownership of the case */
-  forwardedDept?: DispatcherDepartment;
-  forwardedTo?: string;
-  forwardedAt?: string;
-  guestUpdates?: number;
-  closedAt?: string;
-  /** Event request lifecycle */
-  eventStatus?: EventStatus;
-  guestConfirmed?: boolean;
-  venueCheck?: { venue: string; available: boolean; checkedAt: string; note: string };
-  missingInfoRequest?: string;
-}
-
-export type AttachmentArt = 'leak' | 'ac' | 'towels' | 'room' | 'bathroom' | 'cake' | 'venue' | 'minibar' | 'tray' | 'generic';
-
-/** Mock attachment: a local illustration stands in for a guest-uploaded file (no upload backend exists). */
-export interface CaseAttachment {
-  id: string;
-  name: string;
-  type: 'image' | 'document';
-  mime: string;
-  sizeKb: number;
-  art?: AttachmentArt;
-  caption?: string;
-}
-
-export type EventStatus =
-  | 'New'
-  | 'Under Review'
-  | 'Awaiting Guest Confirmation'
-  | 'Awaiting Department Confirmation'
-  | 'Confirmed'
-  | 'In Preparation'
-  | 'Completed'
-  | 'Rejected'
-  | 'Cancelled';
-
-/** Guest safety / security report handled by Front Desk and dispatched to the Security Responder queue. */
-export interface FdIncidentRecord {
-  id: string;
-  ref: string;
-  title: string;
-  source: 'Guest Report' | 'Front Desk Patrol' | 'Housekeeping Alert' | 'Security Dispatch';
-  room?: string;
-  guestName?: string;
-  location: string;
-  severity: 'low' | 'medium' | 'high';
-  status: 'active' | 'dispatched_security' | 'resolved';
-  description: string;
-  reportedAt: string;
-  reportedAtMs?: number;
-  acknowledged?: boolean;
-  securityOfficer?: string;
-  broadcastSent?: boolean;
-  attachments?: CaseAttachment[];
-  timeline: Array<{ at: string; text: string }>;
-  notes?: Array<{ at: string; author: string; text: string }>;
 }
 
 export interface InAppNotification {
@@ -316,9 +197,6 @@ export interface GuestMessageRecord {
 export interface OrderLine {
   itemId: string;
   name: string;
-  dishName?: string;
-  cuisine?: string;
-  menuCategory?: string;
   qty: number;
   price: number;
 }
@@ -361,7 +239,6 @@ export interface DiningMenuItem {
   id: string;
   name: string;
   category: string;
-  cuisine?: string;
   price: number;
   dietary: DietaryType;
   rating?: number;
@@ -458,8 +335,6 @@ export interface FinanceRefundRequest {
   reviewNotes?: string;
   rejectionReason?: string;
   transactionRef?: string;
-  /** Front Desk case this refund proposal came from (blocks duplicate submissions) */
-  sourceCaseRef?: string;
 }
 
 export type InspectionStatus = 'pending' | 'passed' | 'reopened' | 'escalated';
@@ -474,8 +349,11 @@ export interface InspectionCheckItem {
 }
 
 export interface SupervisorInspection {
-  batchId?: string;
-  typeLabel?: string;
+  department?: string;
+  createdAt?: string;
+  scheduledTime?: string;
+  completedChecklistCount?: number;
+  totalChecklistCount?: number;
   id: string;
   taskId?: string;
   roomNumber: string;
@@ -504,15 +382,6 @@ export interface SupervisorInspection {
   followUpAction?: string;
   assignedSupervisorId?: string;
   assignedSupervisorName?: string;
-  department?: string;
-  completedChecklistCount?: number;
-  totalChecklistCount?: number;
-  scheduledTime?: string;
-  createdAt?: string;
-  /** Inspection scope: particular room, entire floor, or property-wide */
-  scope?: 'single_room' | 'room' | 'floor' | 'all_rooms' | 'all';
-  scopeLabel?: string;
-  affectedRooms?: string[];
 }
 
 export interface LostFoundItem {
@@ -638,12 +507,6 @@ export interface StayRecord {
   /** F08: pre-arrival registration state */
   preCheckIn: 'none' | 'pending_verify' | 'verified';
   idChecked: boolean;
-  idDocType?: string;
-  idDocNumber?: string;
-  idVerificationStatus?: 'verified' | 'pending' | 'failed';
-  idVerifiedAt?: string;
-  idVerifiedBy?: string;
-  idVerificationNotes?: string;
   /** payments collected against the folio (simulated, tokenised card) */
   paid: number;
   cardMask: string;
@@ -662,10 +525,6 @@ export interface StayRecord {
   guests?: number;
   /** Guest personal preferences & future service instructions (allergies, DND, dietary) */
   preferences?: GuestPreferences;
-  /** Room QR pass credentials (frontend demo). When unset, a stable demo value is derived from the stay. */
-  guestEmail?: string;
-  guestPhone?: string;
-  accessPin?: string;
 }
 
 export interface RoomRecord {
@@ -692,9 +551,6 @@ export interface SyncIssue {
 
 /** F32: complaint & recovery case. */
 export interface ComplaintCase {
-  department?: string;
-  priority?: 'normal' | 'urgent' | 'critical';
-  history?: GuestHistoryEntry[];
   id: string;
   ref: string;
   room: string;
@@ -705,8 +561,6 @@ export interface ComplaintCase {
   compApplied: boolean;
   createdAt: string;
   managerItemId?: string;
-  assignedTo?: string;
-  managerNotes?: string;
   repeatOf?: string;
   guestName?: string;
   description?: string;
@@ -717,7 +571,6 @@ export interface ComplaintCase {
   status?: string;
   responseRemarks?: string;
   photoUrl?: string;
-  maintenanceCategory?: 'furniture' | 'electrical_appliances' | 'washroom' | 'plumbing';
 }
 
 /* ---- Public website bookings (frontend-only simulation; never a real reservation or payment) ---- */
@@ -980,12 +833,12 @@ export interface ShiftScheduleRecord {
   department: string;
   roleId: RoleId;
   date: string;
-  shiftType: 'Morning' | 'Day' | 'Evening' | 'Night';
+  shiftType: 'Morning' | 'Evening' | 'Night';
   startTime: string;
   endTime: string;
   shiftHours?: string;
   floorZone: string;
-  status: 'scheduled' | 'on_duty' | 'completed' | 'leave' | 'off' | 'conflict';
+  status: 'scheduled' | 'on_duty' | 'completed' | 'leave' | 'conflict';
   conflictReason?: string;
   notes?: string;
 }
@@ -1042,47 +895,8 @@ export interface ManagerAsset {
   workOrderRef?: string;
 }
 
-export interface ManagerMedicalCase {
-  id: string;
-  reference: string;
-  guest: string;
-  location: string;
-  urgency: 'routine' | 'urgent' | 'critical';
-  status: 'open' | 'monitoring' | 'closed';
-  followUpAt?: string;
-  followUpAcknowledgedAt?: string;
-  createdAt: string;
-  history: Array<{ at: string; author: string; note: string }>;
-}
-
-export type DepartmentRecordKind = 'repair' | 'task' | 'order' | 'medical' | 'complaint' | 'inspection' | 'menu' | 'stock' | 'asset' | 'room' | 'handover' | 'policy' | 'staff' | 'supplies' | 'schedule';
-export interface DepartmentRecordSnapshot {
-  key: string;
-  department: 'housekeeping' | 'wellness' | 'engineering' | 'food-beverages';
-  kind: DepartmentRecordKind;
-  reference: string;
-  title: string;
-  status: string;
-  location: string;
-  owner: string;
-  notes: string;
-  completedAt?: string;
-  fields: Record<string, string>;
-}
-export interface DepartmentRecordEvent {
-  id: string;
-  recordedAt: string;
-  actor: string;
-  actorRole: string;
-  action: 'recorded' | 'created' | 'updated' | 'completed' | 'reopened' | 'deleted';
-  record: DepartmentRecordSnapshot;
-  changes: Array<{ field: string; before: string; after: string }>;
-}
-
 export interface DemoState {
-  departmentServiceTargets?: Partial<Record<'housekeeping' | 'wellness' | 'engineering' | 'food-beverages', { inspectionMinutes: number; complaintMinutes: number }>>;
-  departmentRecordHistory?: DepartmentRecordEvent[];
-  managerOperations?: { stock: ManagerStockItem[]; appointments: ManagerAppointment[]; assets: ManagerAsset[]; medicalCases?: ManagerMedicalCase[] };
+  managerOperations?: { stock: ManagerStockItem[]; appointments: ManagerAppointment[]; assets: ManagerAsset[] };
   managerDepartment?: 'housekeeping' | 'wellness' | 'engineering' | 'food-beverages';
   managerProfiles?: Record<string, { name: string; phone: string }>;
   persona: RoleId | null;
@@ -1153,13 +967,6 @@ export interface DemoState {
   diningMenu?: DiningMenuItem[];
   diningCategories?: string[];
   activeDispatcherDept?: DispatcherDepartment;
-  customDiningRequests?: CustomDiningRequest[];
-  guestCompensationRefundRequests?: CompensationRefundRequest[];
-  guestIncidents?: GuestIncidentRecord[];
-  /** Front Desk incident reports (shared so KPIs, dispatch and Security stay consistent) */
-  fdIncidents?: FdIncidentRecord[];
-  /** ids of Front Desk notifications already read */
-  fdNotifRead?: string[];
 }
 
 /* ---- Phase 4: Guest Reminders & Safety Alert Broadcast Engine ---- */
@@ -1184,14 +991,6 @@ export interface GuestReminder {
   createdAt: string;
   specialInstructions?: string;
   category?: string;
-  /** linked Front Desk case and the guest's requested service time (epoch ms) */
-  caseId?: string;
-  caseRef?: string;
-  requestedAtMs?: number;
-  /** when the in-app alarm should ring (epoch ms) and the lead time used to calculate it */
-  alertAtMs?: number;
-  leadMinutes?: number | null;
-  alarm?: { state: 'scheduled' | 'ringing' | 'snoozed' | 'acknowledged' | 'completed'; firedAtMs?: number; snoozeCount?: number };
 }
 
 export type SafetyAlertStatus =
@@ -1261,14 +1060,10 @@ export interface GuestFrontDeskMessage {
   subject: string;
   message: string;
   instructions?: string;
-  status: 'Sent' | 'Received' | 'Responded' | 'Closed' | 'Submitted' | 'In Progress' | 'Completed' | 'Resolved';
+  status: 'Sent' | 'Received' | 'Responded' | 'Closed';
   createdAt: string;
   replies: GuestFrontDeskReply[];
   bookingRef?: string;
-  category?: string;
-  preferredDateTime?: string;
-  attachments?: Array<{ name: string; size?: string; type?: string; url?: string }>;
-  feedback?: { rating: number; comment?: string; tags?: string[]; submittedAt?: string };
 }
 
 export type ComplaintStatus =
@@ -1276,6 +1071,7 @@ export type ComplaintStatus =
   | 'Under Review'
   | 'Assigned'
   | 'In Progress'
+  | 'Under Investigation'
   | 'Resolved'
   | 'Rejected';
 
@@ -1295,13 +1091,9 @@ export interface GuestComplaintRecord {
   guestName: string;
   bookingRef?: string;
   category: ComplaintCategory;
-  department?: string;
   title: string;
   description: string;
   photoUrl?: string;
-  preferredResolution?: string;
-  additionalInstructions?: string;
-  attachments?: Array<{ name: string; size?: string; type?: string; url?: string }>;
   submittedAt: string;
   status: ComplaintStatus;
   assignedTo?: string;
@@ -1309,58 +1101,6 @@ export interface GuestComplaintRecord {
   resolvedAt?: string;
   compensationOffered?: number;
   history: Array<{ at: string; status: string; note?: string; actor?: string }>;
-  feedback?: { rating: number; comment?: string; tags?: string[]; submittedAt?: string };
-}
-
-/* ---- Guest Incidents (Front Desk & Security Reporting) ---- */
-
-export type GuestIncidentCategory =
-  | 'Room/Property Damage'
-  | 'Lost Personal Belongings'
-  | 'Safety or Security Concern'
-  | 'Disturbance or Nuisance'
-  | 'Accident or Injury'
-  | 'Facility-Related Incident'
-  | 'Other';
-
-export type GuestIncidentStatus =
-  | 'Submitted'
-  | 'Received'
-  | 'Under Investigation'
-  | 'Action Taken'
-  | 'Resolved'
-  | 'Closed';
-
-export interface GuestIncidentAttachment {
-  name: string;
-  size?: string;
-  type?: string;
-  url?: string;
-}
-
-export interface GuestIncidentRecord {
-  id: string;
-  ref: string;
-  room: string;
-  guestName: string;
-  bookingRef?: string;
-  category: GuestIncidentCategory;
-  title: string;
-  description: string;
-  incidentDateTime: string;
-  location: string;
-  peopleInvolved?: string;
-  immediateAssistanceRequired: boolean;
-  attachments?: GuestIncidentAttachment[];
-  additionalInfo?: string;
-  status: GuestIncidentStatus;
-  submittedAt: string;
-  staffResponse?: string;
-  internalStaffNote?: string;
-  resolvedAt?: string;
-  resolvedBy?: string;
-  feedback?: { rating: number; comment?: string; tags?: string[]; submittedAt?: string };
-  history?: Array<{ at: string; status: GuestIncidentStatus; note?: string; staff?: string }>;
 }
 
 export type LostItemStatus =
@@ -1391,7 +1131,6 @@ export interface GuestLostItemRecord {
   staffNotes?: string;
   matchedFoundItemId?: string;
   history: Array<{ at: string; status: string; note?: string }>;
-  feedback?: { rating: number; comment?: string; tags?: string[]; submittedAt?: string };
 }
 
 export type GuestNotificationCategory =
@@ -1440,113 +1179,4 @@ export interface HotelAlert {
   active: boolean;
   requiresAcknowledgement?: boolean;
 }
-
-/* ---- Custom Food Requests (Guest Portal & Kitchen Workflow) ---- */
-
-export type CustomDiningStatus =
-  | 'Submitted'
-  | 'Under Kitchen Review'
-  | 'Clarification Requested'
-  | 'Price Quoted'
-  | 'Order Confirmed'
-  | 'In Preparation'
-  | 'Ready'
-  | 'Out for Delivery'
-  | 'Delivered'
-  | 'Rejected'
-  | 'Cancelled';
-
-export interface CustomDiningRequest {
-  id: string;
-  ref: string;
-  room: string;
-  guestName: string;
-  dishName?: string;
-  description: string;
-  cuisine: string;
-  specialPreferences?: string;
-  spiceLevel: 'None' | 'Mild' | 'Medium' | 'Spicy' | 'Extra Spicy';
-  dietaryPreference: 'Vegetarian' | 'Vegan' | 'Non-Vegetarian' | 'Other';
-  allergiesToAvoid?: string;
-  servings: number;
-  deliveryTimePreference: string;
-  additionalInstructions?: string;
-  imageUrl?: string;
-  status: CustomDiningStatus;
-  createdAt: string;
-  quotedPrice?: number;
-  quotedPrepTime?: string;
-  kitchenNote?: string;
-  internalKitchenNote?: string;
-  guestQuoteApproved?: boolean;
-  guestClarificationReply?: string;
-  kitchenClarificationQuestion?: string;
-  completedAt?: string;
-  feedback?: { rating: number; tags?: string[]; comment?: string; submittedAt?: string };
-  history?: Array<{ at: string; status: CustomDiningStatus; note?: string; staff?: string }>;
-}
-
-/* ---- Compensation & Refund Requests (Guest Portal & Front Desk Workflow) ---- */
-
-export type CompensationRefundCategory =
-  | 'Refund Request'
-  | 'Partial Refund'
-  | 'Compensation for Service Issues'
-  | 'Billing Dispute'
-  | 'Incorrect Charges'
-  | 'Duplicate Payment'
-  | 'Deposit Refund'
-  | 'Other Financial Concern';
-
-export type CompensationRefundStatus =
-  | 'Submitted'
-  | 'Under Review'
-  | 'Additional Information Required'
-  | 'Approved'
-  | 'Partially Approved'
-  | 'Rejected'
-  | 'Processing'
-  | 'Resolved';
-
-export interface CompensationRefundAttachment {
-  name: string;
-  size?: string;
-  type?: string;
-  url?: string;
-}
-
-export interface CompensationRefundRequest {
-  id: string;
-  ref: string;
-  room: string;
-  guestName: string;
-  bookingRef?: string;
-  bookingReference?: string;
-  category: CompensationRefundCategory;
-  relatedServiceOrTransaction?: string;
-  relatedService?: string;
-  amountRequested?: number;
-  approvedAmount?: number;
-  reason: string;
-  explanation: string;
-  detailedExplanation?: string;
-  incidentDate?: string;
-  preferredResolution?: string;
-  attachments?: CompensationRefundAttachment[];
-  additionalInstructions?: string;
-  status: CompensationRefundStatus;
-  createdAt: string;
-  updatedAt?: string;
-  staffResponse?: string;
-  staffGuestResponse?: string;
-  internalStaffNote?: string;
-  resolutionDetails?: string;
-  resolvedAt?: string;
-  resolvedBy?: string;
-  additionalInfoRequested?: string;
-  additionalInfoProvided?: string;
-  feedback?: { rating: number; tags?: string[]; comment?: string; submittedAt?: string };
-  history?: Array<{ at: string; status: CompensationRefundStatus; note?: string; staff?: string }>;
-}
-
 

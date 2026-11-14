@@ -35,27 +35,43 @@ import { cn, statusTone } from '@/lib/utils';
 import type { WorkItem } from '@/types/demo';
 import { BreakRequestModal } from './BreakRequestModal';
 import { useBreakRequest, type DutyRequestType } from './breakRequests';
+import { getTranslation } from './fulfillerLanguages';
 
 type PrimaryView = 'my_tasks' | 'all_tasks';
 type MyTasksFilter = 'all' | 'pending' | 'in_progress' | 'blocked' | 'overdue' | 'completed';
 
 const BLOCKER_REASONS = [
-  'Guest requested privacy (Do Not Disturb)',
-  'Room locked / no answer',
-  'Awaiting fresh linen or minibar stock',
-  'Technical / plumbing issue requires Engineering',
-  'Physical safety hazard inside room',
-  'Others',
+  'Do Not Disturb (DND)',
+  'Room locked / No answer',
+  'Waiting for clean linen or items',
+  'Plumbing or repair issue',
+  'Safety issue in room',
+  'Other',
 ];
 
 const REASSIGN_REASONS = [
-  'Assigned room is currently DND / guest sleeping',
-  'Urgent spill / turnover needed on another floor',
-  'Missing cleaning equipment / chemical supplies',
-  'Shift schedule ending / shift handover required',
-  'Language / guest communication barrier',
-  'Others',
+  'Room is DND / Guest sleeping',
+  'Needed on another floor',
+  'Missing supplies or tools',
+  'Shift ending',
+  'Guest communication issue',
+  'Other',
 ];
+
+function cleanSimpleText(text?: string): string {
+  if (!text) return '';
+  return text
+    .replace(/Full sanitization & evening turndown request/gi, 'Clean Room & Turndown')
+    .replace(/Bathroom deep sanitization & Bvlgari toiletry kit restock/gi, 'Clean Bathroom & Restock Items')
+    .replace(/Mid-stay bed linen replacement & balcony refresh/gi, 'Change Bedsheets & Clean Balcony')
+    .replace(/Checkout turnover/gi, 'Guest Checkout')
+    .replace(/Departure Turnover/gi, 'Guest Checkout')
+    .replace(/deep sanitization/gi, 'deep clean')
+    .replace(/sanitization/gi, 'cleaning')
+    .replace(/toiletry kit restock/gi, 'restock toiletries')
+    .replace(/Penthouse Villa/gi, 'Penthouse')
+    .replace(/Guest Portal/gi, 'Guest Request');
+}
 
 const SAMPLE_PROOF_PHOTOS: Record<string, string> = {
   fnb: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='400' height='300' fill='%23141417'/><rect x='16' y='16' width='368' height='268' rx='16' fill='%231c1c20' stroke='%23c8a96e' stroke-width='2'/><circle cx='200' cy='95' r='36' fill='%23c8a96e' fill-opacity='0.2'/><path d='M188 95l8 8 16-16' stroke='%23dfc187' stroke-width='4' stroke-linecap='round' stroke-linejoin='round' fill='none'/><text x='200' y='165' fill='%23f7f4ed' font-size='18' font-family='sans-serif' text-anchor='middle' font-weight='bold'>Dining Service Delivered</text><text x='200' y='192' fill='%23d9cebe' font-size='12' font-family='sans-serif' text-anchor='middle'>Tray Staged · Temperature Verified · Flutes Placed</text><rect x='110' y='218' width='180' height='30' rx='8' fill='%23c8a96e'/><text x='200' y='238' fill='%23141417' font-size='11' font-family='sans-serif' text-anchor='middle' font-weight='bold'>PHOTO EVIDENCE VERIFIED</text></svg>",
@@ -130,10 +146,12 @@ function isFoodAndBeverageTask(task: WorkItem): boolean {
 
 interface FulfillerTasksTabProps {
   profile?: FulfillerProfile;
+  currentLang?: string;
 }
 
-export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
+export function FulfillerTasksTab({ profile, currentLang }: FulfillerTasksTabProps) {
   const activeProfile = profile || FULFILLER_PROFILES.housekeeping;
+  const t = getTranslation(currentLang || 'EN');
   const { state, advance, attachTaskPhoto, requestTaskReassignment, claimTask, notify, setFulfillerAvailability } = useDemo();
   const isLight = state.theme === 'light';
 
@@ -229,7 +247,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
   const filteredMyTasks = useMemo(() => {
     return myTasks.filter((task) => {
       if (myFilter === 'all')
-        return task.status !== 'Completed' && task.status !== 'Closed';
+        return task.status !== 'Completed' && task.status !== 'Closed' && task.status !== 'Awaiting inspection';
       if (myFilter === 'pending')
         return task.status === 'Assigned';
       if (myFilter === 'in_progress')
@@ -237,15 +255,15 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
           task.status === 'Accepted' ||
           task.status === 'In progress' ||
           task.status === 'On the way' ||
-          task.status === 'Blocked' ||
-          task.status === 'Awaiting inspection'
+          task.status === 'Blocked'
         );
       if (myFilter === 'blocked') return task.status === 'Blocked';
-      if (myFilter === 'completed') return task.status === 'Completed' || task.status === 'Closed';
+      if (myFilter === 'completed') return task.status === 'Completed' || task.status === 'Closed' || task.status === 'Awaiting inspection';
       if (myFilter === 'overdue')
         return (
           task.status !== 'Completed' &&
           task.status !== 'Closed' &&
+          task.status !== 'Awaiting inspection' &&
           (task.chip?.toLowerCase().includes('overdue') ||
             task.slaDue?.toLowerCase().includes('overdue') ||
             task.tone === 'danger')
@@ -263,7 +281,8 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
   const activeMyTasksCount = myTasks.filter(
     (t) =>
       t.status !== 'Completed' &&
-      t.status !== 'Closed',
+      t.status !== 'Closed' &&
+      t.status !== 'Awaiting inspection',
   ).length;
   const pendingCount = myTasks.filter(
     (t) => t.status === 'Assigned',
@@ -273,8 +292,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
       t.status === 'Accepted' ||
       t.status === 'In progress' ||
       t.status === 'On the way' ||
-      t.status === 'Blocked' ||
-      t.status === 'Awaiting inspection',
+      t.status === 'Blocked',
   ).length;
   const blockedCount = myTasks.filter((t) => t.status === 'Blocked').length;
   const overdueCount = myTasks.filter(
@@ -331,37 +349,37 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
       'task_fulfiller',
       photoModalTask.id,
       {
-        label: 'Submit for inspection',
-        next: 'Awaiting inspection',
-        message: `Work completed by ${activeProfile.employeeName}. Submitted for supervisor inspection`,
+        label: 'Mark completed',
+        next: 'Completed',
+        message: `Work completed by ${activeProfile.employeeName}.`,
       },
-      `Work finished with photo evidence by ${activeProfile.employeeName}. Awaiting sign-off by Supervisor ${activeProfile.supervisorName}`,
+      `Work finished with photo evidence by ${activeProfile.employeeName}. Completed successfully.`,
     );
 
     if (selectedTask?.id === photoModalTask.id) {
       setSelectedTask((prev) =>
         prev
           ? {
-              ...prev,
-              status: 'Awaiting inspection',
-              photoUrl: finalPhoto,
-              photoAttached: true,
-              history: [
-                ...(prev.history ?? []),
-                {
-                  at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                  status: 'Awaiting inspection',
-                  note: `Work completed with photo proof by ${activeProfile.employeeName}. Submitted for quality inspection by Supervisor ${activeProfile.supervisorName}`,
-                  actor: activeProfile.employeeName,
-                  role: 'Task Fulfiller',
-                },
-              ],
-            }
+            ...prev,
+            status: 'Completed',
+            photoUrl: finalPhoto,
+            photoAttached: true,
+            history: [
+              ...(prev.history ?? []),
+              {
+                at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                status: 'Completed',
+                note: `Work completed with photo proof by ${activeProfile.employeeName}.`,
+                actor: activeProfile.employeeName,
+                role: 'Task Fulfiller',
+              },
+            ],
+          }
           : null,
       );
     }
 
-    notify(`Work submitted with photo. Pending inspection by Supervisor ${activeProfile.supervisorName}.`);
+    notify(`Work completed with photo proof.`);
     setPhotoModalTask(null);
     setPhotoModalPreview(null);
     setPhotoModalError(null);
@@ -518,7 +536,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
           'grid grid-cols-2 p-1 rounded-2xl max-w-md sm:max-w-lg mx-auto w-full transition-colors',
           isLight
             ? 'bg-[#f6f3ec] border border-[#e7e2d7]'
-            : 'bg-white/[0.04] border border-white/10',
+            : 'bg-[#282720] border border-[#3d3a32]',
         )}
       >
         <button
@@ -529,24 +547,24 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
             primaryView === 'my_tasks'
               ? isLight
                 ? 'bg-[#ffffff] text-[#353229] border border-[#e7e2d7] shadow-xs font-bold'
-                : 'bg-[#dfc187] text-[#14120e] shadow-xs font-bold'
+                : 'bg-[#ded6c1] text-[#28261f] shadow-xs font-bold'
               : isLight
                 ? 'text-[#686252] hover:text-[#353229]'
-                : 'text-[#d9cebe] hover:text-white',
+                : 'text-[#b7b0a1] hover:text-[#eee8dc]',
           )}
         >
           <User className="h-3.5 w-3.5" />
-          <span>My Tasks</span>
+          <span>{t.myTasks}</span>
           <span
             className={cn(
               'px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold',
               primaryView === 'my_tasks'
                 ? isLight
                   ? 'bg-[#f6f3ec] text-[#353229] border border-[#e7e2d7]'
-                  : 'bg-black/20 text-[#14120e]'
+                  : 'bg-black/15 text-[#28261f]'
                 : isLight
                   ? 'bg-[#e7e2d7] text-[#686252]'
-                  : 'bg-white/10 text-mist-300',
+                  : 'bg-[#1e1e1b] text-[#b7b0a1] border border-[#3d3a32]',
             )}
           >
             {activeMyTasksCount}
@@ -561,24 +579,24 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
             primaryView === 'all_tasks'
               ? isLight
                 ? 'bg-[#ffffff] text-[#353229] border border-[#e7e2d7] shadow-xs font-bold'
-                : 'bg-[#dfc187] text-[#14120e] shadow-xs font-bold'
+                : 'bg-[#ded6c1] text-[#28261f] shadow-xs font-bold'
               : isLight
                 ? 'text-[#686252] hover:text-[#353229]'
-                : 'text-[#d9cebe] hover:text-white',
+                : 'text-[#b7b0a1] hover:text-[#eee8dc]',
           )}
         >
           <Layers className="h-3.5 w-3.5" />
-          <span>Open to Claim</span>
+          <span>{t.openToClaim}</span>
           <span
             className={cn(
               'px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold',
               primaryView === 'all_tasks'
                 ? isLight
                   ? 'bg-[#ebe2cc] text-[#353229] border border-[#b7b09e]'
-                  : 'bg-black/20 text-[#14120e]'
+                  : 'bg-black/15 text-[#28261f]'
                 : isLight
                   ? 'bg-[#f6f3ec] text-[#8b7550] border border-[#e7e2d7]'
-                  : 'bg-[#dfc187]/20 text-[#dfc187]',
+                  : 'bg-[#1e1e1b] text-[#b7b0a1] border border-[#3d3a32]',
             )}
           >
             {unassignedPool.length}
@@ -597,19 +615,19 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
               myFilter === 'all'
                 ? isLight
                   ? 'bg-[#353229] text-[#ffffff] shadow-xs font-semibold'
-                  : 'bg-[#dfc187] text-[#14120e] shadow-xs font-semibold'
+                  : 'bg-[#ded6c1] text-[#28261f] shadow-xs font-semibold'
                 : isLight
                   ? 'border border-[#e7e2d7] bg-[#ffffff] text-[#686252] hover:text-[#353229] hover:bg-[#f6f3ec]'
-                  : 'border border-white/10 bg-white/[0.04] text-[#d9cebe] hover:text-white hover:bg-white/[0.08]',
+                  : 'border border-[#3d3a32] bg-[#1e1e1b] text-[#b7b0a1] hover:text-[#eee8dc] hover:bg-[#282720]',
             )}
           >
-            Active
+            {t.active}
             <span
               className={cn(
                 'rounded-full px-1.5 py-0.2 text-[10px] font-bold',
                 myFilter === 'all'
-                  ? isLight ? 'bg-white/20 text-[#ffffff]' : 'bg-black/20 text-[#14120e]'
-                  : isLight ? 'bg-[#ebe2cc] text-[#353229]' : 'bg-[rgba(200,169,110,0.22)] text-[#dfc187]',
+                  ? isLight ? 'bg-white/20 text-[#ffffff]' : 'bg-black/15 text-[#28261f]'
+                  : isLight ? 'bg-[#ebe2cc] text-[#353229]' : 'bg-[#282720] text-[#ded6c1] border border-[#3d3a32]',
               )}
             >
               {activeMyTasksCount}
@@ -624,20 +642,20 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
               myFilter === 'pending'
                 ? isLight
                   ? 'bg-[#353229] text-[#ffffff] shadow-xs font-semibold'
-                  : 'bg-[#dfc187] text-[#14120e] shadow-xs font-semibold'
+                  : 'bg-[#ded6c1] text-[#28261f] shadow-xs font-semibold'
                 : isLight
                   ? 'border border-[#e7e2d7] bg-[#ffffff] text-[#686252] hover:text-[#353229] hover:bg-[#f6f3ec]'
-                  : 'border border-white/10 bg-white/[0.04] text-[#d9cebe] hover:text-white hover:bg-white/[0.08]',
+                  : 'border border-[#3d3a32] bg-[#1e1e1b] text-[#b7b0a1] hover:text-[#eee8dc] hover:bg-[#282720]',
             )}
           >
-            Pending
+            {t.pending}
             {pendingCount > 0 && (
               <span
                 className={cn(
                   'rounded-full px-1.5 py-0.2 text-[10px] font-bold border',
                   myFilter === 'pending'
-                    ? isLight ? 'bg-white/20 text-[#ffffff] border-transparent' : 'bg-black/20 text-[#14120e] border-transparent'
-                    : isLight ? 'bg-amber-100 text-amber-900 border-amber-300' : 'bg-amber-500/20 text-amber-300 border-amber-400/40',
+                    ? isLight ? 'bg-white/20 text-[#ffffff] border-transparent' : 'bg-black/15 text-[#28261f] border-transparent'
+                    : isLight ? 'bg-amber-100 text-amber-900 border-amber-300' : 'bg-[#343127] text-[#ded6c1] border-[#867e6c]',
                 )}
               >
                 {pendingCount}
@@ -653,20 +671,20 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
               myFilter === 'in_progress'
                 ? isLight
                   ? 'bg-[#353229] text-[#ffffff] shadow-xs font-semibold'
-                  : 'bg-[#dfc187] text-[#14120e] shadow-xs font-semibold'
+                  : 'bg-[#ded6c1] text-[#28261f] shadow-xs font-semibold'
                 : isLight
                   ? 'border border-[#e7e2d7] bg-[#ffffff] text-[#686252] hover:text-[#353229] hover:bg-[#f6f3ec]'
-                  : 'border border-white/10 bg-white/[0.04] text-[#d9cebe] hover:text-white hover:bg-white/[0.08]',
+                  : 'border border-[#3d3a32] bg-[#1e1e1b] text-[#b7b0a1] hover:text-[#eee8dc] hover:bg-[#282720]',
             )}
           >
-            In Progress
+            {t.inProgress}
             {inProgressCount > 0 && (
               <span
                 className={cn(
                   'rounded-full px-1.5 py-0.2 text-[10px] font-bold border',
                   myFilter === 'in_progress'
-                    ? isLight ? 'bg-white/20 text-[#ffffff] border-transparent' : 'bg-black/20 text-[#14120e] border-transparent'
-                    : isLight ? 'bg-sky-100 text-sky-900 border-sky-300' : 'bg-sky-500/20 text-sky-300 border-sky-400/40',
+                    ? isLight ? 'bg-white/20 text-[#ffffff] border-transparent' : 'bg-black/15 text-[#28261f] border-transparent'
+                    : isLight ? 'bg-[#ebe2cc] text-[#353229] border-[#b7b09e]' : 'bg-[#343127] text-[#ded6c1] border-[#867e6c]',
                 )}
               >
                 {inProgressCount}
@@ -682,22 +700,22 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
               myFilter === 'completed'
                 ? isLight
                   ? 'bg-[#353229] text-[#ffffff] shadow-xs font-semibold'
-                  : 'bg-[#dfc187] text-[#14120e] shadow-xs font-semibold'
+                  : 'bg-[#ded6c1] text-[#28261f] shadow-xs font-semibold'
                 : isLight
                   ? 'border border-[#e7e2d7] bg-[#ffffff] text-[#686252] hover:text-[#353229] hover:bg-[#f6f3ec]'
-                  : 'border border-white/10 bg-white/[0.04] text-[#d9cebe] hover:text-white hover:bg-white/[0.08]',
+                  : 'border border-[#3d3a32] bg-[#1e1e1b] text-[#b7b0a1] hover:text-[#eee8dc] hover:bg-[#282720]',
             )}
           >
-            Completed
+            {t.completed}
             <span
               className={cn(
                 'rounded-full px-1.5 py-0.2 text-[10px] font-bold border',
                 myFilter === 'completed'
-                  ? isLight ? 'bg-white/20 text-[#ffffff] border-transparent' : 'bg-black/20 text-[#14120e] border-transparent'
-                  : isLight ? 'bg-emerald-100 text-emerald-900 border-emerald-300' : 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40',
+                  ? isLight ? 'bg-white/20 text-[#ffffff] border-transparent' : 'bg-black/15 text-[#28261f] border-transparent'
+                  : isLight ? 'bg-emerald-100 text-emerald-900 border-emerald-300' : 'bg-[#282720] text-[#ded6c1] border-[#3d3a32]',
               )}
             >
-              {myTasks.filter((t) => t.status === 'Completed').length}
+              {myTasks.filter((t) => t.status === 'Completed' || t.status === 'Closed' || t.status === 'Awaiting inspection').length}
             </span>
           </button>
 
@@ -709,13 +727,13 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
               myFilter === 'overdue'
                 ? isLight
                   ? 'bg-rose-700 text-white shadow-xs font-semibold'
-                  : 'bg-rose-500 text-white shadow-xs font-semibold'
+                  : 'bg-rose-600 text-white shadow-xs font-semibold'
                 : isLight
                   ? 'border border-[#e7e2d7] bg-[#ffffff] text-[#686252] hover:text-[#353229] hover:bg-[#f6f3ec]'
-                  : 'border border-white/10 bg-white/[0.04] text-[#d9cebe] hover:text-white hover:bg-white/[0.08]',
+                  : 'border border-[#3d3a32] bg-[#1e1e1b] text-[#b7b0a1] hover:text-[#eee8dc] hover:bg-[#282720]',
             )}
           >
-            Overdue
+            {t.overdue}
             {overdueCount > 0 && (
               <span
                 className={cn(
@@ -741,13 +759,13 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                 myFilter === 'blocked'
                   ? isLight
                     ? 'bg-rose-700 text-white shadow-xs font-semibold'
-                    : 'bg-rose-500 text-white shadow-xs font-semibold'
+                    : 'bg-rose-600 text-white shadow-xs font-semibold'
                   : isLight
                     ? 'border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100'
-                    : 'border border-rose-500/30 bg-rose-500/10 text-rose-300 hover:text-white',
+                    : 'border border-rose-500/40 bg-rose-500/20 text-rose-300 hover:text-white',
               )}
             >
-              Blocked
+              {t.blocked}
               <span className="rounded-full bg-rose-600 px-1.5 py-0.2 text-[10px] font-bold text-white">
                 {blockedCount}
               </span>
@@ -788,7 +806,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                 : 'bg-[#c8a96e] text-[#14120e] hover:bg-[#dfc187]',
             )}
           >
-            End Break & Resume Duty
+            End Break
           </button>
         </div>
       )}
@@ -807,10 +825,10 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
             <Clock className="h-4 w-4 shrink-0 text-amber-600 animate-spin" />
             <div className="min-w-0">
               <span className="font-bold truncate block">
-                Duty Request Pending: {breakRequest.title || breakRequest.reason}
+                Request Pending: {breakRequest.title || breakRequest.reason}
               </span>
               <span className="text-[10px] text-amber-800">
-                Awaiting approval from Supervisor {activeProfile.supervisorName}
+                Waiting for Supervisor {activeProfile.supervisorName}
               </span>
             </div>
           </div>
@@ -886,21 +904,21 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
           <div
             className={cn(
               'col-span-full flex flex-col items-center justify-center rounded-3xl border py-12 px-4 text-center transition-colors',
-              isLight ? 'border-[#e7e2d7] bg-[#ffffff]' : 'border-white/10 bg-white/[0.02]',
+              isLight ? 'border-[#e7e2d7] bg-[#ffffff]' : 'border-[#3d3a32] bg-[#1e1e1b]',
             )}
           >
             <span
               className={cn(
                 'grid h-12 w-12 place-items-center rounded-2xl border',
-                isLight ? 'border-[#e7e2d7] bg-[#f6f3ec]' : 'border-white/10 bg-white/[0.04]',
+                isLight ? 'border-[#e7e2d7] bg-[#f6f3ec]' : 'border-[#3d3a32] bg-[#282720]',
               )}
             >
-              <CheckCircle2 className={cn('h-6 w-6', isLight ? 'text-[#353229]' : 'text-emerald-400')} />
+              <CheckCircle2 className={cn('h-6 w-6', isLight ? 'text-[#353229]' : 'text-[#ded6c1]')} />
             </span>
-            <p className={cn('mt-3 text-sm font-semibold', isLight ? 'text-[#353229]' : 'text-white')}>
+            <p className={cn('mt-3 text-sm font-semibold', isLight ? 'text-[#353229]' : 'text-[#eee8dc]')}>
               {primaryView === 'all_tasks' ? 'No tasks open to claim' : 'All clear'}
             </p>
-            <p className={cn('mt-1 text-xs max-w-xs', isLight ? 'text-[#686252]' : 'text-mist-400')}>
+            <p className={cn('mt-1 text-xs max-w-xs', isLight ? 'text-[#686252]' : 'text-[#b7b0a1]')}>
               {primaryView === 'all_tasks'
                 ? `All ${activeProfile.departmentName} tasks are currently assigned.`
                 : 'No tasks currently in this view.'}
@@ -939,20 +957,20 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                                 ? 'border-[#b7b09e] bg-[#fbfaf7]'
                                 : 'border-[#e7e2d7] bg-[#ffffff] shadow-[0_4px_18px_rgba(53,50,41,0.04),0_1px_3px_rgba(53,50,41,0.02)] hover:border-[#b7b09e] hover:shadow-[0_6px_22px_rgba(53,50,41,0.07)]'
                     : isCompleted
-                      ? 'border-emerald-500/20 bg-emerald-500/[0.03]'
+                      ? 'border-[#3d3a32] bg-[#1e1e1b]/70'
                       : isAwaitingInspection
-                        ? 'border-[rgba(165,130,95,0.35)] bg-[rgba(200,169,110,0.05)]'
+                        ? 'border-[#867e6c] bg-[#343127]/30 hover:border-[#ded6c1]'
                         : isUrgent
                           ? 'border-rose-500/80 bg-[#241215] shadow-lg shadow-rose-950/40 hover:border-rose-400'
                           : isUnassigned
-                            ? 'border-amber-400/40 bg-amber-400/[0.04] shadow-md shadow-amber-400/5'
+                            ? 'border-[#867e6c]/60 bg-[#282720]/70 shadow-md'
                             : isBlocked
                               ? 'border-rose-500/30 bg-rose-500/[0.05]'
                               : isReassignPending
-                                ? 'border-amber-400/30 bg-amber-400/[0.04]'
+                                ? 'border-[#867e6c]/50 bg-[#282720]/40'
                                 : task.priority === 'vip'
-                                  ? 'border-amber-400/30 bg-amber-400/[0.03]'
-                                  : 'border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]',
+                                  ? 'border-[#867e6c]/50 bg-[#282720]/40'
+                                  : 'border-[#3d3a32] bg-[#1e1e1b] shadow-[0_4px_18px_rgba(0,0,0,0.14)] hover:border-[#867e6c] hover:bg-[#282720]/40',
                 )}
               >
                 {/* Header row: Location, Priority & Badges */}
@@ -967,7 +985,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                             : 'border border-rose-500/40 bg-rose-500/25 text-rose-200 font-bold'
                           : isLight
                             ? 'border border-[#e7e2d7] bg-[#f6f3ec] text-[#353229]'
-                            : 'border border-white/10 bg-white/[0.06] text-white',
+                            : 'border border-[#3d3a32] bg-[#282720] text-[#eee8dc]',
                       )}
                     >
                       <MapPin
@@ -977,7 +995,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                             ? 'text-rose-500'
                             : isLight
                               ? 'text-[#8b7550]'
-                              : 'text-emerald-400',
+                              : 'text-[#ded6c1]',
                         )}
                       />
                       {task.room ? `Room ${task.room}` : task.location ?? 'Floor 4'}
@@ -989,10 +1007,10 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                           'rounded-md px-2 py-0.5 text-[10px] font-bold shrink-0 border',
                           isLight
                             ? 'border-[#b7b09e] bg-[#ebe2cc] text-[#353229]'
-                            : 'border-amber-400/30 bg-amber-400/20 text-amber-300',
+                            : 'border-[#867e6c] bg-[#343127] text-[#ded6c1]',
                         )}
                       >
-                        Open Pool
+                        {t.openPool}
                       </span>
                     )}
                   </div>
@@ -1000,45 +1018,49 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                   {/* Status Pill */}
                   <span
                     className={cn(
-                      'rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider shrink-0',
+                      'rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider shrink-0 border',
                       isUrgent
                         ? isLight
                           ? 'border border-rose-300 bg-rose-100 text-rose-900 font-bold'
                           : 'border border-rose-500/40 bg-rose-500/25 text-rose-200 font-bold'
                         : isLight
-                          ? isCompleted
+                          ? isCompleted || isAwaitingInspection
                             ? 'border border-[#e7e2d7] bg-[#f6f3ec] text-[#353229]'
-                            : isAwaitingInspection
-                              ? 'border border-[#b7b09e] bg-[#ebe2cc] text-[#353229]'
-                              : isBlocked
-                                ? 'border border-[#fecaca] bg-[#fff1f0] text-[#991b1b]'
-                                : isReassignPending
+                            : isBlocked
+                              ? 'border border-[#fecaca] bg-[#fff1f0] text-[#991b1b]'
+                              : isReassignPending
+                                ? 'border border-[#b7b09e] bg-[#ebe2cc] text-[#353229]'
+                                : isInProgress
                                   ? 'border border-[#b7b09e] bg-[#ebe2cc] text-[#353229]'
-                                  : isInProgress
-                                    ? 'border border-[#b7b09e] bg-[#ebe2cc] text-[#353229]'
-                                    : isUnassigned
-                                      ? 'border border-[#e7e2d7] bg-[#f6f3ec] text-[#686252]'
-                                      : 'border border-[#e7e2d7] bg-[#f6f3ec] text-[#686252]'
-                          : isCompleted
-                            ? 'bg-emerald-400/20 text-emerald-300'
-                            : isAwaitingInspection
-                              ? 'bg-[#c8a96e]/15 text-[#dfc187] border border-[rgba(165,130,95,0.3)]'
-                              : isBlocked
-                                ? 'bg-rose-500/20 text-rose-300'
-                                : isReassignPending
-                                  ? 'bg-amber-400/20 text-amber-200'
-                                  : isInProgress
-                                    ? 'bg-sky-400/20 text-sky-300'
-                                    : isUnassigned
-                                      ? 'bg-amber-400/20 text-amber-300'
-                                      : 'bg-white/10 text-mist-300',
+                                  : isUnassigned
+                                    ? 'border border-[#e7e2d7] bg-[#f6f3ec] text-[#686252]'
+                                    : 'border border-[#e7e2d7] bg-[#f6f3ec] text-[#686252]'
+                          : isCompleted || isAwaitingInspection
+                            ? 'border border-[#3d3a32] bg-[#282720] text-[#ded6c1]'
+                            : isBlocked
+                              ? 'border border-rose-500/40 bg-rose-500/20 text-rose-300'
+                              : isReassignPending
+                                ? 'border border-[#867e6c] bg-[#282720] text-[#ded6c1]'
+                                : isInProgress
+                                  ? 'border border-[#867e6c] bg-[#343127] text-[#eee8dc]'
+                                  : isUnassigned
+                                    ? 'border border-[#867e6c] bg-[#282720] text-[#ded6c1]'
+                                    : 'border border-[#3d3a32] bg-[#282720] text-[#b7b0a1]',
                     )}
                   >
                     {isUnassigned
-                      ? 'Unassigned'
-                      : isAwaitingInspection
-                        ? 'Pending Inspection'
-                        : task.status}
+                      ? t.openPool
+                      : isAwaitingInspection || isCompleted
+                        ? t.completed
+                        : task.status === 'Assigned'
+                          ? t.assigned
+                          : task.status === 'Accepted'
+                            ? t.accepted
+                            : task.status === 'In progress' || task.status === 'On the way'
+                              ? t.inProgress
+                              : task.status === 'Blocked'
+                                ? t.blocked
+                                : task.status}
                   </span>
                 </div>
 
@@ -1087,10 +1109,10 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                           : 'text-rose-100 font-bold group-hover:text-white'
                         : isLight
                           ? 'text-[#353229] group-hover:text-[#8b7550]'
-                          : 'text-white group-hover:text-[#dfc187]',
+                          : 'text-[#eee8dc] group-hover:text-[#ded6c1]',
                     )}
                   >
-                    {task.title}
+                    {cleanSimpleText(task.title)}
                   </h3>
                   <p
                     className={cn(
@@ -1101,10 +1123,10 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                           : 'text-rose-300/80'
                         : isLight
                           ? 'text-[#686252]'
-                          : 'text-mist-300',
+                          : 'text-[#b7b0a1]',
                     )}
                   >
-                    {task.meta}
+                    {cleanSimpleText(task.meta)}
                   </p>
                 </div>
 
@@ -1118,7 +1140,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                         : 'border-rose-500/20 text-rose-300'
                       : isLight
                         ? 'border-[#e7e2d7] text-[#686252]'
-                        : 'border-white/[0.06] text-mist-400',
+                        : 'border-[#3d3a32] text-[#b7b0a1]',
                   )}
                 >
                   {task.slaDue && (
@@ -1139,7 +1161,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                             ? 'text-rose-500'
                             : isLight
                               ? 'text-[#8c8472]'
-                              : 'text-mist-400',
+                              : 'text-[#867e6c]',
                         )}
                       />
                       Target: {task.slaDue}
@@ -1152,18 +1174,12 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                       onClick={() => setViewPhotoUrl(task.photoUrl!)}
                       className={cn(
                         'flex items-center gap-1 text-[11px] font-medium cursor-pointer',
-                        isLight ? 'text-[#353229] hover:underline' : 'text-[#dfc187] hover:text-[#f7f4ed]',
+                        isLight ? 'text-[#353229] hover:underline' : 'text-[#ded6c1] hover:text-[#eee8dc]',
                       )}
                     >
                       <ImageIcon className="h-3 w-3" />
-                      <span>Photo attached</span>
+                      <span>{t.photoAttached}</span>
                     </button>
-                  )}
-
-                  {task.reassignPending && (
-                    <span className={cn('text-[11px] font-medium', isLight ? 'text-[#8b7550]' : 'text-amber-300')}>
-                      Supervisor review pending ({task.reassignReason})
-                    </span>
                   )}
 
                   <button
@@ -1171,16 +1187,16 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     onClick={() => setSelectedTask(task)}
                     className={cn(
                       'ml-auto text-[11px] flex items-center gap-1 cursor-pointer font-medium',
-                      isLight ? 'text-[#353229] hover:text-[#8b7550]' : 'text-mist-400 hover:text-white',
+                      isLight ? 'text-[#353229] hover:text-[#8b7550]' : 'text-[#b7b0a1] hover:text-[#ded6c1]',
                     )}
                   >
-                    <Eye className="h-3 w-3" /> Details
+                    <Eye className="h-3 w-3" /> {t.details}
                   </button>
                 </div>
 
                 {/* Mobile Action Strip */}
-                {!isCompleted && !isReassignPending && (
-                  <div className="mt-3 flex items-center gap-2 pt-1 border-t border-white/[0.06]">
+                {!isCompleted && !isReassignPending && !isAwaitingInspection && (
+                  <div className={cn('mt-3 flex items-center gap-2 pt-1 border-t', isLight ? 'border-[#e7e2d7]' : 'border-[#3d3a32]')}>
                     {/* Unassigned / Open Pool: Self-Claim Action */}
                     {isUnassigned && (
                       <button
@@ -1197,10 +1213,10 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                         className={cn(
                           'flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 px-3 text-xs font-bold transition-all shadow-xs btn-dark',
                           isOnBreak || isOffDuty
-                            ? 'bg-white/10 text-mist-400 cursor-not-allowed border border-white/10 opacity-70'
+                            ? 'bg-[#282720] text-[#867e6c] cursor-not-allowed border border-[#3d3a32] opacity-70'
                             : isLight
                               ? 'bg-[#353229] hover:bg-[#484438] text-white cursor-pointer active:scale-[0.98]'
-                              : 'bg-[#dfc187] hover:bg-[#e8cf9a] text-[#14120e] cursor-pointer active:scale-[0.98]',
+                              : 'bg-[#ded6c1] hover:bg-[#e5dfcb] text-[#28261f] cursor-pointer active:scale-[0.98]',
                         )}
                       >
                         {isOnBreak ? (
@@ -1213,7 +1229,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                         ) : (
                           <>
                             <Sparkles className="h-3.5 w-3.5" />
-                            <span>Claim Task</span>
+                            <span>{t.acceptTask}</span>
                           </>
                         )}
                       </button>
@@ -1235,11 +1251,11 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                           'w-full flex items-center justify-center gap-1.5 rounded-xl py-2 px-3 text-xs font-semibold shadow-xs active:scale-[0.98] transition-all cursor-pointer btn-dark',
                           isLight
                             ? 'bg-[#353229] hover:bg-[#484438] text-white'
-                            : 'bg-[#dfc187] hover:bg-[#e8cf9a] text-[#14120e]',
+                            : 'bg-[#ded6c1] hover:bg-[#e5dfcb] text-[#28261f]',
                         )}
                       >
                         <Check className="h-3.5 w-3.5" />
-                        Accept Task
+                        {t.acceptTask}
                       </button>
                     )}
 
@@ -1258,11 +1274,11 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                             'flex items-center justify-center gap-1.5 rounded-xl py-2 px-3 text-xs font-medium border transition-colors cursor-pointer',
                             isLight
                               ? 'border-[#e7e2d7] bg-[#f6f3ec] hover:bg-[#ebe2cc] text-[#353229]'
-                              : 'border-white/10 bg-white/[0.05] hover:bg-white/10 text-[#f7f4ed]',
+                              : 'border-[#3d3a32] bg-[#282720] hover:bg-[#343127] text-[#eee8dc]',
                           )}
                         >
                           <Play className="h-3.5 w-3.5 fill-current" />
-                          Start
+                          {t.start}
                         </button>
                         <button
                           type="button"
@@ -1272,11 +1288,11 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                             'flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 px-3 text-xs font-semibold shadow-xs active:scale-[0.98] transition-all cursor-pointer btn-dark',
                             isLight
                               ? 'bg-[#353229] hover:bg-[#484438] text-white'
-                              : 'bg-[#dfc187] hover:bg-[#e8cf9a] text-[#14120e]',
+                              : 'bg-[#ded6c1] hover:bg-[#e5dfcb] text-[#28261f]',
                           )}
                         >
                           <CheckCircle2 className="h-3.5 w-3.5" />
-                          Complete
+                          {t.complete}
                         </button>
                         <button
                           type="button"
@@ -1285,10 +1301,10 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                             'rounded-xl border px-3 py-2 text-xs font-medium transition-colors cursor-pointer',
                             isLight
                               ? 'border-[#e7e2d7] bg-white text-[#686252] hover:text-[#353229] hover:bg-[#f6f3ec]'
-                              : 'border-white/10 bg-white/[0.03] text-[#d9cebe] hover:text-white hover:bg-white/[0.06]',
+                              : 'border-[#3d3a32] bg-[#1e1e1b] text-[#b7b0a1] hover:text-[#eee8dc] hover:bg-[#282720]',
                           )}
                         >
-                          Reassign
+                          {t.reassign}
                         </button>
                       </div>
                     )}
@@ -1303,11 +1319,11 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                             'flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 px-3 text-xs font-semibold shadow-xs active:scale-[0.98] transition-all cursor-pointer btn-dark',
                             isLight
                               ? 'bg-[#353229] hover:bg-[#484438] text-white'
-                              : 'bg-[#dfc187] hover:bg-[#e8cf9a] text-[#14120e]',
+                              : 'bg-[#ded6c1] hover:bg-[#e5dfcb] text-[#28261f]',
                           )}
                         >
                           <CheckCircle2 className="h-3.5 w-3.5" />
-                          Mark Completed
+                          {t.markCompleted}
                         </button>
 
                         <button
@@ -1320,7 +1336,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                               : 'border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20',
                           )}
                         >
-                          Blocker
+                          {t.blocker}
                         </button>
 
                         <button
@@ -1330,10 +1346,10 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                             'rounded-xl border px-3 py-2 text-xs font-medium transition-colors cursor-pointer',
                             isLight
                               ? 'border-[#e7e2d7] bg-white text-[#686252] hover:text-[#353229] hover:bg-[#f6f3ec]'
-                              : 'border-white/10 bg-white/[0.03] text-[#d9cebe] hover:text-white hover:bg-white/[0.06]',
+                              : 'border-[#3d3a32] bg-[#1e1e1b] text-[#b7b0a1] hover:text-[#eee8dc] hover:bg-[#282720]',
                           )}
                         >
-                          Reassign
+                          {t.reassign}
                         </button>
                       </div>
                     )}
@@ -1354,7 +1370,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                             'flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 px-3 text-xs font-semibold shadow-xs active:scale-[0.98] transition-all cursor-pointer btn-dark',
                             isLight
                               ? 'bg-[#353229] hover:bg-[#484438] text-white'
-                              : 'bg-[#dfc187] hover:bg-[#e8cf9a] text-[#14120e]',
+                              : 'bg-[#ded6c1] hover:bg-[#e5dfcb] text-[#28261f]',
                           )}
                         >
                           <RotateCcw className="h-3.5 w-3.5" />
@@ -1363,32 +1379,16 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                         <button
                           type="button"
                           onClick={() => setReassignModalTask(task)}
-                          className="rounded-xl border border-[rgba(165,130,95,0.25)] bg-white/[0.04] px-3 py-2 text-xs font-medium text-[#ded6c9] hover:text-[#f7f4ed] transition-colors cursor-pointer"
-                        >
-                          Request Reassign
-                        </button>
-                      </>
-                    )}
-
-                    {!isUnassigned && isAssignedToMe && isAwaitingInspection && (
-                      <div className="w-full">
-                        <div
                           className={cn(
-                            'flex items-center justify-between rounded-xl border px-3 py-2 text-xs transition-colors',
+                            'rounded-xl border px-3 py-2 text-xs font-medium transition-colors cursor-pointer',
                             isLight
-                              ? 'border-[#ded6c1] bg-[#ebe2cc]/30 text-[#353229]'
-                              : 'border-[rgba(165,130,95,0.3)] bg-[rgba(200,169,110,0.08)] text-[#dfc187]',
+                              ? 'border-[#b7b09e] bg-white text-[#686252] hover:text-[#353229]'
+                              : 'border-[#3d3a32] bg-[#1e1e1b] text-[#b7b0a1] hover:text-[#eee8dc] hover:bg-[#282720]',
                           )}
                         >
-                          <div className={cn('flex items-center gap-2 font-semibold', isLight ? 'text-[#353229]' : 'text-[#dfc187]')}>
-                            <Clock className={cn('h-4 w-4 shrink-0 animate-pulse', isLight ? 'text-[#8b7550]' : 'text-[#dfc187]')} />
-                            <span>Pending at Supervisor Inspection</span>
-                          </div>
-                          <span className={cn('text-[11px] italic', isLight ? 'text-[#686252]' : 'text-[#ded6c9]/80')}>
-                            Supervisor: {activeProfile.supervisorName}
-                          </span>
-                        </div>
-                      </div>
+                          {t.reassign}
+                        </button>
+                      </>
                     )}
                   </div>
                 )}
@@ -1522,15 +1522,15 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
               className={cn(
                 'w-full sm:max-w-xl max-h-[92%] sm:max-h-[85vh] flex flex-col rounded-t-[2rem] sm:rounded-3xl border-t sm:border p-4 sm:p-6 shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-200 transition-colors',
                 isLight
-                  ? 'border-[#e7e2d7] bg-[#ffffff] text-[#353229]'
-                  : 'border-white/20 bg-ink-950 text-white',
+                  ? 'border-[#b7b09e] bg-[#ffffff] text-[#353229]'
+                  : 'border-[#867e6c] bg-[#1e1e1b] text-[#eee8dc]',
               )}
             >
               {/* Header */}
               <div
                 className={cn(
                   'flex items-start justify-between gap-3 border-b pb-3 shrink-0',
-                  isLight ? 'border-[#e7e2d7]' : 'border-white/10',
+                  isLight ? 'border-[#e7e2d7]' : 'border-[#3d3a32]',
                 )}
               >
                 <div>
@@ -1540,7 +1540,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                         'rounded-md px-2 py-0.5 text-xs font-bold border',
                         isLight
                           ? 'border-[#e7e2d7] bg-[#f6f3ec] text-[#353229]'
-                          : 'bg-emerald-500/20 text-emerald-300 border-transparent',
+                          : 'border-[#3d3a32] bg-[#282720] text-[#ded6c1]',
                       )}
                     >
                       {selectedTask.room ? `Room ${selectedTask.room}` : selectedTask.location || 'Location'}
@@ -1550,11 +1550,11 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                         className={cn(
                           'rounded-md px-2 py-0.5 text-[11px] font-bold border flex items-center gap-1 shrink-0',
                           isLight
-                            ? 'border-rose-300 bg-rose-100 text-rose-900'
-                            : 'border-rose-500/40 bg-rose-500/20 text-rose-200',
+                            ? 'border-rose-300 bg-rose-100 text-rose-900 font-bold'
+                            : 'border-rose-500/40 bg-rose-500/25 text-rose-200 font-bold',
                         )}
                       >
-                        <AlertCircle className="h-3 w-3 text-rose-600" /> Urgent Priority
+                        <AlertCircle className="h-3 w-3 text-rose-500" /> Urgent Priority
                       </span>
                     )}
                     {selectedTask.priority === 'vip' && (
@@ -1563,7 +1563,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                           'rounded-md px-2 py-0.5 text-[11px] font-bold border flex items-center gap-1 shrink-0',
                           isLight
                             ? 'border-[#b7b09e] bg-[#ebe2cc] text-[#353229]'
-                            : 'border-amber-400/30 bg-amber-400/20 text-amber-200',
+                            : 'border-[#867e6c] bg-[#343127] text-[#ded6c1]',
                         )}
                       >
                         <Crown className="h-3 w-3" /> VIP Guest
@@ -1572,28 +1572,32 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     <span
                       className={cn(
                         'rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase border',
-                        selectedTask.status === 'Completed'
+                        selectedTask.status === 'Completed' || selectedTask.status === 'Awaiting inspection'
                           ? isLight
                             ? 'bg-[#f6f3ec] text-[#353229] border-[#e7e2d7]'
-                            : 'bg-emerald-500/20 text-emerald-300 border-transparent'
-                          : selectedTask.status === 'Awaiting inspection'
-                            ? isLight
-                              ? 'bg-[#ebe2cc] text-[#353229] border-[#ded6c1]'
-                              : 'bg-[#c8a96e]/15 text-[#dfc187] border-[rgba(165,130,95,0.3)]'
-                            : isLight
-                              ? 'bg-stone-100 text-stone-700 border-stone-200'
-                              : 'bg-white/10 text-mist-300 border-transparent',
+                            : 'bg-[#282720] text-[#ded6c1] border-[#3d3a32]'
+                          : isLight
+                            ? 'bg-[#f6f3ec] text-[#686252] border-[#e7e2d7]'
+                            : 'bg-[#282720] text-[#b7b0a1] border-[#3d3a32]',
                       )}
                     >
-                      {selectedTask.status === 'Awaiting inspection'
-                        ? 'Pending Inspection'
-                        : selectedTask.status}
+                      {selectedTask.status === 'Awaiting inspection' || selectedTask.status === 'Completed'
+                        ? t.completed
+                        : selectedTask.status === 'Assigned'
+                          ? t.assigned
+                          : selectedTask.status === 'Accepted'
+                            ? t.accepted
+                            : selectedTask.status === 'In progress' || selectedTask.status === 'On the way'
+                              ? t.inProgress
+                              : selectedTask.status === 'Blocked'
+                                ? t.blocked
+                                : selectedTask.status}
                     </span>
                   </div>
-                  <h3 className={cn('mt-2 text-base font-bold leading-snug', isLight ? 'text-[#353229]' : 'text-white')}>
-                    {selectedTask.title}
+                  <h3 className={cn('mt-2 text-base font-bold leading-snug', isLight ? 'text-[#353229]' : 'text-[#eee8dc]')}>
+                    {cleanSimpleText(selectedTask.title)}
                   </h3>
-                  <p className={cn('text-xs mt-0.5', isLight ? 'text-[#686252]' : 'text-mist-300')}>{selectedTask.meta}</p>
+                  <p className={cn('text-xs mt-0.5', isLight ? 'text-[#686252]' : 'text-[#b7b0a1]')}>{cleanSimpleText(selectedTask.meta)}</p>
                 </div>
                 <button
                   type="button"
@@ -1605,7 +1609,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     'grid h-8 w-8 place-items-center rounded-full transition-colors shrink-0 cursor-pointer',
                     isLight
                       ? 'bg-[#f6f3ec] text-[#686252] hover:text-[#353229]'
-                      : 'bg-white/10 text-mist-300 hover:text-white',
+                      : 'bg-[#282720] text-[#b7b0a1] hover:text-[#eee8dc]',
                   )}
                 >
                   <X className="h-4 w-4" />
@@ -1619,13 +1623,13 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                   <div
                     className={cn(
                       'rounded-xl border p-3 transition-colors',
-                      isLight ? 'border-[#e7e2d7] bg-[#fbfaf7]' : 'border-white/10 bg-white/[0.03]',
+                      isLight ? 'border-[#e7e2d7] bg-[#fbfaf7]' : 'border-[#3d3a32] bg-[#282720]/70',
                     )}
                   >
-                    <h4 className={cn('font-semibold mb-1 flex items-center gap-1.5', isLight ? 'text-[#353229]' : 'text-mist-200')}>
-                      <FileText className={cn('h-3.5 w-3.5', isLight ? 'text-[#353229]' : 'text-emerald-400')} /> Instructions & Notes
+                    <h4 className={cn('font-semibold mb-1 flex items-center gap-1.5', isLight ? 'text-[#353229]' : 'text-[#ded6c1]')}>
+                      <FileText className={cn('h-3.5 w-3.5', isLight ? 'text-[#353229]' : 'text-[#ded6c1]')} /> Notes
                     </h4>
-                    <p className={cn('leading-relaxed', isLight ? 'text-[#686252]' : 'text-mist-300')}>{selectedTask.description}</p>
+                    <p className={cn('leading-relaxed', isLight ? 'text-[#686252]' : 'text-[#b7b0a1]')}>{selectedTask.description}</p>
                   </div>
                 )}
 
@@ -1644,17 +1648,17 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                         'rounded-xl border p-3 text-xs space-y-1 transition-colors',
                         isLight
                           ? 'border-[#e7e2d7] bg-[#fbfaf7]'
-                          : 'border-amber-400/20 bg-amber-400/[0.04]',
+                          : 'border-[#867e6c]/40 bg-[#343127]/30',
                       )}
                     >
                       <div
                         className={cn(
                           'flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider',
-                          isLight ? 'text-[#353229]' : 'text-amber-300',
+                          isLight ? 'text-[#353229]' : 'text-[#ded6c1]',
                         )}
                       >
                         <ShieldAlert className="h-3.5 w-3.5" />
-                        <span>Guest Service Preferences & Reference</span>
+                        <span>Guest Preferences</span>
                       </div>
                       {isDnd && (
                         <p className={cn('font-bold text-[11px]', isLight ? 'text-rose-700' : 'text-rose-300')}>
@@ -1662,12 +1666,12 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                         </p>
                       )}
                       {hasAllergies && (
-                        <p className={cn('text-[11px]', isLight ? 'text-[#686252]' : 'text-mist-200')}>
-                          <strong className={isLight ? 'text-[#353229]' : 'text-amber-200'}>Food Allergies (F&B Alert):</strong> {prefs.allergies.join(', ')}
+                        <p className={cn('text-[11px]', isLight ? 'text-[#686252]' : 'text-[#b7b0a1]')}>
+                          <strong className={isLight ? 'text-[#353229]' : 'text-[#ded6c1]'}>Food Allergies (F&B Alert):</strong> {prefs.allergies.join(', ')}
                         </p>
                       )}
                       {hasInstructions && (
-                        <p className={cn('text-[11px] italic', isLight ? 'text-[#686252]' : 'text-mist-300')}>
+                        <p className={cn('text-[11px] italic', isLight ? 'text-[#686252]' : 'text-[#b7b0a1]')}>
                           &ldquo;{prefs.personalInstructions}&rdquo;
                         </p>
                       )}
@@ -1675,7 +1679,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                   );
                 })()}
 
-                {/* Blocker Callout if Task is Blocked */}
+                {/* Block Callout if Task is Blocked */}
                 {selectedTask.status === 'Blocked' && (
                   <div
                     className={cn(
@@ -1687,7 +1691,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                   >
                     <div className="flex items-center gap-2 font-bold text-xs text-rose-600">
                       <AlertTriangle className="h-4 w-4 shrink-0" />
-                      <span>Task Blocker Active</span>
+                      <span>Task Blocked</span>
                     </div>
                     <p className="mt-1 text-xs">
                       <strong>Reason:</strong> {selectedTask.blockerReason || 'Work held on room'}
@@ -1700,13 +1704,13 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                   <div
                     className={cn(
                       'rounded-xl border p-3 transition-colors',
-                      isLight ? 'border-[#e7e2d7] bg-[#fbfaf7]' : 'border-white/10 bg-white/[0.03]',
+                      isLight ? 'border-[#e7e2d7] bg-[#fbfaf7]' : 'border-[#3d3a32] bg-[#282720]/70',
                     )}
                   >
                     <div className="flex items-center justify-between">
-                      <h4 className={cn('font-semibold flex items-center gap-1.5', isLight ? 'text-[#353229]' : 'text-mist-200')}>
-                        <Camera className={cn('h-3.5 w-3.5', isLight ? 'text-[#353229]' : 'text-[#dfc187]')} />{' '}
-                        {selectedTask.status === 'Blocked' ? 'Blocker Photo Proof' : 'Attached Photo Evidence'}
+                      <h4 className={cn('font-semibold flex items-center gap-1.5', isLight ? 'text-[#353229]' : 'text-[#ded6c1]')}>
+                        <Camera className={cn('h-3.5 w-3.5', isLight ? 'text-[#353229]' : 'text-[#ded6c1]')} />{' '}
+                        {selectedTask.status === 'Blocked' ? 'Block Photo' : 'Attached Photo'}
                       </h4>
                       <span
                         className={cn(
@@ -1717,10 +1721,10 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                               : 'border-rose-500/30 bg-rose-500/20 text-rose-300'
                             : isLight
                               ? 'border-[#e7e2d7] bg-[#f6f3ec] text-[#353229]'
-                              : 'text-emerald-300 bg-emerald-500/10 border-emerald-500/20',
+                              : 'border-[#3d3a32] bg-[#282720] text-[#ded6c1]',
                         )}
                       >
-                        {selectedTask.status === 'Blocked' ? 'Blocker Evidence' : 'Verified'}
+                        {selectedTask.status === 'Blocked' ? 'Block Photo' : 'Done'}
                       </span>
                     </div>
 
@@ -1760,24 +1764,24 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                         'rounded-xl border p-3 space-y-1 transition-colors',
                         isLight
                           ? 'border-[#e7e2d7] bg-[#fbfaf7]'
-                          : 'border-[rgba(165,130,95,0.25)] bg-[rgba(200,169,110,0.06)]',
+                          : 'border-[#3d3a32] bg-[#282720]/70',
                       )}
                     >
                       <div
                         className={cn(
                           'flex items-center justify-between text-xs font-bold',
-                          isLight ? 'text-[#353229]' : 'text-[#dfc187]',
+                          isLight ? 'text-[#353229]' : 'text-[#ded6c1]',
                         )}
                       >
                         <span className="flex items-center gap-1.5">
                           <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
                           Guest Feedback Received
                         </span>
-                        <span className={cn('font-mono text-xs font-semibold', isLight ? 'text-[#8b7550]' : 'text-amber-400')}>
+                        <span className={cn('font-mono text-xs font-semibold', isLight ? 'text-[#8b7550]' : 'text-[#ded6c1]')}>
                           ★ {guestFeedback.rating.toFixed(1)} / 5.0
                         </span>
                       </div>
-                      <p className={cn('text-xs italic mt-1 leading-relaxed', isLight ? 'text-[#686252]' : 'text-mist-200')}>
+                      <p className={cn('text-xs italic mt-1 leading-relaxed', isLight ? 'text-[#686252]' : 'text-[#b7b0a1]')}>
                         &ldquo;{guestFeedback.comment}&rdquo;
                       </p>
                     </div>
@@ -1788,20 +1792,20 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                 <div
                   className={cn(
                     'rounded-xl border p-3.5 space-y-3 transition-colors',
-                    isLight ? 'border-[#e7e2d7] bg-[#fbfaf7]' : 'border-white/10 bg-white/[0.03]',
+                    isLight ? 'border-[#e7e2d7] bg-[#fbfaf7]' : 'border-[#3d3a32] bg-[#282720]/70',
                   )}
                 >
                   <div
                     className={cn(
                       'flex items-center justify-between border-b pb-2',
-                      isLight ? 'border-[#e7e2d7]' : 'border-white/[0.06]',
+                      isLight ? 'border-[#e7e2d7]' : 'border-[#3d3a32]',
                     )}
                   >
-                    <h4 className={cn('font-semibold flex items-center gap-1.5', isLight ? 'text-[#353229]' : 'text-mist-200')}>
-                      <Clock className={cn('h-3.5 w-3.5', isLight ? 'text-[#353229]' : 'text-emerald-400')} />
+                    <h4 className={cn('font-semibold flex items-center gap-1.5', isLight ? 'text-[#353229]' : 'text-[#ded6c1]')}>
+                      <Clock className={cn('h-3.5 w-3.5', isLight ? 'text-[#353229]' : 'text-[#ded6c1]')} />
                       Task Work Timeline
                     </h4>
-                    <span className={cn('text-[10px] font-mono', isLight ? 'text-[#8c8472]' : 'text-mist-500')}>
+                    <span className={cn('text-[10px] font-mono', isLight ? 'text-[#8c8472]' : 'text-[#867e6c]')}>
                       {selectedTask.history?.length ?? 1} events logged
                     </span>
                   </div>
@@ -1814,17 +1818,17 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                             key={idx}
                             className={cn(
                               'relative pl-5 border-l-2 pb-2 last:border-l-0 last:pb-0',
-                              isLight ? 'border-[#e7e2d7]' : 'border-white/10',
+                              isLight ? 'border-[#e7e2d7]' : 'border-[#3d3a32]',
                             )}
                           >
                             <span
                               className={cn(
                                 'absolute -left-[5px] top-0.5 h-2 w-2 rounded-full',
-                                isLight ? 'ring-2 ring-white' : 'ring-2 ring-ink-900',
+                                isLight ? 'ring-2 ring-white' : 'ring-2 ring-[#1e1e1b]',
                                 entry.status === 'Completed'
                                   ? 'bg-emerald-500'
                                   : entry.status === 'Awaiting inspection'
-                                    ? isLight ? 'bg-[#8b7550]' : 'bg-[#c8a96e]'
+                                    ? isLight ? 'bg-[#8b7550]' : 'bg-[#ded6c1]'
                                     : entry.status === 'Blocked'
                                       ? 'bg-rose-500'
                                       : entry.status === 'Reassignment requested'
@@ -1833,11 +1837,11 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                               )}
                             />
                             <div className="flex items-center justify-between gap-2">
-                              <span className={cn('font-bold text-xs', isLight ? 'text-[#353229]' : 'text-white')}>{entry.status}</span>
-                              <span className={cn('text-[10px] font-mono', isLight ? 'text-[#8c8472]' : 'text-mist-400')}>{entry.at}</span>
+                              <span className={cn('font-bold text-xs', isLight ? 'text-[#353229]' : 'text-[#eee8dc]')}>{entry.status}</span>
+                              <span className={cn('text-[10px] font-mono', isLight ? 'text-[#8c8472]' : 'text-[#867e6c]')}>{entry.at}</span>
                             </div>
                             {(entry.actor || entry.role) && (
-                              <span className={cn('text-[10px] font-medium block', isLight ? 'text-[#686252]' : 'text-emerald-400')}>
+                              <span className={cn('text-[10px] font-medium block', isLight ? 'text-[#686252]' : 'text-[#ded6c1]')}>
                                 By: {entry.actor ?? 'Attendant'} {entry.role ? `(${entry.role})` : ''}
                               </span>
                             )}
@@ -1847,7 +1851,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                                   'text-[11px] mt-0.5 leading-relaxed p-1.5 rounded-lg border',
                                   isLight
                                     ? 'bg-[#ffffff] text-[#686252] border-[#e7e2d7]'
-                                    : 'bg-white/[0.02] text-mist-300 border-white/5',
+                                    : 'bg-[#1e1e1b] text-[#b7b0a1] border-[#3d3a32]',
                                 )}
                               >
                                 {entry.note}
@@ -1857,13 +1861,13 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                         );
                       })
                     ) : (
-                      <div className={cn('relative pl-5 border-l-2', isLight ? 'border-[#e7e2d7]' : 'border-white/10')}>
-                        <span className={cn('absolute -left-[5px] top-0.5 h-2 w-2 rounded-full bg-emerald-500', isLight ? 'ring-2 ring-white' : 'ring-2 ring-ink-900')} />
+                      <div className={cn('relative pl-5 border-l-2', isLight ? 'border-[#e7e2d7]' : 'border-[#3d3a32]')}>
+                        <span className={cn('absolute -left-[5px] top-0.5 h-2 w-2 rounded-full bg-emerald-500', isLight ? 'ring-2 ring-white' : 'ring-2 ring-[#1e1e1b]')} />
                         <div className="flex items-center justify-between gap-2">
-                          <span className={cn('font-bold text-xs', isLight ? 'text-[#353229]' : 'text-white')}>Task Created</span>
-                          <span className={cn('text-[10px] font-mono', isLight ? 'text-[#8c8472]' : 'text-mist-400')}>{selectedTask.createdAt || 'Today'}</span>
+                          <span className={cn('font-bold text-xs', isLight ? 'text-[#353229]' : 'text-[#eee8dc]')}>{selectedTask.status}</span>
+                          <span className={cn('text-[10px] font-mono', isLight ? 'text-[#8c8472]' : 'text-[#867e6c]')}>{selectedTask.createdAt || 'Today'}</span>
                         </div>
-                        <p className={cn('text-[11px] mt-0.5', isLight ? 'text-[#8c8472]' : 'text-mist-400')}>Task registered in Grand Azure central dispatch.</p>
+                        <p className={cn('text-[11px] mt-0.5', isLight ? 'text-[#8c8472]' : 'text-[#867e6c]')}>Task registered in Grand Azure central dispatch.</p>
                       </div>
                     )}
                   </div>
@@ -1874,7 +1878,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
               <div
                 className={cn(
                   'mt-3 border-t pt-3 flex items-center gap-2 shrink-0',
-                  isLight ? 'border-[#e7e2d7]' : 'border-white/10',
+                  isLight ? 'border-[#e7e2d7]' : 'border-[#3d3a32]',
                 )}
               >
                 <button
@@ -1887,40 +1891,26 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     'flex-1 rounded-xl border py-2.5 text-xs font-semibold transition-all text-center cursor-pointer',
                     isLight
                       ? 'border-[#e7e2d7] bg-[#f6f3ec] text-[#353229] hover:bg-[#ebe2cc]'
-                      : 'border-white/10 bg-white/[0.05] hover:bg-white/[0.08] text-white',
+                      : 'border-[#3d3a32] bg-[#282720] hover:bg-[#343127] text-[#eee8dc]',
                   )}
                 >
-                  Close
+                  {t.close}
                 </button>
-                {selectedTask.status !== 'Completed' && isTaskAssignedToProfile(selectedTask, activeProfile) && (
-                  selectedTask.status === 'Awaiting inspection' ? (
-                    <div
-                      className={cn(
-                        'flex-1 flex items-center justify-center gap-1.5 rounded-xl border py-2.5 px-3 text-xs font-semibold text-center',
-                        isLight
-                          ? 'border-[#ded6c1] bg-[#ebe2cc] text-[#353229]'
-                          : 'bg-[rgba(200,169,110,0.12)] border-[rgba(165,130,95,0.3)] text-[#dfc187]',
-                      )}
-                    >
-                      <Clock className={cn('h-3.5 w-3.5 animate-pulse', isLight ? 'text-[#353229]' : 'text-[#dfc187]')} />
-                      <span>Pending at Supervisor Inspection</span>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      style={isLight ? { color: '#ffffff', backgroundColor: '#353229' } : undefined}
-                      onClick={() => handleComplete(selectedTask)}
-                      className={cn(
-                        'flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-bold transition-all shadow-md text-center cursor-pointer btn-dark',
-                        isLight
-                          ? 'bg-[#353229] text-white hover:bg-[#484438]'
-                          : 'bg-[#c8a96e] hover:bg-[#dfc187] text-[#14120e]',
-                      )}
-                    >
-                      <CheckCircle2 className="h-4 w-4" />
-                      Mark Completed
-                    </button>
-                  )
+                {selectedTask.status !== 'Completed' && selectedTask.status !== 'Awaiting inspection' && isTaskAssignedToProfile(selectedTask, activeProfile) && (
+                  <button
+                    type="button"
+                    style={isLight ? { color: '#ffffff', backgroundColor: '#353229' } : undefined}
+                    onClick={() => handleComplete(selectedTask)}
+                    className={cn(
+                      'flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 px-3 text-xs font-bold transition-all shadow-md text-center cursor-pointer btn-dark',
+                      isLight
+                        ? 'bg-[#353229] text-white hover:bg-[#484438]'
+                        : 'bg-[#ded6c1] hover:bg-[#e5dfcb] text-[#28261f]',
+                    )}
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    {t.markCompleted}
+                  </button>
                 )}
               </div>
             </div>
@@ -1936,16 +1926,16 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
               className={cn(
                 'w-full max-w-md rounded-2xl border p-4 sm:p-5 shadow-2xl transition-colors max-h-[92vh] flex flex-col',
                 isLight
-                  ? 'border-[#e7e2d7] bg-[#ffffff] text-[#353229]'
-                  : 'border-white/10 bg-[#18181c] text-[#f7f4ed]',
+                  ? 'border-[#b7b09e] bg-[#ffffff] text-[#353229]'
+                  : 'border-[#867e6c] bg-[#1e1e1b] text-[#eee8dc]',
               )}
             >
               {/* Header */}
               <div className="flex items-center justify-between pb-2 border-b border-inherit">
                 <div className="flex items-center gap-2 text-rose-500">
                   <AlertTriangle className="h-4 w-4 shrink-0" />
-                  <h3 className={cn('font-bold text-sm', isLight ? 'text-[#353229]' : 'text-[#f7f4ed]')}>
-                    Report Task Blocker
+                  <h3 className={cn('font-bold text-sm', isLight ? 'text-[#353229]' : 'text-[#eee8dc]')}>
+                    Block Task
                   </h3>
                 </div>
                 <button
@@ -1958,23 +1948,23 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                   }}
                   className={cn(
                     'p-1 rounded-lg transition-colors cursor-pointer',
-                    isLight ? 'text-[#686252] hover:text-[#353229] hover:bg-[#f6f3ec]' : 'text-mist-400 hover:text-white hover:bg-white/10',
+                    isLight ? 'text-[#686252] hover:text-[#353229] hover:bg-[#f6f3ec]' : 'text-[#b7b0a1] hover:text-[#eee8dc] hover:bg-[#282720]',
                   )}
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
-              <p className={cn('mt-2 text-xs', isLight ? 'text-[#686252]' : 'text-[#d9cebe]')}>
-                Specify why work cannot proceed on <strong className={isLight ? 'text-[#353229]' : 'text-white'}>{blockerModalTask.title}</strong>:
+              <p className={cn('mt-2 text-xs', isLight ? 'text-[#686252]' : 'text-[#b7b0a1]')}>
+                Select why this task is blocked:
               </p>
 
               {/* Scrollable reasons & photo upload */}
               <div className="mt-3 flex-1 overflow-y-auto space-y-3 no-scrollbar pr-0.5">
                 {/* Reason Selection */}
                 <div className="space-y-1.5">
-                  <label className={cn('text-[11px] font-semibold tracking-wide uppercase block', isLight ? 'text-[#686252]' : 'text-[#a69886]')}>
-                    Select Blocker Reason
+                  <label className={cn('text-[11px] font-semibold tracking-wide uppercase block', isLight ? 'text-[#686252]' : 'text-[#b7b0a1]')}>
+                    Select Reason
                   </label>
                   {BLOCKER_REASONS.map((reason) => {
                     const isSelected = blockerReason === reason;
@@ -1986,10 +1976,10 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                           isSelected
                             ? isLight
                               ? 'border-rose-300 bg-rose-50/80 text-[#353229] font-medium shadow-2xs'
-                              : 'border-rose-500/40 bg-rose-500/10 text-white font-medium'
+                              : 'border-rose-500/50 bg-rose-500/15 text-[#eee8dc] font-medium'
                             : isLight
                               ? 'border-[#e7e2d7] bg-white text-[#686252] hover:bg-[#f6f3ec] hover:text-[#353229]'
-                              : 'border-white/10 bg-white/[0.03] text-[#d9cebe] hover:bg-white/[0.06] hover:text-white',
+                              : 'border-[#3d3a32] bg-[#1e1e1b] text-[#b7b0a1] hover:bg-[#282720] hover:text-[#eee8dc]',
                         )}
                       >
                         <input
@@ -2015,7 +2005,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                           'w-full rounded-xl border p-2.5 text-xs focus:outline-none transition-colors resize-none',
                           isLight
                             ? 'border-[#e7e2d7] bg-[#fbfaf7] text-[#353229] placeholder-[#8c8472] focus:border-rose-400'
-                            : 'border-white/20 bg-white/[0.04] text-[#f7f4ed] placeholder:text-[#a69886] focus:border-rose-400',
+                            : 'border-[#3d3a32] bg-[#282720]/60 text-[#eee8dc] placeholder-[#b7b0a1] focus:border-rose-400',
                         )}
                         autoFocus
                       />
@@ -2027,14 +2017,14 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                 <div
                   className={cn(
                     'rounded-xl border p-3 space-y-2 transition-colors',
-                    isLight ? 'border-[#e7e2d7] bg-[#fbfaf7]' : 'border-white/10 bg-white/[0.03]',
+                    isLight ? 'border-[#e7e2d7] bg-[#fbfaf7]' : 'border-[#3d3a32] bg-[#282720]/60',
                   )}
                 >
                   <div className="flex items-center justify-between">
-                    <span className={cn('text-[11px] font-semibold tracking-wide uppercase flex items-center gap-1.5', isLight ? 'text-[#353229]' : 'text-[#f7f4ed]')}>
+                    <span className={cn('text-[11px] font-semibold tracking-wide uppercase flex items-center gap-1.5', isLight ? 'text-[#353229]' : 'text-[#eee8dc]')}>
                       <Camera className="h-3.5 w-3.5 text-rose-500" />
                       <span>Photo Evidence</span>
-                      <span className={cn('text-[10px] font-normal lowercase tracking-normal', isLight ? 'text-[#686252]' : 'text-[#a69886]')}>
+                      <span className={cn('text-[10px] font-normal lowercase tracking-normal', isLight ? 'text-[#686252]' : 'text-[#b7b0a1]')}>
                         (optional)
                       </span>
                     </span>
@@ -2074,7 +2064,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                             'rounded-lg border px-2.5 py-1 text-[11px] font-medium transition-colors cursor-pointer',
                             isLight
                               ? 'border-[#e7e2d7] bg-white text-[#353229] hover:bg-[#f6f3ec]'
-                              : 'border-white/10 bg-white/[0.05] text-[#ded6c9] hover:text-white',
+                              : 'border-[#3d3a32] bg-[#282720] text-[#eee8dc] hover:bg-[#343127]',
                           )}
                         >
                           Change
@@ -2106,7 +2096,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                             'flex items-center justify-center gap-1.5 rounded-xl border p-2 text-xs font-medium transition-all cursor-pointer',
                             isLight
                               ? 'border-[#e7e2d7] bg-white text-[#353229] hover:bg-[#f6f3ec]'
-                              : 'border-white/10 bg-white/[0.04] text-[#d9cebe] hover:bg-white/[0.08] hover:text-white',
+                              : 'border-[#3d3a32] bg-[#1e1e1b] text-[#eee8dc] hover:bg-[#282720]',
                           )}
                         >
                           <Camera className="h-3.5 w-3.5" />
@@ -2119,7 +2109,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                             'flex items-center justify-center gap-1.5 rounded-xl border p-2 text-xs font-medium transition-all cursor-pointer',
                             isLight
                               ? 'border-[#e7e2d7] bg-white text-[#353229] hover:bg-[#f6f3ec]'
-                              : 'border-white/10 bg-white/[0.04] text-[#d9cebe] hover:bg-white/[0.08] hover:text-white',
+                              : 'border-[#3d3a32] bg-[#1e1e1b] text-[#eee8dc] hover:bg-[#282720]',
                           )}
                         >
                           <ImageIcon className="h-3.5 w-3.5" />
@@ -2129,7 +2119,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
 
                       {/* Quick Blocker Samples */}
                       <div className="mt-2 pt-2 border-t border-inherit">
-                        <span className={cn('text-[10px] block mb-1.5', isLight ? 'text-[#8c8472]' : 'text-mist-400')}>
+                        <span className={cn('text-[10px] block mb-1.5', isLight ? 'text-[#8c8472]' : 'text-[#b7b0a1]')}>
                           Quick sample evidence:
                         </span>
                         <div className="flex flex-wrap gap-1.5">
@@ -2142,7 +2132,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                                 'rounded-lg border px-2 py-0.5 text-[10px] font-medium transition-colors cursor-pointer',
                                 isLight
                                   ? 'border-[#e7e2d7] bg-white text-[#686252] hover:text-[#353229] hover:bg-[#f6f3ec]'
-                                  : 'border-white/10 bg-white/[0.04] text-[#d9cebe] hover:text-white hover:bg-white/[0.08]',
+                                  : 'border-[#3d3a32] bg-[#1e1e1b] text-[#b7b0a1] hover:text-[#eee8dc] hover:bg-[#282720]',
                               )}
                             >
                               + {sample.label}
@@ -2159,7 +2149,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
               <div
                 className={cn(
                   'mt-4 flex items-center justify-end gap-2 border-t pt-3 shrink-0',
-                  isLight ? 'border-[#e7e2d7]' : 'border-white/10',
+                  isLight ? 'border-[#e7e2d7]' : 'border-[#3d3a32]',
                 )}
               >
                 <button
@@ -2174,7 +2164,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     'rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer',
                     isLight
                       ? 'border-[#e7e2d7] text-[#686252] hover:bg-[#f6f3ec] hover:text-[#353229]'
-                      : 'border-white/10 text-mist-300 hover:text-white hover:bg-white/[0.04]',
+                      : 'border-[#3d3a32] text-[#b7b0a1] hover:text-[#eee8dc] hover:bg-[#282720]',
                   )}
                 >
                   Cancel
@@ -2184,7 +2174,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                   onClick={handleBlockerSubmit}
                   className="rounded-xl bg-rose-600 hover:bg-rose-700 px-4 py-1.5 text-xs font-bold text-white shadow-sm transition-all cursor-pointer"
                 >
-                  Confirm Blocker
+                  Confirm Block
                 </button>
               </div>
             </div>
@@ -2201,14 +2191,14 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                 'w-full max-w-sm rounded-3xl border p-4 shadow-2xl transition-colors',
                 isLight
                   ? 'border-[#e7e2d7] bg-[#ffffff] text-[#353229]'
-                  : 'border-amber-400/40 bg-ink-950 text-white',
+                  : 'border-[#867e6c] bg-[#1e1e1b] text-[#eee8dc]',
               )}
             >
               <div className="flex items-center gap-2.5 text-amber-500">
                 <RotateCcw className="h-5 w-5" />
-                <h3 className={cn('font-bold text-sm', isLight ? 'text-[#353229]' : 'text-white')}>Request Task Reassignment</h3>
+                <h3 className={cn('font-bold text-sm', isLight ? 'text-[#353229]' : 'text-[#eee8dc]')}>Request Task Reassignment</h3>
               </div>
-              <p className={cn('mt-1 text-xs', isLight ? 'text-[#686252]' : 'text-mist-300')}>
+              <p className={cn('mt-1 text-xs', isLight ? 'text-[#686252]' : 'text-[#b7b0a1]')}>
                 This request will be routed to Supervisor <strong>{activeProfile.supervisorName}</strong> for decision. The task remains assigned to you until approved.
               </p>
 
@@ -2221,10 +2211,10 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                       reassignReason === reason
                         ? isLight
                           ? 'border-[#353229] bg-[#f6f3ec] text-[#353229] font-bold'
-                          : 'border-amber-400/50 bg-amber-400/10 text-white'
+                          : 'border-[#867e6c] bg-[#343127] text-[#ded6c1] font-bold'
                         : isLight
                           ? 'border-[#e7e2d7] bg-[#ffffff] text-[#686252] hover:bg-[#f6f3ec]'
-                          : 'border-white/10 bg-white/[0.03] text-mist-300 hover:text-white',
+                          : 'border-[#3d3a32] bg-[#1e1e1b] text-[#b7b0a1] hover:bg-[#282720] hover:text-[#eee8dc]',
                     )}
                   >
                     <input
@@ -2232,7 +2222,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                       name="reassign"
                       checked={reassignReason === reason}
                       onChange={() => setReassignReason(reason)}
-                      className={isLight ? 'accent-[#353229]' : 'accent-amber-400'}
+                      className={isLight ? 'accent-[#353229]' : 'accent-[#ded6c1]'}
                     />
                     <span className="text-[11px]">{reason}</span>
                   </label>
@@ -2240,7 +2230,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
 
                 {reassignReason === 'Others' && (
                   <div className="pt-1.5 animate-in fade-in duration-150">
-                    <label className={cn('block text-[11px] font-semibold mb-1', isLight ? 'text-[#353229]' : 'text-mist-200')}>
+                    <label className={cn('block text-[11px] font-semibold mb-1', isLight ? 'text-[#353229]' : 'text-[#eee8dc]')}>
                       Type Reason for Reassignment:
                     </label>
                     <textarea
@@ -2252,7 +2242,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                         'w-full rounded-xl border p-2.5 text-xs focus:outline-none focus:ring-1 resize-none',
                         isLight
                           ? 'border-[#e7e2d7] bg-[#fbfaf7] text-[#353229] placeholder-[#8c8472] focus:border-[#353229] focus:ring-[#353229]/30'
-                          : 'border-white/20 bg-white/[0.04] text-white placeholder:text-mist-400 focus:border-amber-400 focus:ring-amber-400/30',
+                          : 'border-[#3d3a32] bg-[#282720]/60 text-[#eee8dc] placeholder-[#b7b0a1] focus:border-[#867e6c] focus:ring-[#867e6c]/30',
                       )}
                       autoFocus
                     />
@@ -2263,7 +2253,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
               <div
                 className={cn(
                   'mt-4 flex items-center justify-end gap-2 border-t pt-3',
-                  isLight ? 'border-[#e7e2d7]' : 'border-white/10',
+                  isLight ? 'border-[#e7e2d7]' : 'border-[#3d3a32]',
                 )}
               >
                 <button
@@ -2276,7 +2266,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     'rounded-xl border px-3 py-1.5 text-xs cursor-pointer',
                     isLight
                       ? 'border-[#e7e2d7] text-[#686252] hover:bg-[#f6f3ec]'
-                      : 'border-white/10 text-mist-300 hover:text-white',
+                      : 'border-[#3d3a32] text-[#b7b0a1] hover:text-[#eee8dc] hover:bg-[#282720]',
                   )}
                 >
                   Cancel
@@ -2286,10 +2276,10 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                   style={isLight ? { color: '#ffffff', backgroundColor: '#353229' } : undefined}
                   onClick={handleReassignSubmit}
                   className={cn(
-                    'rounded-xl px-4 py-1.5 text-xs font-bold transition-all shadow-md cursor-pointer btn-dark',
+                    'rounded-xl px-4 py-1.5 text-xs font-bold transition-all shadow-md cursor-pointer',
                     isLight
                       ? 'bg-[#353229] text-white hover:bg-[#484438]'
-                      : 'bg-amber-400 text-ink-950 shadow-amber-400/30 hover:bg-amber-300',
+                      : 'bg-[#ded6c1] text-[#28261f] shadow-[#ded6c1]/20 hover:bg-[#e5dfcb]',
                   )}
                 >
                   Send Request
@@ -2309,18 +2299,18 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                 'w-full max-w-sm rounded-3xl border p-4 shadow-2xl transition-colors',
                 isLight
                   ? 'border-[#e7e2d7] bg-[#ffffff] text-[#353229]'
-                  : 'border-[rgba(165,130,95,0.3)] bg-[#161513] text-[#f7f4ed]',
+                  : 'border-[#867e6c] bg-[#1e1e1b] text-[#eee8dc]',
               )}
             >
               <div
                 className={cn(
                   'flex items-center justify-between border-b pb-3',
-                  isLight ? 'border-[#e7e2d7]' : 'border-[rgba(165,130,95,0.2)]',
+                  isLight ? 'border-[#e7e2d7]' : 'border-[#3d3a32]',
                 )}
               >
                 <div className="flex items-center gap-2">
-                  <Camera className={cn('h-5 w-5', isLight ? 'text-[#353229]' : 'text-[#dfc187]')} />
-                  <h3 className={cn('font-bold text-sm', isLight ? 'text-[#353229]' : 'text-[#f7f4ed]')}>Complete Task & Upload Photo</h3>
+                  <Camera className={cn('h-5 w-5', isLight ? 'text-[#353229]' : 'text-[#ded6c1]')} />
+                  <h3 className={cn('font-bold text-sm', isLight ? 'text-[#353229]' : 'text-[#eee8dc]')}>Complete Task</h3>
                 </div>
                 <button
                   type="button"
@@ -2331,7 +2321,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                   }}
                   className={cn(
                     'grid h-7 w-7 place-items-center rounded-full cursor-pointer',
-                    isLight ? 'bg-[#f6f3ec] text-[#686252] hover:text-[#353229]' : 'bg-white/10 text-[#ded6c9] hover:text-[#f7f4ed]',
+                    isLight ? 'bg-[#f6f3ec] text-[#686252] hover:text-[#353229]' : 'bg-[#282720] text-[#b7b0a1] hover:text-[#eee8dc]',
                   )}
                 >
                   <X className="h-4 w-4" />
@@ -2339,19 +2329,19 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
               </div>
 
               <div className="mt-3">
-                <p className={cn('text-xs leading-relaxed', isLight ? 'text-[#686252]' : 'text-[#ded6c9]')}>
-                  Provide evidence photo of completed work. Once submitted, task moves to supervisor inspection.
+                <p className={cn('text-xs leading-relaxed', isLight ? 'text-[#686252]' : 'text-[#b7b0a1]')}>
+                  Add a photo to mark this task completed.
                 </p>
                 <div
                   className={cn(
                     'mt-2 rounded-xl border p-2.5 text-xs transition-colors',
                     isLight
                       ? 'border-[#e7e2d7] bg-[#fbfaf7]'
-                      : 'border-[rgba(165,130,95,0.25)] bg-[rgba(200,169,110,0.05)]',
+                      : 'border-[#3d3a32] bg-[#282720]/60',
                   )}
                 >
-                  <div className={cn('font-semibold line-clamp-1', isLight ? 'text-[#353229]' : 'text-[#f7f4ed]')}>{photoModalTask.title}</div>
-                  <div className={cn('text-[11px] mt-0.5 flex items-center justify-between', isLight ? 'text-[#686252]' : 'text-[#d4b896]')}>
+                  <div className={cn('font-semibold line-clamp-1', isLight ? 'text-[#353229]' : 'text-[#eee8dc]')}>{cleanSimpleText(photoModalTask.title)}</div>
+                  <div className={cn('text-[11px] mt-0.5 flex items-center justify-between', isLight ? 'text-[#686252]' : 'text-[#b7b0a1]')}>
                     <span>{photoModalTask.room ? `Room ${photoModalTask.room}` : photoModalTask.location || 'Floor 4'}</span>
                     <span>Supervisor: {activeProfile.supervisorName}</span>
                   </div>
@@ -2364,7 +2354,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                   <div
                     className={cn(
                       'relative rounded-2xl overflow-hidden border bg-black/50',
-                      isLight ? 'border-[#e7e2d7]' : 'border-[rgba(165,130,95,0.4)]',
+                      isLight ? 'border-[#e7e2d7]' : 'border-[#867e6c]',
                     )}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -2376,7 +2366,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     <div
                       className={cn(
                         'absolute top-2 left-2 flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold shadow-sm',
-                        isLight ? 'bg-[#353229] text-white' : 'bg-[#c8a96e] text-[#14120e]',
+                        isLight ? 'bg-[#353229] text-white' : 'bg-[#ded6c1] text-[#28261f]',
                       )}
                     >
                       <Check className="h-3 w-3" /> Photo Attached
@@ -2404,12 +2394,12 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                       'flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-4 text-center transition-colors',
                       isLight
                         ? 'border-[#e7e2d7] bg-[#fbfaf7]'
-                        : 'border-[rgba(165,130,95,0.3)] bg-white/[0.02]',
+                        : 'border-[#3d3a32] bg-[#282720]/40',
                     )}
                   >
-                    <Camera className={cn('h-7 w-7 mb-1', isLight ? 'text-[#353229]' : 'text-[#dfc187]')} />
-                    <p className={cn('text-xs font-semibold', isLight ? 'text-[#353229]' : 'text-[#f7f4ed]')}>Attach Evidence Photo</p>
-                    <p className={cn('text-[10px] mt-0.5', isLight ? 'text-[#8c8472]' : 'text-[#ded6c9]')}>Select image file or capture with device camera</p>
+                    <Camera className={cn('h-7 w-7 mb-1', isLight ? 'text-[#353229]' : 'text-[#ded6c1]')} />
+                    <p className={cn('text-xs font-semibold', isLight ? 'text-[#353229]' : 'text-[#eee8dc]')}>Attach Evidence Photo</p>
+                    <p className={cn('text-[10px] mt-0.5', isLight ? 'text-[#8c8472]' : 'text-[#b7b0a1]')}>Select image file or capture with device camera</p>
 
                     <div className="mt-3 flex flex-col w-full gap-2">
                       <button
@@ -2419,10 +2409,10 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                           'flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-all cursor-pointer border',
                           isLight
                             ? 'border-[#e7e2d7] bg-[#ffffff] text-[#353229] hover:bg-[#f6f3ec]'
-                            : 'bg-white/[0.06] hover:bg-white/[0.1] border-[rgba(165,130,95,0.25)] text-[#f7f4ed]',
+                            : 'border-[#3d3a32] bg-[#1e1e1b] text-[#eee8dc] hover:bg-[#282720]',
                         )}
                       >
-                        <ImageIcon className={cn('h-4 w-4', isLight ? 'text-[#353229]' : 'text-[#dfc187]')} />
+                        <ImageIcon className={cn('h-4 w-4', isLight ? 'text-[#353229]' : 'text-[#ded6c1]')} />
                         Upload from Device / Gallery
                       </button>
 
@@ -2433,11 +2423,11 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                           'flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-all cursor-pointer border',
                           isLight
                             ? 'border-[#e7e2d7] bg-[#ffffff] text-[#353229] hover:bg-[#f6f3ec]'
-                            : 'bg-white/[0.06] hover:bg-white/[0.1] border-[rgba(165,130,95,0.25)] text-[#f7f4ed]',
+                            : 'border-[#3d3a32] bg-[#1e1e1b] text-[#eee8dc] hover:bg-[#282720]',
                         )}
                       >
-                        <Camera className={cn('h-4 w-4', isLight ? 'text-[#353229]' : 'text-[#dfc187]')} />
-                        Take Photo with Camera
+                        <Camera className={cn('h-4 w-4', isLight ? 'text-[#353229]' : 'text-[#ded6c1]')} />
+                        Take Photo
                       </button>
 
                       <button
@@ -2445,18 +2435,18 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                         onClick={() =>
                           setPhotoModalPreview(
                             SAMPLE_PROOF_PHOTOS[activeProfile.deptKey] ||
-                              SAMPLE_PROOF_PHOTOS.housekeeping,
+                            SAMPLE_PROOF_PHOTOS.housekeeping,
                           )
                         }
                         className={cn(
                           'flex items-center justify-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer',
                           isLight
                             ? 'border-[#e7e2d7] bg-[#f6f3ec] text-[#353229] hover:bg-[#ebe2cc]'
-                            : 'border-[rgba(165,130,95,0.4)] bg-[rgba(200,169,110,0.12)] hover:bg-[rgba(200,169,110,0.18)] text-[#dfc187]',
+                            : 'border-[#867e6c] bg-[#343127] hover:bg-[#403b2f] text-[#ded6c1]',
                         )}
                       >
-                        <Sparkles className={cn('h-3.5 w-3.5', isLight ? 'text-[#353229]' : 'text-[#dfc187]')} />
-                        Use Sample Department Photo
+                        <Sparkles className={cn('h-3.5 w-3.5', isLight ? 'text-[#353229]' : 'text-[#ded6c1]')} />
+                        Use Sample Photo
                       </button>
                     </div>
                   </div>
@@ -2470,7 +2460,7 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
               <div
                 className={cn(
                   'mt-4 flex items-center justify-end gap-2 border-t pt-3',
-                  isLight ? 'border-[#e7e2d7]' : 'border-[rgba(165,130,95,0.2)]',
+                  isLight ? 'border-[#e7e2d7]' : 'border-[#3d3a32]',
                 )}
               >
                 <button
@@ -2484,24 +2474,24 @@ export function FulfillerTasksTab({ profile }: FulfillerTasksTabProps) {
                     'rounded-xl border px-3 py-1.5 text-xs cursor-pointer',
                     isLight
                       ? 'border-[#e7e2d7] text-[#686252] hover:bg-[#f6f3ec]'
-                      : 'border-[rgba(165,130,95,0.25)] text-[#ded6c9] hover:text-[#f7f4ed]',
+                      : 'border-[#3d3a32] text-[#b7b0a1] hover:text-[#eee8dc] hover:bg-[#282720]',
                   )}
                 >
-                  Cancel
+                  {t.close}
                 </button>
                 <button
                   type="button"
                   style={isLight ? { color: '#ffffff', backgroundColor: '#353229' } : undefined}
                   onClick={handleSubmitCompletionWithPhoto}
                   className={cn(
-                    'flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer btn-dark',
+                    'flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer',
                     isLight
                       ? 'bg-[#353229] text-[#ffffff] hover:bg-[#484438]'
-                      : 'bg-[#c8a96e] hover:bg-[#dfc187] text-[#14120e]',
+                      : 'bg-[#ded6c1] hover:bg-[#e5dfcb] text-[#28261f]',
                   )}
                 >
                   <Check className="h-3.5 w-3.5" />
-                  Submit for Inspection
+                  {t.markCompleted}
                 </button>
               </div>
             </div>

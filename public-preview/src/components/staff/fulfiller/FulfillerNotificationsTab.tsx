@@ -116,7 +116,7 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
           'grid grid-cols-2 gap-1.5 p-1 rounded-2xl border transition-colors shadow-xs',
           isLight
             ? 'border-[#e7e2d7] bg-[#f6f3ec]'
-            : 'border-[rgba(165,130,95,0.25)] bg-[#14120e]',
+            : 'border-[#3d3a32] bg-[#1e1e1b]',
         )}
       >
         <button
@@ -127,10 +127,10 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
             mainTab === 'updates'
               ? isLight
                 ? 'bg-[#ffffff] text-[#353229] border border-[#e7e2d7] shadow-sm font-bold'
-                : 'bg-[#dfc187] text-[#14120e] shadow-md shadow-[#dfc187]/20'
+                : 'bg-[#ded6c1] text-[#28261f] shadow-md shadow-[#ded6c1]/20'
               : isLight
                 ? 'text-[#686252] hover:text-[#353229] hover:bg-[#ebe2cc]/40'
-                : 'text-[#ded6c9] hover:text-[#f7f4ed] hover:bg-white/[0.04]',
+                : 'text-[#b7b0a1] hover:text-[#eee8dc] hover:bg-[#282720]',
           )}
         >
           <Bell className="h-4 w-4 shrink-0" />
@@ -142,10 +142,10 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
                 mainTab === 'updates'
                   ? isLight
                     ? 'bg-[#353229] text-[#ffffff]'
-                    : 'bg-[#14120e] text-[#dfc187]'
+                    : 'bg-[#28261f] text-[#ded6c1]'
                   : isLight
                     ? 'bg-[#ebe2cc] text-[#353229]'
-                    : 'bg-[rgba(200,169,110,0.25)] text-[#8c6b2d]',
+                    : 'bg-[#343127] text-[#ded6c1]',
               )}
             >
               {updatesUnreadCount}
@@ -161,10 +161,10 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
             mainTab === 'safety'
               ? isLight
                 ? 'bg-[#ffffff] text-[#353229] border border-[#e7e2d7] shadow-sm font-bold'
-                : 'bg-[#dfc187] text-[#14120e] shadow-md shadow-[#dfc187]/20'
+                : 'bg-[#ded6c1] text-[#28261f] shadow-md shadow-[#ded6c1]/20'
               : isLight
                 ? 'text-[#686252] hover:text-[#353229] hover:bg-[#ebe2cc]/40'
-                : 'text-[#ded6c9] hover:text-[#f7f4ed] hover:bg-white/[0.04]',
+                : 'text-[#b7b0a1] hover:text-[#eee8dc] hover:bg-[#282720]',
           )}
         >
           <ShieldAlert className="h-4 w-4 shrink-0" />
@@ -176,8 +176,8 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
                 mainTab === 'safety'
                   ? isLight
                     ? 'bg-[#353229] text-[#ffffff]'
-                    : 'bg-[#14120e] text-[#dfc187]'
-                  : 'bg-rose-500/20 text-rose-700 border border-rose-400/40',
+                    : 'bg-[#28261f] text-[#ded6c1]'
+                  : 'bg-rose-500/20 text-rose-500 border border-rose-400/40',
               )}
             >
               {safetyUnreadCount}
@@ -192,7 +192,7 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
           'flex items-center justify-between gap-2 p-2.5 rounded-2xl border transition-colors',
           isLight
             ? 'border-[#e7e2d7] bg-[#ffffff] shadow-[0_2px_8px_rgba(53,50,41,0.04)]'
-            : 'border-[rgba(165,130,95,0.25)] bg-[#1a1918]',
+            : 'border-[#3d3a32] bg-[#1e1e1b]',
         )}
       >
         {/* Left: Filter Buttons */}
@@ -205,10 +205,10 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
               !unreadOnly
                 ? isLight
                   ? 'bg-[#353229] text-[#ffffff] shadow-xs'
-                  : 'bg-[#dfc187] text-[#14120e] shadow-sm'
+                  : 'bg-[#ded6c1] text-[#28261f] shadow-sm'
                 : isLight
                   ? 'border border-[#e7e2d7] bg-[#f6f3ec] text-[#686252] hover:text-[#353229]'
-                  : 'border border-[rgba(165,130,95,0.25)] bg-white/[0.04] text-[#ded6c9] hover:text-[#f7f4ed]',
+                  : 'border border-[#3d3a32] bg-[#282720] text-[#b7b0a1] hover:text-[#eee8dc]',
             )}
           >
             {mainTab === 'updates'
@@ -224,10 +224,10 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
               unreadOnly
                 ? isLight
                   ? 'bg-[#353229] text-[#ffffff] font-bold shadow-xs'
-                  : 'bg-[#dfc187] text-[#14120e] font-bold shadow-sm'
+                  : 'bg-[#ded6c1] text-[#28261f] font-bold shadow-sm'
                 : isLight
                   ? 'border border-[#e7e2d7] bg-[#f6f3ec] text-[#686252] hover:text-[#353229]'
-                  : 'border border-[rgba(165,130,95,0.25)] bg-white/[0.04] text-[#ded6c9] hover:text-[#f7f4ed]',
+                  : 'border border-[#3d3a32] bg-[#282720] text-[#b7b0a1] hover:text-[#eee8dc]',
             )}
           >
             <Filter className="h-3 w-3" />
@@ -236,7 +236,7 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
               <span
                 className={cn(
                   'ml-0.5 rounded-full px-1 text-[10px] font-bold',
-                  isLight ? 'bg-white/20 text-[#ffffff]' : 'bg-[#14120e] text-[#dfc187]',
+                  isLight ? 'bg-white/20 text-[#ffffff]' : 'bg-[#28261f] text-[#ded6c1]',
                 )}
               >
                 {mainTab === 'updates' ? updatesUnreadCount : safetyUnreadCount}
@@ -255,10 +255,10 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
               isSoundOn
                 ? isLight
                   ? 'border-amber-300 bg-amber-50 text-amber-800'
-                  : 'border-[rgba(165,130,95,0.35)] bg-[rgba(200,169,110,0.12)] text-[#dfc187]'
+                  : 'border-[#867e6c] bg-[#343127] text-[#ded6c1]'
                 : isLight
                   ? 'border-stone-200 bg-stone-100 text-stone-500'
-                  : 'border-white/10 bg-white/[0.04] text-mist-400',
+                  : 'border-[#3d3a32] bg-[#282720] text-[#b7b0a1]',
             )}
             title={isSoundOn ? 'Mute alert chimes' : 'Enable alert chimes'}
             aria-label="Toggle chime sound"
@@ -273,8 +273,8 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
               className={cn(
                 'flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-semibold transition-colors cursor-pointer',
                 isLight
-                  ? 'border-stone-200 bg-stone-100 text-stone-800 hover:bg-stone-200'
-                  : 'border-[rgba(165,130,95,0.3)] bg-[rgba(200,169,110,0.1)] text-[#dfc187] hover:bg-[rgba(200,169,110,0.2)]',
+                  ? 'border-[#e7e2d7] bg-[#f6f3ec] text-[#353229] hover:bg-[#ebe2cc]'
+                  : 'border-[#867e6c] bg-[#343127] text-[#ded6c1] hover:bg-[#403b2f]',
               )}
               title="Acknowledge all unread updates"
             >
@@ -290,8 +290,8 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
               className={cn(
                 'flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-semibold transition-colors cursor-pointer',
                 isLight
-                  ? 'border-stone-200 bg-stone-100 text-stone-800 hover:bg-stone-200'
-                  : 'border-[rgba(165,130,95,0.3)] bg-[rgba(200,169,110,0.1)] text-[#dfc187] hover:bg-[rgba(200,169,110,0.2)]',
+                  ? 'border-[#e7e2d7] bg-[#f6f3ec] text-[#353229] hover:bg-[#ebe2cc]'
+                  : 'border-[#867e6c] bg-[#343127] text-[#ded6c1] hover:bg-[#403b2f]',
               )}
               title="Acknowledge all safety alerts"
             >
@@ -308,7 +308,7 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
                 'grid h-7 w-7 place-items-center rounded-lg border transition-colors cursor-pointer',
                 isLight
                   ? 'border-stone-200 bg-stone-100 text-stone-500 hover:text-rose-700 hover:border-rose-300'
-                  : 'border-white/10 bg-white/[0.04] text-[#a89f91] hover:text-rose-400 hover:border-rose-400/30',
+                  : 'border-[#3d3a32] bg-[#282720] text-[#b7b0a1] hover:text-rose-400 hover:border-rose-400/30',
               )}
               title="Clear updates log"
               aria-label="Clear updates"
@@ -319,17 +319,17 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
         </div>
       </div>
 
-      {/* Activity Log Header (matching reference Image 1) */}
+      {/* Activity Log Header */}
       <div className="flex items-center justify-between px-1 pt-0.5">
-        <h3 className={cn('text-[11px] font-bold uppercase tracking-wider', isLight ? 'text-[#8b7550]' : 'text-[#dfc187]')}>
+        <h3 className={cn('text-[11px] font-bold uppercase tracking-wider', isLight ? 'text-[#8b7550]' : 'text-[#ded6c1]')}>
           {mainTab === 'updates' ? 'ACTIVITY LOG' : 'SECURITY ALERTS LOG'}
         </h3>
-        <p className={cn('text-[11px] font-mono', isLight ? 'text-[#8c8472]' : 'text-mist-400')}>
+        <p className={cn('text-[11px] font-mono', isLight ? 'text-[#8c8472]' : 'text-[#b7b0a1]')}>
           {mainTab === 'updates' ? `${displayedUpdates.length} notifications displayed` : `${displayedSafety.length} alerts displayed`}
         </p>
       </div>
 
-      {/* Empty State (matching reference Image 1) */}
+      {/* Empty State */}
       {((mainTab === 'updates' && displayedUpdates.length === 0) ||
         (mainTab === 'safety' && displayedSafety.length === 0)) && (
         <div
@@ -337,7 +337,7 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
             'flex flex-col items-center justify-center rounded-3xl border py-14 px-6 text-center space-y-3 transition-colors',
             isLight
               ? 'border-[#e7e2d7] bg-[#ffffff] shadow-xs'
-              : 'border-[rgba(165,130,95,0.22)] bg-[#1a1918]/80 shadow-md',
+              : 'border-[#3d3a32] bg-[#1e1e1b] shadow-md',
           )}
         >
           <div
@@ -345,16 +345,16 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
               'grid h-12 w-12 place-items-center rounded-full border',
               isLight
                 ? 'border-[#e7e2d7] bg-[#f6f3ec] text-[#353229]'
-                : 'border-[rgba(165,130,95,0.3)] bg-white/[0.04] text-[#dfc187]',
+                : 'border-[#867e6c] bg-[#282720] text-[#ded6c1]',
             )}
           >
             {mainTab === 'updates' ? <Bell className="h-6 w-6" /> : <ShieldAlert className="h-6 w-6 text-rose-400" />}
           </div>
           <div className="space-y-1">
-            <p className={cn('text-sm font-bold', isLight ? 'text-[#353229]' : 'text-[#f7f4ed]')}>
+            <p className={cn('text-sm font-bold', isLight ? 'text-[#353229]' : 'text-[#eee8dc]')}>
               {mainTab === 'updates' ? 'No notifications found' : 'No security alerts found'}
             </p>
-            <p className={cn('text-xs max-w-sm mx-auto leading-relaxed', isLight ? 'text-[#686252]' : 'text-[#ded6c9]')}>
+            <p className={cn('text-xs max-w-sm mx-auto leading-relaxed', isLight ? 'text-[#686252]' : 'text-[#b7b0a1]')}>
               {unreadOnly
                 ? 'All alerts have been acknowledged. Turn off "Unread" to view previous activity.'
                 : mainTab === 'updates'
@@ -378,8 +378,8 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
                     ? 'border-[#e7e2d7] bg-[#ffffff] text-[#686252] shadow-[0_2px_8px_rgba(53,50,41,0.03)]'
                     : 'border-[#b7b09e] bg-[#fbfaf7] text-[#353229] shadow-[0_2px_8px_rgba(53,50,41,0.05)]'
                   : notif.read
-                    ? 'border-[rgba(165,130,95,0.2)] bg-[#1a1918]/80 text-[#ded6c9]'
-                    : 'border-[rgba(200,169,110,0.4)] bg-[rgba(200,169,110,0.06)] text-[#f7f4ed] shadow-md',
+                    ? 'border-[#3d3a32] bg-[#1e1e1b] text-[#b7b0a1]'
+                    : 'border-[#867e6c] bg-[#282720] text-[#eee8dc] shadow-md',
               )}
             >
               <div className="flex items-start justify-between gap-3">
@@ -390,14 +390,14 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
                         <span
                           className={cn(
                             'h-2 w-2 rounded-full shrink-0',
-                            isLight ? 'bg-[#353229]' : 'bg-[#dfc187] animate-pulse',
+                            isLight ? 'bg-[#353229]' : 'bg-[#ded6c1] animate-pulse',
                           )}
                         />
                       )}
                       <h4
                         className={cn(
                           'text-xs font-bold truncate',
-                          isLight ? 'text-[#353229]' : 'text-[#f7f4ed]',
+                          isLight ? 'text-[#353229]' : 'text-[#eee8dc]',
                         )}
                       >
                         {notif.title}
@@ -406,7 +406,7 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
                     <span
                       className={cn(
                         'text-[10px] font-mono shrink-0',
-                        isLight ? 'text-[#8c8472]' : 'text-[#a89f91]',
+                        isLight ? 'text-[#8c8472]' : 'text-[#b7b0a1]',
                       )}
                     >
                       {notif.timestamp}
@@ -415,7 +415,7 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
                   <p
                     className={cn(
                       'mt-1 text-xs leading-relaxed',
-                      isLight ? 'text-[#686252]' : 'text-[#ded6c9]',
+                      isLight ? 'text-[#686252]' : 'text-[#b7b0a1]',
                     )}
                   >
                     {notif.message}
@@ -427,13 +427,13 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
               <div
                 className={cn(
                   'flex items-center justify-between gap-2 pt-2 border-t text-xs',
-                  isLight ? 'border-[#e7e2d7]' : 'border-[rgba(165,130,95,0.18)]',
+                  isLight ? 'border-[#e7e2d7]' : 'border-[#3d3a32]',
                 )}
               >
                 <span
                   className={cn(
                     'text-[10px] uppercase tracking-wider font-mono font-semibold',
-                    isLight ? 'text-[#686252]' : 'text-[#dfc187]/80',
+                    isLight ? 'text-[#686252]' : 'text-[#ded6c1]/90',
                   )}
                 >
                   {notif.department || activeProfile.departmentName}
@@ -451,7 +451,7 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
                         'flex items-center gap-1 rounded-xl px-2.5 py-1 text-[11px] font-semibold transition-colors cursor-pointer border',
                         isLight
                           ? 'border-[#353229] bg-[#353229] text-[#ffffff] hover:bg-[#484438]'
-                          : 'border-[rgba(165,130,95,0.35)] bg-[rgba(200,169,110,0.14)] text-[#dfc187] hover:bg-[rgba(200,169,110,0.24)]',
+                          : 'border-[#867e6c] bg-[#343127] text-[#ded6c1] hover:bg-[#403b2f]',
                       )}
                     >
                       <span>View Task</span>
@@ -470,7 +470,7 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
                         'flex items-center gap-1 rounded-xl px-2.5 py-1 text-[11px] font-bold transition-colors cursor-pointer shadow-xs border',
                         isLight
                           ? 'border-[#b7b09e] bg-[#ffffff] text-[#353229] hover:bg-[#f6f3ec]'
-                          : 'bg-[#c8a96e] text-stone-900 hover:bg-[#bfa15f]',
+                          : 'bg-[#ded6c1] text-[#28261f] hover:bg-[#e5dfcb] border-[#867e6c]',
                       )}
                     >
                       <Check className="h-3 w-3" />
@@ -480,7 +480,7 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
                     <span
                       className={cn(
                         'flex items-center gap-0.5 text-[10px]',
-                        isLight ? 'text-[#8c8472]' : 'text-mist-500',
+                        isLight ? 'text-[#8c8472]' : 'text-[#b7b0a1]',
                       )}
                     >
                       <Check className="h-2.5 w-2.5" /> Read
@@ -513,10 +513,10 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
                         ? 'border-amber-300 bg-amber-50/70 shadow-[0_2px_8px_rgba(53,50,41,0.03)]'
                         : 'border-[#e7e2d7] bg-[#ffffff] shadow-[0_2px_8px_rgba(53,50,41,0.03)]'
                     : isCritical
-                      ? 'border-rose-500/50 bg-rose-500/[0.08]'
+                      ? 'border-rose-500/50 bg-[#241215]'
                       : isUrgent
-                        ? 'border-amber-500/40 bg-amber-500/[0.06]'
-                        : 'border-[rgba(165,130,95,0.3)] bg-[#1a1918]',
+                        ? 'border-amber-500/40 bg-amber-500/[0.08]'
+                        : 'border-[#3d3a32] bg-[#1e1e1b]',
                 )}
               >
                 {/* Header: Priority + Ref Code + Status + Timestamp */}
@@ -531,7 +531,7 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
                             ? 'bg-amber-100 text-amber-800 border border-amber-300'
                             : isLight
                               ? 'bg-[#f6f3ec] text-[#353229] border border-[#e7e2d7]'
-                              : 'bg-[rgba(200,169,110,0.2)] text-[#dfc187] border border-[rgba(165,130,95,0.35)]',
+                              : 'bg-[#343127] text-[#ded6c1] border border-[#867e6c]',
                       )}
                     >
                       {alert.priority} Priority
@@ -541,7 +541,7 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
                         'text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md border',
                         isLight
                           ? 'bg-[#f6f3ec] text-[#353229] border-[#e7e2d7]'
-                          : 'bg-black/40 text-[#dfc187] border-[rgba(165,130,95,0.2)]',
+                          : 'bg-[#282720] text-[#ded6c1] border-[#3d3a32]',
                       )}
                     >
                       {alert.ref}
@@ -568,7 +568,7 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
                     <span
                       className={cn(
                         'text-[10px] font-mono',
-                        isLight ? 'text-[#8c8472]' : 'text-[#a89f91]',
+                        isLight ? 'text-[#8c8472]' : 'text-[#b7b0a1]',
                       )}
                     >
                       {alert.reportedAt}
@@ -581,13 +581,13 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
                   <h4
                     className={cn(
                       'text-xs sm:text-sm font-bold flex items-center gap-1.5',
-                      isLight ? 'text-[#353229]' : 'text-[#f7f4ed]',
+                      isLight ? 'text-[#353229]' : 'text-[#eee8dc]',
                     )}
                   >
                     <ShieldAlert
                       className={cn(
                         'h-4 w-4 shrink-0',
-                        isCritical ? 'text-rose-600' : isUrgent ? 'text-amber-600' : 'text-[#c8a96e]',
+                        isCritical ? 'text-rose-600' : isUrgent ? 'text-amber-600' : isLight ? 'text-[#8b7550]' : 'text-[#ded6c1]',
                       )}
                     />
                     <span>{alert.title}</span>
@@ -597,7 +597,7 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
                       'mt-1 text-xs leading-relaxed p-2 rounded-xl border',
                       isLight
                         ? 'bg-[#fbfaf7] border-[#e7e2d7] text-[#686252]'
-                        : 'bg-black/25 border-white/5 text-[#ded6c9]',
+                        : 'bg-[#282720]/60 border-[#3d3a32] text-[#b7b0a1]',
                     )}
                   >
                     {alert.description}
@@ -608,15 +608,15 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
                 <div
                   className={cn(
                     'flex items-center gap-2 text-[11px] flex-wrap',
-                    isLight ? 'text-[#686252]' : 'text-[#d4b896]',
+                    isLight ? 'text-[#686252]' : 'text-[#ded6c1]',
                   )}
                 >
                   <div className="flex items-center gap-1">
-                    <MapPin className={cn('h-3.5 w-3.5 shrink-0', isLight ? 'text-[#353229]' : 'text-[#dfc187]')} />
+                    <MapPin className={cn('h-3.5 w-3.5 shrink-0', isLight ? 'text-[#353229]' : 'text-[#ded6c1]')} />
                     <span>{alert.location}</span>
                   </div>
                   {alert.affectedFloors && alert.affectedFloors.length > 0 && (
-                    <span className={cn('text-[10px]', isLight ? 'text-[#8c8472]' : 'text-[#ded6c9]/70')}>
+                    <span className={cn('text-[10px]', isLight ? 'text-[#8c8472]' : 'text-[#b7b0a1]/70')}>
                       (Floors: {alert.affectedFloors.join(', ')})
                     </span>
                   )}
@@ -626,11 +626,11 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
                 <div
                   className={cn(
                     'flex items-center justify-between gap-2 pt-2 border-t text-xs',
-                    isLight ? 'border-[#e7e2d7]' : 'border-[rgba(165,130,95,0.18)]',
+                    isLight ? 'border-[#e7e2d7]' : 'border-[#3d3a32]',
                   )}
                 >
-                  <span className={cn('text-[10px]', isLight ? 'text-[#8c8472]' : 'text-[#a89f91]')}>
-                    Reported by: <strong className={isLight ? 'text-[#353229]' : 'text-[#ded6c9]'}>{alert.reportedBy}</strong>
+                  <span className={cn('text-[10px]', isLight ? 'text-[#8c8472]' : 'text-[#b7b0a1]')}>
+                    Reported by: <strong className={isLight ? 'text-[#353229]' : 'text-[#eee8dc]'}>{alert.reportedBy}</strong>
                   </span>
 
                   <div>
@@ -642,7 +642,7 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
                           'flex items-center gap-1 rounded-xl px-3 py-1 text-xs font-bold transition-all shadow-xs cursor-pointer',
                           isLight
                             ? 'bg-[#353229] text-[#ffffff] hover:bg-[#484438]'
-                            : 'bg-[#c8a96e] text-[#14120e] hover:bg-[#dfc187]',
+                            : 'bg-[#ded6c1] text-[#28261f] hover:bg-[#e5dfcb]',
                         )}
                       >
                         <Check className="h-3 w-3" />
@@ -652,7 +652,7 @@ export function FulfillerNotificationsTab({ profile, onNavigateToTasks }: Fulfil
                       <span
                         className={cn(
                           'text-[11px] font-semibold flex items-center gap-1',
-                          isLight ? 'text-emerald-700' : 'text-[#dfc187]',
+                          isLight ? 'text-emerald-700' : 'text-[#ded6c1]',
                         )}
                       >
                         <Check className="h-3.5 w-3.5" /> Acknowledged ✓

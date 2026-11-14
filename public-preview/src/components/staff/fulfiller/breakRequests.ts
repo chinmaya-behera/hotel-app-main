@@ -25,56 +25,56 @@ export type BreakRequestRecord = DutyRequestRecord;
 export const ON_DUTY_REASONS = [
   {
     id: 'shift_start',
-    label: 'Shift Start / Report for Duty',
-    desc: 'Commence scheduled service rounds on assigned floors',
+    label: 'Start Shift / Report for Duty',
+    desc: 'Start work on assigned floors',
   },
   {
     id: 'relieve',
-    label: 'Relieving Colleague / Shift Handover',
-    desc: 'Take over floor coverage from previous shift attendant',
+    label: 'Relieve Staff / Handover',
+    desc: 'Take over from previous staff',
   },
   {
     id: 'surge',
-    label: 'Occupancy Surge / Overtime Support',
-    desc: 'Respond to high arrival volume and express turnover requests',
+    label: 'Rush Hours / Extra Support',
+    desc: 'Help with busy guest requests',
   },
   {
     id: 'return',
-    label: 'Returning to Duty from Break or Leave',
-    desc: 'Ready to receive and fulfill pending guest service tasks',
+    label: 'Back from Break or Leave',
+    desc: 'Ready for new tasks',
   },
   {
     id: 'other',
-    label: 'Others',
-    desc: 'Specify custom reason for supervisor authorization',
+    label: 'Other',
+    desc: 'Specify reason for supervisor',
   },
 ];
 
 export const OFF_DUTY_REASONS = [
   {
     id: 'shift_complete',
-    label: 'Shift Concluded / Turnover Tasks Done',
-    desc: 'All assigned room turnovers and service items completed',
+    label: 'Shift Finished / Tasks Done',
+    desc: 'All assigned tasks finished',
   },
   {
     id: 'handover_done',
-    label: 'Shift Handover to Reliever Complete',
-    desc: 'Master keycard and linen inventory transferred to reliever',
+    label: 'Handover Complete',
+    desc: 'Handed over keys and items',
   },
   {
     id: 'scheduled_end',
-    label: 'Scheduled Shift Hours Concluded',
-    desc: 'End of scheduled shift roster window',
+    label: 'End of Shift Hours',
+    desc: 'Shift hours completed',
   },
   {
     id: 'emergency_leave',
     label: 'Emergency / Personal Leave',
-    desc: 'Urgent medical or personal departure required',
+    desc: 'Need to leave early',
   },
   {
     id: 'other',
-    label: 'Others',
-    desc: 'Specify custom reason for supervisor authorization',
+    label: 'Other',
+    desc: 'Specify reason for supervisor',
   },
 ];
 
@@ -83,19 +83,19 @@ export const BREAK_OPTIONS = [
     id: 'tea',
     label: '15-min Tea / Coffee Break',
     durationMinutes: 15,
-    desc: 'Quick beverage and refreshment interval',
+    desc: 'Quick tea or coffee break',
   },
   {
     id: 'meal',
     label: '30-min Meal / Lunch Break',
     durationMinutes: 30,
-    desc: 'Designated shift meal window with floor coverage',
+    desc: 'Lunch or dinner break',
   },
   {
     id: 'rest',
-    label: '10-min Rest / Stretch Break',
+    label: '10-min Rest Break',
     durationMinutes: 10,
-    desc: 'Short physical rest between turnover rounds',
+    desc: 'Short rest between tasks',
   },
   {
     id: 'other',
