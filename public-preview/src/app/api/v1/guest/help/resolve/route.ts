@@ -8,11 +8,21 @@ export const runtime = 'nodejs';
 const ResolveQuestionSchema = z.object({
   question: z.string().min(1, 'Question text cannot be empty').max(500, 'Question too long').trim(),
   currentNodeId: z.string().optional(),
+  language: z.string().optional(),
+  conversationHistory: z
+    .array(
+      z.object({
+        sender: z.enum(['user', 'bot']),
+        text: z.string(),
+      }),
+    )
+    .optional(),
 });
 
 /**
  * POST /api/v1/guest/help/resolve
- * Resolves natural language guest questions with keyword matching and verified action suggestions.
+ * Resolves natural language guest questions with Gemini AI function calling or local grounded retrieval.
+ * Securely enforces guest session cookie verification.
  */
 export async function POST(request: NextRequest) {
   const traceId = `req_${crypto.randomUUID()}`;
@@ -51,8 +61,20 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // 1. Secure session cookie extraction
+    const sessionCookie = request.cookies.get('grand_guest_session')?.value;
+
+    // 2. Resolve question via Hybrid Grounded Service (Gemini AI + Local Fallback)
     const service = new HelpCenterService();
-    const result = service.resolveQuestion(parsed.data.question, parsed.data.currentNodeId);
+    const result = await service.resolveQuestionAsync(
+      parsed.data.question,
+      parsed.data.currentNodeId,
+      {
+        sessionToken: sessionCookie,
+        language: parsed.data.language,
+        conversationHistory: parsed.data.conversationHistory,
+      },
+    );
 
     return NextResponse.json({
       success: true,
