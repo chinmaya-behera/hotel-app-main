@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 import { DemoProvider } from '@/lib/store';
+import { I18nProvider } from '@/lib/i18n';
+import { GoogleTranslate } from '@/components/shared/GoogleTranslate';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -25,7 +27,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         />
       </head>
       <body>
-        <DemoProvider>{children}</DemoProvider>
+        <I18nProvider>
+          <DemoProvider>
+            {children}
+            <GoogleTranslate />
+          </DemoProvider>
+        </I18nProvider>
       </body>
     </html>
   );

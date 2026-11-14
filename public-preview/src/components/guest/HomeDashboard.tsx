@@ -27,6 +27,7 @@ import {
   PartyPopper,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
+import { useI18n } from '@/lib/i18n';
 import { useEmergencyBroadcast } from '@/lib/emergencyBroadcast';
 import { cn } from '@/lib/utils';
 import { GuestSheet } from '@/components/guest/guestUi';
@@ -100,6 +101,7 @@ function getStatusStyle(status: 'Pending' | 'Accepted' | 'Assigned' | 'In Progre
 }
 
 export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
+  const { t, formatMoney } = useI18n();
   const {
     state,
     updateDndStatus,
@@ -385,7 +387,7 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
               </span>
             </div>
             <h1 className="text-base sm:text-2xl lg:text-3xl font-extrabold text-white tracking-tight truncate">
-              Welcome, {guestName.split(' ')[0]}
+              {t('guest.welcomeGuest', { name: guestName.split(' ')[0] })}
             </h1>
           </div>
         </div>
@@ -395,7 +397,7 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
             <span className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold">
               <span className="h-2 w-2 rounded-full bg-rose-400 animate-pulse" />
               <MoonStar className="h-3.5 w-3.5" />
-              <span>DND Active</span>
+              <span>{t('guest.dndActive')}</span>
             </span>
           )}
           <button
@@ -405,7 +407,7 @@ export function HomeDashboard({ room, guestName, onNavigate }: GuestTabProps) {
             title="View Room & Stay Details"
           >
             <BedDouble className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-cyan-400 group-hover:scale-110 transition-transform" />
-            <span>Room {room}</span>
+            <span>{t('guest.roomBadge', { room })}</span>
           </button>
         </div>
       </div>

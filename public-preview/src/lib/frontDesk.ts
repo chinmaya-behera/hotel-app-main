@@ -1,4 +1,4 @@
-import { nextOperationalReference } from './operational-references';
+import { nextOperationalReference } from './operational-references.ts';
 /**
  * Front Desk workflow logic (FRONTEND ONLY).
  *

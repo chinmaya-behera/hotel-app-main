@@ -1,5 +1,6 @@
 import postgres from 'postgres';
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import * as schema from './schema/index.ts';
 
 /**
  * Global singleton typing for Next.js hot-module replacement (HMR) connection pooling.
@@ -9,7 +10,7 @@ declare global {
   // eslint-disable-next-line no-var
   var __grand_pg_client: postgres.Sql | undefined;
   // eslint-disable-next-line no-var
-  var __grand_drizzle_db: PostgresJsDatabase | undefined;
+  var __grand_drizzle_db: PostgresJsDatabase<typeof schema> | undefined;
 }
 
 /**
@@ -87,12 +88,12 @@ function createPostgresClient(): postgres.Sql {
 /**
  * Instantiates or retrieves the cached Drizzle ORM client.
  */
-function createDrizzleDatabase(client: postgres.Sql): PostgresJsDatabase {
+function createDrizzleDatabase(client: postgres.Sql): PostgresJsDatabase<typeof schema> {
   if (process.env.NODE_ENV !== 'production' && globalThis.__grand_drizzle_db) {
     return globalThis.__grand_drizzle_db;
   }
 
-  const instance = drizzle(client);
+  const instance = drizzle(client, { schema });
 
   if (process.env.NODE_ENV !== 'production') {
     globalThis.__grand_drizzle_db = instance;
@@ -135,7 +136,7 @@ export async function checkDatabaseConnection(): Promise<{
   } catch (err: unknown) {
     let errorMessage = 'Unknown database connection failure';
     if (err instanceof Error) {
-      errorMessage = err.message || (err as Record<string, unknown>).code as string || err.name;
+      errorMessage = err.message || ((err as unknown) as Record<string, unknown>).code as string || err.name;
     } else if (typeof err === 'object' && err !== null) {
       const rec = err as Record<string, unknown>;
       errorMessage = (rec.message || rec.code || rec.name || JSON.stringify(rec)) as string;

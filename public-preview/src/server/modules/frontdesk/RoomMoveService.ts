@@ -9,7 +9,9 @@ import {
   getRoomCatalogRepository,
 } from '../public/repositories/RoomCatalogRepository.ts';
 import { QrAuthService } from '../guest/QrAuthService.ts';
-import { MockTaskEngineService } from '../operations/MockTaskEngineService.ts';
+import type { ITaskEngineService } from '../operations/contracts.ts';
+import { getTaskEngineService } from '../operations/TaskEngineService.ts';
+
 import { MockCleanlinessInspectionService } from '../operations/MockCleanlinessInspectionService.ts';
 import {
   FrontDeskStayService,
@@ -55,18 +57,18 @@ export interface RoomMoveResult {
 export class RoomMoveService {
   private stayRepo: IGuestStayRepository;
   private catalogRepo: IRoomCatalogRepository;
-  private taskEngine: MockTaskEngineService;
+  private taskEngine: ITaskEngineService;
   private inspectionService: MockCleanlinessInspectionService;
 
   constructor(
     stayRepo?: IGuestStayRepository,
     catalogRepo?: IRoomCatalogRepository,
-    taskEngine?: MockTaskEngineService,
+    taskEngine?: ITaskEngineService,
     inspectionService?: MockCleanlinessInspectionService,
   ) {
     this.stayRepo = stayRepo || getGuestStayRepository();
     this.catalogRepo = catalogRepo || getRoomCatalogRepository();
-    this.taskEngine = taskEngine || MockTaskEngineService.getInstance();
+    this.taskEngine = taskEngine || getTaskEngineService();
     this.inspectionService = inspectionService || MockCleanlinessInspectionService.getInstance();
   }
 

@@ -6,6 +6,7 @@ import {
   type StayContext,
   type RoomAssignment,
 } from '../../../db/schema/03_finance.ts';
+export type { StayContext, RoomAssignment } from '../../../db/schema/03_finance.ts';
 
 export interface PreArrivalDetails {
   estimatedArrivalTime?: string;

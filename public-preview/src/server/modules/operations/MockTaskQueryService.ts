@@ -3,6 +3,7 @@ import type {
   GuestTaskProjection,
   FulfillerTaskProjection,
 } from './contracts';
+import { MockTaskStore } from './MockTaskStore.ts';
 
 /**
  * ============================================================================
@@ -15,8 +16,10 @@ import type {
 export class MockTaskQueryService implements ITaskQueryService {
   private static instance: MockTaskQueryService;
   private tasksByStay = new Map<string, GuestTaskProjection[]>();
+  private store: MockTaskStore;
 
-  constructor() {
+  constructor(store?: MockTaskStore) {
+    this.store = store || MockTaskStore.getInstance();
     this.seedDefaultTasks();
   }
 
@@ -62,12 +65,12 @@ export class MockTaskQueryService implements ITaskQueryService {
     return JSON.parse(JSON.stringify(list));
   }
 
-  public async getTasksForStaff(_staffId: string): Promise<FulfillerTaskProjection[]> {
-    return [];
+  public async getTasksForStaff(staffId: string): Promise<FulfillerTaskProjection[]> {
+    return this.store.getTasksForStaff(staffId);
   }
 
-  public async getTaskById(_taskId: string): Promise<FulfillerTaskProjection | null> {
-    return null;
+  public async getTaskById(taskId: string): Promise<FulfillerTaskProjection | null> {
+    return this.store.getTask(taskId);
   }
 
   // Test helpers
@@ -86,5 +89,6 @@ export class MockTaskQueryService implements ITaskQueryService {
 
   public reset(): void {
     this.resetSeed();
+    this.store.reset();
   }
 }

@@ -87,9 +87,10 @@ export function Modal({ title, description, onClose, children, footer }: ModalPr
   );
 }
 
-export function FieldLabel({ htmlFor, children }: { htmlFor?: string; children: ReactNode }) {
+export function FieldLabel({ htmlFor, label, children }: { htmlFor?: string; label?: string; children?: ReactNode }) {
   return (
     <label htmlFor={htmlFor} className="mb-1 block text-xs font-medium text-mist-300">
+      {label && <span className="block mb-1">{label}</span>}
       {children}
     </label>
   );

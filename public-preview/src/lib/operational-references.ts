@@ -1,5 +1,5 @@
 import type { DemoState, WorkItem } from '../types/demo';
-import { formatReferenceNumber, uniqueReferenceNumber } from './utils';
+import { formatReferenceNumber, uniqueReferenceNumber } from './utils.ts';
 
 const legacyDate = '2026-11-04';
 const currentFormat = /^(GC|ESC|INC|HK|TSK|REP|FB|ORD|INS)-[A-Z0-9]+-\d{6}(?:-\d+)?$/;

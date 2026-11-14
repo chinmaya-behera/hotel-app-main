@@ -20,6 +20,8 @@ import {
   X,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
+import { useI18n } from '@/lib/i18n';
+import { LanguageSelector } from '@/components/shared/LanguageSelector';
 import { cn } from '@/lib/utils';
 import { FulfillerTasksTab } from './FulfillerTasksTab';
 import { FulfillerNotificationsTab } from './FulfillerNotificationsTab';
@@ -40,6 +42,7 @@ import { useBreakRequest } from './breakRequests';
 type FulfillerTab = 'tasks' | 'notifications' | 'policies' | 'performance' | 'profile';
 
 function FulfillerAppContent() {
+  const { t } = useI18n();
   const {
     state,
     setPersona,
@@ -646,6 +649,9 @@ function FulfillerAppContent() {
                   <VolumeX className={cn('h-3.5 w-3.5', isLight ? 'text-[#8c8472]' : 'text-[#a69886]')} />
                 )}
               </button>
+
+              {/* Language Selector */}
+              <LanguageSelector isLight={isLight} variant="compact" />
 
               {/* Theme Change Toggle */}
               <button

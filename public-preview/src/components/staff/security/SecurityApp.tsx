@@ -39,6 +39,8 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
+import { useI18n } from '@/lib/i18n';
+import { LanguageSelector } from '@/components/shared/LanguageSelector';
 import type { WorkItem, ShiftHandover } from '@/types/demo';
 import Lenis from 'lenis';
 import 'lenis/dist/lenis.css';
@@ -556,6 +558,9 @@ export function SecurityApp() {
             <span className="dm-live">
               <i /> Channel 4 · Patrol Active
             </span>
+
+            {/* Language Selector */}
+            <LanguageSelector variant="compact" isLight={state.theme === 'light'} />
 
             {/* Sound toggle button */}
             <button

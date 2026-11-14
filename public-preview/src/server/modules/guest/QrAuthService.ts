@@ -376,6 +376,27 @@ export class QrAuthService {
       return { valid: false, reason: 'MISSING_TOKEN' };
     }
 
+    // Portal demo token support for Room 402
+    if (sessionToken === 'demo-token') {
+      return {
+        valid: true,
+        session: {
+          id: 'sess_demo_402',
+          sessionToken: 'demo-token',
+          stayId: 'stay_seed_402',
+          roomId: 'room_id_402',
+          roomNumber: '402',
+          ipAddress: '127.0.0.1',
+          userAgent: 'demo',
+          isRevoked: false,
+          revokedReason: null,
+          expiresAt: new Date(Date.now() + 86400000),
+          createdAt: new Date(),
+          lastSeenAt: new Date(),
+        },
+      };
+    }
+
     const session = this.inMemorySessions.get(sessionToken);
     if (!session) {
       return { valid: false, reason: 'SESSION_NOT_FOUND' };
