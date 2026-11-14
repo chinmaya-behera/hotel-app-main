@@ -1,40 +1,9 @@
+import { authenticateStaff } from '@/server/auth/request';
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'node:crypto';
 import { EmergencyAlertService } from '@/server/modules/frontdesk/EmergencyAlertService';
-import type { StaffAuthUser } from '@/server/modules/frontdesk/FrontDeskStayService';
 
 export const runtime = 'nodejs';
-
-function extractStaffUser(request: NextRequest): StaffAuthUser | null {
-  const staffRole = request.headers.get('x-staff-role');
-  if (staffRole) {
-    return {
-      staffId: request.headers.get('x-staff-id') || 'staff_dev_fd_01',
-      name: request.headers.get('x-staff-name') || 'Front Desk Coordinator',
-      role: staffRole,
-    };
-  }
-
-  const sessionCookie = request.cookies.get('grand_staff_session')?.value;
-  if (sessionCookie) {
-    return {
-      staffId: 'staff_cookie_user',
-      name: 'Front Desk Agent',
-      role: 'front_desk',
-    };
-  }
-
-  const authHeader = request.headers.get('authorization');
-  if (authHeader && authHeader.toLowerCase().startsWith('bearer ')) {
-    return {
-      staffId: 'staff_bearer_user',
-      name: 'Authorized Staff',
-      role: 'front_desk',
-    };
-  }
-
-  return null;
-}
 
 /**
  * POST /api/v1/frontdesk/emergency-alerts/:id/activate
@@ -49,7 +18,7 @@ export async function POST(
 ) {
   const { id } = await params;
   const traceId = `req_${crypto.randomUUID()}`;
-  const staff = extractStaffUser(request);
+  const staff = await authenticateStaff(request);
 
   if (!staff) {
     return NextResponse.json(

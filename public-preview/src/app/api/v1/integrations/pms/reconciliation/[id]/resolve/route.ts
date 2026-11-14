@@ -1,8 +1,8 @@
+import { authenticateStaff } from '@/server/auth/request';
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'node:crypto';
 import { z } from 'zod';
 import { PmsReconciliationService } from '@/server/modules/integrations/pms/PmsReconciliationService';
-import type { StaffAuthUser } from '@/server/modules/frontdesk/FrontDeskStayService';
 
 export const runtime = 'nodejs';
 
@@ -12,48 +12,6 @@ const ResolveDiscrepancySchema = z.object({
   }),
   notes: z.string().max(1000).optional(),
 });
-
-function extractStaffUser(request: NextRequest): StaffAuthUser | null {
-  const staffRole = request.headers.get('x-staff-role');
-  if (staffRole) {
-    return {
-      staffId: request.headers.get('x-staff-id') || 'staff_dev_01',
-      name: request.headers.get('x-staff-name') || 'Front Desk Staff',
-      role: staffRole,
-    };
-  }
-
-  const sessionCookie = request.cookies.get('grand_staff_session')?.value;
-  if (sessionCookie) {
-    try {
-      const parsed = JSON.parse(Buffer.from(sessionCookie, 'base64').toString('utf-8'));
-      if (parsed.role) {
-        return {
-          staffId: parsed.staffId || 'staff_cookie_user',
-          name: parsed.name || 'Front Desk Agent',
-          role: parsed.role,
-        };
-      }
-    } catch {
-      return {
-        staffId: 'staff_cookie_user',
-        name: 'Front Desk Agent',
-        role: 'front_desk',
-      };
-    }
-  }
-
-  const authHeader = request.headers.get('authorization');
-  if (authHeader && authHeader.toLowerCase().startsWith('bearer ')) {
-    return {
-      staffId: 'staff_bearer_user',
-      name: 'Authorized Staff',
-      role: 'front_desk',
-    };
-  }
-
-  return null;
-}
 
 /**
  * POST /api/v1/integrations/pms/reconciliation/:id/resolve
@@ -65,7 +23,7 @@ export async function POST(
 ) {
   const traceId = `trace_${crypto.randomUUID()}`;
   const { id } = await params;
-  const staff = extractStaffUser(request);
+  const staff = await authenticateStaff(request);
 
   if (!staff) {
     return NextResponse.json(

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'node:crypto';
+import { authenticateStaff } from '@/server/auth/request';
 import {
   EmergencyAlertService,
   AcknowledgeAlertSchema,
@@ -58,8 +59,17 @@ export async function POST(
     );
   }
 
+  const input = validation.data;
+  if (input.recipientType === 'staff') {
+    const staff = await authenticateStaff(request);
+    if (!staff) {
+      return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', traceId } }, { status: 401 });
+    }
+    input.recipientId = staff.staffId;
+    input.recipientName = staff.name;
+  }
   const service = new EmergencyAlertService();
-  const result = await service.acknowledgeAlert(id, validation.data);
+  const result = await service.acknowledgeAlert(id, input);
 
   if (!result.success || !result.data) {
     return NextResponse.json(

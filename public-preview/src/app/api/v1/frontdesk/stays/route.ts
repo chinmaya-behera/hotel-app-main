@@ -1,57 +1,11 @@
+import { authenticateStaff } from '@/server/auth/request';
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'node:crypto';
 import {
   FrontDeskStayService,
-  type StaffAuthUser,
 } from '@/server/modules/frontdesk/FrontDeskStayService';
 
 export const runtime = 'nodejs';
-
-function extractStaffUser(request: NextRequest): StaffAuthUser | null {
-  // Check development / automation header
-  const staffRole = request.headers.get('x-staff-role');
-  if (staffRole) {
-    return {
-      staffId: request.headers.get('x-staff-id') || 'staff_dev_fd_01',
-      name: request.headers.get('x-staff-name') || 'Front Desk Coordinator',
-      role: staffRole,
-    };
-  }
-
-  // Check HTTP-only session cookie 'grand_staff_session'
-  const sessionCookie = request.cookies.get('grand_staff_session')?.value;
-  if (sessionCookie) {
-    try {
-      const parsed = JSON.parse(Buffer.from(sessionCookie, 'base64').toString('utf-8'));
-      if (parsed.role) {
-        return {
-          staffId: parsed.staffId || 'staff_cookie_user',
-          name: parsed.name || 'Front Desk Agent',
-          role: parsed.role,
-        };
-      }
-    } catch {
-      // If plain token or invalid base64, assume default front_desk staff in prototype
-      return {
-        staffId: 'staff_cookie_user',
-        name: 'Front Desk Agent',
-        role: 'front_desk',
-      };
-    }
-  }
-
-  // Check Bearer authorization
-  const authHeader = request.headers.get('authorization');
-  if (authHeader && authHeader.toLowerCase().startsWith('bearer ')) {
-    return {
-      staffId: 'staff_bearer_user',
-      name: 'Authorized Staff',
-      role: 'front_desk',
-    };
-  }
-
-  return null;
-}
 
 /**
  * GET /api/v1/frontdesk/stays
@@ -63,7 +17,7 @@ function extractStaffUser(request: NextRequest): StaffAuthUser | null {
  */
 export async function GET(request: NextRequest) {
   const traceId = `req_${crypto.randomUUID()}`;
-  const staff = extractStaffUser(request);
+  const staff = await authenticateStaff(request);
 
   if (!staff) {
     return NextResponse.json(

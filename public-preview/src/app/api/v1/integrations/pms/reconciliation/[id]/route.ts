@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { authenticateStaff } from '@/server/auth/request';
 import crypto from 'node:crypto';
 import { PmsReconciliationService } from '@/server/modules/integrations/pms/PmsReconciliationService';
 
@@ -13,6 +14,13 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const traceId = `trace_${crypto.randomUUID()}`;
+  const staff = await authenticateStaff(request);
+  if (!staff) {
+    return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', traceId } }, { status: 401 });
+  }
+  if (!['front_desk', 'front_desk_coordinator', 'duty_manager', 'general_manager', 'admin', 'platform_admin'].includes(staff.role)) {
+    return NextResponse.json({ success: false, error: { code: 'FORBIDDEN', traceId } }, { status: 403 });
+  }
   const { id } = await params;
 
   try {

@@ -1,46 +1,12 @@
+import { authenticateStaff } from '@/server/auth/request';
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'node:crypto';
 import {
   FulfillerService,
   BlockTaskSchema,
-  type StaffAuthUser,
 } from '@/server/modules/fulfiller/FulfillerService';
 
 export const runtime = 'nodejs';
-
-function extractStaffUser(request: NextRequest): StaffAuthUser | null {
-  const staffRole = request.headers.get('x-staff-role');
-  if (staffRole) {
-    return {
-      staffId: request.headers.get('x-staff-id') || 'EMP-0103',
-      name: request.headers.get('x-staff-name') || 'Vikram Singh',
-      role: staffRole,
-      department: request.headers.get('x-staff-department') || undefined,
-    };
-  }
-
-  const sessionCookie = request.cookies.get('grand_staff_session')?.value;
-  if (sessionCookie) {
-    return {
-      staffId: 'EMP-0103',
-      name: 'Vikram Singh',
-      role: 'task_fulfiller',
-      department: 'Housekeeping',
-    };
-  }
-
-  const authHeader = request.headers.get('authorization');
-  if (authHeader && authHeader.toLowerCase().startsWith('bearer ')) {
-    return {
-      staffId: 'EMP-0103',
-      name: 'Vikram Singh',
-      role: 'task_fulfiller',
-      department: 'Housekeeping',
-    };
-  }
-
-  return null;
-}
 
 /**
  * POST /api/v1/fulfiller/tasks/:id/block
@@ -53,7 +19,7 @@ export async function POST(
 ) {
   const { id } = await params;
   const traceId = `req_${crypto.randomUUID()}`;
-  const staff = extractStaffUser(request);
+  const staff = await authenticateStaff(request);
 
   if (!staff) {
     return NextResponse.json(

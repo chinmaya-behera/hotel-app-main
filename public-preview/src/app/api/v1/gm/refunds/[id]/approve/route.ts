@@ -1,50 +1,8 @@
+import { authenticateStaff } from '@/server/auth/request';
 import { NextRequest, NextResponse } from 'next/server';
 import { RefundService } from '@/server/modules/finance/refunds/RefundService';
-import type { StaffAuthUser } from '@/server/modules/frontdesk/FrontDeskStayService';
 
 export const runtime = 'nodejs';
-
-function extractStaffUser(request: NextRequest): StaffAuthUser | null {
-  const staffRole = request.headers.get('x-staff-role');
-  if (staffRole) {
-    return {
-      staffId: request.headers.get('x-staff-id') || 'staff_dev_gm_01',
-      name: request.headers.get('x-staff-name') || 'General Manager',
-      role: staffRole,
-    };
-  }
-
-  const sessionCookie = request.cookies.get('grand_staff_session')?.value;
-  if (sessionCookie) {
-    try {
-      const parsed = JSON.parse(Buffer.from(sessionCookie, 'base64').toString('utf-8'));
-      if (parsed.role) {
-        return {
-          staffId: parsed.staffId || 'staff_cookie_gm',
-          name: parsed.name || 'General Manager',
-          role: parsed.role,
-        };
-      }
-    } catch {
-      return {
-        staffId: 'staff_cookie_gm',
-        name: 'General Manager',
-        role: 'general_manager',
-      };
-    }
-  }
-
-  const authHeader = request.headers.get('authorization');
-  if (authHeader && authHeader.toLowerCase().startsWith('bearer ')) {
-    return {
-      staffId: 'staff_bearer_gm',
-      name: 'General Manager',
-      role: 'general_manager',
-    };
-  }
-
-  return null;
-}
 
 /**
  * POST /api/v1/gm/refunds/:id/approve
@@ -54,7 +12,7 @@ export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const staffUser = extractStaffUser(request);
+  const staffUser = await authenticateStaff(request);
   if (!staffUser) {
     return NextResponse.json(
       {
