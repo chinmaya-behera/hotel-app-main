@@ -1,6 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import Image from 'next/image';
+import heroBg from '@/image/twilight-infinity-pool.png';
 import {
   Calendar,
   Compass,
@@ -35,10 +37,32 @@ export function HotelHero({ initialQuery, onSearch, onOpenExplorer }: HotelHeroP
   const [checkOut, setCheckOut] = useState(initialQuery.checkOut);
   const [adults, setAdults] = useState(initialQuery.adults);
   const [children, setChildren] = useState(initialQuery.children);
+  const [scrollY, setScrollY] = useState(0);
+
+  useEffect(() => {
+    let ticking = false;
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          setScrollY(window.scrollY);
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const currentQuery: StayQuery = { checkIn, checkOut, adults, children };
   const err = queryError(currentQuery);
   const nights = nightsBetween(checkIn, checkOut);
+
+  // Parallax and fade calculations during scroll
+  const textTranslateY = Math.max(-100, -scrollY * 0.15);
+  const textOpacity = Math.max(0, 1 - scrollY / 600);
+  const bgTranslateY = scrollY * 0.08;
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,46 +72,73 @@ export function HotelHero({ initialQuery, onSearch, onOpenExplorer }: HotelHeroP
   };
 
   return (
-    <section className="relative overflow-hidden pt-8 pb-16 lg:pt-16 lg:pb-24">
-      {/* Background ambient lighting */}
-      <div className="pointer-events-none absolute inset-0 -z-10 flex items-center justify-center">
-        <div className="h-[480px] w-[800px] rounded-full bg-gradient-to-tr from-amber-500/15 via-rose-500/10 to-sky-500/15 blur-3xl opacity-70" />
+    <section className="relative isolate overflow-hidden pt-8 pb-16 lg:pt-16 lg:pb-24">
+      {/* Hero Background Image & Layered Soft Black Left Gradient */}
+      <div 
+        className="pointer-events-none absolute inset-0 z-0 overflow-hidden select-none transition-transform duration-75 ease-out"
+        style={{ transform: `translate3d(0, ${bgTranslateY}px, 0)` }}
+      >
+        {/* The Twilight Infinity Pool Image */}
+        <Image
+          src={heroBg}
+          alt="Twilight Infinity Pool Paradise"
+          fill
+          priority
+          quality={95}
+          sizes="100vw"
+          className="object-cover object-[70%_center]"
+        />
+
+        {/* Soft, gentle black gradient from the left side */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/25 to-transparent w-full md:w-1/2" />
+
+        {/* Subtle soft bottom feathering */}
+        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/35 to-transparent" />
+
+        {/* Ambient warm glow accent */}
+        <div className="absolute -top-24 left-1/4 h-[420px] w-[600px] rounded-full bg-gradient-to-tr from-amber-500/20 via-rose-500/10 to-transparent blur-3xl opacity-60" />
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        <div className="text-center max-w-3xl mx-auto">
+      <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6">
+        <div 
+          className="text-center max-w-3xl mx-auto transition-all duration-150 ease-out"
+          style={{
+            transform: `translate3d(0, ${textTranslateY}px, 0)`,
+            opacity: textOpacity,
+          }}
+        >
           {/* Eyebrow badge */}
-          <div className="inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-amber-400/10 px-3.5 py-1 text-xs font-semibold text-amber-300 backdrop-blur-md shadow-sm">
-            <Sparkles className="h-3.5 w-3.5" aria-hidden />
-            <span>Welcome to {HOTEL_NAME} · Seaside City Resort</span>
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/40 px-3.5 py-1 text-xs font-semibold text-[#ffffff] backdrop-blur-md shadow-sm">
+            <Sparkles className="h-3.5 w-3.5 text-amber-300" aria-hidden />
+            <span className="text-[#ffffff]">Welcome to {HOTEL_NAME} · Seaside City Resort</span>
           </div>
 
           {/* Main Title: Animated with handwriting typing effect and scroll revealing dynamics */}
           <AnimatedHeroTitle />
 
           {/* Subtitle */}
-          <p className="mt-6 text-base sm:text-lg text-mist-200 leading-relaxed max-w-2xl mx-auto">
+          <p className="mt-6 text-base sm:text-lg text-[#ffffff] leading-relaxed max-w-2xl mx-auto drop-shadow-sm">
             Discover 27 curated rooms across 5 boutique floors, artisan dining, and private wellness terraces.
             Connected seamlessly with live front-desk readiness and digital guest convenience.
           </p>
 
           {/* Hallmarks pills */}
-          <div className="mt-7 flex flex-wrap justify-center items-center gap-2 sm:gap-3 text-xs text-mist-300">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">
+          <div className="mt-7 flex flex-wrap justify-center items-center gap-2 sm:gap-3 text-xs text-[#ffffff]">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-black/40 backdrop-blur-md px-3 py-1.5 text-[#ffffff]">
               <Building className="h-3.5 w-3.5 text-amber-300" />
-              27 Signature Rooms & Suites
+              <span>27 Signature Rooms & Suites</span>
             </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-black/40 backdrop-blur-md px-3 py-1.5 text-[#ffffff]">
               <Compass className="h-3.5 w-3.5 text-sky-300" />
-              5 Interactive Floor Plans
+              <span>5 Interactive Floor Plans</span>
             </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-black/40 backdrop-blur-md px-3 py-1.5 text-[#ffffff]">
               <Flower2 className="h-3.5 w-3.5 text-emerald-300" />
-              Spa, Pool & Sky Lounge
+              <span>Spa, Pool & Sky Lounge</span>
             </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-black/40 backdrop-blur-md px-3 py-1.5 text-[#ffffff]">
               <ShieldCheck className="h-3.5 w-3.5 text-purple-300" />
-              Live PMS Sync Demo
+              <span>Live PMS Sync Demo</span>
             </span>
           </div>
         </div>
