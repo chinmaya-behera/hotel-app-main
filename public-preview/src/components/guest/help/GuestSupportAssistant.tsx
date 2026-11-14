@@ -49,6 +49,7 @@ interface ChatMessage {
   text: string;
   choices?: HelpOptionChoice[];
   action?: HelpPortalAction;
+  suggestedFollowUps?: string[];
   canGoBack?: boolean;
   parentNodeId?: string;
   timestamp: string;
@@ -90,7 +91,7 @@ export function GuestSupportAssistant({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Initialize conversation with welcome node
   useEffect(() => {
@@ -105,6 +106,12 @@ export function GuestSupportAssistant({
         sender: 'bot',
         text: initialGreeting,
         choices: rootNode.choices,
+        suggestedFollowUps: [
+          'How can I report an AC problem?',
+          'Where can I order food?',
+          'What time is checkout?',
+          'What is the Wi-Fi password?',
+        ],
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       },
     ]);
@@ -117,10 +124,10 @@ export function GuestSupportAssistant({
     }
   }, [messages, isOpen, isExpanded]);
 
-  // Focus input when opened
+  // Focus textarea when opened
   useEffect(() => {
     if (isOpen) {
-      const timer = setTimeout(() => inputRef.current?.focus(), 200);
+      const timer = setTimeout(() => textareaRef.current?.focus(), 200);
       return () => clearTimeout(timer);
     }
   }, [isOpen]);
@@ -229,9 +236,8 @@ export function GuestSupportAssistant({
     ]);
   };
 
-  const handleQuerySubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const query = inputText.trim();
+  const executeQuestionResolution = async (queryText: string) => {
+    const query = queryText.trim();
     if (!query || isResolving) return;
 
     setInputText('');
@@ -250,12 +256,19 @@ export function GuestSupportAssistant({
     try {
       let resolvedNode: HelpFlowNode | null = null;
       let suggestedAction: HelpPortalAction | undefined = undefined;
+      let suggestedFollowUps: string[] | undefined = undefined;
 
       try {
         const res = await fetch('/api/v1/guest/help/resolve', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question: query, currentNodeId }),
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            question: query,
+            currentNodeId,
+            language: (state as any)?.locale || 'en',
+            conversationHistory: messages.slice(-4).map((m) => ({ sender: m.sender, text: m.text })),
+          }),
         });
 
         if (res.ok) {
@@ -263,6 +276,7 @@ export function GuestSupportAssistant({
           if (json.success && json.data) {
             resolvedNode = json.data.node;
             suggestedAction = json.data.suggestedAction;
+            suggestedFollowUps = json.data.suggestedFollowUps;
           }
         }
       } catch {
@@ -296,6 +310,7 @@ export function GuestSupportAssistant({
         text: resolvedNode.message,
         choices: resolvedNode.choices,
         action: suggestedAction || resolvedNode.action,
+        suggestedFollowUps,
         canGoBack: true,
         parentNodeId: currentNodeId,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -315,6 +330,15 @@ export function GuestSupportAssistant({
     } finally {
       setIsResolving(false);
     }
+  };
+
+  const handleQuerySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await executeQuestionResolution(inputText);
+  };
+
+  const submitFollowUp = async (questionText: string) => {
+    await executeQuestionResolution(questionText);
   };
 
   const handleActionClick = (action: HelpPortalAction) => {
@@ -632,6 +656,37 @@ export function GuestSupportAssistant({
                       </div>
                     )}
 
+                    {/* Suggested Follow-Up Chips (GUEST-HELP-02 Phase 3 & 4) */}
+                    {isBot && msg.suggestedFollowUps && msg.suggestedFollowUps.length > 0 && (
+                      <div className="mt-2.5 ml-9 w-[calc(100%-2.25rem)] max-w-md">
+                        <div
+                          className="flex items-center gap-1.5 mb-1.5 text-[11px] font-semibold"
+                          style={{ color: isLight ? '#0e7490' : '#38bdf8' }}
+                        >
+                          <Sparkles className="h-3 w-3" />
+                          <span>Suggested follow-up questions:</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {msg.suggestedFollowUps.map((fu, idx) => (
+                            <button
+                              key={`fu_${msg.id}_${idx}`}
+                              type="button"
+                              onClick={() => submitFollowUp(fu)}
+                              disabled={isResolving}
+                              className="text-left text-xs px-2.5 py-1.5 rounded-lg border transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-95 cursor-pointer shadow-2xs"
+                              style={{
+                                background: isLight ? '#f0fdfa' : 'rgba(56, 189, 248, 0.08)',
+                                borderColor: isLight ? '#99f6e4' : 'rgba(56, 189, 248, 0.25)',
+                                color: isLight ? '#0f766e' : '#38bdf8',
+                              }}
+                            >
+                              💬 {fu}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Choice Chips / Option Cards */}
                     {isBot && msg.choices && msg.choices.length > 0 && (
                       <div
@@ -835,14 +890,22 @@ export function GuestSupportAssistant({
             }}
           >
             <div className={`flex items-center gap-2 w-full ${isExpanded ? 'max-w-4xl mx-auto' : ''}`}>
-              <input
-                ref={inputRef}
-                type="text"
+              <textarea
+                ref={textareaRef}
+                rows={1}
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (inputText.trim() && !isResolving) {
+                      executeQuestionResolution(inputText);
+                    }
+                  }
+                }}
                 placeholder={t('help.askAnythingPlaceholder')}
                 disabled={isResolving}
-                className="flex-1 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm focus:outline-none transition-all shadow-inner"
+                className="flex-1 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm focus:outline-none transition-all shadow-inner resize-none max-h-24 leading-normal"
                 style={{
                   background: isLight ? '#f8fafc' : '#09101f',
                   color: isLight ? '#15202b' : '#e7edf8',
