@@ -181,117 +181,119 @@ export function DispatcherQueueTab({ tasks, activeDept }: DispatcherQueueTabProp
 
   return (
     <div className="space-y-6">
-      {/* Subtab Navigation Switcher: Task Queue vs Completed Task */}
-      <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-ink-900/90 border border-white/10 backdrop-blur-xl w-fit shadow-lg">
-        <button
-          type="button"
-          onClick={() => setTaskSubTab('queue')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-            taskSubTab === 'queue'
-              ? 'bg-amber-400 text-ink-950 shadow-md shadow-amber-400/20'
-              : 'text-mist-300 hover:text-white hover:bg-white/[0.05]'
-          }`}
-        >
-          <Layers className="h-4 w-4" />
-          <span>Task Queue</span>
-          <span
-            className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-              taskSubTab === 'queue'
-                ? 'bg-ink-950/20 text-ink-950'
-                : 'bg-white/10 text-mist-300'
-            }`}
-          >
-            {activeQueueCount}
-          </span>
-        </button>
+      {/* Top Banner & Subtab / Action Strip */}
+      <div className="rounded-3xl border border-white/10 bg-ink-900/90 p-5 backdrop-blur-xl shadow-xl space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-full bg-amber-400 animate-pulse" />
+              <h1 className="text-xl font-bold font-display text-white">
+                Live Inbound Requests & Dispatch Queue
+              </h1>
+            </div>
+            <p className="text-xs text-mist-300 mt-1">
+              Orchestrate room requests, engineering defects, and room service deliveries across field personnel.
+            </p>
+          </div>
 
-        <button
-          type="button"
-          onClick={() => setTaskSubTab('completed')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-            taskSubTab === 'completed'
-              ? 'bg-amber-400 text-ink-950 shadow-md shadow-amber-400/20'
-              : 'text-mist-300 hover:text-white hover:bg-white/[0.05]'
-          }`}
-        >
-          <CheckCircle2 className="h-4 w-4" />
-          <span>Completed Task</span>
-          <span
-            className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-              taskSubTab === 'completed'
-                ? 'bg-ink-950/20 text-ink-950'
-                : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setIsCreateModalOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-400 text-ink-950 text-xs font-bold hover:bg-amber-300 transition shadow-lg shadow-amber-500/20 active:scale-95 cursor-pointer"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Create Task</span>
+            </button>
+
+            {unassignedCount > 0 && (
+              <button
+                type="button"
+                onClick={() => autoAssignAllPending()}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-amber-400/30 bg-amber-400/10 text-amber-300 text-xs font-bold hover:bg-amber-400/20 transition shadow-lg shadow-amber-500/10 active:scale-95 cursor-pointer"
+              >
+                <Sparkles className="h-4 w-4" />
+                <span>Auto-Assign All ({unassignedCount})</span>
+              </button>
+            )}
+
+            {/* View Mode Toggle */}
+            <div className="flex items-center rounded-xl border border-white/10 bg-ink-950/60 p-1">
+              <button
+                type="button"
+                onClick={() => setViewMode('table')}
+                className={`p-1.5 rounded-lg transition cursor-pointer ${
+                  viewMode === 'table' ? 'bg-amber-400 text-ink-950' : 'text-mist-400 hover:text-white'
+                }`}
+                title="Table View"
+              >
+                <Table className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('cards')}
+                className={`p-1.5 rounded-lg transition cursor-pointer ${
+                  viewMode === 'cards' ? 'bg-amber-400 text-ink-950' : 'text-mist-400 hover:text-white'
+                }`}
+                title="Cards View"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Subtab Navigation Switcher: Task Queue vs Completed Task */}
+        <div className="flex items-center gap-2 pt-2 border-t border-white/[0.08]">
+          <button
+            type="button"
+            onClick={() => setTaskSubTab('queue')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+              taskSubTab === 'queue'
+                ? 'bg-amber-400 text-ink-950 shadow-md shadow-amber-400/20'
+                : 'text-mist-300 hover:text-white hover:bg-white/[0.05]'
             }`}
           >
-            {completedCount}
-          </span>
-        </button>
+            <Layers className="h-4 w-4" />
+            <span>Active Queue</span>
+            <span
+              className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                taskSubTab === 'queue'
+                  ? 'bg-ink-950/20 text-ink-950'
+                  : 'bg-white/10 text-mist-300'
+              }`}
+            >
+              {activeQueueCount}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setTaskSubTab('completed')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+              taskSubTab === 'completed'
+                ? 'bg-amber-400 text-ink-950 shadow-md shadow-amber-400/20'
+                : 'text-mist-300 hover:text-white hover:bg-white/[0.05]'
+            }`}
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            <span>Completed Tasks</span>
+            <span
+              className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                taskSubTab === 'completed'
+                  ? 'bg-ink-950/20 text-ink-950'
+                  : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+              }`}
+            >
+              {completedCount}
+            </span>
+          </button>
+        </div>
       </div>
 
       {taskSubTab === 'queue' ? (
         <>
-          {/* Top Banner & Batch Action Strip */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 rounded-3xl border border-white/10 bg-ink-900/90 p-5 backdrop-blur-xl shadow-xl">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-amber-400 animate-pulse" />
-            <h1 className="text-xl font-bold font-display text-white">
-              Live Inbound Requests & Dispatch Queue
-            </h1>
-          </div>
-          <p className="text-xs text-mist-300 mt-1">
-            Orchestrate room requests, engineering defects, and room service deliveries across field personnel.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setIsCreateModalOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-amber-400 text-ink-950 text-xs font-bold hover:bg-amber-300 transition shadow-lg shadow-amber-500/20 active:scale-95"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Create Task</span>
-          </button>
-
-          {unassignedCount > 0 && (
-            <button
-              type="button"
-              onClick={() => autoAssignAllPending()}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-amber-400/30 bg-amber-400/10 text-amber-300 text-xs font-bold hover:bg-amber-400/20 transition shadow-lg shadow-amber-500/10 active:scale-95"
-            >
-              <Sparkles className="h-4 w-4" />
-              <span>Auto-Assign All Pending ({unassignedCount})</span>
-            </button>
-          )}
-
-          {/* View Mode Toggle */}
-          <div className="flex items-center rounded-2xl border border-white/10 bg-ink-950/60 p-1">
-            <button
-              type="button"
-              onClick={() => setViewMode('table')}
-              className={`p-1.5 rounded-xl transition ${
-                viewMode === 'table' ? 'bg-amber-400 text-ink-950' : 'text-mist-400 hover:text-white'
-              }`}
-              title="Table View"
-            >
-              <Table className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('cards')}
-              className={`p-1.5 rounded-xl transition ${
-                viewMode === 'cards' ? 'bg-amber-400 text-ink-950' : 'text-mist-400 hover:text-white'
-              }`}
-              title="Cards View"
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Filter and Search Bar */}
+          {/* Filter and Search Bar */}
       <div className="rounded-3xl border border-white/10 bg-ink-900/80 p-4 backdrop-blur-md shadow-lg space-y-3">
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
           {/* Search Input */}
@@ -521,8 +523,8 @@ export function DispatcherQueueTab({ tasks, activeDept }: DispatcherQueueTabProp
                       </td>
 
                       {/* Actions: Full suite of operations */}
-                      <td className="py-4 pl-3 pr-6 text-right">
-                        <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                      <td className="py-4 pl-3 pr-6 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1.5 flex-nowrap">
                           {/* 1. Quick Status Controls */}
                           {!isCompleted && !isInProgress && (
                             <button

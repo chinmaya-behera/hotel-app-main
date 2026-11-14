@@ -725,6 +725,187 @@
   background-color: rgba(255, 255, 255, 0.96);
 }
 
+/* Universal Light Theme Card & Container Surface Rules */
+:root[data-theme='light'] :is(
+  .bg-slate-900,
+  [class*='bg-slate-900'],
+  .bg-ink-900,
+  [class*='bg-ink-900'],
+  .bg-ink-850,
+  [class*='bg-ink-850'],
+  .bg-ink-800,
+  [class*='bg-ink-800']
+),
+.light :is(
+  .bg-slate-900,
+  [class*='bg-slate-900'],
+  .bg-ink-900,
+  [class*='bg-ink-900'],
+  .bg-ink-850,
+  [class*='bg-ink-850'],
+  .bg-ink-800,
+  [class*='bg-ink-800']
+) {
+  background-color: #ffffff !important;
+  border-color: rgba(226, 232, 240, 0.9) !important;
+  box-shadow: 0 4px 20px -2px rgba(1, 31, 75, 0.06), 0 1px 3px rgba(0, 0, 0, 0.03) !important;
+}
+
+:root[data-theme='light'] :is(
+  .bg-slate-950,
+  [class*='bg-slate-950'],
+  .bg-ink-950,
+  [class*='bg-ink-950']
+),
+.light :is(
+  .bg-slate-950,
+  [class*='bg-slate-950'],
+  .bg-ink-950,
+  [class*='bg-ink-950']
+) {
+  background-color: #f8fafc !important;
+  border-color: rgba(226, 232, 240, 0.85) !important;
+}
+
+:root[data-theme='light'] :is(
+  [class*='border-slate-800'],
+  [class*='border-slate-700'],
+  [class*='border-white/10'],
+  [class*='border-white/[0.08]'],
+  [class*='border-white/[0.06]']
+),
+.light :is(
+  [class*='border-slate-800'],
+  [class*='border-slate-700'],
+  [class*='border-white/10'],
+  [class*='border-white/[0.08]'],
+  [class*='border-white/[0.06]']
+) {
+  border-color: rgba(226, 232, 240, 0.9) !important;
+}
+
+/* Light Theme Card Text Visibility & High Contrast */
+:root[data-theme='light'] :is(
+  .bg-slate-900,
+  [class*='bg-slate-900'],
+  .bg-slate-950,
+  [class*='bg-slate-950'],
+  .bg-ink-900,
+  [class*='bg-ink-900'],
+  .bg-ink-950,
+  [class*='bg-ink-950'],
+  .bg-ink-850,
+  [class*='bg-ink-850'],
+  .bg-ink-800,
+  [class*='bg-ink-800']
+) :is(.text-white, h1, h2, h3, h4, h5, h6, strong, p.font-bold),
+.light :is(
+  .bg-slate-900,
+  [class*='bg-slate-900'],
+  .bg-slate-950,
+  [class*='bg-slate-950'],
+  .bg-ink-900,
+  [class*='bg-ink-900'],
+  .bg-ink-950,
+  [class*='bg-ink-950'],
+  .bg-ink-850,
+  [class*='bg-ink-850'],
+  .bg-ink-800,
+  [class*='bg-ink-800']
+) :is(.text-white, h1, h2, h3, h4, h5, h6, strong, p.font-bold) {
+  color: #0f172a !important;
+}
+
+:root[data-theme='light'] :is(
+  .bg-slate-900,
+  [class*='bg-slate-900'],
+  .bg-slate-950,
+  [class*='bg-slate-950'],
+  .bg-ink-900,
+  [class*='bg-ink-900'],
+  .bg-ink-950,
+  [class*='bg-ink-950'],
+  .bg-ink-850,
+  [class*='bg-ink-850'],
+  .bg-ink-800,
+  [class*='bg-ink-800']
+) :is(.text-slate-200, .text-slate-300, .text-mist-200, .text-mist-300),
+.light :is(
+  .bg-slate-900,
+  [class*='bg-slate-900'],
+  .bg-slate-950,
+  [class*='bg-slate-950'],
+  .bg-ink-900,
+  [class*='bg-ink-900'],
+  .bg-ink-950,
+  [class*='bg-ink-950'],
+  .bg-ink-850,
+  [class*='bg-ink-850'],
+  .bg-ink-800,
+  [class*='bg-ink-800']
+) :is(.text-slate-200, .text-slate-300, .text-mist-200, .text-mist-300) {
+  color: #1e293b !important;
+}
+
+:root[data-theme='light'] :is(
+  .bg-slate-900,
+  [class*='bg-slate-900'],
+  .bg-slate-950,
+  [class*='bg-slate-950'],
+  .bg-ink-900,
+  [class*='bg-ink-900'],
+  .bg-ink-950,
+  [class*='bg-ink-950'],
+  .bg-ink-850,
+  [class*='bg-ink-850'],
+  .bg-ink-800,
+  [class*='bg-ink-800']
+) :is(.text-slate-400, .text-slate-500, .text-mist-400, .text-mist-500),
+.light :is(
+  .bg-slate-900,
+  [class*='bg-slate-900'],
+  .bg-slate-950,
+  [class*='bg-slate-950'],
+  .bg-ink-900,
+  [class*='bg-ink-900'],
+  .bg-ink-950,
+  [class*='bg-ink-950'],
+  .bg-ink-850,
+  [class*='bg-ink-850'],
+  .bg-ink-800,
+  [class*='bg-ink-800']
+) :is(.text-slate-400, .text-slate-500, .text-mist-400, .text-mist-500) {
+  color: #475569 !important;
+}
+
+:root[data-theme='light'] :is(
+  .bg-slate-900,
+  [class*='bg-slate-900'],
+  .bg-ink-900,
+  [class*='bg-ink-900']
+) :is(.bg-slate-800, [class*='bg-slate-800'], [class*='bg-white/[0.02]'], [class*='bg-white/[0.04]']),
+.light :is(
+  .bg-slate-900,
+  [class*='bg-slate-900'],
+  .bg-ink-900,
+  [class*='bg-ink-900']
+) :is(.bg-slate-800, [class*='bg-slate-800'], [class*='bg-white/[0.02]'], [class*='bg-white/[0.04]']) {
+  background-color: #f1f5f9 !important;
+  color: #334155 !important;
+  border-color: #e2e8f0 !important;
+}
+
+:root[data-theme='light'] :is(input, select, textarea):not([class*='bg-amber']):not([class*='bg-emerald']):not([class*='bg-rose']),
+.light :is(input, select, textarea):not([class*='bg-amber']):not([class*='bg-emerald']):not([class*='bg-rose']) {
+  color: #0f172a !important;
+}
+
+:root[data-theme='light'] option,
+.light option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
 /* form text: readable placeholders and dropdown options in both themes */
 input::placeholder,
 textarea::placeholder {

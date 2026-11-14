@@ -23,9 +23,24 @@ import {
   MessageSquareWarning,
   HeartPulse,
   UtensilsCrossed,
+  Radio,
+  Plus,
+  Wrench,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
 import type { SupervisorInspection, RoleId, DispatcherDepartment, WorkItem, StaffAccount } from '@/types/demo';
+
+const DEPARTMENT_TABS: {
+  id: DispatcherDepartment;
+  label: string;
+  shortLabel: string;
+  icon: typeof BedDouble;
+}[] = [
+  { id: 'Housekeeping', label: 'Housekeeping', shortLabel: 'Housekeeping', icon: BedDouble },
+  { id: 'Maintenance & Engineering', label: 'Maintenance & Engineering', shortLabel: 'Maintenance & Eng.', icon: Wrench },
+  { id: 'Food & Beverages', label: 'Food & Beverages', shortLabel: 'Food & Beverages', icon: UtensilsCrossed },
+  { id: 'Wellness', label: 'Wellness', shortLabel: 'Wellness & Spa', icon: HeartPulse },
+];
 
 // Dispatcher Tabs
 import { DispatcherSupervisorOverviewTab } from './DispatcherSupervisorOverviewTab';
@@ -88,6 +103,7 @@ export function DispatcherSupervisorConsole() {
   const {
     state,
     setActiveDispatcherDept,
+    autoAssignAllPending,
     approveInspection,
     reopenInspection,
     reviewFulfillerReassignment,
@@ -379,6 +395,71 @@ export function DispatcherSupervisorConsole() {
     return dutyCount + reassignCount;
   }, [state.dutyStatusRequests, state.taskReassignRequests, currentDept]);
 
+  const deptTaskCounts = useMemo(() => {
+    const counts: Record<DispatcherDepartment, number> = {
+      'Housekeeping': 0,
+      'Maintenance & Engineering': 0,
+      'Food & Beverages': 0,
+      'Wellness': 0,
+    };
+    const all = [
+      ...(state.items.department_dispatcher_supervisor ?? []),
+      ...(state.items.department_dispatcher ?? []),
+    ].filter((t, i, arr) => arr.findIndex((x) => x.id === t.id) === i);
+
+    for (const t of all) {
+      const deptStr = (t.department || '').toLowerCase();
+      const catStr = (t.category || '').toLowerCase();
+      if (
+        deptStr.includes('housekeeping') ||
+        ['housekeeping', 'lost_found', 'turnover', 'linen'].includes(catStr)
+      ) {
+        counts['Housekeeping']++;
+      } else if (
+        deptStr.includes('maintenance') ||
+        deptStr.includes('engineering') ||
+        ['maintenance', 'hvac', 'plumbing', 'electrical', 'repair'].includes(catStr)
+      ) {
+        counts['Maintenance & Engineering']++;
+      } else if (
+        deptStr.includes('food') ||
+        deptStr.includes('beverage') ||
+        deptStr.includes('f&b') ||
+        ['room_service', 'dining', 'fnb', 'kitchen', 'restaurant', 'bar'].includes(catStr)
+      ) {
+        counts['Food & Beverages']++;
+      } else if (
+        deptStr.includes('spa') ||
+        deptStr.includes('wellness') ||
+        ['spa', 'wellness', 'massage', 'hydrotherapy', 'medical', 'therapy'].includes(catStr)
+      ) {
+        counts['Wellness']++;
+      }
+    }
+    return counts;
+  }, [state.items.department_dispatcher_supervisor, state.items.department_dispatcher]);
+
+  const handleSelectDepartment = (dept: DispatcherDepartment) => {
+    setActiveDispatcherDept(dept);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      const slug =
+        dept === 'Wellness'
+          ? 'wellness'
+          : dept === 'Maintenance & Engineering'
+          ? 'engineering'
+          : dept === 'Food & Beverages'
+          ? 'fnb'
+          : 'housekeeping';
+      url.searchParams.set('dept', slug);
+      window.history.replaceState({}, '', url.toString());
+    }
+  };
+
+  const unreadNotifCount = useMemo(() => {
+    return (state.notifications ?? []).filter((n) => !n.read).length;
+  }, [state.notifications]);
+
   const navItems: NavItem[] = [
     {
       id: 'overview',
@@ -388,15 +469,15 @@ export function DispatcherSupervisorConsole() {
     },
     {
       id: 'queue',
-      label: 'Task',
-      shortLabel: 'Task',
+      label: 'Task Queue',
+      shortLabel: 'Queue',
       icon: Layers,
       badge: unassignedCount > 0 ? unassignedCount : undefined,
       badgeTone: 'warning',
     },
     {
       id: 'workload',
-      label: 'Team',
+      label: 'Team Workload',
       shortLabel: 'Team',
       icon: Users,
       badge: pendingDutyRequestsCount > 0 ? pendingDutyRequestsCount : undefined,
@@ -404,7 +485,7 @@ export function DispatcherSupervisorConsole() {
     },
     {
       id: 'blockers',
-      label: 'Escalations',
+      label: 'Escalations & Blockers',
       shortLabel: 'Escalations',
       icon: Flame,
       badge: blockedCount + reassignPendingCount > 0 ? blockedCount + reassignPendingCount : undefined,
@@ -412,7 +493,7 @@ export function DispatcherSupervisorConsole() {
     },
     {
       id: 'inspections',
-      label: 'Inspections',
+      label: 'Quality Inspections',
       shortLabel: 'Inspections',
       icon: ClipboardCheck,
       badge: pendingInspections > 0 ? pendingInspections : undefined,
@@ -444,7 +525,7 @@ export function DispatcherSupervisorConsole() {
       ? [
           {
             id: 'menu_orders' as DispatcherSupervisorTab,
-            label: 'Menu & Orders',
+            label: 'Menu Orders & Expedite',
             shortLabel: 'Menu & Orders',
             icon: UtensilsCrossed,
             badge: fnbActiveOrdersCount > 0 ? fnbActiveOrdersCount : undefined,
@@ -453,14 +534,20 @@ export function DispatcherSupervisorConsole() {
         ]
       : []),
     {
+      id: 'routing',
+      label: 'Auto-Routing Sandbox',
+      shortLabel: 'Routing',
+      icon: Sparkles,
+    },
+    {
       id: 'guest_messages',
       label: 'Guest Messages',
-      shortLabel: 'Guest Messages',
+      shortLabel: 'Messages',
       icon: MessageSquare,
     },
     {
       id: 'complaints',
-      label: 'Guest Complaints',
+      label: 'Department Complaints',
       shortLabel: 'Complaints',
       icon: MessageSquareWarning,
       badge: departmentComplaintsCount > 0 ? departmentComplaintsCount : undefined,
@@ -468,21 +555,21 @@ export function DispatcherSupervisorConsole() {
     },
     {
       id: 'sla',
-      label: 'SLA Monitor',
-      shortLabel: 'SLA Monitor',
+      label: 'Dual SLA Monitor',
+      shortLabel: 'SLAs',
       icon: Clock,
       badge: overdueCount > 0 ? `${overdueCount} Breach` : undefined,
       badgeTone: 'danger',
     },
     {
       id: 'handover',
-      label: 'Shift Handover Log',
+      label: 'Shift Handover Briefing',
       shortLabel: 'Handover',
       icon: Repeat,
     },
     {
       id: 'policies',
-      label: 'Policies & Authority',
+      label: 'SOPs & Safety Policies',
       shortLabel: 'Policies',
       icon: ShieldCheck,
     },
@@ -492,12 +579,128 @@ export function DispatcherSupervisorConsole() {
       shortLabel: 'Analytics',
       icon: BarChart3,
     },
-
-
+    {
+      id: 'audit',
+      label: 'Immutable Audit Trail',
+      shortLabel: 'Audit',
+      icon: History,
+    },
+    {
+      id: 'notifications',
+      label: 'Alerts & Notifications',
+      shortLabel: 'Alerts',
+      icon: Bell,
+      badge: unreadNotifCount > 0 ? unreadNotifCount : undefined,
+      badgeTone: 'danger',
+    },
   ];
 
   return (
     <div className="w-full pb-16">
+      {/* Station Control & Department Switcher Alignment Header */}
+      <div className="rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-ink-900/90 p-4 sm:p-5 backdrop-blur-xl shadow-xl mb-6">
+        {/* Row 1: Station Identity on Left, Quick Action Buttons on Right */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-white/[0.08]">
+          {/* Station Identity */}
+          <div className="flex items-center gap-3.5 min-w-0">
+            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-cyan-50 dark:bg-cyan-400/10 text-cyan-600 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-400/20 shadow-inner shrink-0">
+              <Radio className="h-5 w-5 animate-pulse" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h1 className="text-base sm:text-lg lg:text-xl font-bold font-display text-slate-900 dark:text-white truncate">
+                  Department Dispatcher &amp; Operations Control
+                </h1>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/30 shrink-0">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Live Dispatch Active
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-mist-400 mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                <span className="font-semibold text-slate-700 dark:text-mist-300">Operations Control Desk</span>
+                <span className="text-slate-300 dark:text-mist-600">·</span>
+                <span>Day Shift (07:00 – 19:00)</span>
+                <span className="text-slate-300 dark:text-mist-600">·</span>
+                <span className="text-amber-700 dark:text-amber-300 font-semibold">{currentDept} Department</span>
+                <span className="text-slate-300 dark:text-mist-600">·</span>
+                <span className="font-medium text-slate-700 dark:text-slate-300">{allTasks.length} active tickets</span>
+              </p>
+            </div>
+          </div>
+
+          {/* Quick Action Buttons (Top-Right, aligned with title) */}
+          <div className="flex items-center gap-2.5 shrink-0 self-start sm:self-center">
+            <button
+              type="button"
+              onClick={() => setIsCreateTaskModalOpen(true)}
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 text-xs font-bold transition-all shadow-md shadow-amber-400/20 active:scale-95 cursor-pointer"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Create Task</span>
+            </button>
+            {unassignedCount > 0 && (
+              <button
+                type="button"
+                onClick={() => autoAssignAllPending()}
+                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl border border-cyan-300 dark:border-cyan-400/30 bg-cyan-50 dark:bg-cyan-400/10 text-cyan-800 dark:text-cyan-300 text-xs font-bold hover:bg-cyan-100 dark:hover:bg-cyan-400/20 transition-all shadow-sm active:scale-95 cursor-pointer"
+                title="Automatically dispatch all unassigned tasks to available on-duty attendants"
+              >
+                <Sparkles className="h-4 w-4 text-cyan-600 dark:text-cyan-300" />
+                <span>Auto-Assign All</span>
+                <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-cyan-200/70 dark:bg-cyan-400/20 text-cyan-950 dark:text-cyan-100 font-bold">
+                  {unassignedCount}
+                </span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Row 2: Department Selector Strip (Full Width Grid - Never Wraps Awkwardly) */}
+        <div className="pt-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-mist-400">
+              Department Station:
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 flex-1">
+            {DEPARTMENT_TABS.map((dept) => {
+              const isSelected = currentDept === dept.id;
+              const count = deptTaskCounts[dept.id] ?? 0;
+              const Icon = dept.icon;
+              return (
+                <button
+                  key={dept.id}
+                  type="button"
+                  onClick={() => handleSelectDepartment(dept.id)}
+                  className={`flex items-center justify-between gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+                    isSelected
+                      ? 'bg-amber-400 text-slate-950 border-amber-500 shadow-sm'
+                      : 'bg-slate-50 hover:bg-slate-100 dark:bg-ink-950/60 dark:hover:bg-white/[0.04] text-slate-700 dark:text-mist-300 hover:text-slate-900 dark:hover:text-white border-slate-200 dark:border-white/[0.08]'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    <Icon className={`h-4 w-4 shrink-0 ${isSelected ? 'text-slate-950' : 'text-slate-500 dark:text-mist-400'}`} />
+                    <span className="truncate">{dept.shortLabel}</span>
+                  </div>
+                  {count > 0 && (
+                    <span
+                      className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold shrink-0 ${
+                        isSelected
+                          ? 'bg-slate-950/15 text-slate-950'
+                          : 'bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-mist-300'
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
       {/* Main Layout: Sticky Sidebar + Dynamic View */}
       <div className="flex flex-col lg:flex-row items-start gap-6">
         {/* Sidebar */}

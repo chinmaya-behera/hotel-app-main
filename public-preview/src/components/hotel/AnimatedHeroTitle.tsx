@@ -99,7 +99,7 @@ export function AnimatedHeroTitle() {
   return (
     <h1
       ref={containerRef}
-      className="relative mt-5 font-display text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white leading-[1.08] select-none"
+      className="relative mt-5 font-display text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-[#ffffff] leading-[1.08] select-none drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]"
     >
       {/* Accessible & SEO: Screen readers and bots always read the complete semantic text */}
       <span className="sr-only">{FULL_TEXT}</span>
@@ -166,11 +166,11 @@ export function AnimatedHeroTitle() {
                 </span>
               ) : (
                 <span
-                  className="relative inline-block text-white transition-all duration-300"
+                  className="relative inline-block text-[#ffffff] transition-all duration-300"
                   style={{
                     filter:
                       revealGlow > 0.05
-                        ? `drop-shadow(0 0 ${12 + revealGlow * 16}px rgba(251,191,36,${0.35 + revealGlow * 0.5}))`
+                        ? `drop-shadow(0 0 ${12 + revealGlow * 16}px rgba(255,255,255,${0.4 + revealGlow * 0.5}))`
                         : undefined,
                   }}
                 >
