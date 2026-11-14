@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, integer } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, boolean, integer, jsonb, numeric } from 'drizzle-orm/pg-core';
 
 /**
  * ============================================================================
@@ -201,6 +201,96 @@ export const emergencyBroadcastTable = pgTable('emergency_broadcast', {
 
 export type EmergencyBroadcastEntity = typeof emergencyBroadcastTable.$inferSelect;
 export type InsertEmergencyBroadcastEntity = typeof emergencyBroadcastTable.$inferInsert;
+
+/**
+ * 8. Financial Dispute Entity (Table 15 in BACKEND_TEAM_DIVISION_V2.md / DEV3-TASK-18)
+ * Tracks guest billing dispute filings, charge queries, Front Desk triage, and Finance referrals.
+ */
+export const financialDisputeTable = pgTable('financial_dispute', {
+  id: text('id').primaryKey(), // e.g. 'dsp_cm5...'
+  disputeRef: text('dispute_ref').notNull().unique(), // e.g. 'DSP-2026-402-01'
+  propertyId: text('property_id').notNull(),
+  stayId: text('stay_id').notNull(),
+  roomId: text('room_id'),
+  roomNumber: text('room_number').notNull(),
+  guestName: text('guest_name').notNull(),
+  category: text('category').notNull(), // 'incorrect_room_charge' | 'duplicate_charge' | 'dining_charge_query' | 'service_charge_query' | 'tax_fee_query' | 'payment_mismatch' | 'refund_enquiry' | 'other_billing_concern'
+  chargeRef: text('charge_ref'),
+  disputedAmount: numeric('disputed_amount', { precision: 10, scale: 2 }).notNull(),
+  currency: text('currency').default('INR').notNull(),
+  guestExplanation: text('guest_explanation').notNull(),
+  status: text('status').notNull(), // 'submitted' | 'triage_pending' | 'under_review' | 'referred_to_finance' | 'resolved' | 'rejected' | 'info_requested' | 'cancelled'
+  preferredResolution: text('preferred_resolution'), // 'folio_credit' | 'card_refund' | 'charge_removal' | 'voucher'
+  attachments: jsonb('attachments').$type<Array<{ name: string; url: string; size?: number; mimeType?: string }>>(),
+  internalNotes: jsonb('internal_notes').$type<Array<{ id: string; staffId: string; staffName: string; note: string; createdAt: string }>>(),
+  auditHistory: jsonb('audit_history').$type<Array<{ timestamp: string; action: string; actor: string; details: string; fromStatus?: string; toStatus?: string }>>(),
+  escalationRequired: boolean('escalation_required').default(false).notNull(),
+  assignedStaffId: text('assigned_staff_id'),
+  assignedStaffName: text('assigned_staff_name'),
+  referredToFinanceAt: timestamp('referred_to_finance_at', { withTimezone: true }),
+  resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+  resolvedBy: text('resolved_by'),
+  resolutionDetails: text('resolution_details'),
+  idempotencyKey: text('idempotency_key'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type FinancialDisputeEntity = typeof financialDisputeTable.$inferSelect;
+export type InsertFinancialDisputeEntity = typeof financialDisputeTable.$inferInsert;
+
+/**
+ * 9. PMS Sync Status Entity (DEV3-TASK-17 / F14)
+ * Tracks external Property Management System connector health, heartbeat, cursor, and failure states.
+ */
+export const pmsSyncStatusTable = pgTable('pms_sync_status', {
+  id: text('id').primaryKey(),
+  providerId: text('provider_id').notNull().unique(), // e.g. 'opera_cloud_pms'
+  providerName: text('provider_name').notNull(),
+  connectionStatus: text('connection_status').notNull(), // 'CONNECTED' | 'DEGRADED' | 'DISCONNECTED' | 'SYNC_PENDING' | 'SYNC_FAILED' | 'RECONCILIATION_REQUIRED'
+  syncDirection: text('sync_direction').default('bidirectional').notNull(),
+  lastSyncSuccessAt: timestamp('last_sync_success_at', { withTimezone: true }),
+  lastSyncAttemptAt: timestamp('last_sync_attempt_at', { withTimezone: true }),
+  lastErrorCategory: text('last_error_category'),
+  lastErrorMessage: text('last_error_message'),
+  syncCursor: text('sync_cursor'),
+  pendingRecordsCount: integer('pending_records_count').default(0).notNull(),
+  failedRecordsCount: integer('failed_records_count').default(0).notNull(),
+  reconciliationDiscrepancyCount: integer('reconciliation_discrepancy_count').default(0).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type PmsSyncStatusEntity = typeof pmsSyncStatusTable.$inferSelect;
+export type InsertPmsSyncStatusEntity = typeof pmsSyncStatusTable.$inferInsert;
+
+/**
+ * 10. PMS Reconciliation Entity (DEV3-TASK-17)
+ * Stores detected discrepancies between internal stay records and PMS external records with audit review history.
+ */
+export const pmsReconciliationTable = pgTable('pms_reconciliation', {
+  id: text('id').primaryKey(), // e.g. 'pms_rec_...'
+  discrepancyType: text('discrepancy_type').notNull(), // 'missing_internal_record' | 'missing_pms_record' | 'status_mismatch' | 'room_assignment_mismatch' | 'date_discrepancy' | 'guest_info_mismatch' | 'duplicate_external_record' | 'payment_booking_conflict'
+  internalRef: text('internal_ref'), // Booking Reference or Stay ID
+  externalRef: text('external_ref'), // PMS external reservation reference
+  propertyId: text('property_id').notNull(),
+  fieldOrConflict: text('field_or_conflict').notNull(),
+  internalValue: jsonb('internal_value'),
+  externalValue: jsonb('external_value'),
+  suggestedResolution: text('suggested_resolution').notNull(), // 'keep_internal' | 'adopt_pms' | 'manual_review'
+  status: text('status').notNull(), // 'detected' | 'pending_review' | 'resolved' | 'ignored'
+  auditHistory: jsonb('audit_history').$type<Array<{ timestamp: string; action: string; actor: string; details: string }>>(),
+  detectedAt: timestamp('detected_at', { withTimezone: true }).defaultNow().notNull(),
+  resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+  resolvedBy: text('resolved_by'),
+  resolutionNotes: text('resolution_notes'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type PmsReconciliationEntity = typeof pmsReconciliationTable.$inferSelect;
+export type InsertPmsReconciliationEntity = typeof pmsReconciliationTable.$inferInsert;
+
 
 
 
