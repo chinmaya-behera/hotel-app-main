@@ -22,13 +22,16 @@ export interface QuestionContext {
   guestName?: string;
   room?: string;
   currentNodeId?: string;
+  sessionToken?: string;
+  language?: string;
+  conversationHistory?: Array<{ sender: 'user' | 'bot'; text: string }>;
 }
 
 export interface QuestionResolution {
   isResolved: boolean;
   confidence: 'high' | 'medium' | 'low';
   matchedTopic?: string;
-  category?: KnowledgeCategory | 'out_of_scope' | 'unconfigured';
+  category?: KnowledgeCategory | 'out_of_scope' | 'unconfigured' | 'billing' | 'stay_info' | 'portal_guide' | 'dining' | 'front_desk';
   answer: string;
   knowledgeEntryId?: string;
   flowNodeId?: string;
@@ -36,6 +39,8 @@ export interface QuestionResolution {
   suggestedFollowUps?: string[];
   source?: string;
   originalQuery: string;
+  billSummary?: any;
+  stayDetails?: any;
 }
 
 export interface IAssistantEngine {
@@ -300,9 +305,9 @@ export class LocalGroundedEngine implements IAssistantEngine {
       }
     }
 
-    // 5. Pre-process query: map typos and tokenize
+    // 5. Pre-process query: map typos and tokenize (supporting Unicode scripts e.g. Devanagari and Odia)
     const cleanTokens = normalized
-      .replace(/[^a-z0-9\s/]/g, ' ')
+      .replace(/[^\p{L}\p{N}\s/]/gu, ' ')
       .split(/\s+/)
       .filter(Boolean);
 

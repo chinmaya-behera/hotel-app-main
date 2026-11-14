@@ -493,8 +493,8 @@ export const HOTEL_KNOWLEDGE_ENTRIES: HotelKnowledgeEntry[] = [
     title: 'Standard Check-in and Checkout Timings',
     question: 'What time is check-in and checkout?',
     answer: 'Standard check-in begins at 14:00 (2:00 PM). Standard checkout is at 11:00 AM. If you require a late departure or luggage hold, you can request an extension via Front Desk or complete express digital checkout directly under Profile > Folio.',
-    keywords: ['checkout', 'check out', 'check-out', 'check in', 'checkin', 'departure', 'timing', 'time', 'hours', 'late checkout'],
-    aliases: ['what time is checkout', 'what time is check-in', 'when do I have to leave', 'can I get late checkout'],
+    keywords: ['checkout', 'check out', 'check-out', 'check in', 'checkin', 'departure', 'timing', 'time', 'hours', 'late checkout', 'चेकआउट', 'चेक इन', 'ଚେକ୍ ଆଉଟ୍', 'ଚେକ୍ ଇନ୍'],
+    aliases: ['what time is checkout', 'what time is check-in', 'when do I have to leave', 'can I get late checkout', 'चेकआउट का समय क्या है', 'ଚେକ୍ ଆଉଟ୍ ସମୟ କେତେ'],
     suggestedAction: {
       label: 'View Stay / Checkout Details',
       targetTab: 'profile',

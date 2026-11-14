@@ -15,6 +15,11 @@ import {
   AssistantEngineProvider,
   type QuestionResolution,
 } from './QuestionUnderstandingEngine.ts';
+import {
+  HybridGroundedAssistantEngine,
+  FolioTestRegistry,
+  type AuthoritativeBillSummary,
+} from './GeminiAssistantAdapter.ts';
 
 export interface ResolveQuestionResult {
   isResolved: boolean;
@@ -26,6 +31,8 @@ export interface ResolveQuestionResult {
   suggestedFollowUps?: string[];
   knowledgeEntryId?: string;
   source?: string;
+  billSummary?: AuthoritativeBillSummary;
+  stayDetails?: any;
   originalQuery: string;
 }
 
@@ -38,7 +45,7 @@ export interface FeedbackSubmissionInput {
 
 export class HelpCenterService {
   private static feedbackStorage: HelpFeedbackRecord[] = [];
-  private engine = new LocalGroundedEngine();
+  private engine = new HybridGroundedAssistantEngine();
 
   /**
    * Retrieves all 8 available help categories
@@ -79,15 +86,51 @@ export class HelpCenterService {
   }
 
   /**
-   * Resolves a free-text question using layered understanding:
-   * Layer 1: Keyword/phrase scoring
-   * Layer 2: Typo and fuzzy distance matching
-   * Layer 3: Grounded Hotel Knowledge Base retrieval
+   * Synchronous resolver (100% deterministic local grounded engine)
    */
-  public resolveQuestion(query: string, currentNodeId?: string): ResolveQuestionResult {
+  public resolveQuestion(
+    query: string,
+    currentNodeId?: string,
+    contextOptions?: { sessionToken?: string; language?: string },
+  ): ResolveQuestionResult {
     const rawQuery = (query || '').trim();
-    const resolution = this.engine.processQuestionSync(rawQuery, { currentNodeId });
+    const resolution = this.engine.processQuestionSync(rawQuery, {
+      currentNodeId,
+      sessionToken: contextOptions?.sessionToken,
+      language: contextOptions?.language,
+    });
 
+    return this.buildResolutionResult(rawQuery, resolution, currentNodeId);
+  }
+
+  /**
+   * Asynchronous resolver (Coordinates Gemini AI with graceful Local Grounded fallback)
+   */
+  public async resolveQuestionAsync(
+    query: string,
+    currentNodeId?: string,
+    contextOptions?: {
+      sessionToken?: string;
+      language?: string;
+      conversationHistory?: Array<{ sender: 'user' | 'bot'; text: string }>;
+    },
+  ): Promise<ResolveQuestionResult> {
+    const rawQuery = (query || '').trim();
+    const resolution = await this.engine.processQuestion(rawQuery, {
+      currentNodeId,
+      sessionToken: contextOptions?.sessionToken,
+      language: contextOptions?.language,
+      conversationHistory: contextOptions?.conversationHistory,
+    });
+
+    return this.buildResolutionResult(rawQuery, resolution, currentNodeId);
+  }
+
+  private buildResolutionResult(
+    rawQuery: string,
+    resolution: QuestionResolution,
+    currentNodeId?: string,
+  ): ResolveQuestionResult {
     if (resolution.isResolved) {
       const flowNodeId = resolution.flowNodeId || 'node_root';
       const existingNode = FLOW_NODES[flowNodeId];
@@ -124,6 +167,8 @@ export class HelpCenterService {
         suggestedFollowUps: resolution.suggestedFollowUps,
         knowledgeEntryId: resolution.knowledgeEntryId,
         source: resolution.source,
+        billSummary: resolution.billSummary,
+        stayDetails: resolution.stayDetails,
         originalQuery: rawQuery,
       };
     }
@@ -157,15 +202,10 @@ export class HelpCenterService {
       node: fallbackNode,
       suggestedAction: resolution.suggestedAction || fallbackNode.action,
       suggestedFollowUps: resolution.suggestedFollowUps,
+      billSummary: resolution.billSummary,
+      stayDetails: resolution.stayDetails,
       originalQuery: rawQuery,
     };
-  }
-
-  /**
-   * Async resolution method
-   */
-  public async resolveQuestionAsync(query: string, currentNodeId?: string): Promise<ResolveQuestionResult> {
-    return this.resolveQuestion(query, currentNodeId);
   }
 
   /**
@@ -199,12 +239,13 @@ export class HelpCenterService {
   }
 
   /**
-   * Clears feedback storage for clean unit testing
+   * Clears feedback storage and reset fixtures for clean unit testing
    */
   public static clearTestData(): void {
     HelpCenterService.feedbackStorage = [];
     BotMessageService.resetToDefaults();
     HotelKnowledgeBase.resetToDefaults();
     AssistantEngineProvider.resetToDefault();
+    FolioTestRegistry.clear();
   }
 }

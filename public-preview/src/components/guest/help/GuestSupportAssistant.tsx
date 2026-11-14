@@ -262,7 +262,13 @@ export function GuestSupportAssistant({
         const res = await fetch('/api/v1/guest/help/resolve', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question: query, currentNodeId }),
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            question: query,
+            currentNodeId,
+            language: (state as any)?.locale || 'en',
+            conversationHistory: messages.slice(-4).map((m) => ({ sender: m.sender, text: m.text })),
+          }),
         });
 
         if (res.ok) {

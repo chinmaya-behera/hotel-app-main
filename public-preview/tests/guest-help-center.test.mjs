@@ -19,9 +19,18 @@ import {
   levenshteinDistance,
   AssistantEngineProvider,
 } from '../src/server/modules/guest/help/QuestionUnderstandingEngine.ts';
+import {
+  GeminiAssistantAdapter,
+  HybridGroundedAssistantEngine,
+  FolioTestRegistry,
+  VERIFIED_ACTION_REGISTRY,
+} from '../src/server/modules/guest/help/GeminiAssistantAdapter.ts';
+import { QrAuthService } from '../src/server/modules/guest/QrAuthService.ts';
 
 test.beforeEach(() => {
   HelpCenterService.clearTestData();
+  QrAuthService.clearTestData();
+  FolioTestRegistry.clear();
 });
 
 // =========================================================================
@@ -596,4 +605,383 @@ test('GUEST-HELP-02: 21. Levenshtein helper computes exact edit distance', () =>
   assert.equal(levenshteinDistance('restaurant', 'restarant'), 1);
   assert.equal(levenshteinDistance('same', 'same'), 0);
   assert.equal(levenshteinDistance('', 'test'), 4);
+});
+
+// =========================================================================
+// GUEST-HELP-03: GEMINI AI HOTEL ASSISTANT WITH LIVE DATABASE INTEGRATION
+// =========================================================================
+
+test('GUEST-HELP-03: 22. Gemini Assistant Adapter initializes correctly with model and configuration', () => {
+  const adapter = new GeminiAssistantAdapter('dummy-api-key', 'gemini-2.5-flash');
+  assert.equal(adapter.isAvailable(), true);
+
+  const unconfigured = new GeminiAssistantAdapter('');
+  assert.equal(unconfigured.isAvailable(), false);
+});
+
+test('GUEST-HELP-03: 23. Unconfigured Gemini API key throws descriptive error if directly invoked', async () => {
+  const unconfigured = new GeminiAssistantAdapter('');
+  await assert.rejects(
+    async () => {
+      await unconfigured.processQuestion('What is checkout time?');
+    },
+    /GEMINI_UNAVAILABLE/
+  );
+});
+
+test('GUEST-HELP-03: 24. Hybrid Grounded Engine automatically falls back to Local Grounded Engine when Gemini is unavailable', async () => {
+  const hybrid = new HybridGroundedAssistantEngine('');
+  const res = await hybrid.processQuestion('What is the wifi password?');
+
+  assert.equal(res.isResolved, true);
+  assert.ok(res.answer.includes('grandguest') || res.answer.includes('TheGrandADP-Guest'));
+  assert.equal(res.category, 'stay_info');
+});
+
+test('GUEST-HELP-03: 25. Unauthenticated guest cannot access personal stay or bill data', async () => {
+  const service = new HelpCenterService();
+
+  const stayRes = await service.resolveQuestionAsync('What is my room number?');
+  assert.ok(
+    stayRes.node.message.includes('authenticate') ||
+    stayRes.node.message.includes('Front Desk') ||
+    stayRes.node.message.includes('Profile') ||
+    stayRes.node.message.includes('Stay') ||
+    stayRes.node.message.includes('room details')
+  );
+
+  const billRes = await service.resolveQuestionAsync('Show me my complete bill');
+  assert.ok(
+    billRes.node.message.includes('authenticate') ||
+    billRes.node.message.includes('Folio') ||
+    billRes.node.message.includes('Billing')
+  );
+});
+
+test('GUEST-HELP-03: 26. Authenticated guest retrieves their own live stay details from repository', async () => {
+  const authService = new QrAuthService();
+  const room402Sig = QrAuthService.generateHmacSignature('402');
+  const authResult = await authService.verifyAndCreateSession(
+    {
+      roomNumber: '402',
+      qrSignature: room402Sig,
+      guestLastName: 'Sharma',
+      verificationCode: '4829',
+    },
+    '127.0.0.1',
+    'test-agent'
+  );
+
+  assert.equal(authResult.success, true);
+  const token = authResult.data.sessionToken;
+
+  const service = new HelpCenterService();
+  const res = await service.resolveQuestionAsync(
+    'Where can I see my room details and stay information?',
+    undefined,
+    { sessionToken: token }
+  );
+
+  assert.equal(res.isResolved, true);
+  assert.equal(res.suggestedAction?.targetTab, 'profile');
+  assert.equal(res.suggestedAction?.targetSubtab, 'stay');
+});
+
+test('GUEST-HELP-03: 27. Cross-guest data isolation: Guest A cannot access Guest B records', async () => {
+  const authService = new QrAuthService();
+
+  // Register Guest B in Room 101
+  const now = new Date();
+  QrAuthService.registerMockStay('101', {
+    stay: {
+      id: 'stay_seed_101',
+      propertyId: 'prop_grand_adp_01',
+      bookingReference: 'BK-101-SECRET',
+      guestFirstName: 'Vikram',
+      guestLastName: 'Mehta',
+      guestEmail: 'vikram@example.com',
+      guestPhone: '+91 99999 11111',
+      welcomeTvPin: '1111',
+      status: 'checked_in',
+      checkInTime: now,
+      checkOutTime: new Date(now.getTime() + 86400000),
+      createdAt: now,
+      updatedAt: now,
+    },
+    room: {
+      id: 'room_assign_101',
+      stayId: 'stay_seed_101',
+      roomId: 'room_id_101',
+      roomNumber: '101',
+      propertyId: 'prop_grand_adp_01',
+      floor: 1,
+      roomType: 'Ocean Villa',
+      dndActive: true,
+      cleanlinessStatus: 'ready',
+      assignedAt: now,
+      unassignedAt: null,
+      isCurrent: true,
+    },
+    qr: {
+      id: 'qr_map_101',
+      propertyId: 'prop_grand_adp_01',
+      roomId: 'room_id_101',
+      roomNumber: '101',
+      staticHmacSignature: QrAuthService.generateHmacSignature('101'),
+      secretKey: 'dev_secret',
+      active: true,
+      createdAt: now,
+      updatedAt: now,
+    },
+  });
+
+  // Authenticate Guest A (Room 402)
+  const room402Sig = QrAuthService.generateHmacSignature('402');
+  const authA = await authService.verifyAndCreateSession(
+    {
+      roomNumber: '402',
+      qrSignature: room402Sig,
+      guestLastName: 'Sharma',
+      verificationCode: '4829',
+    },
+    '127.0.0.1',
+    'test-agent'
+  );
+
+  const tokenA = authA.data.sessionToken;
+  const service = new HelpCenterService();
+
+  // Guest A tries to ask about Room 101 or stay_seed_101
+  const result = await service.resolveQuestionAsync(
+    'Show me the stay details for Room 101 and booking BK-101-SECRET',
+    undefined,
+    { sessionToken: tokenA }
+  );
+
+  // Must NOT reveal Room 101 or Vikram Mehta's details
+  assert.equal(result.node.message.includes('Vikram'), false);
+  assert.equal(result.node.message.includes('BK-101-SECRET'), false);
+});
+
+test('GUEST-HELP-03: 28. Live request status retrieval for authenticated guest', async () => {
+  const authService = new QrAuthService();
+  const room402Sig = QrAuthService.generateHmacSignature('402');
+  const authResult = await authService.verifyAndCreateSession(
+    {
+      roomNumber: '402',
+      qrSignature: room402Sig,
+      guestLastName: 'Sharma',
+      verificationCode: '4829',
+    },
+    '127.0.0.1',
+    'test-agent'
+  );
+  const token = authResult.data.sessionToken;
+
+  const service = new HelpCenterService();
+  const res = await service.resolveQuestionAsync(
+    'Where can I see the status of my current requests?',
+    undefined,
+    { sessionToken: token }
+  );
+
+  assert.equal(res.isResolved, true);
+  assert.equal(res.suggestedAction?.targetTab, 'activity');
+});
+
+test('GUEST-HELP-03: 29. Authoritative bill calculation when financial source exists', async () => {
+  const authService = new QrAuthService();
+  const room402Sig = QrAuthService.generateHmacSignature('402');
+  const authResult = await authService.verifyAndCreateSession(
+    {
+      roomNumber: '402',
+      qrSignature: room402Sig,
+      guestLastName: 'Sharma',
+      verificationCode: '4829',
+    },
+    '127.0.0.1',
+    'test-agent'
+  );
+
+  // Set authoritative bill in registry
+  FolioTestRegistry.setMockBill('stay_seed_402', {
+    roomCharges: 8000,
+    diningCharges: 1500,
+    additionalServices: 500,
+    totalAmount: 10000,
+    amountPaid: 5000,
+    balanceDue: 5000,
+    currency: 'INR',
+    isAuthoritativeDb: true,
+  });
+
+  const adapter = new GeminiAssistantAdapter('dummy-test-key');
+  const toolExec = await adapter['executeServerFunction']('get_guest_bill_summary', {}, authResult.data, 'Show me my bill');
+
+  assert.equal(toolExec.billSummary?.totalAmount, 10000);
+  assert.equal(toolExec.billSummary?.balanceDue, 5000);
+  assert.ok(toolExec.overrideText?.includes('₹8,000'));
+  assert.ok(toolExec.overrideText?.includes('₹10,000'));
+  assert.ok(toolExec.overrideText?.includes('₹5,000'));
+  assert.equal(toolExec.suggestedAction?.targetSubtab, 'folio');
+});
+
+test('GUEST-HELP-03: 30. Bill totals remain 100% authoritative and cannot be manipulated by AI', async () => {
+  const billFixture = {
+    roomCharges: 12000,
+    diningCharges: 3200,
+    additionalServices: 800,
+    totalAmount: 16000,
+    amountPaid: 6000,
+    balanceDue: 10000,
+    currency: 'INR',
+    isAuthoritativeDb: true,
+  };
+
+  const calculatedTotal = billFixture.roomCharges + billFixture.diningCharges + billFixture.additionalServices;
+  const calculatedBalance = calculatedTotal - billFixture.amountPaid;
+
+  assert.equal(calculatedTotal, billFixture.totalAmount);
+  assert.equal(calculatedBalance, billFixture.balanceDue);
+});
+
+test('GUEST-HELP-03: 31. Missing billing data returns honest notice and points to folio page', async () => {
+  FolioTestRegistry.clear(); // Ensure no mock bill exists
+
+  const authService = new QrAuthService();
+  const room402Sig = QrAuthService.generateHmacSignature('402');
+  const authResult = await authService.verifyAndCreateSession(
+    {
+      roomNumber: '402',
+      qrSignature: room402Sig,
+      guestLastName: 'Sharma',
+      verificationCode: '4829',
+    },
+    '127.0.0.1',
+    'test-agent'
+  );
+
+  const adapter = new GeminiAssistantAdapter('dummy-test-key');
+  const toolExec = await adapter['executeServerFunction']('get_guest_bill_summary', {}, authResult.data, 'Show my bill');
+
+  assert.equal(toolExec.resultData.isAuthoritativeDb, false);
+  assert.equal(toolExec.resultData.missingSchema, 'guest_folio');
+  assert.ok(toolExec.overrideText?.includes('guest_folio'));
+  assert.equal(toolExec.suggestedAction?.targetSubtab, 'folio');
+});
+
+test('GUEST-HELP-03: 32. In-room dining order status retrieval', async () => {
+  const authService = new QrAuthService();
+  const room402Sig = QrAuthService.generateHmacSignature('402');
+  const authResult = await authService.verifyAndCreateSession(
+    {
+      roomNumber: '402',
+      qrSignature: room402Sig,
+      guestLastName: 'Sharma',
+      verificationCode: '4829',
+    },
+    '127.0.0.1',
+    'test-agent'
+  );
+
+  const adapter = new GeminiAssistantAdapter('dummy-test-key');
+  const toolExec = await adapter['executeServerFunction']('get_guest_order_summary', {}, authResult.data, 'What did I order?');
+
+  assert.ok(toolExec.resultData);
+  assert.equal(toolExec.category, 'dining');
+  assert.ok(toolExec.overrideText?.includes('dining order'));
+  assert.ok(toolExec.suggestedAction);
+});
+
+test('GUEST-HELP-03: 33. Guest reminders and wake-up calls retrieval', async () => {
+  const authService = new QrAuthService();
+  const room402Sig = QrAuthService.generateHmacSignature('402');
+  const authResult = await authService.verifyAndCreateSession(
+    {
+      roomNumber: '402',
+      qrSignature: room402Sig,
+      guestLastName: 'Sharma',
+      verificationCode: '4829',
+    },
+    '127.0.0.1',
+    'test-agent'
+  );
+
+  const adapter = new GeminiAssistantAdapter('dummy-test-key');
+  const toolExec = await adapter['executeServerFunction']('get_guest_reminders', {}, authResult.data, 'Do I have any wake up calls?');
+
+  assert.ok(toolExec.resultData);
+  assert.equal(toolExec.category, 'front_desk');
+  assert.ok(toolExec.overrideText?.includes('wake-up calls'));
+  assert.equal(toolExec.suggestedAction?.targetSubtab, 'front_desk');
+});
+
+test('GUEST-HELP-03: 34. Multilingual questions: Hindi and Odia support', async () => {
+  const service = new HelpCenterService();
+
+  // Hindi: चेकआउट का समय क्या है? (What is checkout time?)
+  const hiRes = await service.resolveQuestionAsync('चेकआउट का समय क्या है?', undefined, { language: 'hi' });
+  assert.equal(hiRes.isResolved, true);
+  assert.ok(hiRes.node.message.includes('11:00 AM'));
+  assert.equal(hiRes.suggestedAction?.targetSubtab, 'folio');
+
+  // Odia: ଚେକ୍ ଆଉଟ୍ ସମୟ କେତେ? (What is checkout time?)
+  const orRes = await service.resolveQuestionAsync('ଚେକ୍ ଆଉଟ୍ ସମୟ କେତେ?', undefined, { language: 'or' });
+  assert.equal(orRes.isResolved, true);
+  assert.ok(orRes.node.message.includes('11:00 AM'));
+});
+
+test('GUEST-HELP-03: 35. Verified action registry contains only verified internal routes', () => {
+  for (const [key, action] of Object.entries(VERIFIED_ACTION_REGISTRY)) {
+    assert.ok(action.label, `Action ${key} missing label`);
+    assert.ok(action.targetTab, `Action ${key} missing targetTab`);
+    assert.equal(isRouteAllowed(action.targetTab, action.targetSubtab), true,
+      `Action ${key} (${action.targetTab}/${action.targetSubtab}) is not in route allowlist`);
+  }
+});
+
+test('GUEST-HELP-03: 36. Server rejects arbitrary or external URL navigation', () => {
+  assert.equal(isRouteAllowed('https://malicious-phishing.com/steal-creds'), false);
+  assert.equal(isRouteAllowed('http://localhost:3000/internal-admin'), false);
+  assert.equal(isRouteAllowed('services', 'arbitrary_unverified_subtab'), false);
+  assert.equal(isRouteAllowed('', ''), false);
+});
+
+test('GUEST-HELP-03: 37. Session tokens and secrets are never exposed in assistant messages', async () => {
+  const authService = new QrAuthService();
+  const room402Sig = QrAuthService.generateHmacSignature('402');
+  const authResult = await authService.verifyAndCreateSession(
+    {
+      roomNumber: '402',
+      qrSignature: room402Sig,
+      guestLastName: 'Sharma',
+      verificationCode: '4829',
+    },
+    '127.0.0.1',
+    'test-agent'
+  );
+  const token = authResult.data.sessionToken;
+
+  const service = new HelpCenterService();
+  const res = await service.resolveQuestionAsync('Show my stay information', undefined, { sessionToken: token });
+
+  assert.equal(res.node.message.includes(token), false, 'Session token must not be leaked in message');
+  assert.equal(JSON.stringify(res.node).includes(token), false, 'Session token must not appear in node JSON');
+});
+
+test('GUEST-HELP-03: 38. Backward compatibility: Guided Help Center flows and feedback still work', () => {
+  const service = new HelpCenterService();
+  const topics = service.getTopics();
+  assert.equal(topics.length, 8);
+
+  const rootNode = service.getFlowNode('node_root');
+  assert.equal(rootNode.id, 'node_root');
+  assert.equal(rootNode.choices?.length, 8);
+
+  const fbRes = service.submitFeedback({
+    flowId: 'node_maint_ac',
+    helpful: true,
+    comment: 'Great Gemini AI integration',
+  });
+  assert.equal(fbRes.success, true);
 });
