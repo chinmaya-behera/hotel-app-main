@@ -414,6 +414,7 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
           <GuestSupportAssistant
             room={room}
             guestName={guest.name}
+            token={token}
             onNavigate={handleNavigate}
             isLight={isLight}
           />

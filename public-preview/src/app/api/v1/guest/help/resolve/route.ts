@@ -9,6 +9,9 @@ const ResolveQuestionSchema = z.object({
   question: z.string().min(1, 'Question text cannot be empty').max(500, 'Question too long').trim(),
   currentNodeId: z.string().optional(),
   language: z.string().optional(),
+  room: z.string().optional(),
+  roomNumber: z.string().optional(),
+  sessionToken: z.string().optional(),
   conversationHistory: z
     .array(
       z.object({
@@ -61,8 +64,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // 1. Secure session cookie extraction
+    // 1. Secure session extraction (cookie or authenticated portal session token)
     const sessionCookie = request.cookies.get('grand_guest_session')?.value;
+    const sessionToken = sessionCookie || parsed.data.sessionToken;
+    const room = parsed.data.room || parsed.data.roomNumber;
 
     // 2. Resolve question via Hybrid Grounded Service (Gemini AI + Local Fallback)
     const service = new HelpCenterService();
@@ -70,7 +75,8 @@ export async function POST(request: NextRequest) {
       parsed.data.question,
       parsed.data.currentNodeId,
       {
-        sessionToken: sessionCookie,
+        sessionToken,
+        room,
         language: parsed.data.language,
         conversationHistory: parsed.data.conversationHistory,
       },
