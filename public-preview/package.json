@@ -30,6 +30,7 @@
     "@types/node": "^24.0.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
+    "autoprefixer": "^10.6.2",
     "drizzle-kit": "^0.31.11",
     "eslint": "^8.57.1",
     "eslint-config-next": "15.5.28",
