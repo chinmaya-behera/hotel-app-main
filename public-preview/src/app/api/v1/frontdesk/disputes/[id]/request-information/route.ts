@@ -1,0 +1,143 @@
+import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'node:crypto';
+import {
+  FinancialDisputeService,
+  RequestInformationSchema,
+} from '@/server/modules/finance/disputes/FinancialDisputeService';
+import type { StaffAuthUser } from '@/server/modules/frontdesk/FrontDeskStayService';
+
+export const runtime = 'nodejs';
+
+function extractStaffUser(request: NextRequest): StaffAuthUser | null {
+  const staffRole = request.headers.get('x-staff-role');
+  if (staffRole) {
+    return {
+      staffId: request.headers.get('x-staff-id') || 'staff_dev_fd_01',
+      name: request.headers.get('x-staff-name') || 'Front Desk Staff',
+      role: staffRole,
+    };
+  }
+
+  const sessionCookie = request.cookies.get('grand_staff_session')?.value;
+  if (sessionCookie) {
+    try {
+      const parsed = JSON.parse(Buffer.from(sessionCookie, 'base64').toString('utf-8'));
+      if (parsed.role) {
+        return {
+          staffId: parsed.staffId || 'staff_cookie_user',
+          name: parsed.name || 'Front Desk Agent',
+          role: parsed.role,
+        };
+      }
+    } catch {
+      return {
+        staffId: 'staff_cookie_user',
+        name: 'Front Desk Agent',
+        role: 'front_desk',
+      };
+    }
+  }
+
+  const authHeader = request.headers.get('authorization');
+  if (authHeader && authHeader.toLowerCase().startsWith('bearer ')) {
+    return {
+      staffId: 'staff_bearer_user',
+      name: 'Authorized Staff',
+      role: 'front_desk',
+    };
+  }
+
+  return null;
+}
+
+/**
+ * POST /api/v1/frontdesk/disputes/:id/request-information
+ * Front Desk requests clarifying details or receipt evidence from the guest.
+ */
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const traceId = `trace_${crypto.randomUUID()}`;
+  const { id } = await params;
+  const staff = extractStaffUser(request);
+
+  if (!staff) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Staff authentication required.',
+          traceId,
+        },
+      },
+      { status: 401 },
+    );
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      {
+        success: false,
+        error: {
+          code: 'INVALID_JSON',
+          message: 'Malformed JSON payload in request body.',
+          traceId,
+        },
+      },
+      { status: 400 },
+    );
+  }
+
+  const parseResult = RequestInformationSchema.safeParse(body);
+  if (!parseResult.success) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: parseResult.error.errors[0]?.message || 'Invalid request-information payload.',
+          details: parseResult.error.errors.map((e) => ({
+            field: e.path.join('.'),
+            issue: e.message,
+          })),
+          traceId,
+        },
+      },
+      { status: 400 },
+    );
+  }
+
+  const service = FinancialDisputeService.getInstance();
+  const result = await service.requestInformation(id, parseResult.data, staff);
+
+  if (!result.success) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: {
+          code: 'REQUEST_INFO_FAILED',
+          message: result.error || 'Failed to request information from guest.',
+          traceId,
+        },
+      },
+      { status: result.statusCode },
+    );
+  }
+
+  return NextResponse.json(
+    {
+      success: true,
+      data: result.data,
+      meta: {
+        timestamp: new Date().toISOString(),
+        traceId,
+      },
+    },
+    { status: 200 },
+  );
+}
