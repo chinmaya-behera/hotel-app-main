@@ -10,12 +10,14 @@ export const runtime = 'nodejs';
 export async function GET() {
   const service = new HelpCenterService();
   const topics = service.getTopics();
+  const botConfig = service.getBotConfig();
 
   return NextResponse.json({
     success: true,
     data: {
       topics,
       count: topics.length,
+      botConfig,
     },
   });
 }
