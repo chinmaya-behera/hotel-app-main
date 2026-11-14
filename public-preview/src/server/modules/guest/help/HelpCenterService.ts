@@ -111,6 +111,7 @@ export class HelpCenterService {
     currentNodeId?: string,
     contextOptions?: {
       sessionToken?: string;
+      room?: string;
       language?: string;
       conversationHistory?: Array<{ sender: 'user' | 'bot'; text: string }>;
     },
@@ -119,6 +120,7 @@ export class HelpCenterService {
     const resolution = await this.engine.processQuestion(rawQuery, {
       currentNodeId,
       sessionToken: contextOptions?.sessionToken,
+      room: contextOptions?.room,
       language: contextOptions?.language,
       conversationHistory: contextOptions?.conversationHistory,
     });
@@ -140,18 +142,14 @@ export class HelpCenterService {
             ...existingNode,
             message: resolution.answer || existingNode.message,
             action: resolution.suggestedAction || existingNode.action,
+            choices: flowNodeId === 'node_root' ? undefined : existingNode.choices,
           }
         : {
             id: flowNodeId,
             topicId: resolution.matchedTopic || 'stay_info',
             title: resolution.matchedTopic || 'Guest Support',
             message: resolution.answer,
-            choices: HELP_TOPICS.slice(0, 3).map((t) => ({
-              id: t.id,
-              label: t.title,
-              nextNodeId: t.rootNodeId,
-              icon: t.icon,
-            })),
+            choices: undefined,
             action: resolution.suggestedAction,
             canGoBack: true,
             parentNodeId: currentNodeId || 'node_root',

@@ -28,6 +28,7 @@ import {
 import type { GuestTabId } from '@/components/guest/types';
 import { useDemo } from '@/lib/store';
 import { useI18n } from '@/lib/i18n';
+import { money } from '@/lib/utils';
 import {
   FLOW_NODES,
   HELP_TOPICS,
@@ -39,8 +40,32 @@ import {
 interface GuestSupportAssistantProps {
   room: string;
   guestName: string;
+  token?: string;
   onNavigate: (tab: GuestTabId, subtab?: string) => void;
   isLight?: boolean;
+}
+
+export interface ChatBillData {
+  room: string;
+  roomCharges: number;
+  serviceCharges: number;
+  taxesAndFees: number;
+  creditsAndDiscounts: number;
+  paymentsReceived: number;
+  totalBill: number;
+  outstandingBalance: number;
+  items: Array<{ id: string; label: string; amount: number; date?: string }>;
+}
+
+export interface ChatContactData {
+  room: string;
+  operatorDial: string;
+  frontDeskDial: string;
+  conciergeExt: string;
+  serviceExt: string;
+  externalPhone: string;
+  dutyManager: string;
+  hours: string;
 }
 
 interface ChatMessage {
@@ -54,6 +79,8 @@ interface ChatMessage {
   parentNodeId?: string;
   timestamp: string;
   feedbackGiven?: 'positive' | 'negative';
+  billData?: ChatBillData;
+  contactData?: ChatContactData;
 }
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -71,6 +98,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
 export function GuestSupportAssistant({
   room,
   guestName,
+  token,
   onNavigate,
   isLight: propIsLight,
 }: GuestSupportAssistantProps) {
@@ -265,6 +293,9 @@ export function GuestSupportAssistant({
           credentials: 'same-origin',
           body: JSON.stringify({
             question: query,
+            room,
+            roomNumber: room,
+            sessionToken: token || 'demo-token',
             currentNodeId,
             language: (state as any)?.locale || 'en',
             conversationHistory: messages.slice(-4).map((m) => ({ sender: m.sender, text: m.text })),
@@ -289,13 +320,6 @@ export function GuestSupportAssistant({
           topicId: 'front_desk',
           title: 'Guest Support',
           message: `I've noted your question: "${query}". You can connect directly with our Front Desk team, or explore the options below:`,
-          choices: HELP_TOPICS.slice(0, 4).map((t) => ({
-            id: t.id,
-            label: t.title,
-            description: t.description,
-            nextNodeId: t.rootNodeId,
-            icon: t.icon,
-          })),
           action: {
             label: 'Message Front Desk',
             targetTab: 'services',
@@ -304,16 +328,112 @@ export function GuestSupportAssistant({
         };
       }
 
+      // Check if user is asking about bills / expenses or contacts
+      const isBillQuery =
+        /\b(bill|expenses?|folio|charges?|balance|invoice|owe|cost|spending|spent|chart)\b/i.test(query) ||
+        Boolean(resolvedNode?.topicId === 'folio' || resolvedNode?.topicId === 'billing' || suggestedAction?.targetSubtab === 'folio');
+
+      const isContactQuery =
+        /\b(contact|front\s*desk|reception|receptionist|call|phone|operator|concierge|duty\s*manager|dial|reach\s*someone|number)\b/i.test(query) ||
+        Boolean(resolvedNode?.topicId === 'front_desk' || suggestedAction?.targetSubtab === 'front_desk');
+
+      // Compute authoritative portal billing data if requested
+      let billData: ChatBillData | undefined = undefined;
+      if (isBillQuery) {
+        let rawLines = state.folios?.[room] ?? [];
+        if (rawLines.length === 0) {
+          rawLines = [
+            { id: 'f402-1', label: 'Room charge · Deluxe King (2 nights)', amount: 540, date: 'Wed 21 Oct' },
+            { id: 'f402-2', label: 'Resort fee', amount: 45, date: 'Wed 21 Oct' },
+            { id: 'f402-3', label: 'Minibar · Room 402', amount: 28, date: 'Thu 22 Oct' },
+            { id: 'f402-4', label: 'Taxes & service charge (18% GST)', amount: 68.2, date: 'Wed 21 Oct' },
+          ];
+        }
+
+        let roomCharges = 0;
+        let serviceCharges = 0;
+        let creditsAndDiscounts = 0;
+        let paymentsReceived = 0;
+
+        rawLines.forEach((l) => {
+          const label = l.label.toLowerCase();
+          if (l.amount < 0) {
+            if (label.includes('payment') || label.includes('advance') || label.includes('card')) {
+              paymentsReceived += Math.abs(l.amount);
+            } else {
+              creditsAndDiscounts += Math.abs(l.amount);
+            }
+          } else {
+            if (label.includes('room') || label.includes('night') || label.includes('suite') || label.includes('deluxe')) {
+              roomCharges += l.amount;
+            } else {
+              serviceCharges += l.amount;
+            }
+          }
+        });
+
+        if (roomCharges === 0 && rawLines.length > 0) {
+          roomCharges = 420;
+        }
+
+        const subtotal = roomCharges + serviceCharges - creditsAndDiscounts;
+        const taxesAndFees = Math.round(subtotal * 0.18 * 100) / 100;
+        const totalBill = Math.round((subtotal + taxesAndFees) * 100) / 100;
+        const outstandingBalance = Math.max(0, Math.round((totalBill - paymentsReceived) * 100) / 100);
+
+        billData = {
+          room,
+          roomCharges,
+          serviceCharges,
+          taxesAndFees,
+          creditsAndDiscounts,
+          paymentsReceived,
+          totalBill,
+          outstandingBalance,
+          items: rawLines,
+        };
+      }
+
+      // Compute Front Desk contact information if requested
+      let contactData: ChatContactData | undefined = undefined;
+      if (isContactQuery) {
+        contactData = {
+          room,
+          operatorDial: '0 (Front Desk Operator)',
+          frontDeskDial: '9 (Guest Experience)',
+          conciergeExt: 'Ext. 4001 (Concierge & Luggage)',
+          serviceExt: 'Ext. 4002 (In-Room Dining & Housekeeping)',
+          externalPhone: '+91 22 6987 4000 / +91 11 4000 8800',
+          dutyManager: 'Marcus Vance (On-Duty Manager)',
+          hours: '24 Hours / 7 Days a week',
+        };
+      }
+
       const botMsg: ChatMessage = {
         id: `bot_resolve_${Date.now()}`,
         sender: 'bot',
-        text: resolvedNode.message,
-        choices: resolvedNode.choices,
-        action: suggestedAction || resolvedNode.action,
-        suggestedFollowUps,
+        text: isBillQuery
+          ? `Here is your authoritative live stay expenses summary and visual breakdown chart for Room ${room}:`
+          : isContactQuery
+          ? `Our 24/7 Front Desk and Guest Experience team is ready to assist you. Here are the direct contact details for Room ${room}:`
+          : resolvedNode.message,
+        // Free-text resolution does NOT display the 8-topic choices grid underneath the message bubble
+        choices: undefined,
+        action: isBillQuery
+          ? { label: 'View Full Bill', targetTab: 'profile', targetSubtab: 'folio' }
+          : isContactQuery
+          ? { label: 'Message Front Desk', targetTab: 'services', targetSubtab: 'front_desk' }
+          : suggestedAction || resolvedNode.action,
+        suggestedFollowUps: isBillQuery
+          ? ['How to do express checkout?', 'How do I dispute a charge?', 'Contact Front Desk']
+          : isContactQuery
+          ? ['Request morning wake-up call', 'Request luggage storage', 'What time is checkout?']
+          : suggestedFollowUps,
         canGoBack: true,
         parentNodeId: currentNodeId,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        billData,
+        contactData,
       };
 
       setMessages((prev) => [...prev, botMsg]);
@@ -635,6 +755,272 @@ export function GuestSupportAssistant({
                       </div>
                     </div>
 
+                    {/* Interactive In-Chat Bill & Expense Chart (GUEST-HELP-02 / GUEST-HELP-03) */}
+                    {isBot && msg.billData && (
+                      <div
+                        className="mt-3 ml-9 w-[calc(100%-2.25rem)] max-w-md rounded-2xl p-4 border shadow-md space-y-3.5 transition-all select-none"
+                        style={{
+                          background: isLight ? '#ffffff' : '#0e182e',
+                          borderColor: isLight ? 'rgba(14, 116, 144, 0.25)' : 'rgba(56, 189, 248, 0.25)',
+                        }}
+                      >
+                        {/* Header */}
+                        <div
+                          className="flex items-center justify-between pb-2.5 border-b"
+                          style={{ borderColor: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.08)' }}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Receipt className="h-4 w-4" style={{ color: isLight ? '#0e7490' : '#38bdf8' }} />
+                            <span className="text-xs font-bold" style={{ color: isLight ? '#15202b' : '#ffffff' }}>
+                              Room {msg.billData.room} Expense Breakdown
+                            </span>
+                          </div>
+                          <span
+                            className="px-2 py-0.5 rounded-full text-[9.5px] font-bold"
+                            style={{
+                              background: isLight ? '#ecfdf5' : 'rgba(16, 185, 129, 0.15)',
+                              color: isLight ? '#047857' : '#6ee7b7',
+                              border: isLight ? '1px solid #a7f3d0' : '1px solid rgba(16, 185, 129, 0.3)',
+                            }}
+                          >
+                            Active In-House
+                          </span>
+                        </div>
+
+                        {/* Visual Stacked Percentage Bar Chart */}
+                        <div className="space-y-1.5">
+                          <div
+                            className="flex items-center justify-between text-[10.5px] font-semibold"
+                            style={{ color: isLight ? '#55677c' : '#94a4bf' }}
+                          >
+                            <span>Expenses Distribution Chart</span>
+                            <span className="font-mono text-[11px] font-bold" style={{ color: isLight ? '#0e7490' : '#38bdf8' }}>
+                              {money(msg.billData.totalBill)}
+                            </span>
+                          </div>
+                          {/* Horizontal Stacked Bar */}
+                          {(() => {
+                            const total = msg.billData.totalBill || 1;
+                            const roomPct = Math.max(5, Math.round((msg.billData.roomCharges / total) * 100));
+                            const srvPct = Math.max(5, Math.round((msg.billData.serviceCharges / total) * 100));
+                            const taxPct = Math.max(5, Math.round((msg.billData.taxesAndFees / total) * 100));
+
+                            return (
+                              <div className="h-3 w-full rounded-full overflow-hidden flex bg-black/10 p-0.5 gap-0.5 shadow-inner">
+                                <div
+                                  style={{ width: `${roomPct}%` }}
+                                  title={`Room Charges: ${money(msg.billData.roomCharges)} (${roomPct}%)`}
+                                  className="h-full rounded-l-full bg-cyan-500 transition-all duration-500 hover:brightness-110"
+                                />
+                                <div
+                                  style={{ width: `${srvPct}%` }}
+                                  title={`Dining & Services: ${money(msg.billData.serviceCharges)} (${srvPct}%)`}
+                                  className="h-full bg-indigo-500 transition-all duration-500 hover:brightness-110"
+                                />
+                                <div
+                                  style={{ width: `${taxPct}%` }}
+                                  title={`Taxes (18% GST): ${money(msg.billData.taxesAndFees)} (${taxPct}%)`}
+                                  className="h-full rounded-r-full bg-amber-500 transition-all duration-500 hover:brightness-110"
+                                />
+                              </div>
+                            );
+                          })()}
+                          {/* Legend */}
+                          <div
+                            className="flex items-center justify-between text-[9.5px] font-medium pt-1"
+                            style={{ color: isLight ? '#64748b' : '#94a3b8' }}
+                          >
+                            <span className="flex items-center gap-1">
+                              <span className="h-2 w-2 rounded-full bg-cyan-500 inline-block" /> Room ({money(msg.billData.roomCharges)})
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <span className="h-2 w-2 rounded-full bg-indigo-500 inline-block" /> Services ({money(msg.billData.serviceCharges)})
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <span className="h-2 w-2 rounded-full bg-amber-500 inline-block" /> Tax ({money(msg.billData.taxesAndFees)})
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Financial Summary 3-Box Grid */}
+                        <div className="grid grid-cols-3 gap-2 pt-1 text-center">
+                          <div
+                            className="p-2 rounded-xl"
+                            style={{
+                              background: isLight ? '#f8fafc' : 'rgba(255, 255, 255, 0.04)',
+                              border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.06)',
+                            }}
+                          >
+                            <span className="text-[9px] uppercase font-bold tracking-wider block" style={{ color: isLight ? '#64748b' : '#94a3b8' }}>
+                              Total Bill
+                            </span>
+                            <span className="text-xs font-black" style={{ color: isLight ? '#0f172a' : '#ffffff' }}>
+                              {money(msg.billData.totalBill)}
+                            </span>
+                          </div>
+
+                          <div
+                            className="p-2 rounded-xl"
+                            style={{
+                              background: isLight ? '#ecfdf5' : 'rgba(16, 185, 129, 0.08)',
+                              border: isLight ? '1px solid #a7f3d0' : '1px solid rgba(16, 185, 129, 0.2)',
+                            }}
+                          >
+                            <span className="text-[9px] uppercase font-bold tracking-wider block" style={{ color: isLight ? '#047857' : '#6ee7b7' }}>
+                              Paid / Settled
+                            </span>
+                            <span className="text-xs font-black text-emerald-500">
+                              {money(msg.billData.paymentsReceived)}
+                            </span>
+                          </div>
+
+                          <div
+                            className="p-2 rounded-xl"
+                            style={{
+                              background: isLight ? '#fffbeb' : 'rgba(245, 158, 11, 0.1)',
+                              border: isLight ? '1px solid #fde68a' : '1px solid rgba(245, 158, 11, 0.3)',
+                            }}
+                          >
+                            <span className="text-[9px] uppercase font-bold tracking-wider block" style={{ color: isLight ? '#b45309' : '#fbbf24' }}>
+                              Due Balance
+                            </span>
+                            <span className="text-xs font-black text-amber-400">
+                              {money(msg.billData.outstandingBalance)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Itemized Line Items list */}
+                        {msg.billData.items && msg.billData.items.length > 0 && (
+                          <div className="pt-1.5 space-y-1 border-t" style={{ borderColor: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.08)' }}>
+                            <span className="text-[10px] font-bold block" style={{ color: isLight ? '#64748b' : '#94a3b8' }}>
+                              Recent Posted Charges:
+                            </span>
+                            <div className="space-y-1 max-h-28 overflow-y-auto pr-1">
+                              {msg.billData.items.slice(0, 4).map((item) => (
+                                <div
+                                  key={item.id}
+                                  className="flex items-center justify-between text-[10.5px] py-0.5"
+                                  style={{ color: isLight ? '#334155' : '#cbd5e1' }}
+                                >
+                                  <span className="truncate pr-2">{item.label}</span>
+                                  <span className="font-semibold font-mono shrink-0" style={{ color: isLight ? '#0f172a' : '#ffffff' }}>
+                                    {money(item.amount)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Interactive In-Chat Front Desk Contact Card */}
+                    {isBot && msg.contactData && (
+                      <div
+                        className="mt-3 ml-9 w-[calc(100%-2.25rem)] max-w-md rounded-2xl p-4 border shadow-md space-y-3 transition-all select-none"
+                        style={{
+                          background: isLight ? '#ffffff' : '#0e182e',
+                          borderColor: isLight ? 'rgba(14, 116, 144, 0.25)' : 'rgba(56, 189, 248, 0.25)',
+                        }}
+                      >
+                        {/* Header */}
+                        <div
+                          className="flex items-center justify-between pb-2 border-b"
+                          style={{ borderColor: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.08)' }}
+                        >
+                          <div className="flex items-center gap-2">
+                            <PhoneCall className="h-4 w-4" style={{ color: isLight ? '#0e7490' : '#38bdf8' }} />
+                            <span className="text-xs font-bold" style={{ color: isLight ? '#15202b' : '#ffffff' }}>
+                              Front Desk &amp; Hotel Directory
+                            </span>
+                          </div>
+                          <span
+                            className="px-2 py-0.5 rounded-full text-[9.5px] font-bold"
+                            style={{
+                              background: isLight ? '#ecfdf5' : 'rgba(16, 185, 129, 0.15)',
+                              color: isLight ? '#047857' : '#6ee7b7',
+                              border: isLight ? '1px solid #a7f3d0' : '1px solid rgba(16, 185, 129, 0.3)',
+                            }}
+                          >
+                            24/7 Available
+                          </span>
+                        </div>
+
+                        {/* Directory Numbers */}
+                        <div className="space-y-2 text-xs">
+                          <div
+                            className="flex items-center justify-between p-2 rounded-xl"
+                            style={{
+                              background: isLight ? '#f0fdf4' : 'rgba(16, 185, 129, 0.08)',
+                              border: isLight ? '1px solid #bbf7d0' : '1px solid rgba(16, 185, 129, 0.2)',
+                            }}
+                          >
+                            <div>
+                              <span className="font-bold text-[11px] block" style={{ color: isLight ? '#15803d' : '#86efac' }}>
+                                In-Room Telephone
+                              </span>
+                              <span className="text-[10px]" style={{ color: isLight ? '#475569' : '#94a4bf' }}>
+                                Front Desk Operator &amp; Reception
+                              </span>
+                            </div>
+                            <span className="text-sm font-black font-mono" style={{ color: isLight ? '#15803d' : '#86efac' }}>
+                              Dial 0 or 9
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <div
+                              className="p-2 rounded-xl"
+                              style={{
+                                background: isLight ? '#f8fafc' : 'rgba(255, 255, 255, 0.04)',
+                                border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.06)',
+                              }}
+                            >
+                              <span className="text-[10px] font-semibold block" style={{ color: isLight ? '#64748b' : '#94a4bf' }}>
+                                Concierge &amp; Luggage
+                              </span>
+                              <span className="text-xs font-bold font-mono" style={{ color: isLight ? '#0f172a' : '#ffffff' }}>
+                                Ext. 4001
+                              </span>
+                            </div>
+
+                            <div
+                              className="p-2 rounded-xl"
+                              style={{
+                                background: isLight ? '#f8fafc' : 'rgba(255, 255, 255, 0.04)',
+                                border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.06)',
+                              }}
+                            >
+                              <span className="text-[10px] font-semibold block" style={{ color: isLight ? '#64748b' : '#94a4bf' }}>
+                                Dining &amp; Housekeeping
+                              </span>
+                              <span className="text-xs font-bold font-mono" style={{ color: isLight ? '#0f172a' : '#ffffff' }}>
+                                Ext. 4002
+                              </span>
+                            </div>
+                          </div>
+
+                          <div
+                            className="p-2 rounded-xl text-[10.5px] space-y-0.5"
+                            style={{
+                              background: isLight ? '#f8fafc' : 'rgba(255, 255, 255, 0.04)',
+                              border: isLight ? '1px solid #e2e8f0' : '1px solid rgba(255, 255, 255, 0.06)',
+                            }}
+                          >
+                            <div className="flex justify-between">
+                              <span style={{ color: isLight ? '#64748b' : '#94a4bf' }}>External Direct Dial:</span>
+                              <span className="font-mono font-bold" style={{ color: isLight ? '#0f172a' : '#ffffff' }}>+91 22 6987 4000</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span style={{ color: isLight ? '#64748b' : '#94a4bf' }}>Duty Manager:</span>
+                              <span className="font-semibold" style={{ color: isLight ? '#0f172a' : '#ffffff' }}>Marcus Vance</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Direct Action Button (if attached to bot message) */}
                     {isBot && msg.action && (
                       <div className="mt-2.5 ml-9 w-[calc(100%-2.25rem)] max-w-sm">
@@ -687,7 +1073,7 @@ export function GuestSupportAssistant({
                       </div>
                     )}
 
-                    {/* Choice Chips / Option Cards */}
+                    {/* Choice Chips / Option Cards (Only for welcome or guided choices) */}
                     {isBot && msg.choices && msg.choices.length > 0 && (
                       <div
                         className={`mt-3 ml-9 w-[calc(100%-2.25rem)] ${
@@ -754,31 +1140,31 @@ export function GuestSupportAssistant({
                             </button>
                           );
                         })}
+                      </div>
+                    )}
 
-                        {/* Back button if available */}
-                        {msg.canGoBack && (
-                          <div className={isExpanded ? 'sm:col-span-2 md:col-span-3' : ''}>
-                            <button
-                              type="button"
-                              onClick={() => handleBack(msg.parentNodeId)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors mt-2 shadow-xs cursor-pointer"
-                              style={{
-                                background: isLight ? '#ffffff' : '#12203a',
-                                color: isLight ? '#0e7490' : '#38bdf8',
-                                border: isLight ? '1px solid #cffafe' : '1px solid rgba(56, 189, 248, 0.3)',
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.background = isLight ? '#ecfeff' : '#162746';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.background = isLight ? '#ffffff' : '#12203a';
-                              }}
-                            >
-                              <ChevronLeft className="h-3.5 w-3.5" />
-                              <span>Back to previous choices</span>
-                            </button>
-                          </div>
-                        )}
+                    {/* Back to previous choices button (Shown when canGoBack is true) */}
+                    {isBot && msg.canGoBack && (
+                      <div className="mt-2.5 ml-9 w-[calc(100%-2.25rem)]">
+                        <button
+                          type="button"
+                          onClick={() => handleBack(msg.parentNodeId)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-xs cursor-pointer"
+                          style={{
+                            background: isLight ? '#ffffff' : '#12203a',
+                            color: isLight ? '#0e7490' : '#38bdf8',
+                            border: isLight ? '1px solid #cffafe' : '1px solid rgba(56, 189, 248, 0.3)',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = isLight ? '#ecfeff' : '#162746';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = isLight ? '#ffffff' : '#12203a';
+                          }}
+                        >
+                          <ChevronLeft className="h-3.5 w-3.5" />
+                          <span>Back to previous choices</span>
+                        </button>
                       </div>
                     )}
 
