@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Keyboard, Clock, X, User, Bell, FileText, Check } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Keyboard, Clock, X, Bell, FileText, Check } from 'lucide-react';
+import { useDemo } from '@/lib/store';
 
 export interface ReminderConfigData {
   title: string;
@@ -19,18 +20,24 @@ interface MaterialTimePickerModalProps {
   onClose: () => void;
   onConfirm: (newTime: string, data?: ReminderConfigData) => void;
   title?: string;
+  isLight?: boolean;
 }
 
 export function MaterialTimePickerModal({
   isOpen,
-  initialTime = '03:57',
+  initialTime = '17:20',
   initialData,
   showReminderFields = false,
   onClose,
   onConfirm,
   title,
+  isLight: propIsLight,
 }: MaterialTimePickerModalProps) {
-  // Parse initial time
+  const { state } = useDemo();
+  // Support both Dark and Light theme dynamically
+  const isLight = propIsLight ?? (state ? state.theme === 'light' : false);
+
+  // Parse initial time helper
   const parseTime = (t: string) => {
     const parts = (t || '00:00').split(':').map(Number);
     const h = isNaN(parts[0]) ? 0 : Math.min(23, Math.max(0, parts[0]));
@@ -43,7 +50,7 @@ export function MaterialTimePickerModal({
   const [mode, setMode] = useState<'hour' | 'minute'>('hour');
   const [isKeyboardMode, setIsKeyboardMode] = useState<boolean>(false);
 
-  // Text inputs for keyboard editing
+  // Single authoritative text inputs for direct keyboard editing
   const [hourText, setHourText] = useState<string>('');
   const [minuteText, setMinuteText] = useState<string>('');
   const hourInputRef = useRef<HTMLInputElement>(null);
@@ -52,19 +59,50 @@ export function MaterialTimePickerModal({
   const dialRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState<boolean>(false);
 
-  // Minimal 5 Reminder Fields requested by user:
-  // 1. Reminder Title
-  // 2. Room No
-  // 3. Guest Name
-  // 4. Assigned Staff
-  // 5. Reminder Instructions & Action Notes
+  // 5 Reminder Fields
   const [remTitle, setRemTitle] = useState(initialData?.title || '');
   const [remRoom, setRemRoom] = useState(initialData?.room || '');
   const [remGuestName, setRemGuestName] = useState(initialData?.guestName || '');
   const [remAssignedStaff, setRemAssignedStaff] = useState(initialData?.assignedTo || 'Front Desk Coordinator');
   const [remInstructions, setRemInstructions] = useState(initialData?.instructions || '');
 
-  // Reset values when modal opens or initial values change
+  // Extract base target service time (e.g. 17:20 or time extracted from instructions like 19:30)
+  const baseTarget = useMemo(() => {
+    // If instructions mention a specific target time e.g. "prior to 19:30" or "at 20:00"
+    if (remInstructions) {
+      const match = remInstructions.match(/\b([01]?\d|2[0-3]):([0-5]\d)\b/);
+      if (match) {
+        const h = parseInt(match[1], 10);
+        const m = parseInt(match[2], 10);
+        return { h, m, totalMinutes: h * 60 + m, isExtracted: true };
+      }
+    }
+    const { h, m } = parseTime(initialTime || '17:20');
+    return { h, m, totalMinutes: h * 60 + m, isExtracted: false };
+  }, [initialTime, remInstructions]);
+
+  // Helper to calculate time offsets from total minutes
+  const getTimeOffset = (baseTotalMinutes: number, offsetMinutes: number) => {
+    const total = (baseTotalMinutes + offsetMinutes + 1440 * 2) % 1440;
+    const h = Math.floor(total / 60);
+    const m = total % 60;
+    const formatted = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    return { h, m, formatted };
+  };
+
+  // Generate minimal suggested reminder timestamps (before 10 min, 15 min, 20 min, 30 min, and on service time)
+  const reminderSuggestions = useMemo(() => {
+    const base = baseTarget.totalMinutes;
+    return [
+      { label: '10 min before', offset: -10, ...getTimeOffset(base, -10) },
+      { label: '15 min before', offset: -15, ...getTimeOffset(base, -15) },
+      { label: '20 min before', offset: -20, ...getTimeOffset(base, -20) },
+      { label: '30 min before', offset: -30, ...getTimeOffset(base, -30) },
+      { label: 'At service time', offset: 0, ...getTimeOffset(base, 0) },
+    ];
+  }, [baseTarget]);
+
+  // Reset values when modal opens
   useEffect(() => {
     if (isOpen) {
       const { h, m } = parseTime(initialTime);
@@ -85,7 +123,7 @@ export function MaterialTimePickerModal({
     }
   }, [isOpen, initialTime, initialData]);
 
-  // Keep text strings in sync when hour/minute state updates from dial
+  // Sync inputs with internal hour/minute
   useEffect(() => {
     setHourText(String(hour).padStart(2, '0'));
   }, [hour]);
@@ -94,21 +132,20 @@ export function MaterialTimePickerModal({
     setMinuteText(String(minute).padStart(2, '0'));
   }, [minute]);
 
-  // When switching to keyboard mode, focus on the hour input
-  useEffect(() => {
-    if (isKeyboardMode) {
-      setTimeout(() => {
-        hourInputRef.current?.focus();
-        hourInputRef.current?.select();
-      }, 50);
-    }
-  }, [isKeyboardMode]);
+  // Direct Time Application Helper
+  const applyTime = useCallback((newH: number, newM: number) => {
+    const validH = Math.min(23, Math.max(0, newH));
+    const validM = Math.min(59, Math.max(0, newM));
+    setHour(validH);
+    setMinute(validM);
+    setHourText(String(validH).padStart(2, '0'));
+    setMinuteText(String(validM).padStart(2, '0'));
+  }, []);
 
-  // Dial coordinate calculations:
-  // Center is at (128, 128) in a 256x256 coordinate system
+  // Dial coordinate calculations
   const DIAL_RADIUS = 128;
-  const OUTER_RADIUS = 96; // Outer ring (0-11 hours, or minutes)
-  const INNER_RADIUS = 60; // Inner ring (12-23 hours)
+  const OUTER_RADIUS = 96;
+  const INNER_RADIUS = 60;
 
   const handleDialPointer = useCallback(
     (clientX: number, clientY: number, isFinalClick: boolean = false) => {
@@ -120,35 +157,33 @@ export function MaterialTimePickerModal({
       const dy = clientY - cy;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
-      // Angle in degrees clockwise from 12 o'clock
       let rad = Math.atan2(dy, dx);
       let deg = (rad * 180) / Math.PI + 90;
       if (deg < 0) deg += 360;
 
       if (mode === 'hour') {
         const step = Math.round(deg / 30) % 12;
-        // Midpoint threshold between inner and outer ring
         const threshold = ((OUTER_RADIUS + INNER_RADIUS) / 2) * (rect.width / (DIAL_RADIUS * 2));
         let selectedH: number;
         if (dist < threshold) {
-          // Inner ring: 12..23
-          selectedH = step + 12;
+          selectedH = step + 12; // Inner ring: 12..23
         } else {
-          // Outer ring: 0..11
-          selectedH = step;
+          selectedH = step; // Outer ring: 0..11
         }
         setHour(selectedH);
+        setHourText(String(selectedH).padStart(2, '0'));
 
-        // On final click, transition to minute mode smoothly
         if (isFinalClick) {
           setTimeout(() => {
             setMode('minute');
-          }, 250);
+            minuteInputRef.current?.focus();
+            minuteInputRef.current?.select();
+          }, 200);
         }
       } else {
-        // Minute mode: 0..59
         const selectedM = Math.round(deg / 6) % 60;
         setMinute(selectedM);
+        setMinuteText(String(selectedM).padStart(2, '0'));
       }
     },
     [mode]
@@ -174,30 +209,110 @@ export function MaterialTimePickerModal({
     }
   };
 
-  // Keyboard inputs handlers
+  // Direct keyboard input handlers on the main time box
   const handleHourTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value.replace(/\D/g, '').slice(0, 2);
-    setHourText(val);
-    if (val !== '') {
-      const num = parseInt(val, 10);
-      if (num >= 0 && num <= 23) {
+    const raw = e.target.value.replace(/\D/g, '');
+    if (raw === '') {
+      setHourText('');
+      return;
+    }
+
+    // If 1 digit was typed into an already-filled 2-digit box, start fresh with that newly typed digit
+    let val = raw;
+    if (raw.length === 3) {
+      val = raw.slice(-1);
+    } else if (raw.length > 3) {
+      val = raw.slice(-2);
+    }
+
+    const num = parseInt(val, 10);
+    if (isNaN(num)) return;
+
+    if (val.length === 1) {
+      if (num >= 3) {
+        // An hour in 24hr clock cannot start with 3..9, so e.g. 4 -> 04
         setHour(num);
-        if (val.length === 2 || num > 2) {
+        setHourText(String(num).padStart(2, '0'));
+        setMode('minute');
+        setTimeout(() => {
           minuteInputRef.current?.focus();
           minuteInputRef.current?.select();
-        }
+        }, 50);
+      } else {
+        // For 0, 1, 2: wait for the second digit (e.g. 1 -> 13, 14, etc.)
+        setHourText(val);
       }
+    } else if (val.length === 2) {
+      if (num <= 23) {
+        setHour(num);
+        setHourText(String(num).padStart(2, '0'));
+      } else {
+        // Clamped if > 23 (e.g. 24 -> 23)
+        setHour(23);
+        setHourText('23');
+      }
+      setMode('minute');
+      setTimeout(() => {
+        minuteInputRef.current?.focus();
+        minuteInputRef.current?.select();
+      }, 50);
+    }
+  };
+
+  const handleHourBlur = () => {
+    if (hourText === '' || isNaN(Number(hourText))) {
+      setHourText(String(hour).padStart(2, '0'));
+    } else {
+      const num = Math.min(23, Math.max(0, parseInt(hourText, 10)));
+      setHour(num);
+      setHourText(String(num).padStart(2, '0'));
     }
   };
 
   const handleMinuteTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value.replace(/\D/g, '').slice(0, 2);
-    setMinuteText(val);
-    if (val !== '') {
-      const num = parseInt(val, 10);
-      if (num >= 0 && num <= 59) {
+    const raw = e.target.value.replace(/\D/g, '');
+    if (raw === '') {
+      setMinuteText('');
+      return;
+    }
+
+    let val = raw;
+    if (raw.length === 3) {
+      val = raw.slice(-1);
+    } else if (raw.length > 3) {
+      val = raw.slice(-2);
+    }
+
+    const num = parseInt(val, 10);
+    if (isNaN(num)) return;
+
+    if (val.length === 1) {
+      if (num >= 6) {
+        // Minutes only go up to 59, so 6..9 can only be 06..09
         setMinute(num);
+        setMinuteText(String(num).padStart(2, '0'));
+      } else {
+        // For 0..5, wait for 2nd digit (e.g. 2 -> 20, 25, 40)
+        setMinuteText(val);
       }
+    } else if (val.length === 2) {
+      if (num <= 59) {
+        setMinute(num);
+        setMinuteText(String(num).padStart(2, '0'));
+      } else {
+        setMinute(59);
+        setMinuteText('59');
+      }
+    }
+  };
+
+  const handleMinuteBlur = () => {
+    if (minuteText === '' || isNaN(Number(minuteText))) {
+      setMinuteText(String(minute).padStart(2, '0'));
+    } else {
+      const num = Math.min(59, Math.max(0, parseInt(minuteText, 10)));
+      setMinute(num);
+      setMinuteText(String(num).padStart(2, '0'));
     }
   };
 
@@ -222,7 +337,7 @@ export function MaterialTimePickerModal({
 
   if (!isOpen) return null;
 
-  // Active hand calculations
+  // Active dial hand calculations
   let handAngle = 0;
   let handRadius = OUTER_RADIUS;
   let selectedValue = '';
@@ -243,323 +358,477 @@ export function MaterialTimePickerModal({
     selectedValue = String(minute).padStart(2, '0');
   }
 
-  // Hand tip position in 256x256 coordinate system
   const handRad = ((handAngle - 90) * Math.PI) / 180;
   const handX = DIAL_RADIUS + handRadius * Math.cos(handRad);
   const handY = DIAL_RADIUS + handRadius * Math.sin(handRad);
 
-  // Time Picker Component sub-render
-  const renderTimePickerSection = () => (
-    <div className="flex flex-col items-center">
-      {/* Title inside dial column */}
-      <span className="text-xs font-medium text-slate-300 self-start mb-1">
-        Select time
-      </span>
-
-      {/* Digital Time Display (Hour : Minute) matching screenshot */}
-      <div className="flex items-center justify-center gap-2.5 my-3">
-        {/* Hour Box */}
-        <button
-          type="button"
-          onClick={() => {
-            setMode('hour');
-            if (isKeyboardMode) hourInputRef.current?.focus();
-          }}
-          className={`w-24 h-20 rounded-xl flex items-center justify-center text-5xl font-normal transition-all ${
-            mode === 'hour'
-              ? 'bg-[#0b57d0] text-white shadow-lg ring-2 ring-blue-400/40'
-              : 'bg-[#282a30] text-slate-200 hover:bg-[#31333b]'
-          }`}
-        >
-          {String(hour).padStart(2, '0')}
-        </button>
-
-        {/* Separator */}
-        <div className="text-4xl font-bold text-slate-300 select-none pb-1">
-          :
-        </div>
-
-        {/* Minute Box */}
-        <button
-          type="button"
-          onClick={() => {
-            setMode('minute');
-            if (isKeyboardMode) minuteInputRef.current?.focus();
-          }}
-          className={`w-24 h-20 rounded-xl flex items-center justify-center text-5xl font-normal transition-all ${
-            mode === 'minute'
-              ? 'bg-[#0b57d0] text-white shadow-lg ring-2 ring-blue-400/40'
-              : 'bg-[#282a30] text-slate-200 hover:bg-[#31333b]'
-          }`}
-        >
-          {String(minute).padStart(2, '0')}
-        </button>
-      </div>
-
-      {/* Interactive Center: Dial Mode vs Keyboard Mode */}
-      {!isKeyboardMode ? (
-        /* MODE A: Dial Mode (Circular 24h Clock Face matching screenshot) */
-        <div className="my-2 flex justify-center">
-          <div
-            ref={dialRef}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            className="relative w-64 h-64 rounded-full bg-[#282a30] shadow-inner select-none cursor-pointer overflow-hidden touch-none"
-          >
-            {/* Dial SVG Hand & Center Dot */}
-            <svg className="absolute inset-0 w-full h-full pointer-events-none z-10">
-              <circle cx={DIAL_RADIUS} cy={DIAL_RADIUS} r={4} fill="#8ab4f8" />
-              <line
-                x1={DIAL_RADIUS}
-                y1={DIAL_RADIUS}
-                x2={handX}
-                y2={handY}
-                stroke="#8ab4f8"
-                strokeWidth={2}
-              />
-              <circle cx={handX} cy={handY} r={18} fill="#8ab4f8" />
-              <text
-                x={handX}
-                y={handY + 5}
-                textAnchor="middle"
-                fill="#001d35"
-                fontSize="15"
-                fontWeight="600"
-                fontFamily="system-ui, sans-serif"
-              >
-                {selectedValue}
-              </text>
-            </svg>
-
-            {/* Dial Numbers */}
-            {mode === 'hour' ? (
-              <>
-                {/* Outer Ring: 0 to 11 */}
-                {Array.from({ length: 12 }, (_, i) => {
-                  const angle = (i * 30 - 90) * (Math.PI / 180);
-                  const x = DIAL_RADIUS + OUTER_RADIUS * Math.cos(angle);
-                  const y = DIAL_RADIUS + OUTER_RADIUS * Math.sin(angle);
-                  const isSelected = hour === i;
-
-                  return (
-                    <span
-                      key={`outer-${i}`}
-                      style={{
-                        left: `${x}px`,
-                        top: `${y}px`,
-                        transform: 'translate(-50%, -50%)',
-                      }}
-                      className={`absolute text-sm font-medium transition-opacity ${
-                        isSelected ? 'opacity-0' : 'text-slate-200'
-                      }`}
-                    >
-                      {i}
-                    </span>
-                  );
-                })}
-
-                {/* Inner Ring: 12 to 23 */}
-                {Array.from({ length: 12 }, (_, i) => {
-                  const hVal = i + 12;
-                  const angle = (i * 30 - 90) * (Math.PI / 180);
-                  const x = DIAL_RADIUS + INNER_RADIUS * Math.cos(angle);
-                  const y = DIAL_RADIUS + INNER_RADIUS * Math.sin(angle);
-                  const isSelected = hour === hVal;
-
-                  return (
-                    <span
-                      key={`inner-${hVal}`}
-                      style={{
-                        left: `${x}px`,
-                        top: `${y}px`,
-                        transform: 'translate(-50%, -50%)',
-                      }}
-                      className={`absolute text-xs font-normal transition-opacity ${
-                        isSelected ? 'opacity-0' : 'text-slate-400'
-                      }`}
-                    >
-                      {hVal}
-                    </span>
-                  );
-                })}
-              </>
-            ) : (
-              /* Minute Numbers: 00, 05, 10, ..., 55 */
-              Array.from({ length: 12 }, (_, i) => {
-                const mVal = i * 5;
-                const angle = (i * 30 - 90) * (Math.PI / 180);
-                const x = DIAL_RADIUS + OUTER_RADIUS * Math.cos(angle);
-                const y = DIAL_RADIUS + OUTER_RADIUS * Math.sin(angle);
-                const isSelected = minute === mVal;
-
-                return (
-                  <span
-                    key={`min-${mVal}`}
-                    style={{
-                      left: `${x}px`,
-                      top: `${y}px`,
-                      transform: 'translate(-50%, -50%)',
-                    }}
-                    className={`absolute text-xs sm:text-sm font-medium transition-opacity ${
-                      isSelected ? 'opacity-0' : 'text-slate-200'
-                    }`}
-                  >
-                    {String(mVal).padStart(2, '0')}
-                  </span>
-                );
-              })
-            )}
-          </div>
-        </div>
-      ) : (
-        /* MODE B: Keyboard / Text Input Mode */
-        <div className="w-full my-3 p-4 rounded-2xl bg-[#282a30] space-y-3">
-          <div className="text-center text-xs text-slate-300 font-medium">
-            Enter time directly using keyboard
-          </div>
-
-          <div className="flex items-center justify-center gap-3">
-            <div className="flex flex-col items-center">
-              <input
-                ref={hourInputRef}
-                type="text"
-                inputMode="numeric"
-                value={hourText}
-                onChange={handleHourTextChange}
-                onFocus={() => setMode('hour')}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleConfirm();
-                  if (e.key === 'ArrowUp') setHour((prev) => (prev + 1) % 24);
-                  if (e.key === 'ArrowDown') setHour((prev) => (prev - 1 + 24) % 24);
-                }}
-                className="w-20 h-14 text-center text-3xl font-mono font-bold bg-[#1e1f25] border border-blue-500/50 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-[#8ab4f8]"
-                placeholder="HH"
-              />
-              <span className="text-[10px] text-slate-400 mt-1 font-medium">Hour (00-23)</span>
-            </div>
-
-            <span className="text-3xl font-bold text-slate-300 -mt-3">:</span>
-
-            <div className="flex flex-col items-center">
-              <input
-                ref={minuteInputRef}
-                type="text"
-                inputMode="numeric"
-                value={minuteText}
-                onChange={handleMinuteTextChange}
-                onFocus={() => setMode('minute')}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleConfirm();
-                  if (e.key === 'ArrowUp') setMinute((prev) => (prev + 1) % 60);
-                  if (e.key === 'ArrowDown') setMinute((prev) => (prev - 1 + 60) % 60);
-                }}
-                className="w-20 h-14 text-center text-3xl font-mono font-bold bg-[#1e1f25] border border-blue-500/50 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-[#8ab4f8]"
-                placeholder="MM"
-              />
-              <span className="text-[10px] text-slate-400 mt-1 font-medium">Minute (00-59)</span>
-            </div>
-          </div>
-
-          {/* Quick Preset Buttons */}
-          <div className="grid grid-cols-4 gap-1 pt-1">
-            {['06:00', '08:00', '12:00', '14:00', '18:00', '20:00', '21:30', '22:00'].map((preset) => {
-              const [ph, pm] = preset.split(':').map(Number);
-              return (
-                <button
-                  key={preset}
-                  type="button"
-                  onClick={() => {
-                    setHour(ph);
-                    setMinute(pm);
-                  }}
-                  className="py-1 rounded bg-white/5 hover:bg-white/10 text-[10px] font-mono text-slate-300 hover:text-white transition"
-                >
-                  {preset}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Keyboard/Dial Switch Button */}
-      <div className="w-full flex items-center justify-start pt-1">
-        <button
-          type="button"
-          onClick={() => setIsKeyboardMode(!isKeyboardMode)}
-          className="p-1.5 rounded-full hover:bg-white/10 text-slate-300 hover:text-white transition flex items-center gap-1.5 text-xs"
-          title={isKeyboardMode ? 'Switch to clock dial' : 'Switch to keyboard text entry'}
-        >
-          {isKeyboardMode ? (
-            <>
-              <Clock className="w-4 h-4 text-[#8ab4f8]" />
-              <span className="text-[11px] text-[#8ab4f8]">Use Clock Dial</span>
-            </>
-          ) : (
-            <>
-              <Keyboard className="w-4 h-4 text-slate-300" />
-              <span className="text-[11px] text-slate-300">Type with Keyboard</span>
-            </>
-          )}
-        </button>
-      </div>
-    </div>
-  );
+  const currentTimeFormatted = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  const guestRequestedTimeFormatted = `${String(baseTarget.h).padStart(2, '0')}:${String(baseTarget.m).padStart(2, '0')}`;
 
   return (
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-sm animate-fade-in"
     >
       <div
-        className={`relative w-full rounded-3xl bg-[#1e1f25] border border-white/10 shadow-2xl p-6 text-white select-none transition-all ${
-          showReminderFields ? 'max-w-2xl' : 'max-w-[328px]'
+        className={`relative w-full rounded-3xl shadow-2xl p-5 sm:p-6 select-none transition-all border ${
+          showReminderFields ? 'max-w-2xl' : 'max-w-[360px]'
         }`}
+        style={{
+          background: isLight ? '#ffffff' : '#1e1f25',
+          borderColor: isLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.1)',
+          color: isLight ? '#0f172a' : '#ffffff',
+          boxShadow: isLight
+            ? '0 25px 50px -12px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(226, 232, 240, 0.8)'
+            : '0 25px 50px -12px rgba(0, 0, 0, 0.75)',
+        }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Top Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
-          <div>
-            <h3 className="text-sm font-semibold text-white tracking-wide flex items-center gap-2">
-              <Bell className="w-4 h-4 text-amber-300" />
-              <span>{title || (showReminderFields ? 'Set Reminder & Service Time' : 'Select time')}</span>
+        {/* Top Header: Minimized and Clean */}
+        <div
+          className="flex items-center justify-between pb-2.5 border-b"
+          style={{ borderColor: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.08)' }}
+        >
+          <div className="flex items-center gap-2">
+            <Bell className="w-3.5 h-3.5 text-amber-500" />
+            <h3
+              className="text-xs font-semibold tracking-wide"
+              style={{ color: isLight ? '#0f172a' : '#ffffff' }}
+            >
+              {title || (showReminderFields ? 'Set Reminder & Service Time' : 'Select time')}
             </h3>
-            {showReminderFields && (
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                Set reminding time on the clock and configure dispatch notes on the side.
-              </p>
-            )}
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 rounded-full hover:bg-white/5 transition"
+            className="p-1 rounded-full transition cursor-pointer"
+            style={{
+              color: isLight ? '#64748b' : '#94a4bf',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = isLight ? '#fee2e2' : 'rgba(239, 68, 68, 0.2)';
+              e.currentTarget.style.color = isLight ? '#dc2626' : '#f87171';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.color = isLight ? '#64748b' : '#94a4bf';
+            }}
             aria-label="Close"
           >
-            <X className="w-4 h-4" />
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
 
-        {/* Modal Body: Either Side-by-Side (Time Picker + Minimal Side Section) or Standalone Time Picker */}
-        {showReminderFields ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start py-4">
-            {/* Left Column: Timer Selection */}
-            <div className="border-b md:border-b-0 md:border-r border-white/[0.08] pb-4 md:pb-0 md:pr-6">
-              {renderTimePickerSection()}
-            </div>
+        {/* Modal Body: Left (Time Picker) + Right (Reminder Details) */}
+        <div className={showReminderFields ? 'grid grid-cols-1 md:grid-cols-2 gap-6 items-start py-4' : 'py-3'}>
+          {/* Left Column: Single Authoritative Time Picker */}
+          <div className={showReminderFields ? 'border-b md:border-b-0 md:border-r pb-4 md:pb-0 md:pr-6' : ''}
+            style={{ borderColor: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.08)' }}
+          >
+            <div className="flex flex-col items-center">
+              {/* Upper Banner in Set Time section: clearly and minimally displays guest said time */}
+              <div className="w-full flex items-center justify-between mb-1 px-0.5">
+                <span
+                  className="text-xs font-semibold"
+                  style={{ color: isLight ? '#475569' : '#cbd5e1' }}
+                >
+                  Select time
+                </span>
+                <div
+                  className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[11px] font-mono border"
+                  style={{
+                    background: isLight ? '#eff6ff' : 'rgba(59, 130, 246, 0.12)',
+                    borderColor: isLight ? '#bfdbfe' : 'rgba(96, 165, 250, 0.25)',
+                    color: isLight ? '#1d4ed8' : '#8ab4f8',
+                  }}
+                  title="Guest's requested target service time"
+                >
+                  <span className="text-[10px] font-sans font-medium opacity-80">Guest Time:</span>
+                  <span className="font-bold">{guestRequestedTimeFormatted}</span>
+                </div>
+              </div>
 
-            {/* Right Column: Minimal 5 Fields Requested by User */}
+              {/* SINGLE MAIN TIME DISPLAY: 100% Directly Typable with Keyboard */}
+              <div className="flex items-center justify-center gap-2.5 my-2.5">
+                {/* Hour Box */}
+                <input
+                  ref={hourInputRef}
+                  type="text"
+                  inputMode="numeric"
+                  value={hourText}
+                  onChange={handleHourTextChange}
+                  onBlur={handleHourBlur}
+                  onClick={(e) => {
+                    setMode('hour');
+                    e.currentTarget.select();
+                  }}
+                  onFocus={(e) => {
+                    setMode('hour');
+                    e.currentTarget.select();
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      const nextH = (hour + 1) % 24;
+                      setHour(nextH);
+                      setHourText(String(nextH).padStart(2, '0'));
+                    } else if (e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      const nextH = (hour - 1 + 24) % 24;
+                      setHour(nextH);
+                      setHourText(String(nextH).padStart(2, '0'));
+                    } else if (e.key === 'ArrowRight' || e.key === 'Tab') {
+                      minuteInputRef.current?.focus();
+                      minuteInputRef.current?.select();
+                    } else if (e.key === 'Enter') {
+                      handleConfirm();
+                    }
+                  }}
+                  className="w-24 h-20 rounded-2xl text-center text-5xl font-mono font-bold transition-all outline-none cursor-text shadow-sm"
+                  style={{
+                    background: mode === 'hour'
+                      ? '#0b57d0'
+                      : isLight
+                      ? '#f1f5f9'
+                      : '#282a30',
+                    color: mode === 'hour'
+                      ? '#ffffff'
+                      : isLight
+                      ? '#0f172a'
+                      : '#e2e8f0',
+                    border: mode === 'hour'
+                      ? '2px solid #38bdf8'
+                      : isLight
+                      ? '1px solid #cbd5e1'
+                      : '1px solid rgba(255, 255, 255, 0.08)',
+                    boxShadow: mode === 'hour' ? '0 10px 25px -5px rgba(11, 87, 208, 0.5)' : undefined,
+                  }}
+                  aria-label="Hour (00 to 23)"
+                  title="Hour (00-23)"
+                />
+
+                {/* Colon Separator */}
+                <div
+                  className="text-4xl font-bold select-none"
+                  style={{ color: isLight ? '#94a3b8' : '#64748b' }}
+                >
+                  :
+                </div>
+
+                {/* Minute Box */}
+                <input
+                  ref={minuteInputRef}
+                  type="text"
+                  inputMode="numeric"
+                  value={minuteText}
+                  onChange={handleMinuteTextChange}
+                  onBlur={handleMinuteBlur}
+                  onClick={(e) => {
+                    setMode('minute');
+                    e.currentTarget.select();
+                  }}
+                  onFocus={(e) => {
+                    setMode('minute');
+                    e.currentTarget.select();
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      const nextM = (minute + 1) % 60;
+                      setMinute(nextM);
+                      setMinuteText(String(nextM).padStart(2, '0'));
+                    } else if (e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      const nextM = (minute - 1 + 60) % 60;
+                      setMinute(nextM);
+                      setMinuteText(String(nextM).padStart(2, '0'));
+                    } else if (e.key === 'ArrowLeft') {
+                      hourInputRef.current?.focus();
+                      hourInputRef.current?.select();
+                    } else if (e.key === 'Backspace' && minuteText === '') {
+                      hourInputRef.current?.focus();
+                      hourInputRef.current?.select();
+                    } else if (e.key === 'Enter') {
+                      handleConfirm();
+                    }
+                  }}
+                  className="w-24 h-20 rounded-2xl text-center text-5xl font-mono font-bold transition-all outline-none cursor-text shadow-sm"
+                  style={{
+                    background: mode === 'minute'
+                      ? '#0b57d0'
+                      : isLight
+                      ? '#f1f5f9'
+                      : '#282a30',
+                    color: mode === 'minute'
+                      ? '#ffffff'
+                      : isLight
+                      ? '#0f172a'
+                      : '#e2e8f0',
+                    border: mode === 'minute'
+                      ? '2px solid #38bdf8'
+                      : isLight
+                      ? '1px solid #cbd5e1'
+                      : '1px solid rgba(255, 255, 255, 0.08)',
+                    boxShadow: mode === 'minute' ? '0 10px 25px -5px rgba(11, 87, 208, 0.5)' : undefined,
+                  }}
+                  aria-label="Minute (00 to 59)"
+                  title="Minute (00-59)"
+                />
+              </div>
+
+              {/* VIEW 1: Circular Clock Dial View */}
+              {!isKeyboardMode ? (
+                <div className="flex flex-col items-center w-full">
+                  <div className="my-2 flex justify-center">
+                    <div
+                      ref={dialRef}
+                      onPointerDown={handlePointerDown}
+                      onPointerMove={handlePointerMove}
+                      onPointerUp={handlePointerUp}
+                      className="relative w-64 h-64 rounded-full shadow-inner select-none cursor-pointer overflow-hidden touch-none"
+                      style={{
+                        background: isLight ? '#f1f5f9' : '#282a30',
+                        border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.05)',
+                      }}
+                    >
+                      {/* SVG Clock Hand & Indicator */}
+                      <svg className="absolute inset-0 w-full h-full pointer-events-none z-10">
+                        <circle
+                          cx={DIAL_RADIUS}
+                          cy={DIAL_RADIUS}
+                          r={4}
+                          fill={isLight ? '#0b57d0' : '#8ab4f8'}
+                        />
+                        <line
+                          x1={DIAL_RADIUS}
+                          y1={DIAL_RADIUS}
+                          x2={handX}
+                          y2={handY}
+                          stroke={isLight ? '#0b57d0' : '#8ab4f8'}
+                          strokeWidth={2}
+                        />
+                        <circle
+                          cx={handX}
+                          cy={handY}
+                          r={18}
+                          fill={isLight ? '#0b57d0' : '#8ab4f8'}
+                        />
+                        <text
+                          x={handX}
+                          y={handY + 5}
+                          textAnchor="middle"
+                          fill={isLight ? '#ffffff' : '#001d35'}
+                          fontSize="15"
+                          fontWeight="700"
+                          fontFamily="system-ui, sans-serif"
+                        >
+                          {selectedValue}
+                        </text>
+                      </svg>
+
+                      {/* Clock Numbers */}
+                      {mode === 'hour' ? (
+                        <>
+                          {/* Outer Ring: 0 to 11 */}
+                          {Array.from({ length: 12 }, (_, i) => {
+                            const angle = (i * 30 - 90) * (Math.PI / 180);
+                            const x = DIAL_RADIUS + OUTER_RADIUS * Math.cos(angle);
+                            const y = DIAL_RADIUS + OUTER_RADIUS * Math.sin(angle);
+                            const isSelected = hour === i;
+
+                            return (
+                              <span
+                                key={`outer-${i}`}
+                                style={{
+                                  left: `${x}px`,
+                                  top: `${y}px`,
+                                  transform: 'translate(-50%, -50%)',
+                                  color: isLight ? '#1e293b' : '#e2e8f0',
+                                }}
+                                className={`absolute text-sm font-semibold transition-opacity select-none ${
+                                  isSelected ? 'opacity-0' : 'opacity-100'
+                                }`}
+                              >
+                                {i}
+                              </span>
+                            );
+                          })}
+
+                          {/* Inner Ring: 12 to 23 */}
+                          {Array.from({ length: 12 }, (_, i) => {
+                            const hVal = i + 12;
+                            const angle = (i * 30 - 90) * (Math.PI / 180);
+                            const x = DIAL_RADIUS + INNER_RADIUS * Math.cos(angle);
+                            const y = DIAL_RADIUS + INNER_RADIUS * Math.sin(angle);
+                            const isSelected = hour === hVal;
+
+                            return (
+                              <span
+                                key={`inner-${hVal}`}
+                                style={{
+                                  left: `${x}px`,
+                                  top: `${y}px`,
+                                  transform: 'translate(-50%, -50%)',
+                                  color: isLight ? '#64748b' : '#94a4bf',
+                                }}
+                                className={`absolute text-xs font-medium transition-opacity select-none ${
+                                  isSelected ? 'opacity-0' : 'opacity-100'
+                                }`}
+                              >
+                                {hVal}
+                              </span>
+                            );
+                          })}
+                        </>
+                      ) : (
+                        /* Minute Numbers: 00, 05, 10, ..., 55 */
+                        Array.from({ length: 12 }, (_, i) => {
+                          const mVal = i * 5;
+                          const angle = (i * 30 - 90) * (Math.PI / 180);
+                          const x = DIAL_RADIUS + OUTER_RADIUS * Math.cos(angle);
+                          const y = DIAL_RADIUS + OUTER_RADIUS * Math.sin(angle);
+                          const isSelected = minute === mVal;
+
+                          return (
+                            <span
+                              key={`min-${mVal}`}
+                              style={{
+                                left: `${x}px`,
+                                top: `${y}px`,
+                                transform: 'translate(-50%, -50%)',
+                                color: isLight ? '#1e293b' : '#e2e8f0',
+                              }}
+                              className={`absolute text-xs sm:text-sm font-semibold transition-opacity select-none ${
+                                isSelected ? 'opacity-0' : 'opacity-100'
+                              }`}
+                            >
+                              {String(mVal).padStart(2, '0')}
+                            </span>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Clean, minimal Type with Keyboard button at bottom-left (Matches Screenshot 2) */}
+                  <div className="w-full flex items-center justify-start mt-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsKeyboardMode(true);
+                        setTimeout(() => {
+                          hourInputRef.current?.focus();
+                          hourInputRef.current?.select();
+                        }, 50);
+                      }}
+                      className="flex items-center gap-2 text-xs font-medium transition cursor-pointer"
+                      style={{
+                        color: isLight ? '#64748b' : '#94a4bf',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.color = isLight ? '#0f172a' : '#ffffff';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.color = isLight ? '#64748b' : '#94a4bf';
+                      }}
+                    >
+                      <Keyboard className="w-4 h-4" />
+                      <span>Type with Keyboard</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* VIEW 2: Keyboard & Minimal Before-Reminder Timings (Clock Dial Hidden) */
+                <div className="w-64 h-64 flex flex-col justify-between py-1">
+                  <div>
+                    <div
+                      className="text-xs font-semibold mb-1"
+                      style={{ color: isLight ? '#334155' : '#e2e8f0' }}
+                    >
+                      Suggested Reminder Timings
+                    </div>
+                    <div
+                      className="text-[11px] mb-3"
+                      style={{ color: isLight ? '#64748b' : '#94a4bf' }}
+                    >
+                      Prior to service ({String(baseTarget.h).padStart(2, '0')}:{String(baseTarget.m).padStart(2, '0')}):
+                    </div>
+
+                    <div className="space-y-2">
+                      {reminderSuggestions.map((sugg) => {
+                        const isActive = currentTimeFormatted === sugg.formatted;
+                        return (
+                          <button
+                            key={sugg.label}
+                            type="button"
+                            onClick={() => applyTime(sugg.h, sugg.m)}
+                            className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs transition-all cursor-pointer border"
+                            style={{
+                              background: isActive
+                                ? isLight ? '#dbeafe' : 'rgba(59, 130, 246, 0.25)'
+                                : isLight ? '#f8fafc' : '#282a30',
+                              borderColor: isActive
+                                ? isLight ? '#2563eb' : '#3b82f6'
+                                : isLight ? '#cbd5e1' : 'rgba(255, 255, 255, 0.08)',
+                              color: isActive
+                                ? isLight ? '#1d4ed8' : '#93c5fd'
+                                : isLight ? '#1e293b' : '#cbd5e1',
+                              fontWeight: isActive ? '700' : '500',
+                            }}
+                          >
+                            <span>{sugg.label}</span>
+                            <span className="font-mono font-bold text-xs">{sugg.formatted}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="w-full flex items-center justify-start mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsKeyboardMode(false)}
+                      className="flex items-center gap-2 text-xs font-medium transition cursor-pointer"
+                      style={{
+                        color: isLight ? '#64748b' : '#94a4bf',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.color = isLight ? '#0f172a' : '#ffffff';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.color = isLight ? '#64748b' : '#94a4bf';
+                      }}
+                    >
+                      <Clock className="w-4 h-4" />
+                      <span>Use Clock Dial</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right Column: 5 Minimal Reminder Fields */}
+          {showReminderFields && (
             <div className="space-y-3.5">
-              <div className="text-xs font-semibold text-amber-300 uppercase tracking-wider flex items-center gap-1.5 pb-1 border-b border-white/[0.06]">
+              <div
+                className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 pb-1 border-b"
+                style={{
+                  color: isLight ? '#b45309' : '#fcd34d',
+                  borderColor: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.08)',
+                }}
+              >
                 <FileText className="w-3.5 h-3.5" />
                 <span>Reminder Details</span>
               </div>
 
               {/* 1. Reminder Title */}
               <div>
-                <label className="text-[11px] font-semibold text-slate-300 mb-1 block">
+                <label
+                  className="text-[11px] font-semibold mb-1 block"
+                  style={{ color: isLight ? '#334155' : '#cbd5e1' }}
+                >
                   Reminder Title
                 </label>
                 <input
@@ -568,14 +837,28 @@ export function MaterialTimePickerModal({
                   value={remTitle}
                   onChange={(e) => setRemTitle(e.target.value)}
                   placeholder="e.g. Evening Turndown & Extra Towels"
-                  className="field w-full text-xs"
+                  className="w-full px-3 py-2 rounded-xl text-xs transition outline-none"
+                  style={{
+                    background: isLight ? '#ffffff' : '#16171c',
+                    border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.12)',
+                    color: isLight ? '#0f172a' : '#ffffff',
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = isLight ? '#0b57d0' : '#8ab4f8';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = isLight ? '#cbd5e1' : 'rgba(255, 255, 255, 0.12)';
+                  }}
                 />
               </div>
 
               {/* 2 & 3. Room No & Guest Name in responsive row */}
               <div className="grid grid-cols-3 gap-2">
                 <div className="col-span-1">
-                  <label className="text-[11px] font-semibold text-slate-300 mb-1 block">
+                  <label
+                    className="text-[11px] font-semibold mb-1 block"
+                    style={{ color: isLight ? '#334155' : '#cbd5e1' }}
+                  >
                     Room No
                   </label>
                   <input
@@ -584,11 +867,25 @@ export function MaterialTimePickerModal({
                     value={remRoom}
                     onChange={(e) => setRemRoom(e.target.value)}
                     placeholder="e.g. 402"
-                    className="field w-full text-xs font-mono font-bold"
+                    className="w-full px-3 py-2 rounded-xl text-xs font-mono font-bold transition outline-none"
+                    style={{
+                      background: isLight ? '#ffffff' : '#16171c',
+                      border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.12)',
+                      color: isLight ? '#0f172a' : '#ffffff',
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = isLight ? '#0b57d0' : '#8ab4f8';
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = isLight ? '#cbd5e1' : 'rgba(255, 255, 255, 0.12)';
+                    }}
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="text-[11px] font-semibold text-slate-300 mb-1 block">
+                  <label
+                    className="text-[11px] font-semibold mb-1 block"
+                    style={{ color: isLight ? '#334155' : '#cbd5e1' }}
+                  >
                     Guest Name
                   </label>
                   <input
@@ -597,20 +894,45 @@ export function MaterialTimePickerModal({
                     value={remGuestName}
                     onChange={(e) => setRemGuestName(e.target.value)}
                     placeholder="e.g. Elena Rostova"
-                    className="field w-full text-xs"
+                    className="w-full px-3 py-2 rounded-xl text-xs transition outline-none"
+                    style={{
+                      background: isLight ? '#ffffff' : '#16171c',
+                      border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.12)',
+                      color: isLight ? '#0f172a' : '#ffffff',
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = isLight ? '#0b57d0' : '#8ab4f8';
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = isLight ? '#cbd5e1' : 'rgba(255, 255, 255, 0.12)';
+                    }}
                   />
                 </div>
               </div>
 
               {/* 4. Assigned Staff */}
               <div>
-                <label className="text-[11px] font-semibold text-slate-300 mb-1 block">
+                <label
+                  className="text-[11px] font-semibold mb-1 block"
+                  style={{ color: isLight ? '#334155' : '#cbd5e1' }}
+                >
                   Assigned Staff
                 </label>
                 <select
                   value={remAssignedStaff}
                   onChange={(e) => setRemAssignedStaff(e.target.value)}
-                  className="field w-full text-xs"
+                  className="w-full px-3 py-2 rounded-xl text-xs transition outline-none"
+                  style={{
+                    background: isLight ? '#ffffff' : '#16171c',
+                    border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.12)',
+                    color: isLight ? '#0f172a' : '#ffffff',
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = isLight ? '#0b57d0' : '#8ab4f8';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = isLight ? '#cbd5e1' : 'rgba(255, 255, 255, 0.12)';
+                  }}
                 >
                   <option value="Front Desk Coordinator">Front Desk Coordinator</option>
                   <option value="Housekeeping Attendant">Housekeeping Attendant</option>
@@ -622,7 +944,10 @@ export function MaterialTimePickerModal({
 
               {/* 5. Reminder Instructions & Action Notes */}
               <div>
-                <label className="text-[11px] font-semibold text-slate-300 mb-1 block">
+                <label
+                  className="text-[11px] font-semibold mb-1 block"
+                  style={{ color: isLight ? '#334155' : '#cbd5e1' }}
+                >
                   Reminder Instructions &amp; Action Notes
                 </label>
                 <textarea
@@ -631,29 +956,55 @@ export function MaterialTimePickerModal({
                   value={remInstructions}
                   onChange={(e) => setRemInstructions(e.target.value)}
                   placeholder="Action notes for fulfillment team..."
-                  className="field w-full text-xs resize-none"
+                  className="w-full px-3 py-2 rounded-xl text-xs resize-none transition outline-none"
+                  style={{
+                    background: isLight ? '#ffffff' : '#16171c',
+                    border: isLight ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.12)',
+                    color: isLight ? '#0f172a' : '#ffffff',
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = isLight ? '#0b57d0' : '#8ab4f8';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = isLight ? '#cbd5e1' : 'rgba(255, 255, 255, 0.12)';
+                  }}
                 />
               </div>
 
-              {/* Time Preview Pill */}
-              <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-400/20 flex items-center justify-between text-xs">
-                <span className="text-slate-300 text-[11px]">Scheduled Service Time:</span>
-                <span className="font-mono font-bold text-[#8ab4f8] text-sm">
-                  {String(hour).padStart(2, '0')}:{String(minute).padStart(2, '0')}
+              {/* Scheduled Service Time Preview Pill */}
+              <div
+                className="p-2.5 rounded-xl flex items-center justify-between text-xs"
+                style={{
+                  background: isLight ? '#eff6ff' : 'rgba(59, 130, 246, 0.1)',
+                  border: isLight ? '1px solid #bfdbfe' : '1px solid rgba(96, 165, 250, 0.2)',
+                }}
+              >
+                <span
+                  className="text-[11px] font-medium"
+                  style={{ color: isLight ? '#475569' : '#cbd5e1' }}
+                >
+                  Scheduled Service Time:
+                </span>
+                <span
+                  className="font-mono font-bold text-sm"
+                  style={{ color: isLight ? '#1d4ed8' : '#8ab4f8' }}
+                >
+                  {currentTimeFormatted}
                 </span>
               </div>
             </div>
-          </div>
-        ) : (
-          /* Standalone Time Picker when no side fields requested */
-          <div className="py-2">
-            {renderTimePickerSection()}
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Bottom Actions Row */}
-        <div className="flex items-center justify-between pt-3 border-t border-white/[0.08]">
-          <div className="text-[11px] text-slate-400 font-mono">
+        <div
+          className="flex items-center justify-between pt-3 border-t"
+          style={{ borderColor: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.08)' }}
+        >
+          <div
+            className="text-[11px] font-mono"
+            style={{ color: isLight ? '#64748b' : '#94a4bf' }}
+          >
             {showReminderFields ? (
               <span>Station FD-02 · Ready to save</span>
             ) : (
@@ -665,14 +1016,34 @@ export function MaterialTimePickerModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/[0.08] rounded-full transition"
+              className="px-4 py-2 text-xs font-semibold rounded-xl transition cursor-pointer"
+              style={{
+                color: isLight ? '#475569' : '#cbd5e1',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.08)';
+                e.currentTarget.style.color = isLight ? '#0f172a' : '#ffffff';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = isLight ? '#475569' : '#cbd5e1';
+              }}
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={handleConfirm}
-              className="px-5 py-2 text-xs font-bold bg-[#0b57d0] hover:bg-blue-600 text-white rounded-xl shadow-lg transition flex items-center gap-1.5"
+              className="px-5 py-2 text-xs font-bold text-white rounded-xl shadow-lg transition flex items-center gap-1.5 cursor-pointer active:scale-95"
+              style={{
+                background: '#0b57d0',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#0947a8';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#0b57d0';
+              }}
             >
               <Check className="w-3.5 h-3.5" />
               <span>{showReminderFields ? 'Save Reminder' : 'OK'}</span>
