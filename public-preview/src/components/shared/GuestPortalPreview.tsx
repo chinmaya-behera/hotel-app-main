@@ -17,6 +17,7 @@ import {
   Bell,
   User,
   Compass,
+  Palette,
   type LucideIcon,
 } from 'lucide-react';
 import { HomeDashboard } from '@/components/guest/HomeDashboard';
@@ -25,6 +26,9 @@ import { ActivitySection } from '@/components/guest/ActivitySection';
 import { NotificationsHubSection } from '@/components/guest/NotificationsHubSection';
 import { ProfileSection } from '@/components/guest/ProfileSection';
 import { GuestInteractiveTour } from '@/components/guest/GuestInteractiveTour';
+import { GuestThemeSelectorModal } from '@/components/guest/GuestThemeSelectorModal';
+import { BotanicalBackground } from '@/components/guest/BotanicalBackground';
+import { LuxuryBotanicalBackground } from '@/components/guest/LuxuryBotanicalBackground';
 import { GuestSupportAssistant } from '@/components/guest/help/GuestSupportAssistant';
 import { LanguageSelector } from '@/components/shared/LanguageSelector';
 import { useEmergencyBroadcast } from '@/lib/emergencyBroadcast';
@@ -70,7 +74,8 @@ const NAV_MAP: Record<string, GuestMainSection> = {
 
 export function GuestPortalPreview({ room, token }: { room: string; token: string }) {
   const router = useRouter();
-  const { state, setTheme } = useDemo();
+  const { state, setTheme, setGuestThemeOption } = useDemo();
+  const guestThemeOption = state.guestThemeOption || 'classic';
   const { t } = useI18n();
 
   const getNavLabel = (id: GuestMainSection) => {
@@ -93,6 +98,7 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
   const [subtab, setSubtab] = useState<string | undefined>(undefined);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
+  const [themeSelectorOpen, setThemeSelectorOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const stay = (state.frontDesk?.stays ?? []).find((st) => st.room === room && st.status === 'in_house');
@@ -187,8 +193,10 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
   const activeNav = NAV_MAP[tab] ?? 'home';
 
   return (
-    <div className="guest-stage">
-      <div className="guest-frame guest-shell w-full max-w-full overflow-x-hidden box-border">
+    <div className="guest-stage" data-guest-theme-option={guestThemeOption}>
+      {guestThemeOption === 'emerald' && <BotanicalBackground />}
+      {guestThemeOption === 'burgundy' && <LuxuryBotanicalBackground />}
+      <div className="guest-frame guest-shell w-full max-w-full overflow-x-hidden box-border relative z-10">
         {!valid || !guest || !tabProps ? (
           <div className="flex flex-1 flex-col items-center justify-center px-8 text-center min-h-[500px]">
             <span className="grid h-14 w-14 place-items-center rounded-2xl border border-rose-400/30 bg-rose-500/10 text-rose-500">
@@ -296,6 +304,17 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
               {/* Header Right Actions */}
               <div data-tour="tour-header-controls" className="flex shrink-0 items-center gap-2 sm:gap-2.5">
                 <LanguageSelector isLight={isLight} variant="compact" />
+
+                {/* Theme Experience Selector Button */}
+                <button
+                  type="button"
+                  onClick={() => setThemeSelectorOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 sm:py-2 rounded-xl border border-white/10 hover:border-amber-400/40 text-mist-300 hover:text-amber-300 text-xs sm:text-sm font-semibold transition-all guest-theme-btn"
+                  title="Choose Experience Theme"
+                >
+                  <Palette className="h-4 w-4 text-amber-400" />
+                  <span className="hidden sm:inline">Theme</span>
+                </button>
 
                 {/* Take Tour Button */}
                 <button
@@ -419,6 +438,16 @@ export function GuestPortalPreview({ room, token }: { room: string; token: strin
             isLight={isLight}
           />
         )}
+
+        {/* THEME SELECTION EXPERIENCE MODAL */}
+        <GuestThemeSelectorModal
+          isOpen={themeSelectorOpen}
+          onClose={() => setThemeSelectorOpen(false)}
+          currentTheme={guestThemeOption}
+          onSelectTheme={(theme) => {
+            setGuestThemeOption(theme);
+          }}
+        />
 
         {/* Sheets and dialogs render here */}
         <div id="guest-overlay-root" />

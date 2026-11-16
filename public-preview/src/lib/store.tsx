@@ -80,6 +80,7 @@ import type {
   DutyStatusRequest,
   TaskReassignRequest,
   ThemeMode,
+  GuestThemeOption,
   Transition,
   WorkflowConfig,
   WorkItem,
@@ -137,6 +138,7 @@ function seedState(normalize = true): DemoState {
     folios: folioSeed,
     lostFound: lostFoundSeed,
     theme: 'dark',
+    guestThemeOption: 'classic',
     frontDesk: frontDeskSeed,
     bookings: [],
     staffAccounts: seedStaffAccounts,
@@ -220,6 +222,8 @@ interface DemoApi {
   reset: () => void;
   notify: (text: string) => void;
   setTheme: (theme: ThemeMode) => void;
+  guestThemeOption: GuestThemeOption;
+  setGuestThemeOption: (option: GuestThemeOption) => void;
   setActiveDispatcherDept: (dept: DispatcherDepartment) => void;
   submitGuestRequest: (input: GuestRequestInput) => string;
   placeRoomServiceOrder: (room: string, lines: OrderLine[], note?: string, requestedServiceAt?: string) => string;
@@ -661,6 +665,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           auditTrail: saved.auditTrail ?? base.auditTrail,
           workflowConfig: saved.workflowConfig ?? base.workflowConfig,
           theme: saved.theme ?? (saved as unknown as { guestTheme?: ThemeMode }).guestTheme ?? base.theme,
+          guestThemeOption: (typeof window !== 'undefined' ? (localStorage.getItem('grand_adp_guest_theme_option') as GuestThemeOption | null) : null) ?? saved.guestThemeOption ?? 'classic',
           soundEnabled: saved.soundEnabled ?? base.soundEnabled,
           fulfillerAvailability: saved.fulfillerAvailability ?? base.fulfillerAvailability,
           notifications: (() => {
@@ -792,6 +797,17 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     }
   }, [state.theme, hydrated]);
 
+  // Mirror guest experience theme onto documentElement dataset for instant styling
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const opt = state.guestThemeOption || 'classic';
+      document.documentElement.dataset.guestTheme = opt;
+      try {
+        localStorage.setItem('grand_adp_guest_theme_option', opt);
+      } catch {}
+    }
+  }, [state.guestThemeOption]);
+
   // Clear any pending simulated-lifecycle timers on unmount.
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
 
@@ -836,6 +852,16 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
   const setTheme = useCallback((theme: ThemeMode) => {
     setState((prev) => (prev.theme === theme ? prev : { ...prev, theme }));
+  }, []);
+
+  const setGuestThemeOption = useCallback((option: GuestThemeOption) => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('grand_adp_guest_theme_option', option);
+        document.documentElement.dataset.guestTheme = option;
+      } catch {}
+    }
+    setState((prev) => (prev.guestThemeOption === option ? prev : { ...prev, guestThemeOption: option }));
   }, []);
 
   const setActiveDispatcherDept = useCallback((dept: DispatcherDepartment) => {
@@ -7921,6 +7947,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       reset,
       notify,
       setTheme,
+      guestThemeOption: state.guestThemeOption ?? 'classic',
+      setGuestThemeOption,
       setActiveDispatcherDept,
       submitGuestRequest,
       placeRoomServiceOrder,
@@ -8066,6 +8094,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       reset,
       notify,
       setTheme,
+      setGuestThemeOption,
       submitGuestRequest,
       placeRoomServiceOrder,
       placeDiningOrder,

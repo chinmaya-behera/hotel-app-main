@@ -556,6 +556,7 @@ export interface LostFoundItem {
 }
 
 export type ThemeMode = 'light' | 'dark';
+export type GuestThemeOption = 'classic' | 'emerald' | 'burgundy';
 
 export interface Transition {
   label: string;
@@ -1188,6 +1189,7 @@ export interface DemoState {
   folios: Record<string, FolioLine[]>;
   lostFound: LostFoundItem[];
   theme: ThemeMode;
+  guestThemeOption?: GuestThemeOption;
   frontDesk: FrontDeskState;
   /** bookings made on the public website (simulated) */
   bookings: WebBooking[];
