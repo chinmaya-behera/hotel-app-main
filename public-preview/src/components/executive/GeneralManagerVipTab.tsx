@@ -1,124 +1,207 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Crown,
-  Heart,
-  Star,
   Sparkles,
-  BedDouble,
-  Clock,
   ShieldCheck,
   CheckCircle2,
-  UtensilsCrossed,
-  MessageSquareWarning,
-  Plus,
-  AlertCircle,
-  Calendar,
-  Gift,
+  Clock,
+  MessageSquare,
   FileText,
-  UserCheck,
-  ChevronRight,
-  X,
-  ArrowRight,
+  Send,
+  AlertCircle,
   UserPlus,
-  Receipt,
+  Phone,
+  Mail,
+  ArrowRight,
   Check,
+  Inbox,
+  Receipt,
+  X,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { Panel } from '@/components/ui/Panel';
+import { Modal } from '@/components/frontdesk/Modal';
 import { useDemo } from '@/lib/store';
 import { cn, money } from '@/lib/utils';
 import { folioSeed } from '@/lib/mockData';
-import type { GuestReminderPriority, StayRecord } from '@/types/demo';
+import { requestStep, escalateRequest, routeRequest, type RouteDept } from '@/lib/frontDesk';
+import type { StayRecord, WorkItem } from '@/types/demo';
+
+export interface VipDetailedProfile {
+  id: string;
+  guestId: string;
+  guest: string;
+  room: string;
+  roomType: string;
+  vipTier: string;
+  memberSince: string;
+  phone: string;
+  email: string;
+  currentStay: {
+    arrival: string;
+    departure: string;
+    nights: number;
+    status: string;
+    roomRatePerNight: number;
+  };
+  roomPreferences: string;
+  foodPreferences: string;
+  notes: string;
+  gmProtocol?: string;
+  verifiedBy?: string;
+  totalSpend: number;
+  timeline: Array<{
+    at: string;
+    action: string;
+    staff: string;
+  }>;
+}
+
+// Rich detailed profiles for VIP guests
+const GM_VIP_PROFILES_DATA: Record<string, VipDetailedProfile> = {
+  'stay-alistair': {
+    id: 'stay-alistair',
+    guestId: 'VIP-CH-4019',
+    guest: 'Lord Alistair Sterling',
+    room: '401',
+    roomType: 'Ambassador Suite',
+    vipTier: "👑 Chairman's Club",
+    memberSince: '14 May 2019',
+    phone: '+44 20 7946 0912',
+    email: 'alistair.sterling@sterling-holding.co.uk',
+    currentStay: {
+      arrival: 'Mon 19 Oct',
+      departure: 'Today · Late Checkout 16:00',
+      nights: 4,
+      status: 'In-House (Late Checkout)',
+      roomRatePerNight: 45000,
+    },
+    roomPreferences: 'Hypoallergenic goose down & memory foam pillows. 20.0°C ambient climate. High floor quiet executive wing. Printed morning Financial Times.',
+    foodPreferences: 'Strictly nut-free culinary protocol. Severe peanut & tree nut anaphylactic allergy. Organic high-altitude Darjeeling tea.',
+    notes: 'Executive Board Global Summit stay. Requires absolute confidentiality. Do not distribute room keys without photo ID verification.',
+    gmProtocol: '✓ GM Welcome Card Placed',
+    verifiedBy: 'Front Desk',
+    totalSpend: 420000,
+    timeline: [
+      { at: '19 Oct, 11:30 AM', action: 'Private Express Check-In at VIP Lounge Desk', staff: 'Sunita Patel (Front Desk)' },
+      { at: '19 Oct, 12:00 PM', action: 'GM Welcome Gift & Handwritten Letter Placed in Suite', staff: 'Executive Butler' },
+      { at: '20 Oct, 08:00 AM', action: 'Financial Times hand-delivered to door rack', staff: 'Floor Attendant' },
+      { at: 'Today, 09:30 AM', action: 'Late checkout confirmed until 16:00 without fee', staff: 'Sunita Patel (Front Desk)' },
+    ],
+  },
+  'stay-priya': {
+    id: 'stay-priya',
+    guestId: 'VIP-AM-5182',
+    guest: 'Priya Nair',
+    room: '518',
+    roomType: 'Presidential Suite',
+    vipTier: '💎 Ambassador VIP',
+    memberSince: '22 Feb 2021',
+    phone: '+91 98201 44921',
+    email: 'priya.nair@nair-enterprises.in',
+    currentStay: {
+      arrival: 'Wed 21 Oct',
+      departure: 'Fri 23 Oct · Normal Checkout',
+      nights: 2,
+      status: 'In-House',
+      roomRatePerNight: 65000,
+    },
+    roomPreferences: 'Presidential Master Suite setup. Firm orthopaedic mattress. Lavender aromatherapy diffuser active on turn-down.',
+    foodPreferences: 'Jain vegetarian culinary guidelines. Fresh tender coconut water upon wake-up. No garlic or onion.',
+    notes: 'Managing Director, South Asian hospitality conglomerate. Extended courtesy car airport transfer on departure.',
+    gmProtocol: '✓ GM Welcome Card Placed',
+    verifiedBy: 'Front Desk',
+    totalSpend: 580000,
+    timeline: [
+      { at: '21 Oct, 02:15 PM', action: 'Personal Greeting at Hotel Portico', staff: 'Priya Nair (GM)' },
+      { at: '21 Oct, 03:00 PM', action: 'Bespoke high-tea hamper delivered to suite', staff: 'Pastry Chef Team' },
+      { at: 'Yesterday, 07:00 PM', action: 'Private dining arrangement confirmed at Terrace Pergola', staff: 'F&B Manager' },
+    ],
+  },
+  'stay-vance': {
+    id: 'stay-vance',
+    guestId: 'VIP-RP-3108',
+    guest: 'Camilla & Julian Vance',
+    room: '310',
+    roomType: 'Penthouse Suite',
+    vipTier: '⭐ Royal Patron Society',
+    memberSince: '18 Nov 2020',
+    phone: '+1 415 892 3310',
+    email: 'vance.family@vance-holdings.com',
+    currentStay: {
+      arrival: 'Today · Arriving 14:00',
+      departure: 'Sun 25 Oct',
+      nights: 4,
+      status: 'Expected Today (Pre-Checked In)',
+      roomRatePerNight: 40000,
+    },
+    roomPreferences: 'Down surround medium pillows with silk pillowcases. 20.5°C ambient climate. East Garden Wing secluded corridor. The Wall Street Journal.',
+    foodPreferences: 'Gluten-free & Organic produce only. No known medical allergies. Sommelier vintage French champagne & artisan dark chocolate truffles.',
+    notes: '10th Wedding Anniversary celebration. Surprise private beachside gazebo candlelit dinner booked for Friday 19:30. Chilled vintage champagne confirmed.',
+    gmProtocol: '✓ GM Welcome Card Placed',
+    verifiedBy: 'Front Desk',
+    totalSpend: 355000,
+    timeline: [
+      { at: '18 Oct, 10:00 AM', action: 'Online Pre-Check-In and Passport Verification Completed', staff: 'Guest Portal' },
+      { at: 'Today, 08:30 AM', action: 'Suite 310 Housekeeping VIP Inspection Signed Off', staff: 'Meera Nambiar (Supervisor)' },
+      { at: 'Today, 11:00 AM', action: 'Florist deliver bespoke red rose canopy in master bedroom', staff: 'Banquet Decor Team' },
+    ],
+  },
+};
 
 interface GeneralManagerVipTabProps {
   onNavigateTab?: (tabId: string, filter?: Record<string, string>) => void;
 }
 
-export function GeneralManagerVipTab({ onNavigateTab }: GeneralManagerVipTabProps) {
-  const { state, createGuestReminder, updateGuestReminderStatus, fdAction } = useDemo();
-  const [selectedVipGuest, setSelectedVipGuest] = useState<StayRecord | null>(null);
+export function GeneralManagerVipTab({ onNavigateTab: _onNavigateTab }: GeneralManagerVipTabProps) {
+  const { state, fdAction } = useDemo();
+
+  // Active subtab: 'profiles' vs 'requests'
+  const [activeSubTab, setActiveSubTab] = useState<'profiles' | 'requests'>('profiles');
+
+  // Modals
+  const [selectedVipProfile, setSelectedVipProfile] = useState<VipDetailedProfile | null>(null);
   const [activeFolioStay, setActiveFolioStay] = useState<StayRecord | null>(null);
+  const [activeMessageStay, setActiveMessageStay] = useState<StayRecord | null>(null);
+  const [messageText, setMessageText] = useState('');
+  const [messageSent, setMessageSent] = useState(false);
 
-  // Custom client-side VIP additions
-  const [customVipStays, setCustomVipStays] = useState<StayRecord[]>([]);
+  // Add New VIP Member Modal
   const [showAddVipModal, setShowAddVipModal] = useState(false);
-  const [addVipSuccess, setAddVipSuccess] = useState<string | null>(null);
-
-  // New VIP Guest Form State
-  const [newVipForm, setNewVipForm] = useState({
+  const [addVipForm, setAddVipForm] = useState({
     guestName: '',
     roomNo: '',
-    roomType: 'Presidential Suite',
-    vipTier: "👑 Chairman's Club",
-    status: 'in_house' as 'in_house' | 'expected',
-    arrival: 'Today 12:00',
-    departure: 'Sun 25 Oct',
-    milestone: 'Executive VIP Stay',
-    dietarySummary: 'Nut-Free · Organic produce',
-    preferencesSummary: 'Hypoallergenic pillows & luxury suite amenities',
-    specialInstructions: 'GM personal welcome letter & orchid bouquet',
+    vipTier: 'In-House VIP',
+    contactPhone: '',
+    contactEmail: '',
+    roomPreferences: '',
+    foodPreferences: '',
+    note: '',
   });
+  const [addVipConfirmStep, setAddVipConfirmStep] = useState(false);
+  const [addVipError, setAddVipError] = useState<string | null>(null);
 
-  // New reminder modal state
-  const [showAddReminderModal, setShowAddReminderModal] = useState(false);
-  const [reminderTitle, setReminderTitle] = useState('');
-  const [reminderNotes, setReminderNotes] = useState('');
-  const [reminderDueTime, setReminderDueTime] = useState('18:00');
-  const [reminderPriority, setReminderPriority] = useState<GuestReminderPriority>('vip');
+  // Detail Modal for VIP Requests
+  const [activeRequestDetail, setActiveRequestDetail] = useState<WorkItem | null>(null);
+  const [forwardDept, setForwardDept] = useState<RouteDept>('housekeeping');
+  const [forwardNotes, setForwardNotes] = useState('');
+  const [forwardSuccess, setForwardSuccess] = useState(false);
 
-  const baseVipStays = (state.frontDesk?.stays ?? []).filter((s) => s.vip);
+  const stays = state.frontDesk?.stays ?? [];
+  const vipStays = stays.filter((s) => s.vip);
 
-  // Combined VIP stays list (custom additions first)
-  const allVipStays = useMemo(() => {
-    const map = new Map<string, StayRecord>();
-    for (const s of customVipStays) {
-      map.set(s.id, s);
-    }
-    for (const s of baseVipStays) {
-      if (!map.has(s.id)) {
-        map.set(s.id, s);
-      }
-    }
-    return Array.from(map.values());
-  }, [customVipStays, baseVipStays]);
+  // VIP Requests from shared queue: Priority VIP or room belonging to VIP guest
+  const allDeskRequests = state.items.front_desk_coordinator ?? [];
+  const vipRoomNumbers = useMemo(() => new Set(vipStays.map((s) => s.room)), [vipStays]);
+  const vipRequests = useMemo(() => {
+    return allDeskRequests.filter(
+      (item) => item.priority === 'vip' || (item.room && vipRoomNumbers.has(item.room))
+    );
+  }, [allDeskRequests, vipRoomNumbers]);
 
-  // Escape key listener for modals
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (showAddVipModal) {
-          setShowAddVipModal(false);
-        } else if (activeFolioStay) {
-          setActiveFolioStay(null);
-        } else if (showAddReminderModal) {
-          setShowAddReminderModal(false);
-        } else {
-          setSelectedVipGuest(null);
-        }
-      }
-    };
-    if (selectedVipGuest || showAddReminderModal || showAddVipModal || activeFolioStay) {
-      window.addEventListener('keydown', handleKeyDown);
-      return () => window.removeEventListener('keydown', handleKeyDown);
-    }
-  }, [selectedVipGuest, showAddReminderModal, showAddVipModal, activeFolioStay]);
-
-  const prefs = selectedVipGuest ? state.guestPreferences?.[selectedVipGuest.room] : null;
-  const reminders = (state.guestReminders ?? []).filter(
-    (r) => selectedVipGuest && (r.room === selectedVipGuest.room || r.guestName === selectedVipGuest.guest),
-  );
-
-  const complaints = (state.frontDesk?.complaints ?? []).filter(
-    (c) =>
-      selectedVipGuest &&
-      (c.room === selectedVipGuest.room ||
-        (c.guestName || c.guest || '').toLowerCase().includes(selectedVipGuest.guest.toLowerCase().split(' ')[0])),
-  );
-
-  // Initials generator
+  // Helper for initials
   const getInitials = (name: string) =>
     name
       .split(' ')
@@ -133,1050 +216,875 @@ export function GeneralManagerVipTab({ onNavigateTab }: GeneralManagerVipTabProp
     if (st.status === 'in_house') {
       if (st.departsToday) {
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-400/15 text-amber-600 dark:text-amber-300 border border-amber-400/30">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-400/15 text-amber-300 border border-amber-400/30">
             <Clock className="h-3 w-3" /> Late Checkout 16:00
           </span>
         );
       }
       return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30">
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-400/15 text-emerald-300 border border-emerald-400/30">
           <CheckCircle2 className="h-3 w-3" /> In-House
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-sky-500/15 text-sky-600 dark:text-sky-300 border border-sky-500/30">
+      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-sky-400/15 text-sky-300 border border-sky-400/30">
         <Clock className="h-3 w-3" /> Arriving 14:00
       </span>
     );
   };
 
-  const handleCreateReminder = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedVipGuest || !reminderTitle.trim()) return;
+  const handleOpenDetailedProfile = (st: StayRecord) => {
+    const existing =
+      GM_VIP_PROFILES_DATA[st.id] ??
+      Object.values(GM_VIP_PROFILES_DATA).find(
+        (p) => p.room === st.room || p.guest.toLowerCase() === st.guest.toLowerCase()
+      );
 
-    createGuestReminder({
-      guestName: selectedVipGuest.guest,
-      room: selectedVipGuest.room,
-      title: reminderTitle.trim(),
-      notes: reminderNotes.trim() || undefined,
-      dueTime: reminderDueTime,
-      dueDate: 'Today',
-      priority: reminderPriority,
-      category: 'vip_concierge',
-      assignedTo: 'GM Office / Front Desk Duty Manager',
-    });
-
-    setReminderTitle('');
-    setReminderNotes('');
-    setShowAddReminderModal(false);
-  };
-
-  // Add new VIP guest client-side handler
-  const handleAddVipGuest = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newVipForm.guestName.trim() || !newVipForm.roomNo.trim()) return;
-
-    const newStay: StayRecord = {
-      id: `stay-vip-${Date.now()}`,
-      guest: newVipForm.guestName.trim(),
-      room: newVipForm.roomNo.trim(),
-      roomType: newVipForm.roomType,
-      vip: true,
-      vipTier: newVipForm.vipTier,
-      arrival: newVipForm.arrival || 'Today 12:00',
-      departure: newVipForm.departure || 'Sun 25 Oct',
-      nights: 3,
-      status: newVipForm.status,
-      milestone: newVipForm.milestone.trim() || 'Executive VIP Stay',
-      dietarySummary: newVipForm.dietarySummary.trim() || 'Standard executive dining profile',
-      preferencesSummary: newVipForm.preferencesSummary.trim() || 'Hypoallergenic pillows & luxury suite amenities',
-      gmStatus: '✓ GM Welcome Protocol Active',
-      paid: newVipForm.status === 'in_house' ? 95000 : 0,
-      preCheckIn: 'verified',
-      idChecked: true,
-      cardMask: '•••• 8899',
-    };
-
-    setCustomVipStays((prev) => [newStay, ...prev]);
-
-    if (fdAction) {
-      fdAction((s) => {
-        s.frontDesk.stays = [newStay, ...(s.frontDesk.stays || [])];
-        if (!s.guestPreferences) s.guestPreferences = {};
-        s.guestPreferences[newStay.room] = {
-          allergies: [newStay.dietarySummary || 'None recorded'],
-          dietaryRestrictions: [newStay.dietarySummary || 'Standard executive dining profile'],
-          dietary: [newStay.dietarySummary || 'Standard executive dining profile'],
-          dnd: false,
-          personalInstructions: newStay.preferencesSummary || 'Hypoallergenic pillows & luxury suite amenities',
-          specialRequests: [newStay.preferencesSummary || 'Hypoallergenic pillows & luxury suite amenities'],
-          pillowPreference: 'Hypoallergenic luxury pillows',
-          roomTemperature: '21°C',
-        };
-        return { next: s, message: `VIP Guest ${newStay.guest} registered successfully into Room ${newStay.room}` };
+    if (existing) {
+      setSelectedVipProfile({
+        ...existing,
+        verifiedBy: st.verifiedBy || existing.verifiedBy || 'Front Desk',
+      });
+    } else {
+      setSelectedVipProfile({
+        id: st.id,
+        guestId: `VIP-REG-${st.room}`,
+        guest: st.guest,
+        room: st.room,
+        roomType: st.roomType,
+        vipTier: st.vipTier ?? 'In-House VIP',
+        memberSince: '2024',
+        phone: '+91 98200 11200',
+        email: `${st.guest.toLowerCase().replace(/[^a-z0-9]/g, '')}@vip.thegrandadp.com`,
+        currentStay: {
+          arrival: st.arrival,
+          departure: st.departure,
+          nights: st.nights,
+          status: st.status === 'in_house' ? 'In-House' : 'Expected Arrival',
+          roomRatePerNight: 35000,
+        },
+        roomPreferences: st.preferencesSummary || 'Hypoallergenic pillows and quiet floor',
+        foodPreferences: st.dietarySummary || 'Standard dietary protocol',
+        notes: st.milestone || 'High-value guest. Expedite all requests immediately.',
+        gmProtocol: st.gmStatus ?? '✓ GM Welcome Card Placed',
+        verifiedBy: st.verifiedBy || 'Front Desk',
+        totalSpend: st.paid && st.paid > 0 ? st.paid : 105000,
+        timeline: [
+          { at: 'Today 09:00 AM', action: 'VIP Registration validated', staff: 'General Manager Desk' },
+        ],
       });
     }
+  };
 
-    setAddVipSuccess(`VIP Guest ${newStay.guest} (Room ${newStay.room}) successfully added!`);
-    setTimeout(() => setAddVipSuccess(null), 5000);
+  const handleSendMessage = () => {
+    if (!messageText.trim()) return;
+    setMessageSent(true);
+    setTimeout(() => {
+      setMessageSent(false);
+      setMessageText('');
+      setActiveMessageStay(null);
+    }, 1200);
+  };
+
+  const handleAddVipSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setAddVipError(null);
+
+    if (!addVipForm.guestName.trim()) {
+      setAddVipError('Guest name is required.');
+      return;
+    }
+
+    if (!addVipForm.contactPhone.trim() && !addVipForm.contactEmail.trim()) {
+      setAddVipError('Please provide a contact phone number or email.');
+      return;
+    }
+
+    const exists = vipStays.some(
+      (s) => s.guest.toLowerCase() === addVipForm.guestName.trim().toLowerCase()
+    );
+    if (exists) {
+      setAddVipError('This guest is already registered as an active VIP member.');
+      return;
+    }
+
+    setAddVipConfirmStep(true);
+  };
+
+  const handleConfirmAddVip = () => {
+    if (!fdAction) return;
+
+    const rawRoom = addVipForm.roomNo.trim();
+    const roomMatch = rawRoom.match(/\b\d{3,4}\b/);
+    const targetRoom = roomMatch ? roomMatch[0] : (rawRoom.replace(/[^0-9]/g, '') || '518');
+    const targetRoomType = rawRoom.includes('·')
+      ? rawRoom.split('·')[1].trim()
+      : (rawRoom.toLowerCase().includes('suite') ? rawRoom : 'Executive VIP Suite');
+
+    const newStayId = `stay-vip-${Date.now()}`;
+
+    fdAction((s) => {
+      const existingStayIndex = s.frontDesk?.stays.findIndex(
+        (st) => st.guest.toLowerCase() === addVipForm.guestName.trim().toLowerCase() || st.room === targetRoom
+      );
+
+      if (existingStayIndex !== undefined && existingStayIndex >= 0) {
+        s.frontDesk.stays[existingStayIndex].vip = true;
+        s.frontDesk.stays[existingStayIndex].vipTier = addVipForm.vipTier;
+        s.frontDesk.stays[existingStayIndex].milestone = addVipForm.note || 'In-House VIP';
+        s.frontDesk.stays[existingStayIndex].dietarySummary = addVipForm.foodPreferences || 'Standard Protocol';
+        s.frontDesk.stays[existingStayIndex].preferencesSummary = addVipForm.roomPreferences || 'Hypoallergenic Pillows';
+        s.frontDesk.stays[existingStayIndex].gmStatus = '✓ GM Welcome Card Placed';
+        s.frontDesk.stays[existingStayIndex].verifiedBy = 'General Manager';
+      } else {
+        const newStay: StayRecord = {
+          id: newStayId,
+          guest: addVipForm.guestName.trim(),
+          room: targetRoom,
+          roomType: targetRoomType,
+          vip: true,
+          vipTier: addVipForm.vipTier,
+          arrival: 'Today · Registered by GM',
+          departure: 'Sun 25 Oct',
+          nights: 3,
+          status: 'in_house',
+          milestone: addVipForm.note || 'Executive VIP Member',
+          dietarySummary: addVipForm.foodPreferences || 'Standard Protocol',
+          preferencesSummary: addVipForm.roomPreferences || 'Hypoallergenic Pillows',
+          gmStatus: '✓ GM Welcome Card Placed',
+          verifiedBy: 'General Manager',
+          preCheckIn: 'verified',
+          idChecked: true,
+          paid: 185000,
+          cardMask: '•••• 8899',
+        };
+        s.frontDesk.stays = [newStay, ...(s.frontDesk.stays || [])];
+      }
+
+      s.feed = [
+        {
+          id: `feed-vip-${Date.now()}`,
+          at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          role: 'General Manager',
+          text: `VIP Member Registration: ${addVipForm.guestName.trim()} enrolled into ${addVipForm.vipTier} (Verified by GM)`,
+        },
+        ...s.feed,
+      ];
+
+      return { next: s, message: `VIP Member ${addVipForm.guestName.trim()} registered successfully` };
+    });
+
+    GM_VIP_PROFILES_DATA[newStayId] = {
+      id: newStayId,
+      guestId: `VIP-${targetRoom}-${Date.now().toString().slice(-4)}`,
+      guest: addVipForm.guestName.trim(),
+      room: targetRoom,
+      roomType: targetRoomType,
+      vipTier: addVipForm.vipTier,
+      memberSince: new Date().toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }),
+      phone: addVipForm.contactPhone.trim() || '+91 98200 11200',
+      email:
+        addVipForm.contactEmail.trim() ||
+        `${addVipForm.guestName.trim().toLowerCase().replace(/[^a-z0-9]/g, '')}@vip.thegrandadp.com`,
+      currentStay: {
+        arrival: 'Today · Registered by GM',
+        departure: 'Sun 25 Oct',
+        nights: 3,
+        status: 'In-House',
+        roomRatePerNight: 45000,
+      },
+      roomPreferences: addVipForm.roomPreferences.trim() || 'Hypoallergenic pillows and quiet floor',
+      foodPreferences: addVipForm.foodPreferences.trim() || 'No specific dietary restrictions recorded',
+      notes: addVipForm.note.trim() || 'VIP member registered by General Manager.',
+      gmProtocol: '✓ GM Welcome Card Placed',
+      verifiedBy: 'General Manager',
+      totalSpend: 185000,
+      timeline: [
+        {
+          at: 'Today ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          action: `VIP Member Registration enrolled into ${addVipForm.vipTier}`,
+          staff: 'Priya Nair (General Manager)',
+        },
+      ],
+    };
 
     setShowAddVipModal(false);
-    setNewVipForm({
+    setAddVipConfirmStep(false);
+    setAddVipForm({
       guestName: '',
       roomNo: '',
-      roomType: 'Presidential Suite',
-      vipTier: "👑 Chairman's Club",
-      status: 'in_house',
-      arrival: 'Today 12:00',
-      departure: 'Sun 25 Oct',
-      milestone: 'Executive VIP Stay',
-      dietarySummary: 'Nut-Free · Organic produce',
-      preferencesSummary: 'Hypoallergenic pillows & luxury suite amenities',
-      specialInstructions: 'GM personal welcome letter & orchid bouquet',
+      vipTier: 'In-House VIP',
+      contactPhone: '',
+      contactEmail: '',
+      roomPreferences: '',
+      foodPreferences: '',
+      note: '',
     });
+  };
+
+  const handleAddVipGuest = handleConfirmAddVip;
+
+  const handleForwardVipRequest = () => {
+    if (!activeRequestDetail || !fdAction) return;
+
+    fdAction((s) => {
+      const res = routeRequest(s, activeRequestDetail.id, forwardDept);
+      if ('error' in res) {
+        return { error: res.error };
+      }
+      const nextState = res.next;
+      nextState.feed = [
+        {
+          id: `feed-vip-fwd-${Date.now()}`,
+          at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          role: 'General Manager',
+          text: `VIP Request [${activeRequestDetail.ref || activeRequestDetail.id}] routed to ${forwardDept}: ${forwardNotes || 'High Priority VIP fulfillment'}`,
+        },
+        ...nextState.feed,
+      ];
+      return { next: nextState, message: `VIP Request routed to ${forwardDept}` };
+    });
+
+    setForwardSuccess(true);
+    setTimeout(() => {
+      setForwardSuccess(false);
+      setActiveRequestDetail(null);
+      setForwardNotes('');
+    }, 1200);
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header Banner */}
-      <div className="rounded-3xl border border-amber-500/30 bg-gradient-to-r from-amber-950/50 via-ink-900 to-amber-950/30 p-6 shadow-xl text-white backdrop-blur-xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-amber-500/20 text-amber-300 ring-1 ring-amber-500/40 shrink-0">
-              <Crown className="h-6 w-6" />
-            </span>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-lg font-bold font-display text-white">VIP Guests</h2>
-                <Badge tone="accent" className="px-2.5 py-0.5 text-xs font-mono">
-                  GM Sovereign Oversight
-                </Badge>
-              </div>
-              <p className="text-xs text-mist-300 mt-0.5">
-                Direct executive profile tracking, bespoke preferences, proactive reminders, and VIP recovery cases.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <Button
-              onClick={() => setShowAddVipModal(true)}
-              className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs gap-1.5 shadow-md transition"
-            >
-              <UserPlus className="h-4 w-4" />
-              <span>+ Add VIP Guest</span>
-            </Button>
-            <Badge tone="accent" className="px-3 py-1.5 text-xs font-medium">
-              {allVipStays.length} High-Value VIP Guests
-            </Badge>
-          </div>
-        </div>
-      </div>
-
-      {/* Success Notification Alert */}
-      {addVipSuccess && (
-        <div className="p-4 rounded-3xl border border-emerald-500/30 bg-emerald-500/10 dark:bg-emerald-500/5 backdrop-blur-xl flex items-center justify-between gap-3 text-xs text-emerald-800 dark:text-emerald-300 animate-fade-in">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-            <span className="font-semibold">{addVipSuccess}</span>
-          </div>
+    <div className="space-y-4">
+      {/* Header and Subtab Toggle Bar + Add VIP Guest Action */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1 border-b border-white/10">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <h2 className="text-lg font-black text-white">VIP Guests</h2>
+          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-white/[0.04] border border-white/10 text-xs">
           <button
             type="button"
-            onClick={() => setAddVipSuccess(null)}
-            className="text-slate-400 hover:text-navy-950 dark:hover:text-white"
+            onClick={() => setActiveSubTab('profiles')}
+            className={cn(
+              'px-3.5 py-1.5 rounded-lg font-bold transition-all flex items-center gap-2 cursor-pointer',
+              activeSubTab === 'profiles'
+                ? 'bg-amber-400 text-ink-950 shadow-sm'
+                : 'text-mist-300 hover:text-white'
+            )}
           >
-            <X className="h-4 w-4" />
+            <Crown className="h-3.5 w-3.5" />
+            <span>VIP Member Profiles</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-black/20 font-mono">
+              {vipStays.length}
+            </span>
           </button>
+          <button
+            type="button"
+            onClick={() => setActiveSubTab('requests')}
+            className={cn(
+              'px-3.5 py-1.5 rounded-lg font-bold transition-all flex items-center gap-2 cursor-pointer',
+              activeSubTab === 'requests'
+                ? 'bg-amber-400 text-ink-950 shadow-sm'
+                : 'text-mist-300 hover:text-white'
+            )}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            <span>VIP Requests Queue</span>
+            {vipRequests.length > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-rose-500 text-white font-mono font-bold">
+                {vipRequests.length}
+              </span>
+            )}
+          </button>
+          </div>
         </div>
-      )}
 
-      {/* VIP Guests Section Header */}
-      <div className="flex items-center justify-between px-1">
-        <h3 className="text-xs font-bold text-slate-500 dark:text-mist-400 uppercase tracking-wider">
-          In-House & Arriving VIP Guests
-        </h3>
-        <span className="text-[11px] font-mono text-amber-600 dark:text-amber-400 font-bold">
-          {allVipStays.length} Active Profiles
-        </span>
+        <Button
+          variant="accent"
+          size="sm"
+          iconLeft={UserPlus}
+          onClick={() => {
+            setAddVipError(null);
+            setAddVipConfirmStep(false);
+            setShowAddVipModal(true);
+          }}
+          className="shrink-0"
+        >
+          + Add VIP Guest
+        </Button>
       </div>
 
-      {/* Grid: Front Desk VIP Card Design (Excluding Message Option) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {allVipStays.map((st) => {
-          const initials = getInitials(st.guest);
+      {/* VIEW 1: VIP Profiles Grid */}
+      {activeSubTab === 'profiles' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4.5">
+          {vipStays.map((st) => {
+            const initials = getInitials(st.guest);
 
-          return (
-            <div
-              key={st.id}
-              className="rounded-3xl border border-slate-200 dark:border-white/10 bg-white/70 dark:bg-ink-900/80 p-5 space-y-4 hover:border-amber-400/40 hover:shadow-xl transition-all duration-200 shadow-lg flex flex-col justify-between"
-            >
-              {/* Card Header Row */}
-              <div className="space-y-3">
+            return (
+              <div
+                key={st.id}
+                className="rounded-2xl border border-white/10 bg-ink-900/90 p-4.5 space-y-4 hover:border-amber-400/40 transition-all shadow-md group relative overflow-hidden"
+              >
+                {/* Top: Avatar, Name, Room, Tier Badge */}
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="h-11 w-11 rounded-full shrink-0 bg-gradient-to-br from-amber-400/25 to-amber-600/30 border border-amber-400/40 flex items-center justify-center font-bold text-amber-700 dark:text-amber-200 text-sm shadow-md">
+                    <div className="grid h-12 w-12 place-items-center rounded-2xl bg-amber-400/20 text-amber-300 font-black text-sm border border-amber-400/30 shrink-0 shadow-sm group-hover:scale-105 transition-transform">
                       {initials}
                     </div>
                     <div className="min-w-0">
-                      <h3 className="font-bold text-base text-navy-950 dark:text-white truncate tracking-tight">{st.guest}</h3>
-                      <p className="text-xs text-slate-500 dark:text-mist-300 font-medium truncate">
-                        Room {st.room} · {st.roomType}
-                      </p>
+                      <h3 className="font-bold text-white text-base truncate group-hover:text-amber-300 transition-colors">
+                        {st.guest}
+                      </h3>
+                      <div className="flex items-center gap-2 text-xs text-mist-400 mt-0.5">
+                        <span className="font-semibold text-white">Room {st.room}</span>
+                        <span>·</span>
+                        <span className="truncate">{st.roomType}</span>
+                      </div>
                     </div>
+                  </div>
+
+                  <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-400/15 text-amber-300 border border-amber-400/30 shrink-0">
+                    {st.vipTier ?? 'VIP'}
+                  </span>
+                </div>
+
+                {/* Status Pill & Stay Duration */}
+                <div className="flex items-center justify-between text-xs pt-1 border-t border-white/5">
+                  <div className="flex items-center gap-1.5">{getStayStatusBadge(st)}</div>
+                  <span className="text-mist-400 text-[11px] font-medium">{st.departure}</span>
+                </div>
+
+                {/* Key Info Box: Milestone, Dietary, Preferences */}
+                <div className="space-y-1 text-xs bg-white/[0.02] p-2.5 rounded-xl border border-white/5">
+                  <div className="flex items-center gap-1.5 text-mist-300">
+                    <span className="text-[11px] font-semibold text-mist-400">Milestone:</span>
+                    <span className="truncate text-white font-medium">{st.milestone || 'In-House VIP'}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-mist-300">
+                    <span className="text-[11px] font-semibold text-mist-400">Dietary:</span>
+                    <span className="truncate text-white font-medium">{st.dietarySummary || 'Standard Protocol'}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-mist-300">
+                    <span className="text-[11px] font-semibold text-mist-400">Preferences:</span>
+                    <span className="truncate text-white font-medium">{st.preferencesSummary || 'Hypoallergenic Pillows'}</span>
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 shadow-sm">
-                    {st.vipTier ?? "👑 Chairman's Club"}
-                  </span>
-                  {getStayStatusBadge(st)}
-                </div>
-              </div>
+                {/* Protocol Badge */}
+                {st.gmStatus && (
+                  <div className="text-[11px] font-medium text-amber-300 bg-amber-400/10 border border-amber-400/20 px-2.5 py-1 rounded-lg">
+                    {st.gmStatus}
+                  </div>
+                )}
 
-              {/* Key Info Chips */}
-              <div className="space-y-2 rounded-2xl bg-slate-50/70 dark:bg-white/[0.03] border border-slate-200 dark:border-white/5 p-3 text-xs">
-                {/* Milestone / Occasion */}
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] text-slate-400 dark:text-mist-400 shrink-0">Milestone:</span>
-                  <span className="font-semibold text-amber-700 dark:text-amber-200 text-xs truncate">
-                    {st.milestone ?? '💼 Executive VIP Stay'}
-                  </span>
-                </div>
-
-                {/* Dietary / Allergies */}
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] text-slate-400 dark:text-mist-400 shrink-0">Dietary:</span>
-                  <span className="font-semibold text-rose-600 dark:text-rose-300 text-xs truncate">
-                    {st.dietarySummary ?? '🥜 Severe Nut Allergy'}
-                  </span>
+                {/* Key Numbers (Spend, Folio) */}
+                <div className="grid grid-cols-2 gap-2 p-2.5 rounded-xl bg-white/[0.02] border border-white/5 text-xs">
+                  <div>
+                    <span className="text-[10px] text-mist-400 font-medium block">Total Spend</span>
+                    <span className="text-white font-bold font-mono">
+                      {money(st.paid && st.paid > 0 ? st.paid : 185000)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-mist-400 font-medium block">Folio Status</span>
+                    <span className="text-emerald-400 font-semibold font-mono text-[11px]">
+                      Verified (Settled)
+                    </span>
+                  </div>
                 </div>
 
-                {/* Room & Arrival Preferences */}
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] text-slate-400 dark:text-mist-400 shrink-0">Preferences:</span>
-                  <span className="font-semibold text-slate-700 dark:text-mist-200 text-xs truncate">
-                    {st.preferencesSummary ?? '🛏️ Hypoallergenic Pillows'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Protocol Badge & Detailed View Action */}
-              <div className="pt-2 border-t border-slate-100 dark:border-white/[0.08] space-y-2.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
-                    <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
-                    <span>{st.gmStatus ?? '✓ GM Welcome Card Placed'}</span>
-                  </span>
-                </div>
-
-                {/* Complete VIP Profile Button */}
-                <button
-                  type="button"
-                  onClick={() => setSelectedVipGuest(st)}
-                  className="w-full inline-flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-xs font-bold text-amber-700 dark:text-amber-200 hover:text-amber-900 dark:hover:text-amber-100 transition shadow-sm cursor-pointer"
-                >
-                  <Crown className="h-3.5 w-3.5 text-amber-500" />
-                  <span>View Complete VIP Profile</span>
-                  <ArrowRight className="h-3 w-3" />
-                </button>
-
-                {/* Bottom Row Actions: Message is intentionally excluded per request, Folio is included */}
-                <div className="grid grid-cols-1 gap-2">
+                {/* Actions: View Complete VIP Profile, Folio (No Message button for GM) */}
+                <div className="grid grid-cols-3 gap-1.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => handleOpenDetailedProfile(st)}
+                    className="col-span-2 py-2 px-3 rounded-xl bg-amber-400/15 hover:bg-amber-400/25 text-amber-300 border border-amber-400/30 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <Crown className="h-3.5 w-3.5" />
+                    <span>View Complete VIP Profile</span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => setActiveFolioStay(st)}
-                    className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/[0.05] hover:bg-slate-200 dark:hover:bg-white/10 border border-slate-200 dark:border-white/10 text-xs font-semibold text-amber-700 dark:text-amber-200 hover:text-amber-900 dark:hover:text-amber-100 transition shadow-sm cursor-pointer"
+                    className="py-2 px-2 rounded-xl bg-white/5 hover:bg-white/10 text-mist-200 border border-white/10 text-xs font-semibold transition flex items-center justify-center gap-1 cursor-pointer"
+                    title="View Folio & Billing"
                   >
-                    <FileText className="h-3.5 w-3.5 text-amber-500" />
-                    <span>Folio & Billing Details</span>
+                    <Receipt className="h-3.5 w-3.5" />
+                    <span>Folio</span>
                   </button>
                 </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* General Manager VIP Policy Note */}
-      <Panel className="p-4 bg-white/40 dark:bg-white/[0.02] border-slate-200 dark:border-white/10 text-xs text-slate-500 dark:text-mist-400 space-y-1.5 rounded-3xl">
-        <div className="flex items-center gap-2 font-semibold text-navy-950 dark:text-white">
-          <Star className="h-4 w-4 text-amber-500" />
-          <span>General Manager VIP Sovereign Protocol</span>
+            );
+          })}
         </div>
-        <p>
-          Click any VIP guest card to review complete arrival/departure timings, bespoke PMS dietary directives, scheduled VIP reminders, and recorded grievances. All Presidential Suite guests receive GM personal greetings upon check-in.
-        </p>
-      </Panel>
+      )}
 
-      {/* Elaborated VIP Details Modal */}
-      {selectedVipGuest && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
-          onClick={() => setSelectedVipGuest(null)}
-          role="dialog"
-          aria-modal="true"
+      {/* VIEW 2: VIP Requests Queue */}
+      {activeSubTab === 'requests' && (
+        <div className="space-y-3">
+          {vipRequests.length === 0 ? (
+            <div className="rounded-2xl border border-white/10 bg-ink-900/60 p-12 text-center">
+              <CheckCircle2 className="h-8 w-8 text-emerald-400 mx-auto mb-2 opacity-80" />
+              <p className="text-sm font-semibold text-white">No pending VIP requests</p>
+              <p className="text-xs text-mist-400 mt-1">All VIP guest requests have been resolved on schedule.</p>
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {vipRequests.map((item) => (
+                <div
+                  key={item.id}
+                  className="p-4 rounded-xl border border-white/10 bg-ink-900/90 flex flex-col lg:flex-row lg:items-center justify-between gap-3 text-xs hover:border-amber-400/30 transition shadow-sm"
+                >
+                  <div className="space-y-1.5 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400/20 text-amber-300 border border-amber-400/40">
+                        👑 VIP REQUEST
+                      </span>
+                      <span className="font-bold text-white text-sm truncate">{item.title}</span>
+                      {item.room && <Badge tone="neutral">Room {item.room}</Badge>}
+                      <Badge tone={item.status === 'Done' || item.status === 'Resolved' ? 'success' : 'warning'}>
+                        {item.status}
+                      </Badge>
+                      {item.department && <span className="text-mist-400">Dept: {item.department}</span>}
+                    </div>
+                    {(item.description || item.meta) && <p className="text-mist-300 line-clamp-1">{item.description || item.meta}</p>}
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setActiveRequestDetail(item);
+                        setForwardNotes('');
+                        setForwardSuccess(false);
+                      }}
+                    >
+                      Route / Act
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* MODAL 1: VIEW COMPLETE VIP PROFILE */}
+      {selectedVipProfile && (
+        <Modal
+          title={`VIP Member Profile · ${selectedVipProfile.guest}`}
+          description={`Membership ID: ${selectedVipProfile.guestId} · Member Since: ${selectedVipProfile.memberSince}`}
+          onClose={() => setSelectedVipProfile(null)}
+          footer={
+            <div className="flex items-center justify-between w-full">
+              <span className="text-xs text-mist-400">
+                {selectedVipProfile.verifiedBy === 'General Manager'
+                  ? 'Verified by General Manager'
+                  : 'Verified by Front Desk'}
+              </span>
+              <Button variant="accent" onClick={() => setSelectedVipProfile(null)}>
+                Close Profile
+              </Button>
+            </div>
+          }
         >
-          <div
-            className="w-full max-w-3xl max-h-[90vh] flex flex-col rounded-3xl border border-white/15 bg-white dark:bg-ink-900 shadow-2xl overflow-hidden text-navy-950 dark:text-white"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-white/10 bg-slate-50/80 dark:bg-ink-950/80">
+          <div className="space-y-4 text-xs">
+            {/* Top Identity Header */}
+            <div className="p-4 rounded-xl border border-amber-400/30 bg-amber-400/[0.06] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="h-11 w-11 rounded-2xl bg-amber-500/20 text-amber-500 grid place-items-center border border-amber-500/30 shrink-0">
-                  <Crown className="h-6 w-6" />
+                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-amber-400 text-ink-950 font-black text-sm shadow-md">
+                  {getInitials(selectedVipProfile.guest)}
                 </div>
                 <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="text-lg font-bold font-display text-navy-950 dark:text-white">
-                      {selectedVipGuest.guest}
-                    </h3>
-                    <Badge tone="accent" className="font-semibold text-xs">
-                      {selectedVipGuest.vipTier || 'VIP Tier 1 Sovereign'}
-                    </Badge>
-                    <Badge tone={selectedVipGuest.status === 'in_house' ? 'success' : 'info'}>
-                      {selectedVipGuest.status === 'in_house' ? 'In House (Checked In)' : 'Expected Today'}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-slate-500 dark:text-mist-400 mt-0.5">
-                    Room {selectedVipGuest.room} · {selectedVipGuest.roomType} · Booking Ref: {selectedVipGuest.id.toUpperCase()}
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <span>{selectedVipProfile.guest}</span>
+                    <span className="text-xs font-mono font-bold text-amber-400">
+                      [{selectedVipProfile.vipTier}]
+                    </span>
+                  </h3>
+                  <p className="text-xs text-mist-300 mt-0.5">
+                    Room {selectedVipProfile.room} · {selectedVipProfile.roomType}
                   </p>
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setSelectedVipGuest(null)}
-                className="p-2 rounded-2xl hover:bg-slate-200 dark:hover:bg-white/10 text-slate-400 hover:text-navy-950 dark:hover:text-white transition"
-                aria-label="Close details"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {/* Modal Scrollable Body */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              {/* Section 1: Check-in and Check-out Time */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-emerald-500" />
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-mist-400">
-                    Check-in & Check-out Schedule
-                  </h4>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                  <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-white/[0.02] space-y-1">
-                    <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-mist-500 flex items-center gap-1">
-                      <Clock className="h-3 w-3 text-emerald-500" /> Check-in Time
-                    </span>
-                    <div className="font-bold text-navy-950 dark:text-white mt-0.5">
-                      {selectedVipGuest.arrival}
-                    </div>
-                  </div>
-                  <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-white/[0.02] space-y-1">
-                    <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-mist-500 flex items-center gap-1">
-                      <Calendar className="h-3 w-3 text-amber-500" /> Check-out Time
-                    </span>
-                    <div className="font-bold text-navy-950 dark:text-white mt-0.5">
-                      {selectedVipGuest.departure}
-                    </div>
-                  </div>
-                  <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-white/[0.02] space-y-1">
-                    <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-mist-500 flex items-center gap-1">
-                      <BedDouble className="h-3 w-3 text-purple-500" /> Stay Duration
-                    </span>
-                    <div className="font-bold text-navy-950 dark:text-white mt-0.5">
-                      {selectedVipGuest.nights ? `${selectedVipGuest.nights} Nights` : 'Multi-day Stay'}
-                    </div>
-                  </div>
-                  <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-white/[0.02] space-y-1">
-                    <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-mist-500 flex items-center gap-1">
-                      <UserCheck className="h-3 w-3 text-sky-500" /> Assigned Butler
-                    </span>
-                    <div className="font-bold text-navy-950 dark:text-white mt-0.5">
-                      Vikram S. (Lead)
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Section 2: Document Preferences and Dietary Directives */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <Heart className="h-4 w-4 text-rose-500" />
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-mist-400">
-                    Document Preferences & Dietary Directives
-                  </h4>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 text-xs">
-                  {/* Allergies */}
-                  <div className="p-4 rounded-2xl border border-rose-500/25 bg-rose-500/10 dark:bg-rose-500/[0.07] space-y-2">
-                    <span className="font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
-                      <AlertCircle className="h-4 w-4" /> Allergies & Intolerances
-                    </span>
-                    {prefs?.allergies && prefs.allergies.length > 0 ? (
-                      <ul className="space-y-1.5 text-slate-700 dark:text-mist-200">
-                        {prefs.allergies.map((all, idx) => (
-                          <li key={idx} className="flex items-center gap-1.5 font-medium">
-                            <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
-                            {all}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-slate-500 dark:text-mist-400 italic">No allergies recorded</p>
-                    )}
-                  </div>
-
-                  {/* Dietary Directives */}
-                  <div className="p-4 rounded-2xl border border-amber-500/25 bg-amber-500/10 dark:bg-amber-500/[0.07] space-y-2">
-                    <span className="font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-                      <UtensilsCrossed className="h-4 w-4" /> Dietary Directives
-                    </span>
-                    {prefs?.dietary && prefs.dietary.length > 0 ? (
-                      <ul className="space-y-1.5 text-slate-700 dark:text-mist-200">
-                        {prefs.dietary.map((d, idx) => (
-                          <li key={idx} className="flex items-center gap-1.5 font-medium">
-                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                            {d}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : selectedVipGuest.dietarySummary ? (
-                      <p className="text-slate-700 dark:text-mist-200 font-medium">
-                        {selectedVipGuest.dietarySummary}
-                      </p>
-                    ) : (
-                      <p className="text-slate-500 dark:text-mist-400 italic">Standard executive dining profile</p>
-                    )}
-                  </div>
-
-                  {/* Room Atmosphere & Setup */}
-                  <div className="p-4 rounded-2xl border border-sky-500/25 bg-sky-500/10 dark:bg-sky-500/[0.07] space-y-2">
-                    <span className="font-bold text-sky-600 dark:text-sky-400 flex items-center gap-1.5">
-                      <Sparkles className="h-4 w-4" /> Room Atmosphere
-                    </span>
-                    {prefs?.specialRequests && prefs.specialRequests.length > 0 ? (
-                      <ul className="space-y-1.5 text-slate-700 dark:text-mist-200">
-                        {prefs.specialRequests.map((req, idx) => (
-                          <li key={idx} className="flex items-center gap-1.5 font-medium">
-                            <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
-                            {req}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : selectedVipGuest.preferencesSummary ? (
-                      <p className="text-slate-700 dark:text-mist-200 font-medium">
-                        {selectedVipGuest.preferencesSummary}
-                      </p>
-                    ) : (
-                      <p className="text-slate-500 dark:text-mist-400 italic">Standard executive suite setup</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Section 3: VIP Schedule Reminders & Milestones */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-amber-500" />
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-mist-400">
-                      VIP Schedule Reminders & Milestones ({reminders.length})
-                    </h4>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setShowAddReminderModal(true)}
-                    className="gap-1 text-xs text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/10"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    Add Reminder
-                  </Button>
-                </div>
-
-                {/* Milestone Highlight Banner */}
-                {selectedVipGuest.milestone && (
-                  <div className="p-3.5 rounded-2xl border border-amber-500/30 bg-amber-500/10 dark:bg-amber-500/[0.07] flex items-center gap-2.5 text-xs">
-                    <Gift className="h-4 w-4 text-amber-500 shrink-0" />
-                    <div className="font-bold text-amber-700 dark:text-amber-300">
-                      Guest Milestone: <span className="font-medium text-navy-950 dark:text-mist-200">{selectedVipGuest.milestone}</span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Reminders List */}
-                {reminders.length === 0 ? (
-                  <div className="p-4 rounded-2xl border border-dashed border-slate-200 dark:border-white/10 text-center text-xs text-slate-400 dark:text-mist-400">
-                    No reminders currently active for {selectedVipGuest.guest}. Click &quot;Add Reminder&quot; to log a VIP milestone or directive.
-                  </div>
-                ) : (
-                  <div className="space-y-2.5">
-                    {reminders.map((rem) => {
-                      const isPending = rem.status === 'pending';
-                      return (
-                        <div
-                          key={rem.id}
-                          className={cn(
-                            'p-3.5 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs',
-                            isPending
-                              ? 'border-amber-500/30 bg-amber-500/[0.04]'
-                              : 'border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.02] opacity-75',
-                          )}
-                        >
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-bold text-navy-950 dark:text-white">{rem.title}</span>
-                              <span
-                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                  rem.priority === 'urgent'
-                                    ? 'bg-rose-500/20 text-rose-600 dark:text-rose-300'
-                                    : rem.priority === 'vip'
-                                    ? 'bg-purple-500/20 text-purple-600 dark:text-purple-300'
-                                    : 'bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-mist-300'
-                                }`}
-                              >
-                                {rem.priority.toUpperCase()}
-                              </span>
-                              <span
-                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                  isPending
-                                    ? 'bg-amber-500/20 text-amber-600 dark:text-amber-300'
-                                    : 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-300'
-                                }`}
-                              >
-                                {rem.status}
-                              </span>
-                            </div>
-                            {rem.notes && (
-                              <p className="text-xs text-slate-500 dark:text-mist-400">{rem.notes}</p>
-                            )}
-                            <div className="flex items-center gap-3 text-[11px] text-slate-400 dark:text-mist-400">
-                              <span>Due: {rem.dueTime} ({rem.dueDate})</span>
-                              {rem.assignedTo && <span>· Assigned: {rem.assignedTo}</span>}
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            {isPending ? (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => updateGuestReminderStatus(rem.id, 'completed')}
-                                className="text-xs border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 gap-1"
-                              >
-                                <CheckCircle2 className="h-3.5 w-3.5" />
-                                Mark Done
-                              </Button>
-                            ) : (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => updateGuestReminderStatus(rem.id, 'pending')}
-                                className="text-xs text-slate-500 dark:text-mist-400 gap-1"
-                              >
-                                Reopen
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Section 4: Recorded Guest Grievances */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <MessageSquareWarning className="h-4 w-4 text-rose-500" />
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-mist-400">
-                    Recorded Guest Grievances ({complaints.length})
-                  </h4>
-                </div>
-
-                {complaints.length > 0 ? (
-                  <div className="space-y-2.5">
-                    {complaints.map((c) => (
-                      <div
-                        key={c.id}
-                        className="p-4 rounded-2xl border border-rose-500/25 bg-rose-500/10 dark:bg-rose-500/[0.05] space-y-2 text-xs"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-bold text-navy-950 dark:text-white">
-                            {c.summary || c.description || 'Guest Grievance Logged'}
-                          </span>
-                          <span
-                            className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
-                              c.compApplied
-                                ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
-                                : 'bg-rose-500/20 text-rose-700 dark:text-rose-300'
-                            }`}
-                          >
-                            {c.compApplied ? 'Resolved' : 'Pending Recovery'}
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-3 text-slate-600 dark:text-mist-300">
-                          <span>
-                            Category: <strong>{c.category || 'Duty / Front Desk'}</strong>
-                          </span>
-                          <span>
-                            · Compensation: <strong>₹{c.comp ? (c.comp * 80).toLocaleString('en-IN') : 'None'}</strong>
-                          </span>
-                        </div>
-                        {c.responseRemarks && (
-                          <p className="text-[11px] text-slate-500 dark:text-mist-400 italic">
-                            {c.responseRemarks}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="p-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 text-xs text-emerald-800 dark:text-emerald-300 flex items-center gap-2.5">
-                    <ShieldCheck className="h-4 w-4 text-emerald-500 shrink-0" />
-                    <span>
-                      No recorded grievances or active service issues for this VIP guest. Stay satisfaction conforms to 5-star executive benchmarks.
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-4 border-t border-slate-200 dark:border-white/10 bg-slate-50/80 dark:bg-ink-950/80 flex items-center justify-between">
-              <span className="text-xs text-slate-500 dark:text-mist-400">
-                Booking ID: <strong className="font-mono text-navy-950 dark:text-white">{selectedVipGuest.id.toUpperCase()}</strong>
-              </span>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setShowAddReminderModal(true)}
-                  className="gap-1.5 text-xs border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  Log Reminder
-                </Button>
-                {onNavigateTab && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      setSelectedVipGuest(null);
-                      onNavigateTab('complaints');
-                    }}
-                    className="gap-1.5 text-xs text-slate-600 dark:text-mist-300"
-                  >
-                    <MessageSquareWarning className="h-3.5 w-3.5" />
-                    All Complaints
-                  </Button>
-                )}
-                <Button
-                  size="sm"
-                  onClick={() => setSelectedVipGuest(null)}
-                  className="text-xs bg-amber-500 hover:bg-amber-600 text-white font-bold transition shadow-md"
-                >
-                  Close
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Guest Folio Modal */}
-      {activeFolioStay && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
-          onClick={() => setActiveFolioStay(null)}
-          role="dialog"
-          aria-modal="true"
-        >
-          <div
-            className="w-full max-w-lg rounded-3xl border border-white/15 bg-white dark:bg-ink-900 p-6 shadow-2xl text-navy-950 dark:text-white space-y-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-white/10">
-              <div>
-                <h3 className="text-base font-bold text-navy-950 dark:text-white flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-amber-500" />
-                  Guest Folio · {activeFolioStay.guest}
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-mist-400 mt-0.5">
-                  Room {activeFolioStay.room} · {activeFolioStay.roomType} · VIP
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setActiveFolioStay(null)}
-                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 hover:text-navy-950 dark:hover:text-white"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 text-xs">
-              <div>
-                <span className="text-[11px] text-slate-400 dark:text-mist-400 block font-medium">Stay Duration</span>
-                <span className="font-bold text-navy-950 dark:text-white">
-                  {activeFolioStay.arrival} → {activeFolioStay.departure}
-                </span>
-              </div>
-              <div className="text-right">
-                <span className="text-[11px] text-slate-400 dark:text-mist-400 block font-medium">Settlement Status</span>
-                <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                  {activeFolioStay.paid > 0 ? `${money(activeFolioStay.paid)} Settled` : 'Pre-Authorized Token'}
+              <div className="text-left sm:text-right">
+                <span className="text-[10px] text-mist-400 uppercase font-semibold block">Total Lifetime Spend</span>
+                <span className="text-sm font-bold font-mono text-emerald-400">
+                  {money(selectedVipProfile.totalSpend)}
                 </span>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-mist-300">
-                Folio Line Items
+            {/* Current Stay & Contact */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="p-3.5 rounded-xl border border-white/10 bg-white/[0.02] space-y-2">
+                <h4 className="font-bold text-white text-xs flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5 text-amber-400" />
+                  <span>Current Stay Itinerary</span>
+                </h4>
+                <div className="space-y-1 text-mist-300">
+                  <p><strong>Arrival:</strong> {selectedVipProfile.currentStay.arrival}</p>
+                  <p><strong>Departure:</strong> {selectedVipProfile.currentStay.departure}</p>
+                  <p><strong>Duration:</strong> {selectedVipProfile.currentStay.nights} Nights</p>
+                  <p><strong>Status:</strong> {selectedVipProfile.currentStay.status}</p>
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-xl border border-white/10 bg-white/[0.02] space-y-2">
+                <h4 className="font-bold text-white text-xs flex items-center gap-1.5">
+                  <Phone className="h-3.5 w-3.5 text-cyan-400" />
+                  <span>Verified Contact Details</span>
+                </h4>
+                <div className="space-y-1 text-mist-300">
+                  <p className="flex items-center gap-1.5">
+                    <Phone className="h-3 w-3 text-mist-400" />
+                    <span>{selectedVipProfile.phone}</span>
+                  </p>
+                  <p className="flex items-center gap-1.5 truncate">
+                    <Mail className="h-3 w-3 text-mist-400" />
+                    <span className="truncate">{selectedVipProfile.email}</span>
+                  </p>
+                  <p className="text-[11px] text-mist-400 pt-1">
+                    Emergency Dispatch PIN: <strong>4492#</strong> (Concierge Line)
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Preferences */}
+            <div className="p-3.5 rounded-xl border border-white/10 bg-white/[0.02] space-y-2">
+              <h4 className="font-bold text-white text-xs flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                <span>Preferences &amp; Care Protocol</span>
               </h4>
-              <div className="divide-y divide-slate-100 dark:divide-white/5 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/[0.02] overflow-hidden max-h-60 overflow-y-auto">
-                {(folioSeed[activeFolioStay.room] ?? [
-                  { id: 'item-1', label: `${activeFolioStay.roomType} (3 nights)`, amount: 2400, date: 'Today' },
-                  { id: 'item-2', label: 'Resort Fee & Executive VIP Lounge Access', amount: 150, date: 'Today' },
-                  { id: 'item-3', label: 'In-Room Private Dining & Vintage Champagne', amount: 320, date: 'Today' },
-                  { id: 'item-4', label: 'Spa Wellness Sovereign Package', amount: 280, date: 'Today' },
-                ]).map((item) => (
-                  <div key={item.id} className="p-3 text-xs flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold text-navy-950 dark:text-white">{item.label}</p>
-                      <p className="text-[11px] text-slate-400 dark:text-mist-400">{item.date}</p>
-                    </div>
-                    <span className="font-bold text-navy-950 dark:text-white">{money(item.amount)}</span>
+              <div className="space-y-2 text-mist-300">
+                <div>
+                  <strong className="text-white block text-[11px]">Suite &amp; Room Preferences:</strong>
+                  <p>{selectedVipProfile.roomPreferences}</p>
+                </div>
+                <div>
+                  <strong className="text-white block text-[11px]">Culinary &amp; Dietary Protocol:</strong>
+                  <p>{selectedVipProfile.foodPreferences}</p>
+                </div>
+                {selectedVipProfile.notes && (
+                  <div>
+                    <strong className="text-amber-300 block text-[11px]">Confidential Executive Notes:</strong>
+                    <p className="italic text-amber-200/90">{selectedVipProfile.notes}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Operational Timeline */}
+            <div className="p-3.5 rounded-xl border border-white/10 bg-white/[0.02] space-y-2">
+              <h4 className="font-bold text-white text-xs">Recent VIP Operational Timeline</h4>
+              <div className="space-y-2">
+                {selectedVipProfile.timeline.map((item, idx) => (
+                  <div key={idx} className="flex items-start gap-2.5 text-[11px]">
+                    <span className="text-amber-400 font-mono shrink-0">{item.at}</span>
+                    <span className="text-mist-200">
+                      {item.action} <span className="text-mist-400">({item.staff})</span>
+                    </span>
                   </div>
                 ))}
               </div>
             </div>
-
-            <div className="flex items-center justify-end pt-2 border-t border-slate-200 dark:border-white/10">
-              <Button size="sm" onClick={() => setActiveFolioStay(null)} className="text-xs">
-                Close Folio
-              </Button>
-            </div>
           </div>
-        </div>
+        </Modal>
       )}
 
-      {/* Add VIP Guest Modal */}
+      {/* MODAL 2: ADD VIP MEMBER */}
       {showAddVipModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
-          onClick={() => setShowAddVipModal(false)}
-          role="dialog"
-          aria-modal="true"
+        <Modal
+          title={addVipConfirmStep ? 'Confirm VIP Member Enrollment' : 'Add New VIP Member'}
+          description={
+            addVipConfirmStep
+              ? 'Please review the details below before completing registration.'
+              : 'Enroll a high-value guest into the hotel VIP Program.'
+          }
+          onClose={() => {
+            setShowAddVipModal(false);
+            setAddVipConfirmStep(false);
+          }}
+          footer={
+            <div className="flex items-center justify-between w-full">
+              {addVipConfirmStep ? (
+                <>
+                  <Button variant="outline" onClick={() => setAddVipConfirmStep(false)}>
+                    Back to Edit
+                  </Button>
+                  <Button variant="accent" onClick={handleConfirmAddVip}>
+                    Confirm &amp; Register VIP
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowAddVipModal(false);
+                      setAddVipConfirmStep(false);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button variant="accent" onClick={handleAddVipSubmit}>
+                    Next: Review &amp; Confirm
+                  </Button>
+                </>
+              )}
+            </div>
+          }
         >
-          <div
-            className="w-full max-w-xl max-h-[90vh] flex flex-col rounded-3xl border border-white/15 bg-white dark:bg-ink-900 p-6 shadow-2xl text-navy-950 dark:text-white overflow-hidden space-y-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-white/10">
-              <div className="flex items-center gap-2.5">
-                <div className="h-10 w-10 rounded-2xl bg-amber-500/20 text-amber-500 grid place-items-center border border-amber-500/30">
-                  <Crown className="h-5 w-5" />
+          {addVipConfirmStep ? (
+            <div className="space-y-3 text-xs">
+              <div className="p-3.5 rounded-xl border border-amber-400/30 bg-amber-400/[0.06] space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-mist-400">Guest Name</span>
+                  <span className="font-bold text-white text-sm">{addVipForm.guestName}</span>
                 </div>
-                <div>
-                  <h3 className="text-base font-bold text-navy-950 dark:text-white">
-                    Add New VIP Guest
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-mist-400">
-                    Register a high-profile sovereign guest with tailored preferences.
-                  </p>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-mist-400">Assigned Room</span>
+                  <span className="font-bold text-white">{addVipForm.roomNo || 'Unassigned / Pre-Checkin'}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-mist-400">VIP Tier</span>
+                  <span className="font-bold text-amber-300">{addVipForm.vipTier}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-mist-400">Verification Authority</span>
+                  <span className="font-bold text-emerald-400">Verified by General Manager</span>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowAddVipModal(false)}
-                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 hover:text-navy-950 dark:hover:text-white"
-              >
-                <X className="h-4 w-4" />
-              </button>
+              <p className="text-mist-400 text-[11px]">
+                Upon confirmation, this profile will be registered across all consoles as Verified by General Manager.
+              </p>
             </div>
-
-            <form onSubmit={handleAddVipGuest} className="flex-1 overflow-y-auto space-y-4 pr-1 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                <div>
-                  <label className="block font-semibold text-slate-700 dark:text-mist-300 mb-1">
-                    Guest Full Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={newVipForm.guestName}
-                    onChange={(e) => setNewVipForm({ ...newVipForm, guestName: e.target.value })}
-                    placeholder="e.g. Dr. Alistair Sterling"
-                    className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-ink-950 px-3 py-2 text-xs text-navy-950 dark:text-white placeholder-slate-400 dark:placeholder-mist-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  />
+          ) : (
+            <form onSubmit={handleAddVipSubmit} className="space-y-3 text-xs">
+              {addVipError && (
+                <div className="p-2.5 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-300 flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>{addVipError}</span>
                 </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 dark:text-mist-300 mb-1">
-                    Room Number *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={newVipForm.roomNo}
-                    onChange={(e) => setNewVipForm({ ...newVipForm, roomNo: e.target.value })}
-                    placeholder="e.g. 502"
-                    className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-ink-950 px-3 py-2 text-xs text-navy-950 dark:text-white placeholder-slate-400 dark:placeholder-mist-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                <div>
-                  <label className="block font-semibold text-slate-700 dark:text-mist-300 mb-1">
-                    Suite / Room Type
-                  </label>
-                  <select
-                    value={newVipForm.roomType}
-                    onChange={(e) => setNewVipForm({ ...newVipForm, roomType: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-ink-950 px-3 py-2 text-xs text-navy-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  >
-                    <option value="Presidential Suite">Presidential Suite</option>
-                    <option value="Royal Penthouse Suite">Royal Penthouse Suite</option>
-                    <option value="Executive Bayview Suite">Executive Bayview Suite</option>
-                    <option value="Deluxe Heritage Suite">Deluxe Heritage Suite</option>
-                    <option value="Governor Suite">Governor Suite</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 dark:text-mist-300 mb-1">
-                    VIP Tier
-                  </label>
-                  <select
-                    value={newVipForm.vipTier}
-                    onChange={(e) => setNewVipForm({ ...newVipForm, vipTier: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-ink-950 px-3 py-2 text-xs text-navy-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  >
-                    <option value="👑 Chairman's Club">👑 Chairman&apos;s Club</option>
-                    <option value="VIP Tier 1 Sovereign">VIP Tier 1 Sovereign</option>
-                    <option value="Diamond Ambassador">Diamond Ambassador</option>
-                    <option value="Executive Patron">Executive Patron</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                <div>
-                  <label className="block font-semibold text-slate-700 dark:text-mist-300 mb-1">
-                    Stay Status
-                  </label>
-                  <select
-                    value={newVipForm.status}
-                    onChange={(e) => setNewVipForm({ ...newVipForm, status: e.target.value as 'in_house' | 'expected' })}
-                    className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-ink-950 px-3 py-2 text-xs text-navy-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  >
-                    <option value="in_house">In-House (Checked In)</option>
-                    <option value="expected">Expected Today</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 dark:text-mist-300 mb-1">
-                    Check-in / Arrival
-                  </label>
-                  <input
-                    type="text"
-                    value={newVipForm.arrival}
-                    onChange={(e) => setNewVipForm({ ...newVipForm, arrival: e.target.value })}
-                    placeholder="e.g. Today 14:00"
-                    className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-ink-950 px-3 py-2 text-xs text-navy-950 dark:text-white placeholder-slate-400 dark:placeholder-mist-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 dark:text-mist-300 mb-1">
-                    Check-out / Departure
-                  </label>
-                  <input
-                    type="text"
-                    value={newVipForm.departure}
-                    onChange={(e) => setNewVipForm({ ...newVipForm, departure: e.target.value })}
-                    placeholder="e.g. Sun 25 Oct"
-                    className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-ink-950 px-3 py-2 text-xs text-navy-950 dark:text-white placeholder-slate-400 dark:placeholder-mist-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  />
-                </div>
-              </div>
+              )}
 
               <div>
-                <label className="block font-semibold text-slate-700 dark:text-mist-300 mb-1">
-                  Milestone / Purpose of Stay
-                </label>
-                <input
-                  type="text"
-                  value={newVipForm.milestone}
-                  onChange={(e) => setNewVipForm({ ...newVipForm, milestone: e.target.value })}
-                  placeholder="e.g. 25th Wedding Anniversary Celebration / Diplomatic State Visit"
-                  className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-ink-950 px-3 py-2 text-xs text-navy-950 dark:text-white placeholder-slate-400 dark:placeholder-mist-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                <div>
-                  <label className="block font-semibold text-slate-700 dark:text-mist-300 mb-1">
-                    Dietary Directives & Allergies
-                  </label>
-                  <input
-                    type="text"
-                    value={newVipForm.dietarySummary}
-                    onChange={(e) => setNewVipForm({ ...newVipForm, dietarySummary: e.target.value })}
-                    placeholder="e.g. Nut-Free · Gluten-Free · Organic only"
-                    className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-ink-950 px-3 py-2 text-xs text-navy-950 dark:text-white placeholder-slate-400 dark:placeholder-mist-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 dark:text-mist-300 mb-1">
-                    Room Preferences & Setup
-                  </label>
-                  <input
-                    type="text"
-                    value={newVipForm.preferencesSummary}
-                    onChange={(e) => setNewVipForm({ ...newVipForm, preferencesSummary: e.target.value })}
-                    placeholder="e.g. Hypoallergenic pillows · High floor · 21°C"
-                    className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-ink-950 px-3 py-2 text-xs text-navy-950 dark:text-white placeholder-slate-400 dark:placeholder-mist-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-mist-300 mb-1">
-                  Special Protocols & Butler Directives
-                </label>
-                <textarea
-                  rows={2}
-                  value={newVipForm.specialInstructions}
-                  onChange={(e) => setNewVipForm({ ...newVipForm, specialInstructions: e.target.value })}
-                  placeholder="e.g. GM personal greeting upon arrival, Dom Pérignon champagne chilled at 18:00..."
-                  className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-ink-950 px-3 py-2 text-xs text-navy-950 dark:text-white placeholder-slate-400 dark:placeholder-mist-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-white/10">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowAddVipModal(false)}
-                  className="text-xs text-slate-500 dark:text-mist-400"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  size="sm"
-                  className="text-xs bg-amber-500 hover:bg-amber-600 text-white font-bold gap-1.5 shadow-md"
-                >
-                  <Check className="h-3.5 w-3.5" />
-                  Save VIP Guest
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Add Reminder Modal */}
-      {showAddReminderModal && selectedVipGuest && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-3xl border border-white/15 bg-white dark:bg-ink-900 p-6 shadow-2xl text-navy-950 dark:text-white space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold flex items-center gap-2 text-navy-950 dark:text-white">
-                <Crown className="h-4 w-4 text-amber-500" />
-                Add VIP Reminder
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowAddReminderModal(false)}
-                className="text-slate-400 hover:text-navy-950 dark:hover:text-white text-sm"
-              >
-                ✕
-              </button>
-            </div>
-
-            <p className="text-xs text-slate-500 dark:text-mist-400">
-              For <strong>{selectedVipGuest.guest}</strong> in Room <strong>{selectedVipGuest.room}</strong>. Synchronizes across GM and Front Desk.
-            </p>
-
-            <form onSubmit={handleCreateReminder} className="space-y-3.5">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-mist-300 mb-1">
-                  Reminder Title
-                </label>
+                <label className="font-semibold text-mist-300 block mb-1">Guest Full Name *</label>
                 <input
                   type="text"
                   required
-                  value={reminderTitle}
-                  onChange={(e) => setReminderTitle(e.target.value)}
-                  placeholder="e.g. Deliver chilled vintage champagne at 19:30"
-                  className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-ink-950 px-3 py-2 text-xs text-navy-950 dark:text-white placeholder-slate-400 dark:placeholder-mist-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  value={addVipForm.guestName}
+                  onChange={(e) => setAddVipForm({ ...addVipForm, guestName: e.target.value })}
+                  placeholder="e.g. Dr. Arthur Pendelton"
+                  className="field w-full"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-mist-300 mb-1">
-                  Additional Notes
-                </label>
-                <textarea
-                  rows={2}
-                  value={reminderNotes}
-                  onChange={(e) => setReminderNotes(e.target.value)}
-                  placeholder="Specific butler instructions, allergies or dietary notes..."
-                  className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-ink-950 px-3 py-2 text-xs text-navy-950 dark:text-white placeholder-slate-400 dark:placeholder-mist-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-mist-300 mb-1">
-                    Due Time
-                  </label>
+                  <label className="font-semibold text-mist-300 block mb-1">Room Number *</label>
                   <input
-                    type="time"
-                    value={reminderDueTime}
-                    onChange={(e) => setReminderDueTime(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-ink-950 px-3 py-2 text-xs text-navy-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    type="text"
+                    required
+                    value={addVipForm.roomNo}
+                    onChange={(e) => setAddVipForm({ ...addVipForm, roomNo: e.target.value })}
+                    placeholder="e.g. 518"
+                    className="field w-full"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-mist-300 mb-1">
-                    Priority
-                  </label>
+                  <label className="font-semibold text-mist-300 block mb-1">Suite / Room Type</label>
+                  <input
+                    type="text"
+                    defaultValue="Presidential Suite"
+                    className="field w-full"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-mist-300 block mb-1">VIP Tier</label>
                   <select
-                    value={reminderPriority}
-                    onChange={(e) => setReminderPriority(e.target.value as GuestReminderPriority)}
-                    className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-ink-950 px-3 py-2 text-xs text-navy-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    value={addVipForm.vipTier}
+                    onChange={(e) => setAddVipForm({ ...addVipForm, vipTier: e.target.value })}
+                    className="field w-full"
                   >
-                    <option value="vip">VIP Executive</option>
-                    <option value="urgent">Urgent</option>
-                    <option value="high">High</option>
-                    <option value="standard">Standard</option>
+                    <option value="👑 Chairman's Club">👑 Chairman's Club</option>
+                    <option value="💎 Ambassador VIP">💎 Ambassador VIP</option>
+                    <option value="⭐ Royal Patron Society">⭐ Royal Patron Society</option>
+                    <option value="In-House VIP">In-House VIP</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="font-semibold text-mist-300 block mb-1">Stay Status</label>
+                  <select className="field w-full" defaultValue="in_house">
+                    <option value="in_house">In-House</option>
+                    <option value="pre_checkin">Pre-Arrival</option>
+                    <option value="reserved">Reserved</option>
                   </select>
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowAddReminderModal(false)}
-                  className="text-xs text-slate-500 dark:text-mist-400"
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" size="sm" className="text-xs bg-amber-500 text-white font-bold hover:bg-amber-600">
-                  Save VIP Reminder
-                </Button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-mist-300 block mb-1">Contact Phone</label>
+                  <input
+                    type="text"
+                    value={addVipForm.contactPhone}
+                    onChange={(e) => setAddVipForm({ ...addVipForm, contactPhone: e.target.value })}
+                    placeholder="+91 98200 00000"
+                    className="field w-full"
+                  />
+                </div>
+                <div>
+                  <label className="font-semibold text-mist-300 block mb-1">Contact Email</label>
+                  <input
+                    type="email"
+                    value={addVipForm.contactEmail}
+                    onChange={(e) => setAddVipForm({ ...addVipForm, contactEmail: e.target.value })}
+                    placeholder="guest@domain.com"
+                    className="field w-full"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-semibold text-mist-300 block mb-1">Room Preferences & Setup</label>
+                <input
+                  type="text"
+                  value={addVipForm.roomPreferences}
+                  onChange={(e) => setAddVipForm({ ...addVipForm, roomPreferences: e.target.value })}
+                  placeholder="e.g. Goose down pillows, 20°C, quiet wing"
+                  className="field w-full"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-mist-300 block mb-1">Dietary Directives & Allergies</label>
+                <input
+                  type="text"
+                  value={addVipForm.foodPreferences}
+                  onChange={(e) => setAddVipForm({ ...addVipForm, foodPreferences: e.target.value })}
+                  placeholder="e.g. Nut allergy, organic produce only"
+                  className="field w-full"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-mist-300 block mb-1">Milestone / Purpose of Stay</label>
+                <input
+                  type="text"
+                  value={addVipForm.note}
+                  onChange={(e) => setAddVipForm({ ...addVipForm, note: e.target.value })}
+                  placeholder="e.g. CEO Annual Summit, 40th Anniversary"
+                  className="field w-full"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-mist-300 block mb-1">Special Protocols & Butler Directives</label>
+                <textarea
+                  rows={2}
+                  placeholder="e.g. GM greeting upon arrival, private elevator priority"
+                  className="field w-full resize-none"
+                />
               </div>
             </form>
+          )}
+        </Modal>
+      )}
+
+      {/* MODAL 3: FOLIO MODAL */}
+      {activeFolioStay && (
+        <Modal
+          title={`Guest Folio · ${activeFolioStay.guest}`}
+          description={`Room ${activeFolioStay.room} · ${activeFolioStay.roomType} · Stay ${activeFolioStay.id}`}
+          onClose={() => setActiveFolioStay(null)}
+          footer={
+            <Button variant="accent" onClick={() => setActiveFolioStay(null)}>
+              Close Folio
+            </Button>
+          }
+        >
+          <div className="space-y-4 text-xs">
+            <div className="p-3.5 rounded-xl border border-white/10 bg-white/[0.02] flex items-center justify-between">
+              <div>
+                <span className="text-[10px] text-mist-400 uppercase font-semibold block">Billing Total</span>
+                <span className="text-base font-bold font-mono text-white">
+                  {money(activeFolioStay.paid && activeFolioStay.paid > 0 ? activeFolioStay.paid : 185000)}
+                </span>
+              </div>
+              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                Settled / Credit Guaranteed
+              </span>
+            </div>
+            <div className="space-y-2 border-t border-white/5 pt-3">
+              <div className="flex justify-between text-mist-300">
+                <span>Room Accommodation ({activeFolioStay.nights} Nights)</span>
+                <span className="font-mono text-white">
+                  {money((activeFolioStay.nights || 3) * 45000)}
+                </span>
+              </div>
+              <div className="flex justify-between text-mist-300">
+                <span>VIP Concierge &amp; Butler Amenity</span>
+                <span className="font-mono text-white">{money(25000)}</span>
+              </div>
+              <div className="flex justify-between text-mist-300">
+                <span>Fine Dining &amp; Executive Bar</span>
+                <span className="font-mono text-white">{money(25000)}</span>
+              </div>
+            </div>
           </div>
-        </div>
+        </Modal>
+      )}
+
+      {/* MODAL 4: ROUTE VIP REQUEST */}
+      {activeRequestDetail && (
+        <Modal
+          title={`Route VIP Request · ${activeRequestDetail.title}`}
+          description={`Room ${activeRequestDetail.room || 'General'} · Priority: VIP`}
+          onClose={() => setActiveRequestDetail(null)}
+          footer={
+            <div className="flex items-center justify-between w-full">
+              <Button variant="outline" onClick={() => setActiveRequestDetail(null)}>
+                Cancel
+              </Button>
+              <Button variant="accent" onClick={handleForwardVipRequest}>
+                {forwardSuccess ? 'Routed Successfully!' : 'Dispatch to Department'}
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-3 text-xs">
+            <div>
+              <label className="font-semibold text-mist-300 block mb-1">Target Department</label>
+              <select
+                value={forwardDept}
+                onChange={(e) => setForwardDept(e.target.value as RouteDept)}
+                className="field w-full"
+              >
+                <option value="housekeeping">Housekeeping</option>
+                <option value="food_beverage">Food &amp; Beverage</option>
+                <option value="maintenance">Engineering / Maintenance</option>
+                <option value="concierge">Concierge &amp; Transport</option>
+                <option value="front_desk">Front Desk Direct</option>
+              </select>
+            </div>
+            <div>
+              <label className="font-semibold text-mist-300 block mb-1">Executive VIP Instructions</label>
+              <textarea
+                rows={3}
+                value={forwardNotes}
+                onChange={(e) => setForwardNotes(e.target.value)}
+                placeholder="e.g. VIP Priority: Expedite immediately with supervisor signoff"
+                className="field w-full resize-none"
+              />
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );
