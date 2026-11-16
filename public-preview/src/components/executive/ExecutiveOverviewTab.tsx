@@ -39,6 +39,7 @@ import {
   Wrench,
 } from 'lucide-react';
 import { useDemo } from '@/lib/store';
+import { useEmergencyBroadcast } from '@/lib/emergencyBroadcast';
 import type { WorkItem, IncidentRecord, ComplaintCase, StaffAccount } from '@/types/demo';
 
 
@@ -113,6 +114,7 @@ export function ExecutiveOverviewTab({
   const unresolvedComplaints = complaints.filter((c) => !c.compApplied);
 
   // Safety Broadcasts
+  const { alert: emergencyAlert, isBroadcastActive } = useEmergencyBroadcast();
   const activeBroadcastAlerts = (state.safetyAlerts ?? []).filter(
     (a) => a.status === 'broadcast_active',
   );
@@ -809,33 +811,41 @@ export function ExecutiveOverviewTab({
         </div>
       </div>
 
-      {/* Active Broadcasts & Alert Bar */}
-      {(activeBroadcastAlerts.length > 0 || pendingBroadcastAlerts.length > 0) && (
-        <div className="rounded-3xl border border-rose-500/30 bg-rose-500/10 backdrop-blur-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-3">
-            <span className="grid h-8 w-8 place-items-center rounded-xl bg-rose-500/20 text-rose-400 animate-pulse">
-              <ShieldAlert className="h-4 w-4" />
+      {/* Active Broadcasts & Alert Bar (Matching Guest Portal Emergency Advisory Format) */}
+      {((isBroadcastActive && emergencyAlert) || pendingBroadcastAlerts.length > 0) && (
+        <div className="p-3 sm:p-4 rounded-2xl border border-rose-500/50 bg-rose-500/15 flex items-center justify-between gap-2.5 sm:gap-4 shadow-md transition-all animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0 flex-1">
+            <span className="grid h-8 w-8 sm:h-9 sm:w-9 place-items-center rounded-xl bg-rose-500/25 text-rose-400 shrink-0">
+              <AlertTriangle className="h-4.5 w-4.5 sm:h-5 sm:w-5" />
             </span>
-            <div>
-              <span className="font-bold text-white block">
-                {activeBroadcastAlerts.length > 0
-                  ? `LIVE SAFETY BROADCAST: ${activeBroadcastAlerts[0].title}`
-                  : `SAFETY BROADCAST PENDING GM SIGN-OFF: ${pendingBroadcastAlerts[0].title}`}
-              </span>
-              <span className="text-mist-300 text-[11px]">
-                {activeBroadcastAlerts.length > 0
-                  ? `Active across all roles (${activeBroadcastAlerts[0].location}) · Validated by Front Desk`
-                  : `Validated by Front Desk Lead · Awaiting GM authorization to broadcast property-wide`}
-              </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="px-1.5 py-0.2 rounded text-[9px] sm:text-[10px] font-extrabold uppercase bg-rose-500 text-white tracking-wider shrink-0">
+                  {isBroadcastActive && emergencyAlert ? emergencyAlert.severity || 'Urgent' : 'Pending Authorization'}
+                </span>
+                {emergencyAlert?.location && isBroadcastActive && (
+                  <span className="text-[11px] font-semibold text-rose-300 truncate hidden sm:inline">
+                    • {emergencyAlert.location}
+                  </span>
+                )}
+                <p className="text-xs sm:text-sm font-bold text-white truncate">
+                  {isBroadcastActive && emergencyAlert ? emergencyAlert.title : pendingBroadcastAlerts[0]?.title}
+                </p>
+              </div>
+              <p className="text-[11px] sm:text-xs text-rose-200/90 truncate mt-0.5">
+                {isBroadcastActive && emergencyAlert ? emergencyAlert.description : 'Validated by Front Desk Lead · Awaiting GM authorization to broadcast property-wide'}
+              </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => onNavigateTab(pendingBroadcastAlerts.length > 0 ? 'approvals' : 'incidents')}
-            className="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shrink-0 self-start sm:self-auto"
-          >
-            {pendingBroadcastAlerts.length > 0 ? 'Review & Authorize' : 'Inspect Alert'}
-          </button>
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => onNavigateTab('broadcast')}
+              className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-rose-500 text-white text-xs font-bold hover:bg-rose-400 transition-colors shadow-sm cursor-pointer"
+            >
+              {isBroadcastActive ? 'View' : 'Authorize'}
+            </button>
+          </div>
         </div>
       )}
 

@@ -660,6 +660,7 @@ export interface StayRecord {
   dietarySummary?: string;
   preferencesSummary?: string;
   gmStatus?: string;
+  verifiedBy?: string;
   /** F08: pre-arrival registration state */
   preCheckIn: 'none' | 'pending_verify' | 'verified';
   idChecked: boolean;

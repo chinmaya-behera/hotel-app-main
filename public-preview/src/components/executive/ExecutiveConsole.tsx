@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AlertTriangle,
   BarChart3,
   Bell,
   Building2,
@@ -10,7 +11,9 @@ import {
   Crown,
   FileSpreadsheet,
   Gauge,
+  History,
   Lock,
+  Menu,
   MessageSquareWarning,
   ShieldAlert,
   ShieldCheck,
@@ -19,6 +22,8 @@ import {
   User,
   Wallet,
   X,
+  Layers,
+  Wrench,
 } from 'lucide-react';
 import { ExecutiveOverviewTab } from '@/components/executive/ExecutiveOverviewTab';
 import { ExecutiveApprovalsTab } from '@/components/executive/ExecutiveApprovalsTab';
@@ -27,48 +32,48 @@ import { ExecutiveFinanceTab } from '@/components/executive/ExecutiveFinanceTab'
 import { ExecutiveIncidentsTab } from '@/components/executive/ExecutiveIncidentsTab';
 import { ExecutiveReportsTab } from '@/components/executive/ExecutiveReportsTab';
 import { ExecutiveProfileTab } from '@/components/executive/ExecutiveProfileTab';
+import { ExecutiveAuditTab } from '@/components/executive/ExecutiveAuditTab';
 import { GeneralManagerVipTab } from '@/components/executive/GeneralManagerVipTab';
 import { GeneralManagerRoomsTab } from '@/components/executive/GeneralManagerRoomsTab';
 import { GeneralManagerInspectionsTab } from '@/components/executive/GeneralManagerInspectionsTab';
+import { GeneralManagerBroadcastTab } from '@/components/executive/GeneralManagerBroadcastTab';
+import { useEmergencyBroadcast } from '@/lib/emergencyBroadcast';
 import { useDemo } from '@/lib/store';
+import { cn } from '@/lib/utils';
 import type { WorkItem, IncidentRecord, InAppNotification } from '@/types/demo';
 
 export type ExecutiveTabId =
-  | 'inspections'
   | 'overview'
-  | 'approvals'
-  | 'approvals-pending'
-  | 'approvals-history'
+  | 'rooms'
+  | 'vip'
+  | 'broadcast'
+  | 'front-desk-ops'
   | 'performance'
-  | 'escalations'
+  | 'approvals'
+  | 'property-health'
+  | 'reports'
+  | 'audit'
+  | 'settings'
+  // Legacy aliases for deep navigation
+  | 'inspections'
   | 'incidents'
   | 'complaints'
-  | 'vip'
-  | 'rooms'
+  | 'escalations'
+  | 'approvals-pending'
+  | 'approvals-history'
   | 'finance'
   | 'finance-requests'
   | 'finance-purchases'
   | 'finance-equipment'
   | 'finance-resources'
-  | 'reports'
-  | 'audit'
-  | 'notifications'
-  | 'profile';
-
-type NavGroup =
-  | 'Overview'
-  | 'Approvals'
-  | 'Operations'
-  | 'Finance & Resources'
-  | 'Insights'
-  | 'Account';
+  | 'profile'
+  | 'notifications';
 
 interface NavItem {
   id: ExecutiveTabId;
   label: string;
   shortLabel: string;
   icon: React.ComponentType<{ className?: string }>;
-  group: NavGroup;
   badgeCount?: number;
   badgeTone?: 'warning' | 'danger' | 'info';
 }
@@ -105,12 +110,33 @@ export function isSafetyAlertNotification(notif: InAppNotification): boolean {
 
 export function ExecutiveConsole() {
   const { state, markNotificationRead, clearAllNotifications } = useDemo();
+  const { alert: emergencyAlert, isBroadcastActive } = useEmergencyBroadcast();
+
+  // Navigation & Layout State
   const [activeTab, setActiveTab] = useState<ExecutiveTabId>('overview');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
+  // Subtab State for Composite Tabs
+  const [frontDeskSubView, setFrontDeskSubView] = useState<'complaints' | 'escalations'>('complaints');
+  const [propertyHealthSubView, setPropertyHealthSubView] = useState<'inspections' | 'incidents'>('inspections');
+
+  // Permission Mode State (Viewer vs Approver)
+  const [permissionMode, setPermissionMode] = useState<'viewer' | 'approver'>('approver');
+
+  // Notifications State
   const [notifPopoverOpen, setNotifPopoverOpen] = useState(false);
   const [notifCategory, setNotifCategory] = useState<'all' | 'safety'>('all');
   const notifPopoverRef = useRef<HTMLDivElement>(null);
+
+  // Selected Item States for Deep Link Navigation
+  const [selectedApprovalItem, setSelectedApprovalItem] = useState<WorkItem | null>(null);
+  const [selectedSafetyAlertId, setSelectedSafetyAlertId] = useState<string | null>(null);
+  const [selectedCompensationId, setSelectedCompensationId] = useState<string | null>(null);
+  const [selectedIncident, setSelectedIncident] = useState<IncidentRecord | null>(null);
+  const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [approvalInitialFilter, setApprovalInitialFilter] = useState('all');
 
   const gmNotifications = useMemo(
     () =>
@@ -148,10 +174,11 @@ export function ExecutiveConsole() {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         setNotifPopoverOpen(false);
+        setMobileDrawerOpen(false);
       }
     }
 
-    if (notifPopoverOpen) {
+    if (notifPopoverOpen || mobileDrawerOpen) {
       document.addEventListener('mousedown', handleClickOutside);
       window.addEventListener('keydown', handleKeyDown);
     }
@@ -160,28 +187,9 @@ export function ExecutiveConsole() {
       document.removeEventListener('mousedown', handleClickOutside);
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [notifPopoverOpen]);
+  }, [notifPopoverOpen, mobileDrawerOpen]);
 
-  const [permissionMode, setPermissionMode] = useState<'viewer' | 'approver'>(
-    'approver',
-  );
-
-  const [selectedApprovalItem, setSelectedApprovalItem] =
-    useState<WorkItem | null>(null);
-  const [selectedSafetyAlertId, setSelectedSafetyAlertId] = useState<
-    string | null
-  >(null);
-  const [selectedCompensationId, setSelectedCompensationId] = useState<
-    string | null
-  >(null);
-  const [selectedIncident, setSelectedIncident] =
-    useState<IncidentRecord | null>(null);
-  const [selectedInspectionId, setSelectedInspectionId] = useState<
-    string | null
-  >(null);
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  const [approvalInitialFilter, setApprovalInitialFilter] = useState('all');
-
+  // Operational Counts
   const pendingApprovalsCount = [
     ...(state.items.general_manager ?? []),
     ...(state.items.executive_viewer ?? []),
@@ -240,113 +248,85 @@ export function ExecutiveConsole() {
     (stay) => stay.vip,
   ).length;
 
+  // 11-step Executive Hierarchy Navigation
   const navItems: NavItem[] = [
-    {
-      id: 'inspections',
-      label: 'Department Inspections',
-      shortLabel: 'Inspections',
-      icon: ShieldCheck,
-      group: 'Operations',
-      badgeCount: dueInspectionsCount,
-    },
     {
       id: 'overview',
       label: 'Executive Dashboard',
-      shortLabel: 'Overview',
+      shortLabel: 'Dashboard',
       icon: Gauge,
-      group: 'Overview',
     },
     {
-      id: 'approvals',
-      label: 'Approval Center',
-      shortLabel: 'Approvals',
-      icon: Stamp,
-      group: 'Approvals',
-      badgeCount: pendingApprovalsCount,
-      badgeTone: 'warning',
-    },
-    {
-      id: 'performance',
-      label: 'Department Performance',
-      shortLabel: 'Performance',
-      icon: BarChart3,
-      group: 'Operations',
-    },
-    {
-      id: 'escalations',
-      label: 'Escalations',
-      shortLabel: 'Escalations',
-      icon: Siren,
-      group: 'Operations',
-      badgeCount: escalatedTasksCount,
-      badgeTone: 'warning',
-    },
-    {
-      id: 'incidents',
-      label: 'Property Incidents',
-      shortLabel: 'Incidents',
-      icon: ShieldAlert,
-      group: 'Operations',
-      badgeCount: activeIncidentsCount,
-      badgeTone: 'danger',
-    },
-    {
-      id: 'complaints',
-      label: 'Guest Complaints',
-      shortLabel: 'Complaints',
-      icon: MessageSquareWarning,
-      group: 'Operations',
-      badgeCount: unresolvedComplaintsCount,
-      badgeTone: 'warning',
+      id: 'rooms',
+      label: 'Hotel-Wide Room Matrix',
+      shortLabel: 'Room Matrix',
+      icon: Building2,
     },
     {
       id: 'vip',
       label: 'VIP Guests',
       shortLabel: 'VIP Guests',
       icon: Crown,
-      group: 'Operations',
       badgeCount: vipCount,
       badgeTone: 'warning',
     },
     {
-      id: 'rooms',
-      label: 'Hotel-Wide Room Matrix',
-      shortLabel: 'Rooms & Inventory',
-      icon: Building2,
-      group: 'Operations',
+      id: 'broadcast',
+      label: 'Life Safety & Broadcast',
+      shortLabel: 'Life Safety',
+      icon: Siren,
+      badgeCount: isBroadcastActive ? 1 : 0,
+      badgeTone: 'danger',
     },
     {
-      id: 'finance-requests',
-      label: 'Finance Request',
-      shortLabel: 'Finance Request',
-      icon: Wallet,
-      group: 'Finance & Resources',
-      badgeCount: pendingResourcesCount,
-      badgeTone: 'info',
+      id: 'front-desk-ops',
+      label: 'Front Desk / Guest Operations',
+      shortLabel: 'Guest Operations',
+      icon: MessageSquareWarning,
+      badgeCount: unresolvedComplaintsCount + escalatedTasksCount,
+      badgeTone: 'warning',
+    },
+    {
+      id: 'performance',
+      label: 'Department & Staff Performance',
+      shortLabel: 'Performance',
+      icon: BarChart3,
+    },
+    {
+      id: 'approvals',
+      label: 'Financial Overview & Approvals',
+      shortLabel: 'Approvals & Finance',
+      icon: Stamp,
+      badgeCount: pendingApprovalsCount + pendingResourcesCount,
+      badgeTone: 'warning',
+    },
+    {
+      id: 'property-health',
+      label: 'Property Health / Maintenance',
+      shortLabel: 'Property Health',
+      icon: ShieldCheck,
+      badgeCount: dueInspectionsCount + activeIncidentsCount,
+      badgeTone: 'danger',
     },
     {
       id: 'reports',
       label: 'Reports & Analytics',
-      shortLabel: 'Analytics',
+      shortLabel: 'Reports',
       icon: FileSpreadsheet,
-      group: 'Insights',
     },
     {
-      id: 'profile',
-      label: 'My Profile',
-      shortLabel: 'Profile',
+      id: 'audit',
+      label: 'Audit Trail / Activity Logs',
+      shortLabel: 'Audit Trail',
+      icon: History,
+    },
+    {
+      id: 'settings',
+      label: 'Settings & Administration',
+      shortLabel: 'Settings',
       icon: User,
-      group: 'Account',
     },
   ];
-
-  const groupedNav = navItems.reduce(
-    (groups, item) => {
-      (groups[item.group] ??= []).push(item);
-      return groups;
-    },
-    {} as Partial<Record<NavGroup, NavItem[]>>,
-  );
 
   const handleNavigateTab = (
     tabId: string,
@@ -365,7 +345,7 @@ export function ExecutiveConsole() {
     }
 
     if (tabId === 'finance-requests' || tabId === 'finance') {
-      setActiveTab('finance-requests');
+      setActiveTab('approvals');
       return;
     }
 
@@ -374,6 +354,35 @@ export function ExecutiveConsole() {
         setApprovalInitialFilter(filter.status);
       }
       setActiveTab('approvals');
+      return;
+    }
+
+    if (tabId === 'complaints') {
+      setFrontDeskSubView('complaints');
+      setActiveTab('front-desk-ops');
+      return;
+    }
+
+    if (tabId === 'escalations') {
+      setFrontDeskSubView('escalations');
+      setActiveTab('front-desk-ops');
+      return;
+    }
+
+    if (tabId === 'inspections') {
+      setPropertyHealthSubView('inspections');
+      setActiveTab('property-health');
+      return;
+    }
+
+    if (tabId === 'incidents') {
+      setPropertyHealthSubView('incidents');
+      setActiveTab('property-health');
+      return;
+    }
+
+    if (tabId === 'profile' || tabId === 'notifications') {
+      setActiveTab('settings');
       return;
     }
 
@@ -417,10 +426,7 @@ export function ExecutiveConsole() {
     );
 
     if (safetyMatch) {
-      setSelectedSafetyAlertId(safetyMatch.id);
-      setSelectedApprovalItem(null);
-      setSelectedCompensationId(null);
-      setActiveTab('approvals');
+      setActiveTab('broadcast');
       return;
     }
 
@@ -442,7 +448,8 @@ export function ExecutiveConsole() {
 
     if (incidentMatch) {
       setSelectedIncident(incidentMatch);
-      setActiveTab('incidents');
+      setPropertyHealthSubView('incidents');
+      setActiveTab('property-health');
       return;
     }
 
@@ -452,7 +459,8 @@ export function ExecutiveConsole() {
 
     if (inspectionMatch) {
       setSelectedInspectionId(inspectionMatch.id);
-      setActiveTab('inspections');
+      setPropertyHealthSubView('inspections');
+      setActiveTab('property-health');
       return;
     }
 
@@ -474,7 +482,8 @@ export function ExecutiveConsole() {
 
     if (taskMatch) {
       setSelectedTaskId(taskMatch.id);
-      setActiveTab('escalations');
+      setFrontDeskSubView('escalations');
+      setActiveTab('front-desk-ops');
       return;
     }
 
@@ -482,208 +491,127 @@ export function ExecutiveConsole() {
     const lowerMessage = (notification.message ?? '').toLowerCase();
     const lowerLink = (notification.link ?? '').toLowerCase();
 
-    if (
-      lowerTitle.includes('incident') ||
-      lowerMessage.includes('incident') ||
-      lowerLink.includes('incident')
-    ) {
-      setActiveTab('incidents');
-    } else if (
-      lowerTitle.includes('inspection') ||
-      lowerMessage.includes('inspection')
-    ) {
-      setActiveTab('inspections');
-    } else if (
-      lowerTitle.includes('escalat') ||
-      lowerMessage.includes('escalat')
-    ) {
-      setActiveTab('escalations');
+    if (lowerTitle.includes('broadcast') || lowerMessage.includes('broadcast') || lowerTitle.includes('safety')) {
+      setActiveTab('broadcast');
+    } else if (lowerTitle.includes('incident') || lowerMessage.includes('incident')) {
+      setPropertyHealthSubView('incidents');
+      setActiveTab('property-health');
+    } else if (lowerTitle.includes('inspection') || lowerMessage.includes('inspection')) {
+      setPropertyHealthSubView('inspections');
+      setActiveTab('property-health');
+    } else if (lowerTitle.includes('complaint') || lowerMessage.includes('complaint')) {
+      setFrontDeskSubView('complaints');
+      setActiveTab('front-desk-ops');
+    } else if (lowerTitle.includes('escalat') || lowerMessage.includes('escalat')) {
+      setFrontDeskSubView('escalations');
+      setActiveTab('front-desk-ops');
     } else {
       setActiveTab('approvals');
     }
   };
 
+  const activeItem = navItems.find((item) => item.id === activeTab);
+
   return (
     <div className="w-full pb-16">
-      {/* Top Command Pill: Persona Context & Mode Switcher */}
-      <div className="mb-6 flex flex-col justify-between gap-4 rounded-3xl border border-white/10 bg-white/70 p-4 shadow-lg backdrop-blur-xl sm:flex-row sm:items-center dark:bg-ink-900/80">
-        <div className="flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-2xl border border-amber-500/30 bg-amber-500/20 font-mono font-bold text-amber-500 dark:text-amber-300">
-            <Crown className="h-5 w-5" />
-          </div>
-
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-black text-navy-950 dark:text-white">
-                Priya Nair
-              </span>
-              <span className="text-xs text-slate-400 dark:text-mist-500">
-                · General Manager (EMP-0109)
-              </span>
-              <span className="rounded-full border border-amber-500/20 bg-amber-500/15 px-2 py-0.5 font-mono text-[10px] font-bold text-amber-600 dark:text-amber-400">
-                Cap: ₹2,00,000
-              </span>
-            </div>
-            <div className="text-xs text-slate-500 dark:text-mist-400">
-              Grand Azure Executive Suite · Property Health &amp; Beyond-Manager
-              Authority
-            </div>
+      {/* ============================================================== */}
+      {/* MOBILE TOP CONTROLS BAR (< 1024px)                             */}
+      {/* ============================================================== */}
+      <div className="lg:hidden mb-4 flex items-center justify-between p-3 sm:p-4 rounded-2xl border border-slate-200/90 dark:border-white/10 bg-white/90 dark:bg-ink-900/90 shadow-md backdrop-blur-md">
+        <div className="flex items-center gap-3 min-w-0">
+          <button
+            type="button"
+            onClick={() => setMobileDrawerOpen(true)}
+            className="p-2 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-mist-200 hover:bg-slate-200 dark:hover:bg-white/10 transition cursor-pointer"
+            aria-label="Open Navigation Drawer"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <div className="min-w-0">
+            <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-mist-500 block">
+              General Manager Portal
+            </span>
+            <span className="text-sm font-black text-slate-900 dark:text-white truncate block">
+              {activeItem?.label || 'Executive Dashboard'}
+            </span>
           </div>
         </div>
 
-        {/* Navbar Controls: Notifications & Permission Mode Toggle */}
-        <div className="flex items-center gap-3">
-          {/* Notifications in Navbar */}
+        <div className="flex items-center gap-2">
+          {/* Mobile Notifications Button */}
           <div className="relative" ref={notifPopoverRef}>
             <button
-              type="button"
               id="gm-navbar-notifications-btn"
+              type="button"
               onClick={() => setNotifPopoverOpen((open) => !open)}
-              className="relative flex cursor-pointer items-center gap-2 rounded-2xl border border-slate-200 bg-black/5 p-2 text-slate-700 transition hover:bg-black/10 hover:text-navy-950 dark:border-white/10 dark:bg-ink-950/80 dark:text-mist-300 dark:hover:bg-white/10 dark:hover:text-white"
-              title="Incoming Notifications & Safety Alerts"
-              aria-label="Notifications"
-              aria-expanded={notifPopoverOpen}
+              className="relative p-2 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-ink-950/80 text-slate-700 dark:text-mist-300 transition"
+              title="Notifications"
             >
               <Bell className="h-4 w-4 text-amber-500" />
-              <span className="hidden text-xs font-bold sm:inline">
-                Notifications
-              </span>
               {unreadNotificationsCount > 0 && (
-                <span className="grid h-5 min-w-5 animate-pulse place-items-center rounded-full bg-rose-500 px-1.5 font-mono text-[10px] font-bold text-white">
+                <span className="absolute -top-1 -right-1 grid h-4 min-w-4 place-items-center rounded-full bg-rose-500 px-1 font-mono text-[9px] font-bold text-white">
                   {unreadNotificationsCount}
                 </span>
               )}
             </button>
 
             {notifPopoverOpen && (
-              <div className="absolute right-0 top-full z-50 mt-2 w-80 space-y-3 rounded-3xl border border-white/10 bg-white/95 p-4 text-navy-950 shadow-2xl backdrop-blur-2xl sm:w-96 dark:bg-ink-900/95 dark:text-white">
-                <div className="flex items-center justify-between border-b border-slate-200 pb-2.5 dark:border-white/10">
-                  <div className="flex items-center gap-2">
-                    <Bell className="h-4 w-4 text-amber-500" />
-                    <h3 className="text-sm font-bold">Notifications</h3>
-                    {unreadNotificationsCount > 0 && (
-                      <span className="rounded-full bg-rose-500/15 px-1.5 py-0.5 font-mono text-[10px] font-bold text-rose-600 dark:text-rose-300">
-                        {unreadNotificationsCount} unread
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {gmNotifications.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          clearAllNotifications('general_manager')
-                        }
-                        className="cursor-pointer text-[11px] font-semibold text-amber-600 hover:underline dark:text-amber-400"
-                      >
-                        Mark all read
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setNotifPopoverOpen(false)}
-                      className="cursor-pointer text-slate-400 hover:text-navy-950 dark:hover:text-white"
-                      aria-label="Close notifications"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 rounded-2xl border border-slate-200 bg-black/5 p-1 text-xs font-bold dark:border-white/10 dark:bg-ink-950/80">
+              <div className="absolute right-0 top-full z-50 mt-2 w-80 space-y-3 rounded-2xl border border-white/10 bg-white/95 dark:bg-ink-900/95 p-4 text-navy-950 dark:text-white shadow-2xl backdrop-blur-2xl">
+                <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-2">
+                  <span className="text-xs font-bold">Shift Notifications</span>
                   <button
                     type="button"
-                    id="tab-all-notifications"
+                    onClick={() => setNotifPopoverOpen(false)}
+                    className="p-1 text-slate-400 hover:text-white"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {/* Category Filter Pills: All notifications vs Safety Alerts */}
+                <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs">
+                  <button
+                    type="button"
                     onClick={() => setNotifCategory('all')}
-                    className={`flex cursor-pointer items-center justify-center gap-1.5 rounded-xl px-2 py-1.5 transition ${notifCategory === 'all'
-                        ? 'bg-amber-500 text-white shadow-sm'
-                        : 'text-slate-500 hover:text-navy-950 dark:text-mist-400 dark:hover:text-white'
-                      }`}
+                    className={cn(
+                      'flex-1 py-1 px-2 rounded-lg font-bold transition text-center',
+                      notifCategory === 'all'
+                        ? 'bg-amber-400 text-ink-950 shadow-sm'
+                        : 'text-slate-500 dark:text-mist-400 hover:text-white'
+                    )}
                   >
-                    <span>All notifications</span>
-                    <span className="rounded-full bg-black/10 px-1.5 font-mono text-[10px] dark:bg-white/20">
-                      {gmNotifications.length}
-                    </span>
+                    All notifications
                   </button>
-
                   <button
                     type="button"
-                    id="tab-safety-alerts"
                     onClick={() => setNotifCategory('safety')}
-                    className={`flex cursor-pointer items-center justify-center gap-1.5 rounded-xl px-2 py-1.5 transition ${notifCategory === 'safety'
+                    className={cn(
+                      'flex-1 py-1 px-2 rounded-lg font-bold transition text-center flex items-center justify-center gap-1',
+                      notifCategory === 'safety'
                         ? 'bg-rose-500 text-white shadow-sm'
-                        : 'text-slate-500 hover:text-navy-950 dark:text-mist-400 dark:hover:text-white'
-                      }`}
+                        : 'text-slate-500 dark:text-mist-400 hover:text-rose-400'
+                    )}
                   >
-                    <ShieldAlert className="h-3.5 w-3.5" />
+                    <Siren className="h-3 w-3" />
                     <span>Safety Alerts</span>
-                    <span className="rounded-full bg-black/10 px-1.5 font-mono text-[10px] dark:bg-white/20">
-                      {safetyNotifications.length}
-                    </span>
                   </button>
                 </div>
 
-                <div className="max-h-72 space-y-2 overflow-y-auto pr-0.5 no-scrollbar">
+                <div className="max-h-60 space-y-2 overflow-y-auto text-xs">
                   {categorizedNotifications.length === 0 ? (
-                    <div className="py-8 text-center text-xs text-slate-400 dark:text-mist-500">
-                      {notifCategory === 'safety' ? (
-                        <div className="space-y-1">
-                          <ShieldCheck className="mx-auto h-6 w-6 text-emerald-500" />
-                          <p>Zero active safety alerts. All systems secure.</p>
-                        </div>
-                      ) : (
-                        <p>No incoming notifications for your shift.</p>
-                      )}
-                    </div>
+                    <p className="text-slate-400 text-center py-4">No new notifications.</p>
                   ) : (
-                    categorizedNotifications.map((notif) => (
+                    categorizedNotifications.slice(0, 8).map((n) => (
                       <div
-                        key={notif.id}
+                        key={n.id}
                         onClick={() => {
-                          handleNavigateToNotificationItem(notif);
+                          handleNavigateToNotificationItem(n);
                           setNotifPopoverOpen(false);
                         }}
-                        className={`group cursor-pointer rounded-2xl border p-3 text-left transition ${notif.read
-                            ? 'border-slate-100 bg-black/[0.02] text-slate-500 dark:border-white/5 dark:bg-white/[0.02] dark:text-mist-400'
-                            : 'border-amber-500/30 bg-amber-500/[0.05] text-navy-950 shadow-sm dark:border-amber-500/20 dark:bg-amber-500/[0.08] dark:text-white'
-                          }`}
+                        className="p-2.5 rounded-xl border border-slate-100 dark:border-white/5 bg-black/[0.02] dark:bg-white/[0.02] cursor-pointer hover:border-amber-400/30 transition"
                       >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-center gap-1.5 text-xs font-bold transition group-hover:text-amber-600 dark:group-hover:text-amber-400">
-                            {isSafetyAlertNotification(notif) && (
-                              <ShieldAlert className="h-3.5 w-3.5 shrink-0 text-rose-500" />
-                            )}
-                            <span className="line-clamp-1">{notif.title}</span>
-                          </div>
-                          <span className="shrink-0 font-mono text-[10px] text-slate-400">
-                            {notif.timestamp}
-                          </span>
-                        </div>
-
-                        {notif.message && (
-                          <p className="mt-1 line-clamp-2 text-[11px] text-slate-500 dark:text-mist-300">
-                            {notif.message}
-                          </p>
-                        )}
-
-                        <div className="mt-2 flex items-center justify-between text-[10px]">
-                          <span className="font-semibold text-slate-400">
-                            {notif.department || 'Property-Wide'}
-                          </span>
-                          {!notif.read && (
-                            <button
-                              type="button"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                markNotificationRead(notif.id);
-                              }}
-                              className="font-bold text-amber-600 hover:underline dark:text-amber-400"
-                            >
-                              Mark read
-                            </button>
-                          )}
-                        </div>
+                        <p className="font-bold truncate text-slate-900 dark:text-white">{n.title}</p>
+                        <p className="text-[11px] text-slate-500 dark:text-mist-400 line-clamp-1">{n.message}</p>
                       </div>
                     ))
                   )}
@@ -691,140 +619,371 @@ export function ExecutiveConsole() {
               </div>
             )}
           </div>
+        </div>
+      </div>
 
-          {/* Permission Mode Toggle */}
-          <div className="flex items-center gap-2">
-            <span className="hidden text-xs font-bold text-slate-500 dark:text-mist-400 md:inline">
-              Mode:
-            </span>
-            <div className="flex items-center rounded-2xl border border-slate-200 bg-black/5 p-1 dark:border-white/10 dark:bg-ink-950/80">
+      {/* ============================================================== */}
+      {/* MOBILE RESPONSIVE NAVIGATION DRAWER                            */}
+      {/* ============================================================== */}
+      {mobileDrawerOpen && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 transition-opacity animate-in fade-in"
+            onClick={() => setMobileDrawerOpen(false)}
+          />
+
+          <aside className="fixed top-0 bottom-0 left-0 w-4/5 max-w-[320px] bg-white dark:bg-ink-900 border-r border-slate-200 dark:border-white/10 p-4 z-50 flex flex-col space-y-4 shadow-2xl animate-in slide-in-from-left duration-200">
+            {/* Drawer Header */}
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="grid h-8 w-8 place-items-center rounded-xl bg-amber-500 text-white font-bold text-xs shadow-sm">
+                  GM
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white">General Manager</h3>
+                  <p className="text-[10px] text-slate-400 dark:text-mist-500">Executive Console</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMobileDrawerOpen(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white transition"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Authority Mode Switcher in Drawer */}
+            <div className="p-2.5 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-ink-950/70 space-y-1.5">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-mist-500">
+                  Authority Mode
+                </span>
+                <span className={cn(
+                  "text-[10px] font-bold px-1.5 py-0.2 rounded-full",
+                  permissionMode === 'approver' ? "bg-emerald-500/20 text-emerald-500" : "bg-sky-500/20 text-sky-400"
+                )}>
+                  {permissionMode === 'approver' ? 'Full Access' : 'Read-Only'}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-1">
+                <button
+                  type="button"
+                  onClick={() => setPermissionMode('viewer')}
+                  className={cn(
+                    "flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl text-xs font-bold transition cursor-pointer",
+                    permissionMode === 'viewer'
+                      ? "bg-sky-500 text-white shadow-xs"
+                      : "text-slate-500 dark:text-mist-400 hover:bg-slate-200 dark:hover:bg-white/5"
+                  )}
+                >
+                  <Lock className="h-3.5 w-3.5" />
+                  <span>Viewer</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPermissionMode('approver')}
+                  className={cn(
+                    "flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl text-xs font-bold transition cursor-pointer",
+                    permissionMode === 'approver'
+                      ? "bg-emerald-500 text-white shadow-xs"
+                      : "text-slate-500 dark:text-mist-400 hover:bg-slate-200 dark:hover:bg-white/5"
+                  )}
+                >
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  <span>Approval</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Navigation List */}
+            <div className="flex-1 overflow-y-auto space-y-1 no-scrollbar pr-0.5">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeTab === item.id;
+
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveTab(item.id);
+                      setMobileDrawerOpen(false);
+                    }}
+                    className={cn(
+                      "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs font-semibold transition cursor-pointer",
+                      isActive
+                        ? "bg-amber-500 text-white shadow-sm font-bold"
+                        : "text-slate-700 dark:text-mist-300 hover:bg-slate-100 dark:hover:bg-white/5"
+                    )}
+                  >
+                    <span className="flex items-center gap-2.5 truncate">
+                      <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-white" : "text-slate-400 dark:text-mist-400")} />
+                      <span className="truncate">{item.label}</span>
+                    </span>
+                    {item.badgeCount !== undefined && item.badgeCount > 0 && (
+                      <span className={cn(
+                        "rounded-full px-2 py-0.5 font-mono text-[10px] font-bold",
+                        isActive ? "bg-white/30 text-white" : "bg-amber-500/20 text-amber-500"
+                      )}>
+                        {item.badgeCount}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </aside>
+        </>
+      )}
+
+      {/* ============================================================== */}
+      {/* MAIN DESKTOP CONSOLE LAYOUT: Sticky Sidebar + Main Content     */}
+      {/* ============================================================== */}
+      <div className="flex flex-col items-start gap-6 lg:flex-row">
+        {/* DESKTOP STICKY SIDEBAR */}
+        <aside
+          className={cn(
+            "hidden lg:flex flex-col shrink-0 sticky top-4 self-start max-h-[calc(100vh-2rem)] rounded-3xl border border-slate-200/90 dark:border-white/10 bg-white/80 dark:bg-ink-900/90 shadow-2xl backdrop-blur-xl p-3 z-30 transition-all duration-300",
+            sidebarCollapsed ? "w-20" : "w-68"
+          )}
+        >
+          {/* Sidebar Top: Collapse Control & Notifications */}
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/[0.06] px-2 py-1 pb-2.5 text-xs text-slate-400 dark:text-mist-400 shrink-0">
+            {!sidebarCollapsed && (
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-mist-500">
+                Executive Menu
+              </span>
+            )}
+
+            <div className="flex items-center gap-1 ml-auto">
+              {/* Notifications Popover Trigger */}
+              <div className="relative" ref={notifPopoverRef}>
+                <button
+                  type="button"
+                  onClick={() => setNotifPopoverOpen((open) => !open)}
+                  className="relative p-1.5 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.08] transition cursor-pointer"
+                  title="Shift Notifications"
+                  aria-label="Notifications"
+                >
+                  <Bell className="h-4 w-4 text-amber-500" />
+                  {unreadNotificationsCount > 0 && (
+                    <span className="absolute -top-1 -right-1 grid h-4 min-w-4 place-items-center rounded-full bg-rose-500 px-1 font-mono text-[9px] font-bold text-white">
+                      {unreadNotificationsCount}
+                    </span>
+                  )}
+                </button>
+
+                {notifPopoverOpen && (
+                  <div className="absolute left-full top-0 ml-2 z-50 w-80 space-y-3 rounded-2xl border border-slate-200 dark:border-white/10 bg-white/95 dark:bg-ink-900/95 p-4 text-navy-950 dark:text-white shadow-2xl backdrop-blur-2xl">
+                    <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-2">
+                      <div className="flex items-center gap-1.5">
+                        <Bell className="h-4 w-4 text-amber-500" />
+                        <span className="text-xs font-bold">Notifications</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => clearAllNotifications('general_manager')}
+                        className="text-[10px] font-bold text-amber-500 hover:underline cursor-pointer"
+                      >
+                        Mark all read
+                      </button>
+                    </div>
+
+                    {/* Category Filter Pills: All notifications vs Safety Alerts */}
+                    <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setNotifCategory('all')}
+                        className={cn(
+                          'flex-1 py-1 px-2 rounded-lg font-bold transition text-center',
+                          notifCategory === 'all'
+                            ? 'bg-amber-400 text-ink-950 shadow-sm'
+                            : 'text-slate-500 dark:text-mist-400 hover:text-white'
+                        )}
+                      >
+                        All notifications
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNotifCategory('safety')}
+                        className={cn(
+                          'flex-1 py-1 px-2 rounded-lg font-bold transition text-center flex items-center justify-center gap-1',
+                          notifCategory === 'safety'
+                            ? 'bg-rose-500 text-white shadow-sm'
+                            : 'text-slate-500 dark:text-mist-400 hover:text-rose-400'
+                        )}
+                      >
+                        <Siren className="h-3 w-3" />
+                        <span>Safety Alerts</span>
+                      </button>
+                    </div>
+
+                    <div className="max-h-64 space-y-2 overflow-y-auto text-xs no-scrollbar">
+                      {categorizedNotifications.length === 0 ? (
+                        <p className="text-slate-400 text-center py-4">No new notifications.</p>
+                      ) : (
+                        categorizedNotifications.map((n) => (
+                          <div
+                            key={n.id}
+                            onClick={() => {
+                              handleNavigateToNotificationItem(n);
+                              setNotifPopoverOpen(false);
+                            }}
+                            className="p-2.5 rounded-xl border border-slate-100 dark:border-white/5 bg-black/[0.02] dark:bg-white/[0.02] cursor-pointer hover:border-amber-400/30 transition text-left"
+                          >
+                            <p className="font-bold truncate text-slate-900 dark:text-white">{n.title}</p>
+                            <p className="text-[11px] text-slate-500 dark:text-mist-400 line-clamp-2">{n.message}</p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Collapse/Expand Toggle */}
+              <button
+                type="button"
+                onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
+                className="p-1 rounded-lg text-slate-400 transition hover:bg-slate-100 dark:hover:bg-white/[0.08] hover:text-slate-900 dark:hover:text-white cursor-pointer"
+                title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              >
+                {sidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+
+          {/* Authority Mode Switcher in Sidebar (Requirement 2) */}
+          <div className="my-2.5 p-2 rounded-2xl border border-slate-200/90 dark:border-white/10 bg-slate-50 dark:bg-ink-950/70 space-y-1.5 shrink-0">
+            {!sidebarCollapsed && (
+              <div className="flex items-center justify-between px-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-mist-500">
+                  Authority Mode
+                </span>
+                <span className={cn(
+                  "text-[10px] font-bold px-1.5 py-0.2 rounded-full",
+                  permissionMode === 'approver' ? "bg-emerald-500/20 text-emerald-500" : "bg-sky-500/20 text-sky-400"
+                )}>
+                  {permissionMode === 'approver' ? 'Full Access' : 'Read-Only'}
+                </span>
+              </div>
+            )}
+            <div className={cn("grid gap-1", sidebarCollapsed ? "grid-cols-1" : "grid-cols-2")}>
               <button
                 type="button"
                 onClick={() => setPermissionMode('viewer')}
-                className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${permissionMode === 'viewer'
-                    ? 'bg-sky-500 text-white shadow-sm'
-                    : 'text-slate-500 hover:text-navy-950 dark:text-mist-400 dark:hover:text-white'
-                  }`}
+                title="Viewer Mode (Read-Only)"
+                className={cn(
+                  "flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl text-xs font-bold transition cursor-pointer",
+                  permissionMode === 'viewer'
+                    ? "bg-sky-500 text-white shadow-xs"
+                    : "text-slate-500 dark:text-mist-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-white/5"
+                )}
               >
                 <Lock className="h-3.5 w-3.5" />
-                <span>Viewer (Read-Only)</span>
+                {!sidebarCollapsed && <span>Viewer</span>}
               </button>
               <button
                 type="button"
                 onClick={() => setPermissionMode('approver')}
-                className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${permissionMode === 'approver'
-                    ? 'bg-emerald-500 text-white shadow-sm'
-                    : 'text-slate-500 hover:text-navy-950 dark:text-mist-400 dark:hover:text-white'
-                  }`}
+                title="Approval Mode (Full Access)"
+                className={cn(
+                  "flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl text-xs font-bold transition cursor-pointer",
+                  permissionMode === 'approver'
+                    ? "bg-emerald-500 text-white shadow-xs"
+                    : "text-slate-500 dark:text-mist-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-white/5"
+                )}
               >
                 <ShieldCheck className="h-3.5 w-3.5" />
-                <span>Approver (Full Access)</span>
+                {!sidebarCollapsed && <span>Approval</span>}
               </button>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Main Console Layout: Collapsible Sidebar + Content View */}
-      <div className="flex flex-col items-start gap-6 lg:flex-row">
-        <aside
-          className={`z-20 shrink-0 self-start transition-all duration-300 ease-in-out lg:sticky lg:top-20 ${sidebarCollapsed ? 'w-full lg:w-20' : 'w-full lg:w-64'
-            }`}
-        >
-          <div className="max-h-[calc(100vh-6rem)] space-y-3 overflow-y-auto rounded-3xl border border-white/10 bg-white/70 p-3 shadow-2xl backdrop-blur-xl no-scrollbar dark:bg-ink-900/90">
-            <div className="flex items-center justify-between border-b border-slate-100 px-2 py-1 pb-2 text-xs text-slate-400 dark:border-white/[0.06] dark:text-mist-400">
-              {!sidebarCollapsed && (
-                <span className="text-[10px] font-bold uppercase tracking-wider">
-                  Navigation
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
-                className="ml-auto rounded-lg p-1 text-slate-400 transition hover:bg-black/5 hover:text-navy-950 dark:hover:bg-white/[0.08] dark:hover:text-white"
-                title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                aria-label={
-                  sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'
-                }
-              >
-                {sidebarCollapsed ? (
-                  <ChevronRight className="h-4 w-4" />
-                ) : (
-                  <ChevronLeft className="h-4 w-4" />
-                )}
-              </button>
-            </div>
+          {/* Reorganised 11-Step Navigation Hierarchy (Requirement 4) */}
+          <div className="flex-1 overflow-y-auto space-y-1 pr-0.5 no-scrollbar">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
 
-            <div className="max-h-[calc(100vh-220px)] space-y-4 overflow-y-auto pr-0.5">
-              {(Object.keys(groupedNav) as NavGroup[]).map((groupName) => (
-                <div key={groupName} className="space-y-1">
-                  {!sidebarCollapsed && (
-                    <div className="px-2 pt-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-mist-500">
-                      {groupName}
-                    </div>
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setActiveTab(item.id)}
+                  title={item.label}
+                  className={cn(
+                    "flex w-full items-center justify-between rounded-2xl px-3 py-2 text-xs font-semibold transition cursor-pointer",
+                    isActive
+                      ? "bg-amber-500 text-white shadow-md font-bold"
+                      : "text-slate-700 dark:text-mist-300 hover:bg-slate-100 dark:hover:bg-white/[0.04] hover:text-slate-900 dark:hover:text-white"
                   )}
+                >
+                  <span className="flex items-center gap-2.5 truncate">
+                    <Icon
+                      className={cn(
+                        "h-4 w-4 shrink-0",
+                        isActive ? "text-white" : "text-slate-400 dark:text-mist-400"
+                      )}
+                    />
+                    {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
+                  </span>
 
-                  {(groupedNav[groupName] ?? []).map((item) => {
-                    const Icon = item.icon;
-                    const isActive = activeTab === item.id;
-
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => setActiveTab(item.id)}
-                        title={item.label}
-                        className={`flex w-full items-center justify-between rounded-2xl px-3 py-2 text-xs font-semibold transition ${isActive
-                            ? 'bg-amber-500 text-white shadow-md'
-                            : 'text-slate-600 hover:bg-black/5 hover:text-navy-950 dark:text-mist-300 dark:hover:bg-white/[0.04] dark:hover:text-white'
-                          }`}
-                      >
-                        <span className="flex items-center gap-2.5 truncate">
-                          <Icon
-                            className={`h-4 w-4 shrink-0 ${isActive
-                                ? 'text-white'
-                                : 'text-slate-400 dark:text-mist-400'
-                              }`}
-                          />
-                          {!sidebarCollapsed && (
-                            <span className="truncate">{item.label}</span>
-                          )}
-                        </span>
-
-                        {!sidebarCollapsed &&
-                          item.badgeCount !== undefined &&
-                          item.badgeCount > 0 && (
-                            <span
-                              className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-bold ${isActive
-                                  ? 'bg-white/30 text-white'
-                                  : item.badgeTone === 'danger'
-                                    ? 'border border-rose-500/30 bg-rose-500/20 text-rose-600 dark:text-rose-300'
-                                    : item.badgeTone === 'warning'
-                                      ? 'border border-amber-500/30 bg-amber-500/20 text-amber-600 dark:text-amber-300'
-                                      : 'bg-sky-500/20 text-sky-600 dark:text-sky-300'
-                                }`}
-                            >
-                              {item.badgeCount}
-                            </span>
-                          )}
-                      </button>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
+                  {!sidebarCollapsed && item.badgeCount !== undefined && item.badgeCount > 0 && (
+                    <span
+                      className={cn(
+                        "rounded-full px-2 py-0.5 font-mono text-[10px] font-bold",
+                        isActive
+                          ? "bg-white/30 text-white"
+                          : item.badgeTone === 'danger'
+                            ? "border border-rose-500/30 bg-rose-500/20 text-rose-600 dark:text-rose-300"
+                            : item.badgeTone === 'warning'
+                              ? "border border-amber-500/30 bg-amber-500/20 text-amber-600 dark:text-amber-300"
+                              : "bg-sky-500/20 text-sky-600 dark:text-sky-300"
+                      )}
+                    >
+                      {item.badgeCount}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </aside>
 
-        {/* Dynamic Tab Content Area */}
+        {/* DYNAMIC EXECUTIVE TAB CONTENT AREA */}
         <main className="min-w-0 w-full flex-1">
-          {activeTab === 'inspections' && (
-            <GeneralManagerInspectionsTab
-              selectedInspectionId={selectedInspectionId}
-              onClearSelectedInspection={() => setSelectedInspectionId(null)}
-            />
+          {/* EXACT GUEST PORTAL EMERGENCY BROADCAST BANNER (Across GM Console) */}
+          {isBroadcastActive && emergencyAlert && activeTab !== 'broadcast' && activeTab !== 'overview' && (
+            <div className="mb-4 p-3 sm:p-4 rounded-2xl border border-rose-500/50 bg-rose-500/15 flex items-center justify-between gap-2.5 sm:gap-4 shadow-md transition-all animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0 flex-1">
+                <span className="grid h-8 w-8 sm:h-9 sm:w-9 place-items-center rounded-xl bg-rose-500/25 text-rose-400 shrink-0">
+                  <AlertTriangle className="h-4.5 w-4.5 sm:h-5 sm:w-5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="px-1.5 py-0.2 rounded text-[9px] sm:text-[10px] font-extrabold uppercase bg-rose-500 text-white tracking-wider shrink-0">
+                      {emergencyAlert.severity || 'Urgent'}
+                    </span>
+                    <p className="text-xs sm:text-sm font-bold text-white truncate">{emergencyAlert.title}</p>
+                  </div>
+                  <p className="text-[11px] sm:text-xs text-rose-200/90 truncate mt-0.5">{emergencyAlert.description}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('broadcast')}
+                  className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-rose-500 text-white text-xs font-bold hover:bg-rose-400 transition-colors shadow-sm cursor-pointer"
+                >
+                  View
+                </button>
+              </div>
+            </div>
           )}
 
+          {/* 1. EXECUTIVE DASHBOARD */}
           {activeTab === 'overview' && (
             <ExecutiveOverviewTab
               permissionMode={permissionMode}
@@ -833,81 +992,165 @@ export function ExecutiveConsole() {
             />
           )}
 
-          {(activeTab === 'approvals' ||
-            activeTab === 'approvals-pending' ||
-            activeTab === 'approvals-history') && (
-              <ExecutiveApprovalsTab
-                permissionMode={permissionMode}
-                initialStatusFilter={
-                  activeTab === 'approvals-pending'
-                    ? 'pending'
-                    : activeTab === 'approvals-history'
-                      ? 'approved'
-                      : approvalInitialFilter
-                }
-                selectedItemFromParent={selectedApprovalItem}
-                onClearSelectedItem={() => setSelectedApprovalItem(null)}
-                selectedSafetyAlertId={selectedSafetyAlertId}
-                onClearSelectedSafetyAlert={() => setSelectedSafetyAlertId(null)}
-                selectedCompensationId={selectedCompensationId}
-                onClearSelectedCompensation={() => setSelectedCompensationId(null)}
-              />
-            )}
-
-          {activeTab === 'performance' && <ExecutivePerformanceTab />}
-
-          {(activeTab === 'escalations' ||
-            activeTab === 'incidents' ||
-            activeTab === 'complaints') && (
-              <ExecutiveIncidentsTab
-                permissionMode={permissionMode}
-                initialView={
-                  activeTab === 'escalations'
-                    ? 'escalations'
-                    : activeTab === 'complaints'
-                      ? 'complaints'
-                      : 'incidents'
-                }
-                selectedIncidentFromParent={selectedIncident}
-                onClearSelectedIncident={() => setSelectedIncident(null)}
-                selectedTaskIdFromParent={selectedTaskId}
-              />
-            )}
-
-          {activeTab === 'vip' && (
-            <GeneralManagerVipTab onNavigateTab={handleNavigateTab} />
-          )}
-
+          {/* 2. HOTEL-WIDE ROOM MATRIX */}
           {activeTab === 'rooms' && <GeneralManagerRoomsTab />}
 
-          {(activeTab === 'finance-requests' ||
-            activeTab === 'finance' ||
-            activeTab === 'finance-purchases' ||
-            activeTab === 'finance-equipment' ||
-            activeTab === 'finance-resources') && (
-              <ExecutiveFinanceTab
-                permissionMode={permissionMode}
-                initialCategory={
-                  activeTab === 'finance-purchases'
-                    ? 'purchases'
-                    : activeTab === 'finance-equipment'
-                      ? 'equipment'
-                      : activeTab === 'finance-resources'
-                        ? 'resources'
-                        : 'all'
-                }
-                onReviewItem={handleOpenApprovalDetail}
-              />
-            )}
+          {/* 3. VIP GUESTS */}
+          {activeTab === 'vip' && <GeneralManagerVipTab onNavigateTab={handleNavigateTab} />}
 
+          {/* 4. LIFE SAFETY & BROADCAST */}
+          {activeTab === 'broadcast' && (
+            <GeneralManagerBroadcastTab permissionMode={permissionMode} />
+          )}
+
+          {/* 5. FRONT DESK / GUEST OPERATIONS (Complaints & Escalations) */}
+          {activeTab === 'front-desk-ops' && (
+            <div className="space-y-4">
+              {/* Subtab Switcher */}
+              <div className="flex items-center gap-2 p-1 rounded-2xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 w-fit text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setFrontDeskSubView('complaints')}
+                  className={cn(
+                    "px-4 py-2 rounded-xl transition cursor-pointer flex items-center gap-2",
+                    frontDeskSubView === 'complaints'
+                      ? "bg-amber-500 text-white shadow-sm font-bold"
+                      : "text-slate-600 dark:text-mist-300 hover:text-white"
+                  )}
+                >
+                  <MessageSquareWarning className="h-3.5 w-3.5" />
+                  <span>Guest Complaints</span>
+                  {unresolvedComplaintsCount > 0 && (
+                    <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-rose-500 text-white font-mono">
+                      {unresolvedComplaintsCount}
+                    </span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFrontDeskSubView('escalations')}
+                  className={cn(
+                    "px-4 py-2 rounded-xl transition cursor-pointer flex items-center gap-2",
+                    frontDeskSubView === 'escalations'
+                      ? "bg-amber-500 text-white shadow-sm font-bold"
+                      : "text-slate-600 dark:text-mist-300 hover:text-white"
+                  )}
+                >
+                  <Siren className="h-3.5 w-3.5" />
+                  <span>Escalated Guest Tasks</span>
+                  {escalatedTasksCount > 0 && (
+                    <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-400 text-ink-950 font-mono font-bold">
+                      {escalatedTasksCount}
+                    </span>
+                  )}
+                </button>
+              </div>
+
+              <ExecutiveIncidentsTab
+                permissionMode={permissionMode}
+                initialView={frontDeskSubView}
+                selectedTaskIdFromParent={selectedTaskId}
+              />
+            </div>
+          )}
+
+          {/* 6. DEPARTMENT & STAFF PERFORMANCE */}
+          {activeTab === 'performance' && <ExecutivePerformanceTab />}
+
+          {/* 7. FINANCIAL OVERVIEW & APPROVALS */}
+          {(activeTab === 'approvals' ||
+            activeTab === 'approvals-pending' ||
+            activeTab === 'approvals-history' ||
+            activeTab === 'finance' ||
+            activeTab === 'finance-requests') && (
+            <ExecutiveApprovalsTab
+              permissionMode={permissionMode}
+              initialStatusFilter={
+                activeTab === 'approvals-pending'
+                  ? 'pending'
+                  : activeTab === 'approvals-history'
+                    ? 'approved'
+                    : approvalInitialFilter
+              }
+              selectedItemFromParent={selectedApprovalItem}
+              onClearSelectedItem={() => setSelectedApprovalItem(null)}
+              selectedSafetyAlertId={selectedSafetyAlertId}
+              onClearSelectedSafetyAlert={() => setSelectedSafetyAlertId(null)}
+              selectedCompensationId={selectedCompensationId}
+              onClearSelectedCompensation={() => setSelectedCompensationId(null)}
+            />
+          )}
+
+          {/* 8. PROPERTY HEALTH / MAINTENANCE */}
+          {activeTab === 'property-health' && (
+            <div className="space-y-4">
+              {/* Subtab Switcher */}
+              <div className="flex items-center gap-2 p-1 rounded-2xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 w-fit text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setPropertyHealthSubView('inspections')}
+                  className={cn(
+                    "px-4 py-2 rounded-xl transition cursor-pointer flex items-center gap-2",
+                    propertyHealthSubView === 'inspections'
+                      ? "bg-amber-500 text-white shadow-sm font-bold"
+                      : "text-slate-600 dark:text-mist-300 hover:text-white"
+                  )}
+                >
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  <span>Department Inspections</span>
+                  {dueInspectionsCount > 0 && (
+                    <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-500/20 text-amber-500 font-mono">
+                      {dueInspectionsCount}
+                    </span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPropertyHealthSubView('incidents')}
+                  className={cn(
+                    "px-4 py-2 rounded-xl transition cursor-pointer flex items-center gap-2",
+                    propertyHealthSubView === 'incidents'
+                      ? "bg-amber-500 text-white shadow-sm font-bold"
+                      : "text-slate-600 dark:text-mist-300 hover:text-white"
+                  )}
+                >
+                  <ShieldAlert className="h-3.5 w-3.5" />
+                  <span>Property Incidents</span>
+                  {activeIncidentsCount > 0 && (
+                    <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-rose-500 text-white font-mono">
+                      {activeIncidentsCount}
+                    </span>
+                  )}
+                </button>
+              </div>
+
+              {propertyHealthSubView === 'inspections' ? (
+                <GeneralManagerInspectionsTab
+                  selectedInspectionId={selectedInspectionId}
+                  onClearSelectedInspection={() => setSelectedInspectionId(null)}
+                />
+              ) : (
+                <ExecutiveIncidentsTab
+                  permissionMode={permissionMode}
+                  initialView="incidents"
+                  selectedIncidentFromParent={selectedIncident}
+                  onClearSelectedIncident={() => setSelectedIncident(null)}
+                />
+              )}
+            </div>
+          )}
+
+          {/* 9. REPORTS & ANALYTICS */}
           {activeTab === 'reports' && <ExecutiveReportsTab />}
 
-          {(activeTab === 'notifications' || activeTab === 'profile') && (
+          {/* 10. AUDIT TRAIL / ACTIVITY LOGS */}
+          {activeTab === 'audit' && <ExecutiveAuditTab />}
+
+          {/* 11. SETTINGS & ADMINISTRATION */}
+          {activeTab === 'settings' && (
             <ExecutiveProfileTab
               permissionMode={permissionMode}
-              initialSubTab={
-                activeTab === 'notifications' ? 'notifications' : 'profile'
-              }
+              initialSubTab="profile"
               onTogglePermissionMode={setPermissionMode}
               onNavigateTab={handleNavigateTab}
               onNavigateToItem={handleNavigateToNotificationItem}

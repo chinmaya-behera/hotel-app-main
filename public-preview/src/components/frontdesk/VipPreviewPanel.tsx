@@ -48,6 +48,7 @@ export interface VipDetailedProfile {
   foodPreferences: string;
   notes: string;
   gmProtocol?: string;
+  verifiedBy?: string;
   totalSpend: number;
   timeline: Array<{
     at: string;
@@ -232,7 +233,10 @@ export function VipPreviewPanel({ onSwitchTab: _onSwitchTab }: { onSwitchTab?: (
       );
 
     if (existing) {
-      setSelectedVipProfile(existing);
+      setSelectedVipProfile({
+        ...existing,
+        verifiedBy: st.verifiedBy || existing.verifiedBy || 'Front Desk',
+      });
     } else {
       // Dynamic profile fallback
       setSelectedVipProfile({
@@ -256,6 +260,7 @@ export function VipPreviewPanel({ onSwitchTab: _onSwitchTab }: { onSwitchTab?: (
         foodPreferences: st.dietarySummary || 'Standard dietary protocol',
         notes: st.milestone || 'High-value guest. Expedite all requests immediately.',
         gmProtocol: st.gmStatus ?? '✓ GM Welcome Card Placed',
+        verifiedBy: st.verifiedBy || 'Front Desk',
         totalSpend: st.paid && st.paid > 0 ? st.paid : 105000,
         timeline: [
           { at: 'Today 09:00 AM', action: 'VIP Registration checked by Front Desk', staff: 'Sunita Patel' },
@@ -329,6 +334,7 @@ export function VipPreviewPanel({ onSwitchTab: _onSwitchTab }: { onSwitchTab?: (
         s.frontDesk.stays[existingStayIndex].dietarySummary = addVipForm.foodPreferences || 'Standard Protocol';
         s.frontDesk.stays[existingStayIndex].preferencesSummary = addVipForm.roomPreferences || 'Hypoallergenic Pillows';
         s.frontDesk.stays[existingStayIndex].gmStatus = '✓ GM Welcome Card Placed';
+        s.frontDesk.stays[existingStayIndex].verifiedBy = 'Front Desk';
       } else {
         // Add new VIP stay record
         const newStay: StayRecord = {
@@ -346,6 +352,7 @@ export function VipPreviewPanel({ onSwitchTab: _onSwitchTab }: { onSwitchTab?: (
           dietarySummary: addVipForm.foodPreferences || 'Standard Protocol',
           preferencesSummary: addVipForm.roomPreferences || 'Hypoallergenic Pillows',
           gmStatus: '✓ GM Welcome Card Placed',
+          verifiedBy: 'Front Desk',
           preCheckIn: 'verified',
           idChecked: true,
           paid: 135000,
@@ -392,6 +399,7 @@ export function VipPreviewPanel({ onSwitchTab: _onSwitchTab }: { onSwitchTab?: (
       foodPreferences: addVipForm.foodPreferences.trim() || 'No specific dietary restrictions recorded',
       notes: addVipForm.note.trim() || 'VIP member registered at Front Desk.',
       gmProtocol: '✓ GM Welcome Card Placed',
+      verifiedBy: 'Front Desk',
       totalSpend: 135000,
       timeline: [
         {
@@ -655,7 +663,11 @@ export function VipPreviewPanel({ onSwitchTab: _onSwitchTab }: { onSwitchTab?: (
           onClose={() => setSelectedVipProfile(null)}
           footer={
             <div className="flex items-center justify-between w-full">
-              <span className="text-xs text-mist-400">Station FD-02 · Verified VIP Profile</span>
+              <span className="text-xs text-mist-400">
+                {selectedVipProfile.verifiedBy === 'General Manager'
+                  ? 'Verified by General Manager'
+                  : 'Verified by Front Desk'}
+              </span>
               <Button variant="accent" onClick={() => setSelectedVipProfile(null)}>
                 Close Profile
               </Button>
